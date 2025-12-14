@@ -171,7 +171,11 @@ static void PrinterSingleton_append(fptr name, printerFunction function) {
         sizeof(printerFunction),
         NULL, 0
     );
-  HHMap_fset(PrinterSingleton.data, name, REF(printerFunction, function));
+  HHMap_fset(
+      PrinterSingleton.data,
+      name,
+      REF(printerFunction, function)
+  );
 }
 
 static printerFunction PrinterSingleton_get(fptr name) {

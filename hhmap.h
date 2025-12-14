@@ -320,17 +320,13 @@ bool HHMap_getSet(HHMap *map, const void *key, void *val) {
   return false;
 }
 void HHMap_fset(HHMap *map, const fptr key, void *val) {
-
-  // HHMap *hm = (HHMap *)aAlloc(
-  //     allocator,
-  //     sizeof(HHMap) +
-  //         metaSize * sizeof(HHMap_LesserList) +
-  //         metaSize * sizeof(void *) +
-  //         2 * (kSize + vSize)
-  // );
-  u8 *nname = ((u8 *)map) + sizeof(HHMap) + map->metaSize * (sizeof(HHMap_LesserList) + sizeof(void *) + map->keysize + map->valsize);
-  memset(nname, 0, HHMap_getKeySize(map));
+  assertMessage(key.width <= HHMap_getKeySize(map));
+  u8 *nname = ((u8 *)map) +
+              sizeof(HHMap) +
+              map->metaSize * (sizeof(HHMap_LesserList) + sizeof(void *)) +
+              map->keysize + map->valsize;
   memcpy(nname, key.ptr, key.width);
+  memset(nname + key.width, 0, HHMap_getKeySize(map) - key.width);
   return HHMap_set(map, nname, val);
 }
 HHMap_both HHMap_getBoth(HHMap *map, const void *key) {
