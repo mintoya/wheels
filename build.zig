@@ -22,7 +22,6 @@ pub fn build(b: *std.Build) void {
             .flags = &.{
                 "-w",
                 "-g",
-                "-O0",
                 "-fsanitize=address",
                 "-D_GNU_SOURCE",
             },
@@ -35,7 +34,6 @@ pub fn build(b: *std.Build) void {
             .flags = &.{
                 "-w",
                 "-g",
-                "-O0",
             },
         });
         exe.linkSystemLibrary("dbghelp");

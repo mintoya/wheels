@@ -67,27 +67,27 @@ static void stdoutPrint(
   {
     wchar buf[bufLen];
     char crBuf[bufLen / sizeof(wchar) * 4];
-    size_t place;
-    size_t crPlace;
+    usize place;
+    usize crPlace;
   } buf = {
       0
   };
 
   if (buf.place + length >= bufLen || flush) {
     buf.crPlace = 0;
-    for (size_t i = 0; i < buf.place; i++)
+    for (usize i = 0; i < buf.place; i++)
       buf.crPlace += wcrtomb(buf.crBuf + buf.crPlace, buf.buf[i], &mbs);
     fwrite(buf.crBuf, sizeof(char), buf.crPlace, stdout);
     buf.crPlace = 0;
 
     char *useBuffer;
-    size_t useBufferPlace = 0;
+    usize useBufferPlace = 0;
     if (length > bufLen) {
       useBuffer = (char *)aAlloc(defaultAlloc, length * sizeof(char) * 4);
     } else {
       useBuffer = buf.crBuf;
     }
-    for (size_t i = 0; i < length; i++)
+    for (usize i = 0; i < length; i++)
       useBufferPlace += wcrtomb(useBuffer + useBufferPlace, c[i], &mbs);
     fwrite(useBuffer, sizeof(char), useBufferPlace, stdout);
 
@@ -114,10 +114,10 @@ static void snPrint(
   (void)flush;
   ffptr snBuff = *(ffptr *)buffer;
 
-  size_t start = snBuff.fptrp.width;
-  size_t end1 = snBuff.fptrp.width + length;
-  size_t end2 = snBuff.ffptr.capacity;
-  const size_t end = end1 < end2 ? end1 : end2;
+  usize start = snBuff.fptrp.width;
+  usize end1 = snBuff.fptrp.width + length;
+  usize end2 = snBuff.ffptr.capacity;
+  const usize end = end1 < end2 ? end1 : end2;
 
   for (; start < end; start++)
     snBuff.fptrp.ptr[start] = c[start - snBuff.fptrp.width];
@@ -141,7 +141,7 @@ static void asPrint(
     List_appendFromArr(list, c, length);
     break;
   case sizeof(char):
-    for (size_t i = 0; i < length; i++)
+    for (usize i = 0; i < length; i++)
       List_append(list, (char *)(c + i));
     break;
   default:
@@ -319,16 +319,14 @@ struct print_arg {
 // ex: "fptr<void>: c0 length"
 //
 // #include "printer/genericName.h"
-// MAKE_PRINT_ARG_TYPE(size_t);
+// MAKE_PRINT_ARG_TYPE(usize);
 // extends types assumed with ${} in c 
 // 
-// MAKE_PRINT_ARG_TYPE(size_t);
+// MAKE_PRINT_ARG_TYPE(usize);
 // does the same in cpp
 
-  typedef char *char_ptr;
-  typedef wchar *wchar_ptr;
   REGISTER_PRINTER(fptr, {
-    if (in.ptr) {for(size_t i = 0;i<in.width;i++){
+    if (in.ptr) {for(usize i = 0;i<in.width;i++){
       wchar c = (wchar)in.ptr[i];
       PUTC(c);
     }} else { PUTS(L"__NULLUMF__"); }
@@ -350,17 +348,19 @@ struct print_arg {
     }
 
   });
-  REGISTER_PRINTER(char_ptr, {
-    in = nullElse(in,(char_ptr)"__NULLCSTR__");
-    while(*in){ PUTC((wchar)*in); in++; } 
-  });
-  REGISTER_SPECIAL_PRINTER("cstr", char_ptr,{USETYPEPRINTER(char_ptr, in);});
-  REGISTER_PRINTER(wchar_ptr, { while(*in){ PUTC(*in); in++; } });
   REGISTER_PRINTER(char, {PUTC((wchar)in);});
   REGISTER_PRINTER(wchar, {PUTC(in);});
+  REGISTER_SPECIAL_PRINTER("cstr", char*,{
+    in = nullElse(in,(char*)"__NULLCSTR__");
+    while(*in){ PUTC((wchar)*in); in++; } 
+  });
+  REGISTER_SPECIAL_PRINTER("wcstr", wchar*,{
+    in = nullElse(in,(wchar*)"__NULLCSTR__");
+    while(*in){ PUTC(*in); in++; } 
+  });
 
-  REGISTER_PRINTER(size_t, {
-    size_t l = 1;
+  REGISTER_PRINTER(usize, {
+    usize l = 1;
     while (l <= in / 10)
       l *= 10;
     while (l) {
@@ -371,7 +371,7 @@ struct print_arg {
     }
   });
   REGISTER_PRINTER(uint, {
-      USETYPEPRINTER(size_t, in);
+      USETYPEPRINTER(usize, (usize)in);
   });
   REGISTER_PRINTER(int, {
     if (in < 0) {
@@ -380,29 +380,7 @@ struct print_arg {
     }
     USETYPEPRINTER(uint, (uint)in);
   });
-  REGISTER_PRINTER(float, {
-    if (in < 0) {
-      PUTC(L'-');
-      in *= -1;
-    }
-    int push = 0;
-    while (((int)in)) {
-      in /= 10;
-      push++;
-    }
-    in *= 10;
-    if(!push)
-      PUTC(L'.');
-    for (int i = 0; i < 6; i++) {
-      wchar dig = L'0';
-      dig += ((unsigned int)in) % 10;
-      PUTC(dig);
-      if (i + 1 == push)
-        PUTC(L'.');
-      in *= 10;
-    }
-  });
-  REGISTER_PRINTER(double, {
+  REGISTER_PRINTER(f64, {
     if (in < 0) {
       PUTC(L'-');
       in *= -1;
@@ -440,7 +418,7 @@ struct print_arg {
 
       PUTC(L'<');
       if (useLength) {
-          USETYPEPRINTER(size_t, in.width);
+          USETYPEPRINTER(usize, in.width);
       }
       PUTC(L'<');
 
@@ -524,29 +502,22 @@ struct print_arg {
   });
 // type assumption
 #ifndef __cplusplus
+
   #include "printer/genericName.h"
   #define MAKE_PRINT_ARG_TYPE(type) MAKE_NEW_TYPE(type)
   MAKE_PRINT_ARG_TYPE(int);
   #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(fptr);
   #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(size_t);
+  MAKE_PRINT_ARG_TYPE(usize);
   #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(char_ptr);
-  #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(float);
-  #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(double);
+  MAKE_PRINT_ARG_TYPE(f64);
   #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(char);
   #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(uint);
   #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(pEsc);
-  // #include "printer/genericName.h"
-  // MAKE_PRINT_ARG_TYPE(wchar);
-  // #include "printer/genericName.h"
-  // MAKE_PRINT_ARG_TYPE(wchar_ptr);
    
   #define MAKE_PRINT_ARG(a)               \
     ((struct print_arg){                  \
@@ -563,16 +534,13 @@ struct print_arg {
     constexpr const char *type_name_cstr<type>() { return #type; }
   
   MAKE_PRINT_ARG_TYPE(int);
-  MAKE_PRINT_ARG_TYPE(uint);
   MAKE_PRINT_ARG_TYPE(fptr);
+  MAKE_PRINT_ARG_TYPE(usize);
+  MAKE_PRINT_ARG_TYPE(f64);
   MAKE_PRINT_ARG_TYPE(char);
+  MAKE_PRINT_ARG_TYPE(uint);
   MAKE_PRINT_ARG_TYPE(pEsc);
-  MAKE_PRINT_ARG_TYPE(wchar);
-  MAKE_PRINT_ARG_TYPE(float);
-  MAKE_PRINT_ARG_TYPE(size_t);
-  MAKE_PRINT_ARG_TYPE(double);
-  MAKE_PRINT_ARG_TYPE(char_ptr);
-  MAKE_PRINT_ARG_TYPE(wchar_ptr);
+   
   
   #define MAKE_PRINT_ARG(a)                                          \
     ((struct print_arg){                                             \
@@ -626,7 +594,7 @@ void print_f(outputFunction put, void *arb, fptr fmt, ...);
       "==============================\n",
       HHMap_getMetaSize(PrinterSingleton.data),
       HHMap_footprint(PrinterSingleton.data),
-      (size_t)HHMap_count(PrinterSingleton.data),
+      (usize)HHMap_count(PrinterSingleton.data),
       (int)HHMap_countCollisions(PrinterSingleton.data),
       (int)HHMap_getKeySize(PrinterSingleton.data)
   );
@@ -648,7 +616,7 @@ fptr wchar_toUtf8(const My_allocator *allocator, fptr wbuf) {
   };
   wchar *wb = (wchar *)wbuf.ptr;
   mbstate_t mbs = {0};
-  for (size_t i = 0; i < (wbuf.width / sizeof(wchar)); i++)
+  for (usize i = 0; i < (wbuf.width / sizeof(wchar)); i++)
     res.width += wcrtomb(
         (char *)(res.ptr + res.width),
         wb[i],
@@ -665,7 +633,7 @@ inline unsigned int printer_arg_indexOf(fptr string, char c) {
 }
 
 inline fptr printer_arg_until(char delim, fptr string) {
-  size_t i = 0;
+  usize i = 0;
   uint8_t *ptr = (uint8_t *)string.ptr;
   while (i < string.width && ptr[i] != delim)
     i++;
@@ -674,7 +642,7 @@ inline fptr printer_arg_until(char delim, fptr string) {
 }
 
 inline fptr printer_arg_after(char delim, fptr slice) {
-  size_t i = 0;
+  usize i = 0;
   uint8_t *ptr = slice.ptr;
   while (i < slice.width && ptr[i] != delim)
     i++;
@@ -694,7 +662,7 @@ inline fptr printer_arg_trim(fptr in) {
     back--;
   }
   res = (fptr){
-      .width = (size_t)(back - front + 1),
+      .width = (usize)(back - front + 1),
       .ptr = in.ptr + front,
   };
   return res;

@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stddef.h>
 
 typedef wchar_t wchar;
 typedef unsigned int uint;
