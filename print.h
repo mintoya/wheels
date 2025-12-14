@@ -19,7 +19,7 @@ typedef void (*outputFunction)(
     const wchar *,
     void *,
     unsigned int,
-    char
+    bool
 );
 typedef void (*printerFunction)(
     outputFunction,
@@ -59,7 +59,7 @@ static void stdoutPrint(
     const wchar *c,
     void *,
     unsigned int length,
-    char flush
+    bool flush
 ) {
   #define bufLen (2 << 16)
   mbstate_t mbs = {0};
@@ -129,7 +129,7 @@ static void asPrint(
     const wchar *c,
     void *listptr,
     unsigned int length,
-    char flush
+    bool flush
 ) {
   (void)flush;
   assertMessage(listptr != NULL);
@@ -601,7 +601,9 @@ void print_f(outputFunction put, void *arb, fptr fmt, ...);
 }
 #endif // PRINTER_LIST_TYPENAMES
 
-fptr wchar_toUtf8(const My_allocator *allocator, fptr wbuf);
+// converts wchars to chars
+// writes length to olen
+void wchar_toUtf8(wchar *input, u32 wlen, u8 *output, u32 *olen);
 #endif
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
@@ -609,20 +611,15 @@ fptr wchar_toUtf8(const My_allocator *allocator, fptr wbuf);
 #pragma once
 #endif
 #ifdef PRINTER_C
-fptr wchar_toUtf8(const My_allocator *allocator, fptr wbuf) {
-  fptr res = {
-      0,
-      (u8 *)aAlloc(allocator, 4 * (wbuf.width / sizeof(wchar))),
-  };
-  wchar *wb = (wchar *)wbuf.ptr;
+void wchar_toUtf8(wchar *input, u32 wlen, u8 *output, u32 *olen) {
+  assertMessage(*olen == 0, "this function will increment olen");
   mbstate_t mbs = {0};
-  for (usize i = 0; i < (wbuf.width / sizeof(wchar)); i++)
-    res.width += wcrtomb(
-        (char *)(res.ptr + res.width),
-        wb[i],
+  for (usize i = 0; i < wlen; i++)
+    *olen += wcrtomb(
+        (char *)(output + *olen),
+        input[i],
         &mbs
     );
-  return res;
 }
 inline unsigned int printer_arg_indexOf(fptr string, char c) {
   int i;
