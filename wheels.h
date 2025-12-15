@@ -10,8 +10,8 @@
   #include "kmlM.h"
 #endif
 
-#ifdef PRINTER_H
-  #define PRINTER_C
+#ifdef MY_PRINTER_H
+  #define MY_PRINTER_C
   #include "print.h"
 #endif
 

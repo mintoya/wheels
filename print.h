@@ -1,5 +1,5 @@
-#ifndef PRINTER_H
-#define PRINTER_H
+#ifndef MY_PRINTER_H
+#define MY_PRINTER_H
 #include <errno.h>
 #include <locale.h>
 #include <malloc.h>
@@ -216,11 +216,7 @@ static printerFunction PrinterSingleton_get(fptr name) {
 // clang-format on
 
 [[gnu::constructor(201)]] static void printerInit() {
-#ifdef __WIN32
   setlocale(LC_ALL, "");
-#else
-  setlocale(LC_ALL, ".UTF8");
-#endif
   PrinterSingleton_init();
 }
 [[gnu::destructor]] static void printerDeinit() { PrinterSingleton_deinit(); }
@@ -607,10 +603,10 @@ void wchar_toUtf8(wchar *input, u32 wlen, u8 *output, u32 *olen);
 #endif
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
-#define PRINTER_C (1)
+#define MY_PRINTER_C (1)
 #pragma once
 #endif
-#ifdef PRINTER_C
+#ifdef MY_PRINTER_C
 void wchar_toUtf8(wchar *input, u32 wlen, u8 *output, u32 *olen) {
   assertMessage(*olen == 0, "this function will increment olen");
   mbstate_t mbs = {0};
