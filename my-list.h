@@ -61,9 +61,9 @@ extern inline size_t List_headArea(const List *l);
 ATTR(pure, gnu)
 extern inline size_t List_fullHeadArea(const List *l);
 ATTR(pure, gnu)
-extern inline void *List_getRefForce(const List *l, unsigned int i);
+inline void *List_getRefForce(const List *l, unsigned int i);
 ATTR(pure, gnu)
-extern inline void *List_getRef(const List *l, unsigned int i);
+inline void *List_getRef(const List *l, unsigned int i);
 extern inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t init);
 extern inline List_opError List_resize(List *l, unsigned int newSize);
 
@@ -184,11 +184,11 @@ inline size_t List_fullHeadArea(const List *l) {
   return (l->width * l->size);
 }
 ATTR(pure, gnu)
-inline void *List_getRefForce(const List *l, unsigned int i) {
+void *List_getRefForce(const List *l, unsigned int i) {
   return (l->head + l->width * i);
 }
 ATTR(pure, gnu)
-inline void *List_getRef(const List *l, unsigned int i) {
+void *List_getRef(const List *l, unsigned int i) {
   if (List_validState(l) != OK)
     return NULL;
 
