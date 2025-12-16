@@ -1,7 +1,6 @@
-#include "clangdinlcude.h"
 #ifndef MY_ALLOCATOR_H
-  #define MY_ALLOCATOR_H
-  #include <stddef.h>
+#define MY_ALLOCATOR_H
+#include <stddef.h>
 
 typedef struct My_allocator My_allocator;
 typedef void *(*My_allocatorAlloc)(const My_allocator *, size_t);
@@ -33,19 +32,19 @@ void *default_r_alloc(const My_allocator *allocator, void *p, size_t s);
 void default_free(const My_allocator *allocator, void *p);
 // extern const My_allocator *defaultAlloc;
 extern inline const My_allocator *getDefaultAllocator(void);
-  #define defaultAlloc (getDefaultAllocator())
+#define defaultAlloc (getDefaultAllocator())
 
-  // not making one for getsize
-  #define aAlloc(allocator, size) ((allocator)->alloc(allocator, size))
-  #define aRealloc(allocator, oldptr, size) ((allocator)->ralloc(allocator, oldptr, size))
-  #define aFree(allocator, oldptr) ((allocator)->free(allocator, oldptr))
+// not making one for getsize
+#define aAlloc(allocator, size) ((allocator)->alloc(allocator, size))
+#define aRealloc(allocator, oldptr, size) ((allocator)->ralloc(allocator, oldptr, size))
+#define aFree(allocator, oldptr) ((allocator)->free(allocator, oldptr))
 #endif // MY_ALLOCATOR_H
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
-  #define MY_ALLOCATOR_C (1)
+#define MY_ALLOCATOR_C (1)
 #endif
 #ifdef MY_ALLOCATOR_C
-  #include <stdlib.h>
+#include <stdlib.h>
 void *default_alloc(const My_allocator *allocator, size_t s) {
   (void)allocator;
   return malloc(s);
@@ -58,7 +57,7 @@ void default_free(const My_allocator *allocator, void *p) {
   (void)allocator;
   return free(p);
 }
-  #include "fptr.h"
+#include "fptr.h"
 const My_allocator defaultAllocator = (My_allocator){default_alloc, default_free, default_r_alloc};
 const My_allocator *getDefaultAllocator(void) {
   return &defaultAllocator;

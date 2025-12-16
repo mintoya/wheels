@@ -142,6 +142,22 @@ static void List_cleanup_handler(List **l) {
 #define MY_LIST_C (1)
 #endif
 #ifdef MY_LIST_C
+#ifndef LIST_NOCHECKS
+inline List_opError List_validState(const List *l) {
+  // clang-format off
+  return (
+      l &&
+      l->width &&
+      l->size &&
+      l->head &&
+      l->allocator &&
+      l->size >= l->length
+  )?OK:INVALID;
+  // clang-format on
+}
+#else
+inline List_opError List_validState(const List *l) { return (OK); }
+#endif
 const struct List_opErrorStruct List_opErrorS = {
     OK, CANTRESIZE, INVALID
 };
@@ -178,18 +194,6 @@ inline void *List_getRef(const List *l, unsigned int i) {
 
   return (i < l->length) ? (l->head + l->width * i) : (NULL);
 }
-inline List_opError List_validState(const List *l) {
-  // clang-format off
-  return (
-      l &&
-      l->width &&
-      l->size &&
-      l->head &&
-      l->allocator &&
-      l->size >= l->length
-  )?OK:INVALID;
-  // clang-format on
-}
 inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t initialSize) {
   if (!l)
     return;
@@ -211,7 +215,12 @@ inline void List_free(List *l) {
   aFree(l->allocator, l);
 }
 ATTR(pure, gnu)
-inline uint32_t List_length(List *l) { return l->length; }
+inline uint32_t List_length(List *l) {
+  if (l)
+    return l->length;
+  else
+    return 0;
+}
 inline void List_set(List *l, unsigned int i, const void *element) {
   if (List_validState(l) != OK)
     return;

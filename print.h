@@ -1,5 +1,6 @@
 #ifndef MY_PRINTER_H
 #define MY_PRINTER_H
+#include <bits/types/mbstate_t.h>
 #include <errno.h>
 #include <locale.h>
 #include <malloc.h>
@@ -95,6 +96,7 @@ static void stdoutPrint(
       aFree(defaultAlloc, useBuffer);
 
     buf.place = 0;
+    fflush(stdout);
   } else {
     memcpy(buf.buf + buf.place, c, length * sizeof(wchar));
     buf.place += length;
@@ -140,15 +142,57 @@ static void asPrint(
   case sizeof(wchar):
     List_appendFromArr(list, c, length);
     break;
-  case sizeof(char):
-    for (usize i = 0; i < length; i++)
-      List_append(list, (char *)(c + i));
-    break;
+  case sizeof(char): {
+    mbstate_t mbs = {0};
+
+    usize out = list->length;
+    List_resize(list, out + length * MB_CUR_MAX);
+
+    char *dst = (char *)List_getRefForce(list, out);
+
+    for (u32 i = 0; i < length; i++) {
+      usize l = wcrtomb(dst, c[i], &mbs);
+      assertMessage(l != (size_t)-1);
+      dst += l;
+      out += l;
+    }
+
+    list->length = out;
+  } break;
   default:
     assertMessage(false, "sizes %lu & %lu \n %lu not supported\n", sizeof(wchar), sizeof(char), list->width);
     break;
   }
   *(List **)listptr = list;
+}
+
+static void fileprint(
+    const wchar_t *c,
+    void *fileHandle,
+    unsigned int length,
+    bool flush
+) {
+  FILE *f;
+  mbstate_t st;
+  char buf[MB_CUR_MAX];
+  unsigned int i;
+
+  assertMessage(fileHandle);
+  f = (FILE *)fileHandle;
+
+  memset(&st, 0, sizeof(st));
+
+  for (i = 0; i < length; ++i) {
+    size_t n = wcrtomb(buf, c[i], &st);
+    if (n == (size_t)-1) {
+      break; /* invalid wchar, stop */
+    }
+    fwrite(buf, 1, n, f);
+  }
+
+  if (flush) {
+    fflush(f);
+  }
 }
 
 static struct {
@@ -398,68 +442,41 @@ struct print_arg {
       in *= 10;
     }
   });
+
+  REGISTER_SPECIAL_PRINTER("fptr<wchar>",fptr, {
+      put((wchar*)in.ptr,_arb,in.width/sizeof(wchar),0);
+  });
   REGISTER_SPECIAL_PRINTER("fptr<void>", fptr, {
       const wchar hex_chars[17] = L"0123456789abcdef";
       char cut0s = 0;
       char useLength = 0;
-
       PRINTERARGSEACH({
-        UM_SWITCH(arg,{
-          UM_CASE(fp_from("c0"),{cut0s = 1;});
-          UM_CASE(fp_from("length"),{useLength = 1;});
-          UM_DEFAULT();
-        });
+          UM_SWITCH(arg,{
+              // UM_CASE(fp_from("c0"),{cut0s = 1;});
+              UM_CASE(fp_from("length"),{useLength = 1;});
+              UM_DEFAULT();
+          });
       });
-
-
-      PUTC(L'<');
-      if (useLength) {
-          USETYPEPRINTER(usize, in.width);
-      }
-      PUTC(L'<');
-
-      int zero_count = 0;
-      while (in.width) {
-          uint8_t byte = ((uint8_t *)in.ptr)[in.width - 1];
-          unsigned char top = byte >> 4;
-          unsigned char bottom = byte & 0x0F;
-
-          if (!top && !bottom) {
-              zero_count += 2;
-          } else if (top == 0) {
-              zero_count += 1;
-          } else if (bottom == 0) {
-              zero_count += 1;
-          }
-          if (top || bottom) {
-              if (zero_count) {
-                  if (cut0s) {
-                      PUTC(L'(');
-                      USETYPEPRINTER(uint, (uint)zero_count);
-                      PUTC(L')');
-                  } else {
-                      for (uint i = 0; i < zero_count; i++) PUTC(L'0');
-                  }
-                  zero_count = 0;
+      USETYPEPRINTER(usize,in.width);
+      PUTS(L"<");
+      usize start = 0;
+      if(cut0s) {
+          for(usize i = 0; i < in.width; i++) {
+              if(in.ptr[i] != 0) {
+                  start = i;
+                  break;
               }
-              if (top) PUTC(*( hex_chars + top ));
-              if (bottom) PUTC(*( hex_chars + bottom ));
-          }
-          in.width--;
-      }
-      if (zero_count) {
-          if (cut0s) {
-              PUTC(L'(');
-              USETYPEPRINTER(int, zero_count);
-              PUTC(L')');
-          } else {
-              for (int i = 0; i < zero_count; i++) PUTC(L'0');
           }
       }
-
-      PUTS(L">>");
+      
+      for(usize i = start; i < in.width; i++) {
+          u8 top = (in.ptr[i] & 0xF0) >> 4;  
+          u8 bottom = in.ptr[i] & 0x0F;
+          PUTC(hex_chars[top]);
+          PUTC(hex_chars[bottom]);
+      }
+      PUTS(L">");
   });
-
   REGISTER_PRINTER(pEsc, {
     if (in.poset) {
 
@@ -495,6 +512,9 @@ struct print_arg {
     if (in.reset) {
       PUTS(L"\033[0m");
     }
+  });
+  REGISTER_SPECIAL_PRINTER("u8", u8,{
+    USETYPEPRINTER(uint, (uint)in);
   });
 // type assumption
 #ifndef __cplusplus
@@ -562,11 +582,6 @@ void print_f(outputFunction put, void *arb, fptr fmt, ...);
 #define print(fmt, ...) print_wf(defaultPrinter, fmt, __VA_ARGS__)
 #define println(fmt, ...) print(fmt "\n", __VA_ARGS__)
 
-#define print_sn(ffptr, fmt, ...) \
-  print_wfO(snPrint, (&(ffptr)), fmt, __VA_ARGS__);
-#define print_as(listptr, fmt, ...) \
-  print_wfO(asPrint, (&(listptr)), fmt, __VA_ARGS__)
-
 #ifdef PRINTER_LIST_TYPENAMES
 [[gnu::constructor(205)]] static void post_init() {
   outputFunction put = defaultPrinter;
@@ -599,7 +614,7 @@ void print_f(outputFunction put, void *arb, fptr fmt, ...);
 
 // converts wchars to chars
 // writes length to olen
-void wchar_toUtf8(wchar *input, u32 wlen, u8 *output, u32 *olen);
+void wchar_toUtf8(const wchar *input, u32 wlen, u8 *output, u32 *olen);
 #endif
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
@@ -607,8 +622,8 @@ void wchar_toUtf8(wchar *input, u32 wlen, u8 *output, u32 *olen);
 #pragma once
 #endif
 #ifdef MY_PRINTER_C
-void wchar_toUtf8(wchar *input, u32 wlen, u8 *output, u32 *olen) {
-  assertMessage(*olen == 0, "this function will increment olen");
+void wchar_toUtf8(const wchar *input, u32 wlen, u8 *output, u32 *olen) {
+  // assertMessage(*olen == 0, "this function will increment olen");
   mbstate_t mbs = {0};
   for (usize i = 0; i < wlen; i++)
     *olen += wcrtomb(

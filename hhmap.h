@@ -12,8 +12,11 @@ void HHMap_transform(HHMap **last, usize kSize, usize vSize, const My_allocator 
 void HHMap_free(HHMap *hm);
 void *HHMap_get(const HHMap *, const void *);
 void HHMap_set(HHMap *map, const void *key, const void *val);
+u32 HHMap_getBucketSize(const HHMap *, u32);
 u32 HHMap_getMetaSize(const HHMap *);
+void *HHMap_getCoord(const HHMap *, u32 bucket, u32 index);
 u32 HHMap_count(const HHMap *map);
+void HHMap_clear(HHMap *map);
 u8 *HHMap_getKeyBuffer(const HHMap *map);
 extern inline void *HHMap_getKey(const HHMap *map, u32 n);
 extern inline void *HHMap_getVal(const HHMap *map, u32 n);
@@ -243,6 +246,7 @@ void *HHMap_get(const HHMap *map, const void *key) {
 usize HHMap_getKeySize(const HHMap *map) { return map->keysize; }
 usize HHMap_getValSize(const HHMap *map) { return map->valsize; }
 u32 HHMap_getMetaSize(const HHMap *map) { return map->metaSize; }
+u32 HHMap_getBucketSize(const HHMap *map, u32 idx) { return map->lists[idx].length; }
 
 u8 *HHMap_getKeyBuffer(const HHMap *map) {
   u32 metasize = map->metaSize;
@@ -334,6 +338,22 @@ HHMap_both HHMap_getBoth(HHMap *map, const void *key) {
   if (!place)
     return (HHMap_both){NULL, NULL};
   return (HHMap_both){place - map->valsize, place};
+}
+
+void HHMap_clear(HHMap *map) {
+  for (u32 i = 0; i < map->metaSize; i++)
+    map->lists[i].length = 0;
+}
+void *HHMap_getCoord(const HHMap *map, u32 bucket, u32 index) {
+  if (bucket > map->metaSize)
+    return NULL;
+  HHMap_LesserList ll = map->lists[bucket];
+  if (index > ll.length)
+    return NULL;
+  return (
+      (u8 *)(map->listHeads[bucket]) +
+      (map->valsize + map->keysize) * index
+  );
 }
 
 #endif // HHMAP_C
