@@ -2,6 +2,13 @@
 #define MY_ALLOCATOR_H
 #include <stddef.h>
 
+[[gnu::pure]]
+static size_t lineup(size_t unaligned, size_t aligneder) {
+  if (unaligned % aligneder != 0) {
+    return unaligned + aligneder - unaligned % aligneder;
+  }
+  return unaligned;
+}
 typedef struct My_allocator My_allocator;
 typedef void *(*My_allocatorAlloc)(const My_allocator *, size_t);
 typedef void (*My_allocatorFree)(const My_allocator *, void *);
@@ -49,9 +56,13 @@ void *default_alloc(const My_allocator *allocator, size_t s) {
   (void)allocator;
   return malloc(s);
 }
+#include "fptr.h"
 void *default_r_alloc(const My_allocator *allocator, void *p, size_t s) {
   (void)allocator;
-  return realloc(p, s);
+  assertMessage(p);
+  void *res = realloc(p, s);
+  assertMessage(res);
+  return res;
 }
 void default_free(const My_allocator *allocator, void *p) {
   (void)allocator;

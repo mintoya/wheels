@@ -93,8 +93,8 @@ List *List_fromArr(const My_allocator *, const void *source, unsigned int size, 
 List_opError List_appendFromArr(List *l, const void *source, unsigned int i);
 
 extern inline uint32_t List_length(const List *l);
-extern inline void List_set(List *l, unsigned int i, const void *_Nullable element);
-extern inline uint32_t List_search(const List *l, const void *_Nullable element);
+extern inline void List_set(List *l, unsigned int i, const void *element);
+extern inline uint32_t List_search(const List *l, const void * element);
 extern inline void List_remove(List *l, unsigned int i);
 extern inline void List_zeroOut(List *l);
 void *List_toBuffer(List *l);

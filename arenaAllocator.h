@@ -29,12 +29,6 @@ extern const My_allocator *pageAllocator;
 //
 
 #include "fptr.h"
-size_t lineup(size_t unaligned, size_t aligneder) {
-  if (unaligned % aligneder != 0) {
-    return unaligned + aligneder - unaligned % aligneder;
-  }
-  return unaligned;
-}
 #define PAGESIZE
 
 void *getPage(size_t);
