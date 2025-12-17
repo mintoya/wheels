@@ -68,7 +68,7 @@ ATTR(pure, gnu)
 static void *List_getRef(const List *l, unsigned int i) {
   if (List_validState(l) != OK)
     return NULL;
-  return (i < l->length) ? (l->head + l->width * i) : (NULL);
+  return l && (i < l->length) ? (l->head + l->width * i) : (NULL);
 }
 extern inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t init);
 extern inline List_opError List_resize(List *l, unsigned int newSize);
@@ -94,7 +94,7 @@ List_opError List_appendFromArr(List *l, const void *source, unsigned int i);
 
 extern inline uint32_t List_length(const List *l);
 extern inline void List_set(List *l, unsigned int i, const void *element);
-extern inline uint32_t List_search(const List *l, const void * element);
+extern inline uint32_t List_search(const List *l, const void *element);
 extern inline void List_remove(List *l, unsigned int i);
 extern inline void List_zeroOut(List *l);
 void *List_toBuffer(List *l);

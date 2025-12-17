@@ -455,12 +455,14 @@ struct print_arg {
       char useLength = 0;
       PRINTERARGSEACH({
           UM_SWITCH(arg,{
-              // UM_CASE(fp_from("c0"),{cut0s = 1;});
               UM_CASE(fp_from("length"),{useLength = 1;});
               UM_DEFAULT();
           });
       });
-      USETYPEPRINTER(usize,in.width);
+      if(useLength){
+        PUTS(L"<");
+        USETYPEPRINTER(usize,in.width);
+      }
       PUTS(L"<");
       usize start = 0;
       if(cut0s) {
@@ -479,6 +481,8 @@ struct print_arg {
           PUTC(hex_chars[bottom]);
       }
       PUTS(L">");
+      if(useLength)
+        PUTS(L">");
   });
   REGISTER_PRINTER(pEsc, {
     if (in.poset) {
