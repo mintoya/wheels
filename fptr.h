@@ -335,6 +335,7 @@ static int fptr_toInt(const fptr in) {
   #else
     #define assertMessage(...)
   #endif
+  #define assertOnce(...) ({static bool hasRun = false; if(!hasRun)assertMessage(__VA_ARGS__);hasRun=true; })
 
   #define valElse(expr, ovalue, ...)   \
     /* returns "else" block, or exit*/ \

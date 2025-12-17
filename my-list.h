@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#define NEW_ATTR
+
 #ifdef OLD_ATTR
   #define ATTR(arg, ...) __attribute__((arg))
 #elifdef NEW_ATTR
@@ -63,7 +65,11 @@ extern inline size_t List_fullHeadArea(const List *l);
 ATTR(pure, gnu)
 inline void *List_getRefForce(const List *l, unsigned int i);
 ATTR(pure, gnu)
-inline void *List_getRef(const List *l, unsigned int i);
+static void *List_getRef(const List *l, unsigned int i) {
+  if (List_validState(l) != OK)
+    return NULL;
+  return (i < l->length) ? (l->head + l->width * i) : (NULL);
+}
 extern inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t init);
 extern inline List_opError List_resize(List *l, unsigned int newSize);
 
@@ -86,9 +92,9 @@ List_opError List_pad(List *l, unsigned int ammount);
 List *List_fromArr(const My_allocator *, const void *source, unsigned int size, unsigned int length);
 List_opError List_appendFromArr(List *l, const void *source, unsigned int i);
 
-extern inline uint32_t List_length(List *l);
-extern inline void List_set(List *l, unsigned int i, const void *element);
-extern inline uint32_t List_search(const List *l, const void *element);
+extern inline uint32_t List_length(const List *l);
+extern inline void List_set(List *l, unsigned int i, const void *_Nullable element);
+extern inline uint32_t List_search(const List *l, const void *_Nullable element);
 extern inline void List_remove(List *l, unsigned int i);
 extern inline void List_zeroOut(List *l);
 void *List_toBuffer(List *l);
@@ -187,13 +193,6 @@ ATTR(pure, gnu)
 void *List_getRefForce(const List *l, unsigned int i) {
   return (l->head + l->width * i);
 }
-ATTR(pure, gnu)
-void *List_getRef(const List *l, unsigned int i) {
-  if (List_validState(l) != OK)
-    return NULL;
-
-  return (i < l->length) ? (l->head + l->width * i) : (NULL);
-}
 inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t initialSize) {
   if (!l)
     return;
@@ -215,7 +214,7 @@ inline void List_free(List *l) {
   aFree(l->allocator, l);
 }
 ATTR(pure, gnu)
-inline uint32_t List_length(List *l) {
+inline uint32_t List_length(const List *l) {
   if (l)
     return l->length;
   else
