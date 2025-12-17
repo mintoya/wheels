@@ -122,16 +122,16 @@ void returnPage(void *page) {
   #error couldnt find page allocator
 #endif
 
-void *allocatePage(const My_allocator *, size_t size) {
+void *allocatePage(const My_allocator *_, size_t size) {
   size_t pagesize = PAGESIZE;
   size = lineup(size, pagesize);
   void *res = getPage(size);
   return res;
 }
-void freePage(const My_allocator *, void *page) {
+void freePage(const My_allocator *_, void *page) {
   return returnPage(page);
 }
-void *reallocatePage(const My_allocator *, void *page, size_t) {
+void *reallocatePage(const My_allocator *_, void *page, size_t __) {
   assertMessage(false, "dont reallocate pages");
   return NULL;
 }
@@ -265,7 +265,7 @@ My_allocator *arena_new_ext(const My_allocator *base, size_t blockSize) {
   return res;
 }
 bool inarena(ArenaBlock *it, const void *ptr) {
-  return ptr > it->buffer && ptr < it->buffer + it->size;
+  return (uintptr_t)ptr > (uintptr_t)it->buffer && (uintptr_t)ptr < (uintptr_t)it->buffer + (uintptr_t)it->size;
 }
 void *arena_r_alloc(const My_allocator *arena, void *ptr, size_t size) {
   size = lineup(size, alignof(max_align_t));
