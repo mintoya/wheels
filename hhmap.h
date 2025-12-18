@@ -12,11 +12,11 @@ void HHMap_transform(HHMap **last, usize kSize, usize vSize, const My_allocator 
 void HHMap_free(HHMap *hm);
 void *HHMap_get(const HHMap *, const void *);
 void HHMap_set(HHMap *map, const void *key, const void *val);
-u32 HHMap_getBucketSize(const HHMap *, u32);
+extern inline u32 HHMap_getBucketSize(const HHMap *, u32);
 u32 HHMap_getMetaSize(const HHMap *);
-void *HHMap_getCoord(const HHMap *, u32 bucket, u32 index);
+extern inline void *HHMap_getCoord(const HHMap *, u32 bucket, u32 index);
 u32 HHMap_count(const HHMap *map);
-void HHMap_clear(HHMap *map);
+extern inline void HHMap_clear(HHMap *map);
 u8 *HHMap_getKeyBuffer(const HHMap *map);
 extern inline void *HHMap_getKey(const HHMap *map, u32 n);
 extern inline void *HHMap_getVal(const HHMap *map, u32 n);
@@ -85,12 +85,36 @@ typedef struct HHMap {
 } HHMap;
 
 static inline umax HHMap_hash(const fptr str) {
-  umax hash = 5381;
-  size_t s = 0;
-  for (; s < str.width; s++)
-    hash = ((hash << 5) + hash) + (str.ptr[s]);
+  switch (str.width) {
 
-  return hash;
+  case sizeof(u64): {
+    u64 key = *(u64 *)(str.ptr);
+    key ^= key >> 33;
+    key *= 0xff51afd7ed558ccdULL;
+    key ^= key >> 33;
+    key *= 0xc4ceb9fe1a85ec53ULL;
+    key ^= key >> 33;
+    return key;
+  } break;
+  case sizeof(u64) * 2: {
+    u64 a = *(u64 *)str.ptr;
+    u64 b = *(u64 *)(str.ptr + sizeof(u64));
+    a ^= a >> 33;
+    a *= 0xff51afd7ed558ccdULL;
+    a ^= b;
+    a ^= a >> 33;
+    a *= 0xc4ceb9fe1a85ec53ULL;
+    a ^= a >> 33;
+    return a;
+  } break;
+  default: {
+    umax hash = 5381;
+    size_t s = 0;
+    for (; s < str.width; s++)
+      hash = ((hash << 5) + hash) + (str.ptr[s]);
+    return hash;
+  }
+  }
 }
 HHMap *HHMap_new(usize kSize, usize vSize, const My_allocator *allocator, u32 metaSize) {
   assertMessage(kSize && vSize && metaSize && allocator);
@@ -202,50 +226,45 @@ void HHMap_transform(HHMap **last, usize kSize, usize vSize, const My_allocator 
 
   *last = newMap;
 }
-
+__attribute__((always_inline)) static inline void *LesserList_getref(usize elw, HHMap_LesserList *hll, void *head, u32 idx) {
+  return (u8 *)head + idx * (elw);
+}
+static inline void LesserList_appendGarbage(usize elw, HHMap_LesserList *hll, void **headptr, const MyAllocator *allocator) {
+  if (!hll->capacity) {
+    *headptr = aAlloc(allocator, elw);
+    hll->capacity = 1;
+  }
+  if (hll->capacity < hll->length + 1) {
+    *headptr = aRealloc(allocator, *headptr, hll->capacity * 2 * elw);
+    hll->capacity *= 2;
+  }
+  hll->length++;
+}
 void HHMap_set(HHMap *map, const void *key, const void *val) {
-  assertMessage(map);
+  // assertMessage(map);
+  usize elw = map->keysize + map->valsize;
   if (!key)
     return;
   u32 lindex = (u32)(HHMap_hash(fptr_fromPL(key, map->keysize)) % map->metaSize);
   HHMap_LesserList *hll = map->lists + lindex;
   void *lh = map->listHeads[lindex];
-  List generated;
-  if (!lh) {
-    lh = aAlloc(map->allocator, map->keysize + map->valsize);
-    generated = (List){
-        .width = map->keysize + map->valsize,
-        .length = 0,
-        .size = 1,
-        .head = (u8 *)lh,
-        .allocator = map->allocator,
-    };
-  } else
-    generated = (List){
-        .width = map->keysize + map->valsize,
-        .length = hll->length,
-        .size = hll->capacity,
-        .head = (u8 *)lh,
-        .allocator = map->allocator,
-    };
   u32 listindex = 0;
-  for (; listindex < generated.length; listindex++)
-    if (!memcmp(List_getRef(&(generated), listindex), key, map->keysize))
+  u8 *place = NULL;
+  for (; listindex < hll->length; listindex++) {
+    place = (u8 *)LesserList_getref(elw, hll, lh, listindex);
+    if (!memcmp(place, key, map->keysize))
       break;
-  if (listindex == generated.length)
-    List_append(&(generated), NULL);
-  u8 *place = (u8 *)List_getRef(&(generated), listindex);
+  }
+  if (listindex == hll->length) {
+    LesserList_appendGarbage(elw, hll, &lh, map->allocator);
+    place = (u8 *)LesserList_getref(elw, hll, lh, hll->length - 1);
+  }
   memcpy(place, key, map->keysize);
   if (val)
     memcpy(place + map->keysize, val, map->valsize);
   else
     memset(place + map->keysize, 0, map->valsize);
-
-  *hll = (HHMap_LesserList){
-      .length = (u16)generated.length,
-      .capacity = (u16)generated.size,
-  };
-  map->listHeads[lindex] = (void *)generated.head;
+  map->listHeads[lindex] = lh;
 }
 
 void *HHMap_get(const HHMap *map, const void *key) {
@@ -253,31 +272,28 @@ void *HHMap_get(const HHMap *map, const void *key) {
     return NULL;
   }
   u32 lindex = (u32)(HHMap_hash(fptr_fromPL(key, map->keysize)) % map->metaSize);
+  usize elw = map->keysize + map->valsize;
   void *lh = map->listHeads[lindex];
   if (!lh)
     return NULL;
   HHMap_LesserList *hll = map->lists + lindex;
-  List generated = (List){
-      .width = map->keysize + map->valsize,
-      .length = hll->length,
-      .size = hll->capacity,
-      .head = (u8 *)lh,
-      .allocator = map->allocator,
-  };
   u32 listindex = 0;
-  for (; listindex < generated.length; listindex++)
-    if (!memcmp(List_getRef(&(generated), listindex), key, map->keysize))
+  u8 *place = NULL;
+  for (; listindex < hll->length; listindex++) {
+    place = (u8 *)LesserList_getref(elw, hll, lh, listindex);
+    if (!memcmp(place, key, map->keysize)) {
       break;
-  if (listindex == generated.length)
+    }
+  }
+  if (listindex == hll->length)
     return NULL;
-  u8 *place = (u8 *)List_getRef(&(generated), listindex);
   return place + map->keysize;
 }
 
 usize HHMap_getKeySize(const HHMap *map) { return map->keysize; }
 usize HHMap_getValSize(const HHMap *map) { return map->valsize; }
 u32 HHMap_getMetaSize(const HHMap *map) { return map->metaSize; }
-u32 HHMap_getBucketSize(const HHMap *map, u32 idx) { return map->lists[idx].length; }
+inline u32 HHMap_getBucketSize(const HHMap *map, u32 idx) { return map->lists[idx].length; }
 
 u8 *HHMap_getKeyBuffer(const HHMap *map) {
   u32 metasize = map->metaSize;
@@ -371,11 +387,12 @@ HHMap_both HHMap_getBoth(HHMap *map, const void *key) {
   return (HHMap_both){place - map->valsize, place};
 }
 
-void HHMap_clear(HHMap *map) {
+inline void HHMap_clear(HHMap *map) {
   for (u32 i = 0; i < map->metaSize; i++)
     map->lists[i].length = 0;
 }
-void *HHMap_getCoord(const HHMap *map, u32 bucket, u32 index) {
+
+inline void *HHMap_getCoord(const HHMap *map, u32 bucket, u32 index) {
   if (bucket > map->metaSize)
     return NULL;
   HHMap_LesserList ll = map->lists[bucket];

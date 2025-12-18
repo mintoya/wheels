@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stddef.h>
+#define _XOPEN_SOURCE 700
 
 typedef wchar_t wchar;
 typedef unsigned int uint;
