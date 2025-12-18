@@ -5,4 +5,6 @@ AlignAfterOpenBracket: BlockIndent
 BinPackParameters: false
 AllowAllParametersOfDeclarationOnNextLine: false
 ColumnLimit: 0
+IndentCaseLabels: true
+IndentGotoLabels: true
 ...

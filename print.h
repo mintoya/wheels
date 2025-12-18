@@ -259,11 +259,7 @@ static printerFunction PrinterSingleton_get(fptr name) {
 // clang-format on
 
 [[gnu::constructor(201)]] static void printerInit() {
-#ifndef _WIN32
-  setlocale(LC_ALL, "");
-#else
-  setlocale(LC_ALL, ".UTF8");
-#endif
+  setlocale(LC_ALL, "C.UTF-8");
   PrinterSingleton_init();
 }
 [[gnu::destructor]] static void printerDeinit() { PrinterSingleton_deinit(); }

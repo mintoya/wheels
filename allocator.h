@@ -1,9 +1,10 @@
 #ifndef MY_ALLOCATOR_H
 #define MY_ALLOCATOR_H
+#include <stdint.h>
 #include <stddef.h>
 
 [[gnu::pure]]
-static size_t lineup(size_t unaligned, size_t aligneder) {
+static uintptr_t lineup(size_t unaligned, size_t aligneder) {
   if (unaligned % aligneder != 0) {
     return unaligned + aligneder - unaligned % aligneder;
   }
