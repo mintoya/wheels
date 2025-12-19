@@ -138,29 +138,29 @@ static void asPrint(
   if (!list)
     list = List_new(defaultAlloc, sizeof(wchar));
   switch (list->width) {
-  case sizeof(wchar):
-    List_appendFromArr(list, c, length);
-    break;
-  case sizeof(char): {
-    mbstate_t mbs = {0};
+    case sizeof(wchar):
+      List_appendFromArr(list, c, length);
+      break;
+    case sizeof(char): {
+      mbstate_t mbs = {0};
 
-    usize out = list->length;
-    List_resize(list, out + length * MB_CUR_MAX);
+      usize out = list->length;
+      List_resize(list, out + length * MB_CUR_MAX);
 
-    char *dst = (char *)List_getRefForce(list, out);
+      char *dst = (char *)List_getRefForce(list, out);
 
-    for (u32 i = 0; i < length; i++) {
-      usize l = wcrtomb(dst, c[i], &mbs);
-      assertMessage(l != (size_t)-1);
-      dst += l;
-      out += l;
-    }
+      for (u32 i = 0; i < length; i++) {
+        usize l = wcrtomb(dst, c[i], &mbs);
+        assertMessage(l != (size_t)-1);
+        dst += l;
+        out += l;
+      }
 
-    list->length = out;
-  } break;
-  default:
-    assertMessage(false, "sizes %lu & %lu \n %lu not supported\n", sizeof(wchar), sizeof(char), list->width);
-    break;
+      list->length = out;
+    } break;
+    default:
+      assertMessage(false, "sizes %lu & %lu \n %lu not supported\n", sizeof(wchar), sizeof(char), list->width);
+      break;
   }
   *(List **)listptr = list;
 }
@@ -258,10 +258,20 @@ static printerFunction PrinterSingleton_get(fptr name) {
 
 // clang-format on
 
+#ifdef _WIN32
+  #include <windows.h>
+[[gnu::constructor(201)]] static void printerInit() {
+  setlocale(LC_ALL, ".UTF-8");
+  SetConsoleOutputCP(CP_UTF8);
+  PrinterSingleton_init();
+}
+#else
 [[gnu::constructor(201)]] static void printerInit() {
   setlocale(LC_ALL, "C.UTF-8");
   PrinterSingleton_init();
 }
+#endif
+
 [[gnu::destructor]] static void printerDeinit() { PrinterSingleton_deinit(); }
 
 #define GETTYPEPRINTERFN(T) _##T##_printer
