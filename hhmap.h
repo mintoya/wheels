@@ -100,10 +100,10 @@ static inline umax HHMap_hash(const fptr str) {
     u64 key = *(u64 *)str.ptr;
     for (uint i = sizeof(u64); i < str.width; i += sizeof(u64)) {
       key ^= key >> 33;
-      key *= 0xff51afd7ed558ccdULL;
+      key *= 0xff51afd7ed558ccd;
       key ^= *(u64 *)(str.ptr + i);
       key ^= key >> 33;
-      key *= 0xc4ceb9fe1a85ec53ULL;
+      key *= 0xc4ceb9fe1a85ec53;
       key ^= key >> 33;
     }
     return key;

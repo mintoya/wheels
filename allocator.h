@@ -1,7 +1,7 @@
 #ifndef MY_ALLOCATOR_H
 #define MY_ALLOCATOR_H
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 [[gnu::pure]]
 static uintptr_t lineup(size_t unaligned, size_t aligneder) {
@@ -46,6 +46,7 @@ extern inline const My_allocator *getDefaultAllocator(void);
 #define aAlloc(allocator, size) ((allocator)->alloc(allocator, size))
 #define aRealloc(allocator, oldptr, size) ((allocator)->ralloc(allocator, oldptr, size))
 #define aFree(allocator, oldptr) ((allocator)->free(allocator, oldptr))
+#define aCreate(allocator, type) ((type *)(aAlloc(allocator, sizeof(type))))
 #endif // MY_ALLOCATOR_H
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)

@@ -64,14 +64,7 @@ inline usize fptr_cstrlen(const char *a) {
     return wd;
   if (!a.ptr)
     return 0;
-  #ifdef USESTRINGLIB
   return memcmp(a.ptr, b.ptr, a.width);
-  #else
-  imax res = 0;
-  for (usize i = 0; !res && i < length; i++)
-    res = ((u8 *)a)[i] - ((u8 *)b)[i];
-  return res;
-  #endif
 }
 static int (*um_fp_cmp)(const fptr, const fptr) = fptr_cmp;
 

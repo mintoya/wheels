@@ -1,5 +1,6 @@
-#include <stdint.h>
+#include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #define _XOPEN_SOURCE 700
 
 typedef wchar_t wchar;
@@ -23,9 +24,6 @@ typedef intmax_t imax;
 typedef size_t usize;
 typedef uintptr_t uptr;
 
-#define USESTRINGLIB
-#define _CONCAT(a, b) a##b
-#define CONCAT(a, b) _CONCAT(a, b)
 
 #ifndef __cplusplus
   #ifndef thread_local

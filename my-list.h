@@ -193,6 +193,7 @@ ATTR(pure, gnu)
 void *List_getRefForce(const List *l, unsigned int i) {
   return (l->head + l->width * i);
 }
+#include "assert.h"
 inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t initialSize) {
   if (!l)
     return;
@@ -203,6 +204,7 @@ inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, u
       .head = (uint8_t *)aAlloc(allocator, bytes * initialSize),
       .allocator = allocator,
   };
+  assert(((uintptr_t)l->head) % alignof(max_align_t) == 0);
 }
 inline void List_free(List *l) {
   if (!l || !l->allocator)
