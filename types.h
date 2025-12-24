@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <time.h>
 #define _XOPEN_SOURCE 700
 
 typedef wchar_t wchar;
@@ -24,6 +25,8 @@ typedef intmax_t imax;
 typedef size_t usize;
 typedef uintptr_t uptr;
 
+// typedef typeof(timespec) timespec_t;
+// typedef time_t timespec_seconds;
 
 #ifndef __cplusplus
   #ifndef thread_local

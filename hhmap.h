@@ -5,6 +5,19 @@ typedef struct HHMap HHMap;
   #include "fptr.h"
   #include "my-list.h"
 
+/**
+ * @brief create a new HHMap
+ *
+ * if `k` and `v` dont have compatible alignment,
+ * HHMap_fset can compensage if adequate padding is added
+ * to (`kSize`)
+ *
+ * @tparam k key type.
+ * @tparam v val type.
+ * @param kSize at least `sizeof(k)`.
+ * @param vSize `sizeof(v)`.
+ * @param buckets buckets used in map.
+ */
 HHMap *HHMap_new(usize kSize, usize vSize, const My_allocator *allocator, u32 metaSize);
 // crops or expands (with 0's) the keys and vals
 // if any argument is 0, it will assume you want the same one of that on the last ptr
@@ -248,8 +261,10 @@ void HHMap_set(HHMap *map, const void *key, const void *val) {
   memcpy(place, key, map->keysize);
   if (val)
     memcpy(place + map->keysize, val, map->valsize);
-  else
-    memset(place + map->keysize, 0, map->valsize);
+  else {
+    memmove(place, place + elw, (hll->length - listindex - 1) * elw);
+    hll->length--;
+  }
   map->listHeads[lindex] = lh;
 }
 

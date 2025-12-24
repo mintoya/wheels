@@ -73,6 +73,12 @@ static void *List_getRef(const List *l, unsigned int i) {
 extern inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t init);
 extern inline List_opError List_resize(List *l, unsigned int newSize);
 
+/**
+ * @brief Create a new list
+ *
+ * @param allocator allocator
+ * @param bytes Size of one list element
+ */
 static inline List *List_new(const My_allocator *allocator, size_t bytes) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
   List_makeNew(allocator, l, bytes, 2);

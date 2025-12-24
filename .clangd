@@ -2,3 +2,5 @@ Diagnostics:
   Suppress: 
     - 'pp_macro_not_used'           # Unused macro warnings
     - 'pp_include_next_in_primary'  # Include guard issues
+    Documentation:
+CommentFormat: Doxygen

@@ -267,7 +267,7 @@ static printerFunction PrinterSingleton_get(fptr name) {
 }
 #else
 [[gnu::constructor(201)]] static void printerInit() {
-  setlocale(LC_ALL, "C.UTF-8");
+  setlocale(LC_ALL, "");
   PrinterSingleton_init();
 }
 #endif

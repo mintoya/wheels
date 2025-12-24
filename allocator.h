@@ -39,7 +39,7 @@ void *default_alloc(const My_allocator *allocator, size_t s);
 void *default_r_alloc(const My_allocator *allocator, void *p, size_t s);
 void default_free(const My_allocator *allocator, void *p);
 // extern const My_allocator *defaultAlloc;
-extern inline const My_allocator *getDefaultAllocator(void);
+const My_allocator *getDefaultAllocator(void);
 #define defaultAlloc (getDefaultAllocator())
 
 // not making one for getsize
