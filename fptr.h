@@ -10,6 +10,7 @@
   #include <stdalign.h>
   #include <stdbool.h>
   #include <stddef.h>
+  #include <stdlib.h>
   #include <wchar.h>
 
 typedef struct {
@@ -44,7 +45,8 @@ typedef fptr um_fp;
   #include <string.h>
   #define fptr_fromCS(cstr) \
     ((fptr){(size_t)strlen(cstr), (u8 *)cstr})
-  #define fptr_fromPL(cstr, len) ((fptr){len, (u8 *)cstr})
+
+static inline fptr fptr_fromPL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
 // only sign  of result matters
 inline usize fptr_cstrlen(const char *a) {
   #ifdef USESTRINGLIB

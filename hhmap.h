@@ -1,3 +1,4 @@
+#include "allocator.h"
 #include <string.h>
 #if !defined(HHMAP_H)
   #define HHMAP_H (1)
@@ -229,7 +230,7 @@ void HHMap_transform(HHMap **last, usize kSize, usize vSize, const My_allocator 
 __attribute__((always_inline)) static inline void *LesserList_getref(usize elw, HHMap_LesserList *hll, void *head, u32 idx) {
   return (u8 *)head + idx * (elw);
 }
-static inline void LesserList_appendGarbage(usize elw, HHMap_LesserList *hll, void **headptr, const MyAllocator *allocator) {
+static inline void LesserList_appendGarbage(usize elw, HHMap_LesserList *hll, void **headptr, AllocatorV allocator) {
   if (!hll->capacity) {
     *headptr = aAlloc(allocator, elw);
     hll->capacity = 1;

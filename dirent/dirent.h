@@ -8,6 +8,7 @@
  */
 #ifndef DIRENT_H
 #define DIRENT_H
+#include <errno.h>
 
 /* Hide warnings about unreferenced local functions */
 #if defined(__clang__)

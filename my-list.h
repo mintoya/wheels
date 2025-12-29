@@ -16,9 +16,9 @@
 #endif
 
 // clang-format off
-  #ifndef LIST_GROW_EQ
-    #define LIST_GROW_EQ(uint) ((uint + (uint << 1)) + 1)
-  #endif
+#ifndef LIST_GROW_EQ
+#define LIST_GROW_EQ(uint) ((uint + (uint << 1)) + 1)
+#endif
 // clang-format on
 #include "allocator.h"
 typedef struct List {
@@ -28,19 +28,6 @@ typedef struct List {
   uint8_t *head;
   const My_allocator *allocator;
 } List;
-//
-typedef struct LList_element LList_element;
-typedef struct LList_element {
-  LList_element *next;
-  uint8_t data[];
-} LList_element;
-
-typedef struct LList_head {
-  LList_element *first;
-  LList_element *last;
-  size_t elementSize;
-  const My_allocator *allocator;
-} LList_head;
 
 typedef enum : uint8_t {
   OK = 0,
@@ -73,12 +60,6 @@ static void *List_getRef(const List *l, unsigned int i) {
 extern inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t init);
 extern inline List_opError List_resize(List *l, unsigned int newSize);
 
-/**
- * @brief Create a new list
- *
- * @param allocator allocator
- * @param bytes Size of one list element
- */
 static inline List *List_new(const My_allocator *allocator, size_t bytes) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
   List_makeNew(allocator, l, bytes, 2);
@@ -106,10 +87,6 @@ extern inline void List_zeroOut(List *l);
 void *List_toBuffer(List *l);
 void *List_fromBuffer(void *ref);
 List *List_deepCopy(List *l);
-
-LList_head *LList_new(const My_allocator *allocator, size_t size);
-List_opError LList_append(LList_head *l, const void *val);
-void LList_free(LList_head *l);
 
 static void List_cleanup_handler(List **l) {
   if (l && *l)
@@ -164,7 +141,7 @@ inline List_opError List_validState(const List *l) {
       l->head &&
       l->allocator &&
       l->size >= l->length
-  )?OK:INVALID;
+      )?OK:INVALID;
   // clang-format on
 }
 #else
@@ -199,7 +176,6 @@ ATTR(pure, gnu)
 void *List_getRefForce(const List *l, unsigned int i) {
   return (l->head + l->width * i);
 }
-#include "assert.h"
 inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t initialSize) {
   if (!l)
     return;
@@ -210,7 +186,9 @@ inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, u
       .head = (uint8_t *)aAlloc(allocator, bytes * initialSize),
       .allocator = allocator,
   };
-  assert(((uintptr_t)l->head) % alignof(max_align_t) == 0);
+  if (allocator->size) {
+    l->size = allocator->size(allocator, l->head) / l->width;
+  }
 }
 inline void List_free(List *l) {
   if (!l || !l->allocator)
@@ -309,6 +287,9 @@ List_opError List_forceResize(List *l, unsigned int newSize) {
   } else {
     l->head = newPlace;
     l->size = newSize;
+    if (l->allocator->size) {
+      l->size = l->allocator->size(l->allocator, l->head) / l->width;
+    }
     l->length = (l->length < l->size) ? (l->length) : (l->size);
   }
   return List_validState(l);
@@ -357,45 +338,6 @@ List_opError List_appendFromArr(List *l, const void *source, unsigned int ammoun
 
 List *List_deepCopy(List *l) {
   return List_fromArr(l->allocator, l->head, l->width, l->length);
-}
-
-LList_head *LList_new(const My_allocator *allocator, size_t size) {
-  LList_head *res = (LList_head *)aAlloc(allocator, size + sizeof(LList_head));
-  *res = (LList_head){
-      NULL,
-      NULL,
-      size,
-      allocator,
-  };
-  return res;
-}
-void LList_free(LList_head *l) {
-  LList_element *e = l->first;
-  while (e) {
-    LList_element *n = e->next;
-    aFree(l->allocator, e);
-    e = n;
-  }
-  aFree(l->allocator, l);
-}
-List_opError LList_push(LList_head *l, const void *val) {
-  LList_element *newelement = (LList_element *)aAlloc(l->allocator, l->elementSize + sizeof(LList_element));
-  if (!newelement)
-    return List_opErrorS.CantResize;
-  if (val)
-    memcpy(newelement->data, val, l->elementSize);
-  else
-    memset(newelement->data, 0, l->elementSize);
-
-  if (!l->first) {
-    l->first = newelement;
-    l->last = newelement;
-    return List_opErrorS.Ok;
-  }
-  l->last->next = newelement;
-  l->last = newelement;
-
-  return List_opErrorS.Ok;
 }
 
 #endif
