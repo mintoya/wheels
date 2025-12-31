@@ -99,29 +99,26 @@ typedef struct HHMap {
 } HHMap;
 
 static inline umax HHMap_hash(const fptr str) {
+  umax hash = 5381;
   if (str.width % sizeof(u64)) {
-    umax hash = 5381;
-    size_t s = 0;
-    for (; s < str.width; s++)
-      hash = ((hash << 5) + hash) + (str.ptr[s]);
-    return hash;
+    for (usize i = 0; i < str.width; i++) {
+      hash ^= hash >> 3;
+      hash = hash * 65;
+      hash ^= (str.ptr[i]);
+    }
   } else {
     assertMessage(
         !((uintptr_t)str.ptr % alignof(u64)),
         "change hash for unaligned pointers\n"
         "or use hmap"
     );
-    u64 key = *(u64 *)str.ptr;
-    for (uint i = sizeof(u64); i < str.width; i += sizeof(u64)) {
-      key ^= key >> 33;
-      key *= 0xff51afd7ed558ccd;
-      key ^= *(u64 *)(str.ptr + i);
-      key ^= key >> 33;
-      key *= 0xc4ceb9fe1a85ec53;
-      key ^= key >> 33;
+    for (usize i = 0; i < str.width; i += sizeof(u64)) {
+      hash ^= hash >> 33;
+      hash *= 0xff51afd7ed558ccd;
+      hash ^= *(u64 *)(str.ptr + i);
     }
-    return key;
   }
+  return hash;
 }
 HHMap *HHMap_new(usize kSize, usize vSize, const My_allocator *allocator, u32 metaSize) {
   assertMessage(kSize && vSize && metaSize && allocator);

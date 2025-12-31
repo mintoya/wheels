@@ -3,13 +3,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-[[gnu::pure]]
-static uintptr_t lineup(size_t unaligned, size_t aligneder) {
-  if (unaligned % aligneder != 0) {
-    return unaligned + aligneder - unaligned % aligneder;
-  }
-  return unaligned;
-}
+uintptr_t lineup(size_t unaligned, size_t aligneder);
+
 typedef struct My_allocator My_allocator;
 typedef const My_allocator *AllocatorV;
 typedef void *(*My_allocatorAlloc)(AllocatorV, size_t);
@@ -38,24 +33,14 @@ typedef Own_Allocator OwnAllocator;
 void *default_alloc(const My_allocator *allocator, size_t s);
 void *default_r_alloc(const My_allocator *allocator, void *p, size_t s);
 void default_free(const My_allocator *allocator, void *p);
+void *aAlloc(AllocatorV allocator, size_t size);
+void *aRealloc(AllocatorV allocator, void *oldptr, size_t size);
+void aFree(AllocatorV allocator, void *oldptr);
+
 // extern const My_allocator *defaultAlloc;
 const My_allocator *getDefaultAllocator(void);
 #define defaultAlloc (getDefaultAllocator())
-#include "fptr.h"
 #include <stdio.h>
-void *aAlloc(AllocatorV allocator, size_t size) {
-  void *res = (allocator)->alloc(allocator, size);
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
-  return res;
-}
-void *aRealloc(AllocatorV allocator, void *oldptr, size_t size) {
-  void *res = (allocator)->ralloc(allocator, oldptr, size);
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
-  return res;
-}
-void aFree(AllocatorV allocator, void *oldptr) {
-  return ((allocator)->free(allocator, oldptr));
-}
 
 #define aCreate(allocator, type) ((type *)(aAlloc(allocator, sizeof(type))))
 #endif // MY_ALLOCATOR_H
@@ -65,6 +50,23 @@ void aFree(AllocatorV allocator, void *oldptr) {
 #endif
 #ifdef MY_ALLOCATOR_C
 #include "fptr.h"
+void *aAlloc(AllocatorV allocator, size_t size) {
+  void *res = (allocator)->alloc(allocator, size);
+#ifdef MY_ALLOCATOR_STRICTEST
+  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
+#endif
+  return res;
+}
+void *aRealloc(AllocatorV allocator, void *oldptr, size_t size) {
+  void *res = (allocator)->ralloc(allocator, oldptr, size);
+#ifdef MY_ALLOCATOR_STRICTEST
+  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
+#endif
+  return res;
+}
+void aFree(AllocatorV allocator, void *oldptr) {
+  return ((allocator)->free(allocator, oldptr));
+}
 void *default_alloc(const My_allocator *allocator, size_t s) {
   assertMessage(s);
   return malloc(s);
@@ -118,6 +120,13 @@ AllocatorV getDefaultAllocator(void) {
   };
   // printf("default allocator: %p\n", &defaultAllocator);
   return &defaultAllocator;
+}
+[[gnu::const]]
+uintptr_t lineup(size_t unaligned, size_t aligneder) {
+  if (unaligned % aligneder != 0) {
+    return unaligned + aligneder - unaligned % aligneder;
+  }
+  return unaligned;
 }
 
 #endif

@@ -49,3 +49,7 @@
   #define MY_ALLOCATOR_C
   #include "allocator.h"
 #endif
+#ifdef UM_FP_H
+#define UM_FP_C
+#include "fptr.h"
+#endif

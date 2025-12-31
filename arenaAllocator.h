@@ -241,11 +241,9 @@ void ownArenaDeInit(My_allocator *d) {
 OwnAllocator arena_owned_new(void) {
   return (OwnAllocator){ownArenaInit, ownArenaDeInit};
 }
-My_allocator *arena_new_ext(const My_allocator *base, size_t blockSize) {
+My_allocator *arena_new_ext(AllocatorV base, size_t blockSize) {
   My_allocator *res =
       (My_allocator *)aAlloc(base, sizeof(My_allocator));
-  assertMessage(res);
-  assertMessage(((uintptr_t)res) % alignof(max_align_t) == 0);
   *res = defaultAllocaator_functions;
   res->arb = arenablock_new(base, blockSize);
   // printf("arena allocator: %p\n", res);
@@ -256,7 +254,6 @@ bool inarena(ArenaBlock *it, const void *ptr) {
 }
 void *arena_r_alloc(const My_allocator *arena, void *ptr, size_t size) {
   size = lineup(size, alignof(max_align_t));
-  assertMessage(ptr, "reallocating null pointer");
   size_t *lastSize = (size_t *)((uint8_t *)ptr - alignof(max_align_t));
   if (*lastSize > size)
     return ptr;
