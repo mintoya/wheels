@@ -8,8 +8,7 @@
 #include <string.h>
 
 OwnAllocator arena_owned_new(void);
-My_allocator *pageArena_new();
-My_allocator *arena_new_ext(const My_allocator *base, size_t blockSize);
+My_allocator *arena_new_ext(AllocatorV base, size_t blockSize);
 void arena_cleanup(My_allocator *arena);
 size_t arena_footprint(My_allocator *arena);
 static void arena_cleanup_handler(My_allocator **arenaPtr) {
@@ -21,48 +20,47 @@ static void arena_cleanup_handler(My_allocator **arenaPtr) {
 extern const My_allocator *pageAllocator;
 #define Arena_scoped [[gnu::cleanup(arena_cleanup_handler)]] My_allocator
 #endif // ARENA_ALLOCATOR_H
-//
+
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
-#define ARENA_ALLOCATOR_C
+#define ARENA_ALLOCATOR_C (1)
 #endif
 #ifdef ARENA_ALLOCATOR_C
-//
 
 #include "fptr.h"
 #define PAGESIZE
 
-void *getPage(size_t);
+void *getPage(usize);
 void returnPage(void *);
 #if defined(__linux__) || defined(__APPLE__)
   #include <sys/mman.h>
   #include <unistd.h>
   #undef PAGESIZE
-  #define PAGESIZE ((size_t)sysconf(_SC_PAGESIZE))
-void *getPage(size_t size) {
-  size_t pagesize = PAGESIZE;
+  #define PAGESIZE ((usize)sysconf(_SC_PAGESIZE))
+void *getPage(usize size) {
+  usize pagesize = PAGESIZE;
   size = lineup(size + alignof(max_align_t), pagesize);
   void *res = valElse(
       mmap(
           NULL,
           size,
-          PROT_EXEC |
-              PROT_READ |
-              PROT_WRITE,
+          PROT_READ | PROT_WRITE,
           MAP_PRIVATE | MAP_ANON,
           -1, 0
       ),
       MAP_FAILED
   );
-  *(size_t *)res = size;
-  return (uint8_t *)res + alignof(max_align_t);
+  static_assert(sizeof(usize) < alignof(max_align_t));
+  *(usize *)res = size;
+  res = (u8 *)res + alignof(max_align_t);
+  return res;
 }
 void returnPage(void *page) {
-  nullElse(page);
-  size_t pagesize = PAGESIZE;
-  page = ((uint8_t *)page - alignof(max_align_t));
-  assertMessage(!((uintptr_t)page % pagesize), "unalgned page pointer");
+  assertMessage(page);
+  usize pagesize = PAGESIZE;
+  page = ((u8 *)page - alignof(max_align_t));
+  assertMessage(!((uintptr_t)page % pagesize), "unalgned page pointer %p ", page);
   assertMessage(
-      munmap(page, *(size_t *)page) != -1,
+      munmap(page, *(usize *)page) != -1,
       "\tpagesize:%lu\n"
       "\tpointer :%p\n"
       "\tsterror() -> %s",
@@ -78,18 +76,18 @@ void returnPage(void *page) {
   #include <windows.h>
   #undef PAGESIZE
   #define PAGESIZE ({ SYSTEM_INFO si; GetSystemInfo(&si); si.dwPageSize; })
-void *getPage(size_t size) {
-  size_t pagesize = PAGESIZE;
+void *getPage(usize size) {
+  usize pagesize = PAGESIZE;
   size = lineup(size + alignof(max_align_t), pagesize);
   void *res = VirtualAlloc(0, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
   assertMessage(res);
-  *(size_t *)res = size;
+  *(usize *)res = size;
   return (uint8_t *)res + alignof(max_align_t);
 }
 void returnPage(void *page) {
   nullElse(page);
   page = ((uint8_t *)page - alignof(max_align_t));
-  size_t pagesize = *(size_t *)page;
+  usize pagesize = *(usize *)page;
   assertMessage(!((uintptr_t)page % pagesize), "unalgned page pointer");
 
   BOOL result = VirtualFree(page, 0, MEM_RELEASE);
@@ -122,8 +120,8 @@ void returnPage(void *page) {
   #error couldnt find page allocator
 #endif
 
-void *allocatePage(AllocatorV _, size_t size) {
-  size_t pagesize = PAGESIZE;
+void *allocatePage(AllocatorV _, usize size) {
+  usize pagesize = PAGESIZE;
   size = lineup(size, pagesize);
   void *res = getPage(size);
   return res;
@@ -131,20 +129,20 @@ void *allocatePage(AllocatorV _, size_t size) {
 void freePage(AllocatorV _, void *page) {
   return returnPage(page);
 }
-void *reallocatePage(AllocatorV _, void *page, size_t __) {
+void *reallocatePage(AllocatorV _, void *page, usize __) {
   assertMessage(false, "dont reallocate pages");
   return NULL;
 }
-size_t getPageSize(AllocatorV _, void *page) {
-  nullElse(page);
-  size_t pagesize = PAGESIZE;
+usize getPageSize(AllocatorV _, void *page) {
+  assertMessage(page);
+  usize pagesize = PAGESIZE;
   page = ((uint8_t *)page - alignof(max_align_t));
   assertMessage(!((uintptr_t)page % pagesize), "unalgned page pointer");
-  return *(size_t *)page;
+  return *(usize *)page;
 }
 void arena_free(const My_allocator *allocator, void *ptr);
-void *arena_alloc(const My_allocator *ref, size_t size);
-void *arena_r_alloc(const My_allocator *arena, void *ptr, size_t size);
+void *arena_alloc(const My_allocator *ref, usize size);
+void *arena_r_alloc(const My_allocator *arena, void *ptr, usize size);
 
 const My_allocator pageAllocatorVal = (My_allocator){allocatePage, freePage, reallocatePage, 0, getPageSize};
 const My_allocator *pageAllocator = &pageAllocatorVal;
@@ -152,51 +150,22 @@ static const My_allocator defaultAllocaator_functions = {arena_alloc, arena_free
 typedef struct ArenaBlock ArenaBlock;
 typedef struct ArenaBlock {
   ArenaBlock *next;
-  size_t place;
-  size_t size;
+  usize place;
+  usize size;
   uint8_t *buffer;
   const My_allocator *allocator;
 } ArenaBlock;
-ArenaBlock *arenablock_new(const My_allocator *allocator, size_t blockSize);
+ArenaBlock *arenablock_new(const My_allocator *allocator, usize blockSize);
 
-My_allocator *pageArena_new() {
-  size_t size = PAGESIZE;
-
-  uint8_t *ptr = (uint8_t *)allocatePage(NULL, size);
-  lmemset(ptr, size, (u8)0);
-
-  struct anonalign {
-    ArenaBlock blockpart;
-    My_allocator apart;
-    My_allocator result;
-  };
-
-  struct anonalign *anl = (struct anonalign *)ptr;
-  assertMessage(((uptr)ptr) == ((uptr) & (anl->blockpart)));
-  ptr += sizeof(struct anonalign);
-  size -= sizeof(struct anonalign);
-
-  anl->blockpart.size = size;
-  anl->blockpart.buffer = ptr;
-
-  anl->blockpart.allocator = &anl->apart;
-  anl->apart = pageAllocatorVal;
-  anl->apart.arb = &anl->blockpart;
-
-  anl->result = defaultAllocaator_functions;
-  anl->result.arb = &(anl->blockpart);
-
-  return &(anl->result);
-}
-ArenaBlock *arenablock_new(const My_allocator *allocator, size_t blockSize) {
-  size_t fullsize = sizeof(ArenaBlock) + blockSize;
+ArenaBlock *arenablock_new(const My_allocator *allocator, usize blockSize) {
+  usize fullsize = sizeof(ArenaBlock) + blockSize;
   ArenaBlock *res = (ArenaBlock *)aAlloc(allocator, fullsize);
   assertMessage(res, "allocator failed");
 
   if (allocator->size)
     fullsize = allocator->size(allocator, res);
 
-  size_t rest = fullsize - lineup(sizeof(ArenaBlock), alignof(max_align_t));
+  usize rest = fullsize - lineup(sizeof(ArenaBlock), alignof(max_align_t));
 
   *res = (ArenaBlock){
       .next = NULL,
@@ -207,8 +176,8 @@ ArenaBlock *arenablock_new(const My_allocator *allocator, size_t blockSize) {
   };
   return res;
 }
-size_t arena_footprint(My_allocator *arena) {
-  size_t res = 0;
+usize arena_footprint(My_allocator *arena) {
+  usize res = 0;
   ArenaBlock *it = (ArenaBlock *)(arena->arb);
   const My_allocator *allocator = it->allocator;
   while (it) {
@@ -220,7 +189,7 @@ size_t arena_footprint(My_allocator *arena) {
 }
 
 My_allocator *ownArenaInit(void) {
-  return pageArena_new();
+  return arena_new_ext(pageAllocator, 1024);
 }
 void ownArenaDeInit(My_allocator *d) {
   return arena_cleanup(d);
@@ -228,7 +197,7 @@ void ownArenaDeInit(My_allocator *d) {
 OwnAllocator arena_owned_new(void) {
   return (OwnAllocator){ownArenaInit, ownArenaDeInit};
 }
-My_allocator *arena_new_ext(AllocatorV base, size_t blockSize) {
+My_allocator *arena_new_ext(AllocatorV base, usize blockSize) {
   My_allocator *res =
       (My_allocator *)aAlloc(base, sizeof(My_allocator));
   *res = defaultAllocaator_functions;
@@ -246,20 +215,20 @@ void arena_cleanup(My_allocator *arena) {
   aFree(&allocator, arena);
 }
 void arena_free(const My_allocator *allocator, void *ptr) {
-  // size_t *thisSize = (size_t *)((uint8_t *)ptr - alignof(max_align_t));
+  // usize *thisSize = (usize *)((uint8_t *)ptr - alignof(max_align_t));
   // ArenaBlock *it = (ArenaBlock *)(allocator->arb);
 }
 bool inarena(ArenaBlock *it, const void *ptr) {
   return (uintptr_t)ptr > (uintptr_t)it->buffer && (uintptr_t)ptr < (uintptr_t)it->buffer + (uintptr_t)it->size;
 }
-void *arena_r_alloc(const My_allocator *arena, void *ptr, size_t size) {
+void *arena_r_alloc(const My_allocator *arena, void *ptr, usize size) {
   size = lineup(size, alignof(max_align_t));
-  size_t *lastSize = (size_t *)((uint8_t *)ptr - alignof(max_align_t));
+  usize *lastSize = (usize *)((uint8_t *)ptr - alignof(max_align_t));
   if (*lastSize > size)
     return ptr;
 
   ArenaBlock *it = (ArenaBlock *)(arena->arb);
-  size_t *lastAllocatoinPos = (size_t *)(it->buffer + it->place);
+  usize *lastAllocatoinPos = (usize *)(it->buffer + it->place);
 
   while (it && !(inarena(it, ptr)))
     it = it->next;
@@ -277,13 +246,13 @@ void *arena_r_alloc(const My_allocator *arena, void *ptr, size_t size) {
   arena_free(arena, ptr);
   return res;
 }
-void *arena_alloc(const My_allocator *ref, size_t size) {
+void *arena_alloc(const My_allocator *ref, usize size) {
   size = lineup(size, alignof(max_align_t));
   ArenaBlock *it = (ArenaBlock *)(ref->arb);
   void *res = NULL;
   while (!res) {
     if (it->size - it->place >= size + alignof(max_align_t)) {
-      *(size_t *)(it->buffer + it->place) = size;
+      *(usize *)(it->buffer + it->place) = size;
       it->place += alignof(max_align_t);
 
       res = it->buffer + it->place;

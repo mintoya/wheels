@@ -5,8 +5,7 @@
 #include "../wheels.h"
 
 int main(void) {
-  // My_allocator *local = hmap_alloc_new(arena_owned_new(), (struct hmap_alloc_opts){0});
-  Arena_scoped *local = pageArena_new();
+  Arena_scoped *local = arena_new_ext(pageAllocator, 1);
 
   HHMap_scoped *small_map = HHMap_new(sizeof(int), sizeof(int), local, 4);
   for (int i = 0; i < 10; i++) {
@@ -23,19 +22,9 @@ int main(void) {
         { all = false;v = -999; },
         false
     );
-    println("[{}]:{}->{}", i, i, v);
+    println("{}->{}", i, v);
   }
   assertMessage(all, "hhmap couldnt retrieve all values ");
 
-  LList_head *l = LList_new(local, sizeof(int));
-  LList_push(l, REF(int, 1));
-  LList_push(l, REF(int, 2));
-  LList_push(l, REF(int, 3));
-
-  LList_element *e = l->first;
-  while (e) {
-    println("{}", *(int *)e->data);
-    e = e->next;
-  }
   return 0;
 }

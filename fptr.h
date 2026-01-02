@@ -38,10 +38,10 @@ typedef union {
 
 typedef fptr um_fp;
 
-  // vptr version of dereferencing a value
-  #define fptr_fromTypeDef(v) ((fptr){sizeof(typeof(v)), (u8 *)REF(typeof(v), v)})
-  // _INC_STRING
-  #include <string.h>
+// vptr version of dereferencing a value
+#define fptr_fromTypeDef(v) ((fptr){sizeof(typeof(v)), (u8 *)REF(typeof(v), v)})
+// _INC_STRING
+#include <string.h>
 static inline fptr fptr_fromCS(void *cstr) { return ((fptr){(size_t)strlen((char *)cstr), (u8 *)cstr}); }
 
 static inline fptr fptr_fromPL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
@@ -311,23 +311,21 @@ static int fptr_toInt(const fptr in) {
 #endif
 #define assertOnce(...) ({static bool hasRun = false; if(!hasRun)assertMessage(__VA_ARGS__);hasRun=true; })
 
-#define valElse(expr, ovalue, ...)   \
-  /* returns "else" block, or exit*/ \
-  ({                                 \
-    typeof((expr)) res = (expr);     \
-    typeof(res) other = (ovalue);    \
-    if (res == ovalue) {             \
-      typeof(res) elseBlock = ({     \
-        (typeof(res))(ovalue);       \
-        __VA_OPT__((__VA_ARGS__);)   \
-      });                            \
-      res = elseBlock;               \
-      assertMessage(res != ovalue);  \
-    }                                \
-    res;                             \
+#define valElse(expr, ovalue, ...)              \
+  /* if expr==ovalue, return va_args or exit */ \
+  ({                                            \
+    typeof((expr)) res = (expr);                \
+    typeof(res) other = (ovalue);               \
+    if (res == ovalue) {                        \
+      typeof(res) elseBlock = ({                \
+        (typeof(res))(ovalue);                  \
+        __VA_OPT__((__VA_ARGS__);)              \
+      });                                       \
+      res = elseBlock;                          \
+      assertMessage(res != ovalue);             \
+    }                                           \
+    res;                                        \
   })
-#define nullElse(expr, ...) \
-  valElse(expr, NULL, __VA_ARGS__);
 #define countof(v) (sizeof(v) / sizeof(v[i]))
 
 #define valFullElse(expr, onerror, ...)    \

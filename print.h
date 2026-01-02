@@ -400,11 +400,11 @@ struct print_arg {
   REGISTER_PRINTER(char, {PUTC((wchar)in);});
   REGISTER_PRINTER(wchar, {PUTC(in);});
   REGISTER_SPECIAL_PRINTER("cstr", char*,{
-    in = nullElse(in,(char*)"__NULLCSTR__");
+    if(!in)in = "__NULLCSTR__";
     while(*in){ PUTC((wchar)*in); in++; } 
   });
   REGISTER_SPECIAL_PRINTER("wcstr", wchar*,{
-    in = nullElse(in,(wchar*)"__NULLCSTR__");
+    if(!in)in = L"__NULLCSTR__";
     while(*in){ PUTC(*in); in++; } 
   });
 

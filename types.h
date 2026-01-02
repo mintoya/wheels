@@ -25,9 +25,6 @@ typedef intmax_t imax;
 typedef size_t usize;
 typedef uintptr_t uptr;
 
-// typedef typeof(timespec) timespec_t;
-// typedef time_t timespec_seconds;
-
 #ifndef __cplusplus
   #ifndef thread_local
     #define thread_local _Thread_local

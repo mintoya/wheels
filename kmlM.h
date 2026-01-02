@@ -35,49 +35,49 @@ static stringList *parseList(stringList *lparent, fptr kml) {
   kml = kml_trimPadding(kml);
   fptr val, pval;
   switch (fpChar(kml)[0]) {
-  case '[': {
-    val = kml_around("[]", kml);
-    pval = kml_inside("[]", kml);
-    stringList_scoped *newmap = parseList(NULL, pval);
-    if (newmap) {
-      if (lparent) {
-        StringList_appendObj(lparent, OMOJA(newmap, SLIST));
+    case '[': {
+      val = kml_around("[]", kml);
+      pval = kml_inside("[]", kml);
+      stringList_scoped *newmap = parseList(NULL, pval);
+      if (newmap) {
+        if (lparent) {
+          StringList_appendObj(lparent, OMOJA(newmap, SLIST));
+        }
       }
-    }
-  } break;
-  case '{': {
-    val = kml_around("{}", kml);
-    pval = kml_inside("{}", kml);
-    OMap_scoped *newmap = parse(NULL, NULL, pval);
-    if (newmap) {
-      if (lparent) {
-        StringList_appendObj(lparent, OMOJA(newmap, OMAP));
+    } break;
+    case '{': {
+      val = kml_around("{}", kml);
+      pval = kml_inside("{}", kml);
+      OMap_scoped *newmap = parse(NULL, NULL, pval);
+      if (newmap) {
+        if (lparent) {
+          StringList_appendObj(lparent, OMOJA(newmap, OMAP));
+        }
       }
+    } break;
+    case '"': {
+      kml.ptr++;
+      kml.width--;
+      pval = (fptr){
+          .width = kml_indexOf(kml, '"'),
+          .ptr = kml.ptr,
+      };
+      val = pval;
+      if (pval.width == kml.width) {
+        pval.width--;
+        val.width--;
+      } else {
+        val.width++;
+      }
+      kml.ptr--;
+      kml.width++;
+      StringList_appendObj(lparent, OMOJA(&pval, RAW));
+    } break;
+    default: {
+      val = kml_behind(',', kml);
+      pval = kml_until(',', kml);
+      StringList_appendObj(lparent, OMOJA(&pval, RAW));
     }
-  } break;
-  case '"': {
-    kml.ptr++;
-    kml.width--;
-    pval = (fptr){
-        .width = kml_indexOf(kml, '"'),
-        .ptr = kml.ptr,
-    };
-    val = pval;
-    if (pval.width == kml.width) {
-      pval.width--;
-      val.width--;
-    } else {
-      val.width++;
-    }
-    kml.ptr--;
-    kml.width++;
-    StringList_appendObj(lparent, OMOJA(&pval, RAW));
-  } break;
-  default: {
-    val = kml_behind(',', kml);
-    pval = kml_until(',', kml);
-    StringList_appendObj(lparent, OMOJA(&pval, RAW));
-  }
   }
   fptr next = kml_after(kml, val);
   next = kml_trimPadding(next);
@@ -122,45 +122,45 @@ static OMap *parse(OMap *parent, stringList *lparent, fptr kml) {
   key = kml_trimPadding(key);
 
   switch (fpChar(val)[0]) {
-  case '[': {
-    val = kml_around("[]", val);
-    pval = kml_inside("[]", val);
-    stringList_scoped *newmap = parseList(NULL, pval);
-    if (newmap) {
-      if (lparent) {
-        StringList_appendObj(lparent, OMOJA(newmap, SLIST));
+    case '[': {
+      val = kml_around("[]", val);
+      pval = kml_inside("[]", val);
+      stringList_scoped *newmap = parseList(NULL, pval);
+      if (newmap) {
+        if (lparent) {
+          StringList_appendObj(lparent, OMOJA(newmap, SLIST));
+        }
+        if (parent) {
+          OMap_setObj(parent, kml_trimPadding(key), OMOJA(newmap, SLIST));
+        }
       }
-      if (parent) {
-        OMap_setObj(parent, kml_trimPadding(key), OMOJA(newmap, SLIST));
+    } break;
+    case '{': {
+      val = kml_around("{}", val);
+      pval = kml_inside("{}", val);
+      OMap_scoped *newmap = parse(NULL, NULL, pval);
+      if (newmap) {
+        if (lparent) {
+          StringList_appendObj(lparent, OMOJA(newmap, OMAP));
+        }
+        if (parent) {
+          OMap_setObj(parent, kml_trimPadding(key), OMOJA(newmap, OMAP));
+        }
       }
+    } break;
+    case '"': {
+      val.ptr++;
+      val.width--;
+      pval = kml_until('"', val);
+      val = pval;
+      val.width++;
+      OMap_set(parent, kml_trimPadding(key), pval);
+    } break;
+    default: {
+      val = kml_behind(';', val);
+      pval = kml_until(';', val);
+      OMap_set(parent, kml_trimPadding(key), pval);
     }
-  } break;
-  case '{': {
-    val = kml_around("{}", val);
-    pval = kml_inside("{}", val);
-    OMap_scoped *newmap = parse(NULL, NULL, pval);
-    if (newmap) {
-      if (lparent) {
-        StringList_appendObj(lparent, OMOJA(newmap, OMAP));
-      }
-      if (parent) {
-        OMap_setObj(parent, kml_trimPadding(key), OMOJA(newmap, OMAP));
-      }
-    }
-  } break;
-  case '"': {
-    val.ptr++;
-    val.width--;
-    pval = kml_until('"', val);
-    val = pval;
-    val.width++;
-    OMap_set(parent, kml_trimPadding(key), pval);
-  } break;
-  default: {
-    val = kml_behind(';', val);
-    pval = kml_until(';', val);
-    OMap_set(parent, kml_trimPadding(key), pval);
-  }
   }
   return parse(parent, lparent, kml_after(kml, val));
 }
@@ -177,38 +177,38 @@ static void kmlFormatPrinter(
     wchar character = data[index];
     {
       switch (character) {
-      case '{':
-      case '[': {
-        putwchar(character);
-        putwchar('\n');
-        indentLevel++;
-        for (int i = 0; i < indentLevel; i++) {
-          putwchar(' ');
-        }
-      } break;
-      case '}':
-      case ']': {
-        putwchar('\033');
-        putwchar('[');
-        putwchar('1');
-        putwchar('D');
-        putwchar(character);
-        putwchar('\n');
-        indentLevel--;
-        for (int i = 0; i < indentLevel; i++) {
-          putwchar(' ');
-        }
-      } break;
-      case ';':
-      case ',': {
-        putwchar(character);
-        putwchar('\n');
-        for (int i = 0; i < indentLevel; i++) {
-          putwchar(' ');
-        }
-      } break;
-      default:
-        putwchar(character);
+        case '{':
+        case '[': {
+          putwchar(character);
+          putwchar('\n');
+          indentLevel++;
+          for (int i = 0; i < indentLevel; i++) {
+            putwchar(' ');
+          }
+        } break;
+        case '}':
+        case ']': {
+          putwchar('\033');
+          putwchar('[');
+          putwchar('1');
+          putwchar('D');
+          putwchar(character);
+          putwchar('\n');
+          indentLevel--;
+          for (int i = 0; i < indentLevel; i++) {
+            putwchar(' ');
+          }
+        } break;
+        case ';':
+        case ',': {
+          putwchar(character);
+          putwchar('\n');
+          for (int i = 0; i < indentLevel; i++) {
+            putwchar(' ');
+          }
+        } break;
+        default:
+          putwchar(character);
       }
     }
   }
@@ -217,7 +217,9 @@ static void kmlFormatPrinter(
 }
 #endif // KMLM_H
 #if defined(KMLM_C) || (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
-  #ifdef KMLM_C
+  #define KMLM_C (1)
+#endif
+#ifdef KMLM_C
 
 // index after end if c not present
 unsigned int kml_indexOf(um_fp string, char c) {
@@ -370,14 +372,14 @@ um_fp kml_after(um_fp main, um_fp slice) {
 }
 char isSkip(char c) {
   switch (c) {
-  case ' ':
-  case '\n':
-  case '\r':
-  case '\0':
-  case '\t':
-    return 1;
-  default:
-    return 0;
+    case ' ':
+    case '\n':
+    case '\r':
+    case '\0':
+    case '\t':
+      return 1;
+    default:
+      return 0;
   }
 }
 um_fp kml_trimPadding(um_fp in) {
@@ -397,6 +399,6 @@ um_fp kml_trimPadding(um_fp in) {
   res = splits[1];
   return res;
 }
-    #undef min
-    #undef max
-  #endif
+  #undef min
+  #undef max
+#endif

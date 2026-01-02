@@ -19,8 +19,8 @@ typedef struct My_allocator {
   My_allocatorAlloc alloc;
   My_allocatorFree free;
   My_allocatorRealloc ralloc;
-  void *arb; // state
-  My_allocatorGetActualSize size;
+  void *arb;                      ///< userdata
+  My_allocatorGetActualSize size; ///< optional
 } My_allocator;
 
 typedef struct {
@@ -30,38 +30,14 @@ typedef struct {
 
 typedef Own_Allocator OwnAllocator;
 
-void *default_alloc(const My_allocator *allocator, size_t s);
-void *default_r_alloc(const My_allocator *allocator, void *p, size_t s);
-void default_free(const My_allocator *allocator, void *p);
 void *aAlloc(AllocatorV allocator, size_t size);
 void *aRealloc(AllocatorV allocator, void *oldptr, size_t size);
 void aFree(AllocatorV allocator, void *oldptr);
-
-// extern const My_allocator *defaultAlloc;
-const My_allocator *getDefaultAllocator(void);
-#define defaultAlloc (getDefaultAllocator())
-#include <stdio.h>
-<<<<<<< HEAD
-=======
-void *aAlloc(AllocatorV allocator, size_t size) {
-  assertMessage(size, "no 0 allocation");
-  void *res = (allocator)->alloc(allocator, size);
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
-  return res;
-}
-void *aRealloc(AllocatorV allocator, void *oldptr, size_t size) {
-  assertMessage(size, "no 0 reallocation");
-  void *res = (allocator)->ralloc(allocator, oldptr, size);
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
-  return res;
-}
-void aFree(AllocatorV allocator, void *oldptr) {
-  assertMessage(oldptr, "freeing a null pointer");
-  return ((allocator)->free(allocator, oldptr));
-}
->>>>>>> cd9b588 (leak fix)
-
 #define aCreate(allocator, type) ((type *)(aAlloc(allocator, sizeof(type))))
+
+AllocatorV getDefaultAllocator(void);
+#define defaultAlloc (getDefaultAllocator())
+
 #endif // MY_ALLOCATOR_H
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
@@ -87,29 +63,24 @@ void aFree(AllocatorV allocator, void *oldptr) {
   return ((allocator)->free(allocator, oldptr));
 }
 void *default_alloc(const My_allocator *allocator, size_t s) {
-  assertMessage(s);
   return malloc(s);
 }
 void *default_r_alloc(const My_allocator *allocator, void *p, size_t s) {
-  assertMessage(p);
-  void *res = realloc(p, s);
-  assertMessage(res);
-  return res;
+  return realloc(p, s);
 }
 void default_free(const My_allocator *allocator, void *p) {
-  assertMessage(p);
   return free(p);
 }
-#if defined(_WIN32) || defined(_WIN64)
-  #define DEFAULT_SIZE_GETTER
-  #include <malloc.h>
-#elif defined(__linux__)
-  #define DEFAULT_SIZE_GETTER
+#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
+  #define DEFAULT_SIZE_GETTER (1)
   #include <malloc.h>
 #elif defined(__APPLE__) || defined(__MACH__)
-  #define DEFAULT_SIZE_GETTER
+  #define DEFAULT_SIZE_GETTER (1)
   #include <malloc/malloc.h>
+#else
+  #undef DEFAULT_SIZE_GETTER
 #endif
+
 usize default_size(AllocatorV allocator, void *ptr) {
   usize (*getSize)(void *) = NULL;
 #if defined(_WIN32) || defined(_WIN64)
@@ -124,7 +95,6 @@ usize default_size(AllocatorV allocator, void *ptr) {
   assertMessage(getSize, "called getsize on unsupported platform");
   return getSize(ptr);
 }
-#include "fptr.h"
 AllocatorV getDefaultAllocator(void) {
   static const My_allocator defaultAllocator = (My_allocator){
       default_alloc,
@@ -141,11 +111,12 @@ AllocatorV getDefaultAllocator(void) {
   return &defaultAllocator;
 }
 [[gnu::const]]
-uintptr_t lineup(size_t unaligned, size_t aligneder) {
+uintptr_t lineup(uptr unaligned, size_t aligneder) {
   if (unaligned % aligneder != 0) {
     return unaligned + aligneder - unaligned % aligneder;
+  } else {
+    return unaligned;
   }
-  return unaligned;
 }
 
 #endif
