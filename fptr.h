@@ -38,12 +38,11 @@ typedef union {
 
 typedef fptr um_fp;
 
-// vptr version of dereferencing a value
-#define fptr_fromTypeDef(v) ((fptr){sizeof(typeof(v)), (u8 *)REF(typeof(v), v)})
-// _INC_STRING
-#include <string.h>
-#define fptr_fromCS(cstr) \
-  ((fptr){(size_t)strlen(cstr), (u8 *)cstr})
+  // vptr version of dereferencing a value
+  #define fptr_fromTypeDef(v) ((fptr){sizeof(typeof(v)), (u8 *)REF(typeof(v), v)})
+  // _INC_STRING
+  #include <string.h>
+static inline fptr fptr_fromCS(void *cstr) { return ((fptr){(size_t)strlen((char *)cstr), (u8 *)cstr}); }
 
 static inline fptr fptr_fromPL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
 // only sign  of result matters

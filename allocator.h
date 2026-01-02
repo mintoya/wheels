@@ -41,6 +41,25 @@ void aFree(AllocatorV allocator, void *oldptr);
 const My_allocator *getDefaultAllocator(void);
 #define defaultAlloc (getDefaultAllocator())
 #include <stdio.h>
+<<<<<<< HEAD
+=======
+void *aAlloc(AllocatorV allocator, size_t size) {
+  assertMessage(size, "no 0 allocation");
+  void *res = (allocator)->alloc(allocator, size);
+  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
+  return res;
+}
+void *aRealloc(AllocatorV allocator, void *oldptr, size_t size) {
+  assertMessage(size, "no 0 reallocation");
+  void *res = (allocator)->ralloc(allocator, oldptr, size);
+  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
+  return res;
+}
+void aFree(AllocatorV allocator, void *oldptr) {
+  assertMessage(oldptr, "freeing a null pointer");
+  return ((allocator)->free(allocator, oldptr));
+}
+>>>>>>> cd9b588 (leak fix)
 
 #define aCreate(allocator, type) ((type *)(aAlloc(allocator, sizeof(type))))
 #endif // MY_ALLOCATOR_H

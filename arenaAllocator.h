@@ -207,15 +207,6 @@ ArenaBlock *arenablock_new(const My_allocator *allocator, size_t blockSize) {
   };
   return res;
 }
-void arena_cleanup(My_allocator *arena) {
-  ArenaBlock *it = (ArenaBlock *)(arena->arb);
-  const My_allocator allocator = *(it->allocator);
-  while (it) {
-    ArenaBlock *next = it->next;
-    aFree(&(allocator), it);
-    it = next;
-  }
-}
 size_t arena_footprint(My_allocator *arena) {
   size_t res = 0;
   ArenaBlock *it = (ArenaBlock *)(arena->arb);
@@ -226,10 +217,6 @@ size_t arena_footprint(My_allocator *arena) {
     it = next;
   }
   return res;
-}
-void arena_free(const My_allocator *allocator, void *ptr) {
-  size_t *thisSize = (size_t *)((uint8_t *)ptr - alignof(max_align_t));
-  ArenaBlock *it = (ArenaBlock *)(allocator->arb);
 }
 
 My_allocator *ownArenaInit(void) {
@@ -246,8 +233,21 @@ My_allocator *arena_new_ext(AllocatorV base, size_t blockSize) {
       (My_allocator *)aAlloc(base, sizeof(My_allocator));
   *res = defaultAllocaator_functions;
   res->arb = arenablock_new(base, blockSize);
-  // printf("arena allocator: %p\n", res);
   return res;
+}
+void arena_cleanup(My_allocator *arena) {
+  ArenaBlock *it = (ArenaBlock *)(arena->arb);
+  const My_allocator allocator = *(it->allocator);
+  while (it) {
+    ArenaBlock *next = it->next;
+    aFree(&allocator, it);
+    it = next;
+  }
+  aFree(&allocator, arena);
+}
+void arena_free(const My_allocator *allocator, void *ptr) {
+  // size_t *thisSize = (size_t *)((uint8_t *)ptr - alignof(max_align_t));
+  // ArenaBlock *it = (ArenaBlock *)(allocator->arb);
 }
 bool inarena(ArenaBlock *it, const void *ptr) {
   return (uintptr_t)ptr > (uintptr_t)it->buffer && (uintptr_t)ptr < (uintptr_t)it->buffer + (uintptr_t)it->size;
@@ -275,7 +275,6 @@ void *arena_r_alloc(const My_allocator *arena, void *ptr, size_t size) {
   void *res = arena_alloc(arena, size);
   memmove(res, ptr, (*lastSize));
   arena_free(arena, ptr);
-  // printf("r%p\n", res);
   return res;
 }
 void *arena_alloc(const My_allocator *ref, size_t size) {
@@ -298,7 +297,6 @@ void *arena_alloc(const My_allocator *ref, size_t size) {
       it = it->next;
     }
   }
-  // printf("a%p\n", res);
   return res;
 }
 #endif // ARENA_ALLOCATOR_C
