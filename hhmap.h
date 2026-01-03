@@ -48,6 +48,7 @@ HHMap_both HHMap_getBoth(HHMap *map, const void *key);
 // false if key doesnt exist
 bool HHMap_getSet(HHMap *map, const void *key, void *val);
 void HHMap_fset(HHMap *map, const fptr key, void *val);
+void *HHMap_fget(HHMap *map, const fptr key);
 
 static inline void HHMap_cleanup_handler(HHMap **v) {
   if (v && *v) {
@@ -368,6 +369,16 @@ void HHMap_fset(HHMap *map, const fptr key, void *val) {
   memcpy(nname, key.ptr, key.width);
   memset(nname + key.width, 0, HHMap_getKeySize(map) - key.width);
   return HHMap_set(map, nname, val);
+}
+void *HHMap_fget(HHMap *map, const fptr key) {
+  usize els = map->keysize + map->valsize;
+  assertMessage(key.width <= HHMap_getKeySize(map));
+
+  u8 *nname = ((u8 *)map->listHeads + map->metaSize * sizeof(void **));
+
+  memcpy(nname, key.ptr, key.width);
+  memset(nname + key.width, 0, HHMap_getKeySize(map) - key.width);
+  return HHMap_get(map, nname);
 }
 HHMap_both HHMap_getBoth(HHMap *map, const void *key) {
   u8 *place = (u8 *)HHMap_get(map, key);
