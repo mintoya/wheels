@@ -35,6 +35,7 @@ extern inline void HMap_preload(HMap *, u32 pairCount, u32 guessSize);
 List *HMap_getkeys(HMap *map);
 List *HMap_getBranch(HMap *map);
 List *HMap_getIndexed(HMap *map);
+void HMap_clear(HMap *map);
 size_t HMap_countCollisions(HMap *map);
 typedef struct HMap_both {
   fptr key;
@@ -72,6 +73,12 @@ typedef struct HMap {
   List *links;
   stringList *KVs;
 } HMap;
+void HMap_clear(HMap *map) {
+  memset(map->metadata, 0, map->metaSize * sizeof(HMap_innertype));
+  map->KVs->List_stringMetaData.length = 0;
+  map->KVs->List_char.length = 0;
+  map->links->length = 0;
+}
 static const HMap_innertype HMap_innerEmpty = (HMap_innertype){0};
 u32 HMap_getMetaSize(HMap *map) { return map->metaSize; }
 size_t HMap_footprint(HMap *hm) {

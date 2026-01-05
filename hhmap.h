@@ -30,7 +30,7 @@ extern inline u32 HHMap_getBucketSize(const HHMap *, u32);
 u32 HHMap_getMetaSize(const HHMap *);
 extern inline void *HHMap_getCoord(const HHMap *, u32 bucket, u32 index);
 u32 HHMap_count(const HHMap *map);
-extern inline void HHMap_clear(HHMap *map);
+void HHMap_clear(HHMap *map);
 u8 *HHMap_getKeyBuffer(const HHMap *map);
 extern inline void *HHMap_getKey(const HHMap *map, u32 n);
 extern inline void *HHMap_getVal(const HHMap *map, u32 n);
@@ -38,6 +38,8 @@ usize HHMap_footprint(const HHMap *map);
 u32 HHMap_countCollisions(const HHMap *map);
 usize HHMap_getKeySize(const HHMap *map);
 usize HHMap_getValSize(const HHMap *map);
+// resizes all buckets, can do this before lots of insertions
+// void HHMap_fatten(const HHMap *map, usize bucketLength);
 typedef struct HHMap_both {
   void *key;
   void *val;
@@ -387,7 +389,7 @@ HHMap_both HHMap_getBoth(HHMap *map, const void *key) {
   return (HHMap_both){place - map->valsize, place};
 }
 
-inline void HHMap_clear(HHMap *map) {
+void HHMap_clear(HHMap *map) {
   for (u32 i = 0; i < map->metaSize; i++)
     map->lists[i].length = 0;
 }

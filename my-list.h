@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define NEW_ATTR
@@ -26,7 +27,7 @@ typedef struct List {
   uint32_t length;
   uint32_t size;
   uint8_t *head;
-  const My_allocator *allocator;
+  AllocatorV allocator;
 } List;
 // same as list_resize but it enforces size
 void List_forceResize(List *l, unsigned int newSize);
@@ -36,7 +37,7 @@ extern inline size_t List_headArea(const List *l);
 ATTR(pure, gnu)
 extern inline size_t List_fullHeadArea(const List *l) { return (l->width * l->size); }
 ATTR(pure, gnu)
-inline void *List_getRefForce(const List *l, unsigned int i) { return (l->head + l->width * i); };
+extern inline void *List_getRefForce(const List *l, unsigned int i) { return (l->head + l->width * i); };
 ATTR(pure, gnu)
 static void *List_getRef(const List *l, unsigned int i) { return l && (i < l->length) ? (l->head + l->width * i) : (NULL); }
 extern inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t init);
@@ -168,6 +169,8 @@ inline void List_set(List *l, unsigned int i, const void *element) {
     } else {
       memset(l->head + i * l->width, 0, l->width);
     }
+  } else if (i == l->length) {
+    List_append(l, element);
   }
 }
 inline uint32_t List_search(const List *l, const void *element) {
@@ -258,7 +261,10 @@ void List_appendFromArr(List *l, const void *source, unsigned int ammount) {
     }
     List_resize(l, newsize);
   }
-  memcpy(l->head + l->length * l->width, source, ammount * l->width);
+  if (source)
+    memcpy(l->head + l->length * l->width, source, ammount * l->width);
+  else
+    memset(l->head + l->length * l->width, 0, ammount * l->width);
   l->length += ammount;
   return;
 }

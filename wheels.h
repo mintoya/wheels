@@ -15,19 +15,32 @@
   #include "print.h"
 #endif
 
+// hash map, based on stringlist
+// dynamic key and value sizes
+// index based linked list
 #ifdef HMAP_H
   #define HMAP_C
   #include "hmap.h"
 #endif
 
+// ordered map, based on stringlist
+// dynamic key and value sizes
+// index based linked list
 #ifdef OMAP_H
   #define OMAP_C
   #include "omap.h"
 #endif
 
+// hashmap with separate chaining
 #ifdef HHMAP_H
   #define HHMAP_C
   #include "hhmap.h"
+#endif
+
+// hashmap with open adressing
+#ifdef HLMAP_H
+  #define HLMAP_C
+  #include "hlmap.h"
 #endif
 
 #ifdef STRING_LIST_H
@@ -49,7 +62,8 @@
   #define MY_ALLOCATOR_C
   #include "allocator.h"
 #endif
+
 #ifdef UM_FP_H
-#define UM_FP_C
-#include "fptr.h"
+  #define UM_FP_C
+  #include "fptr.h"
 #endif
