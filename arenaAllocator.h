@@ -1,9 +1,9 @@
 #ifndef ARENA_ALLOCATOR_H
 #define ARENA_ALLOCATOR_H
 #include "allocator.h"
+#include <assert.h>
 #include <errno.h>
 #include <stdint.h>
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -86,7 +86,7 @@ void *getPage(usize size) {
   return (uint8_t *)res + alignof(max_align_t);
 }
 void returnPage(void *page) {
-  nullElse(page);
+  assertMessage(page);
   page = ((uint8_t *)page - alignof(max_align_t));
   usize pagesize = *(usize *)page;
   assertMessage(!((uintptr_t)page % pagesize), "unalgned page pointer");
@@ -219,39 +219,50 @@ void arena_cleanup(My_allocator *arena) {
   }
   aFree(&allocator, arena);
 }
-void arena_free(AllocatorV allocator, void *ptr) {
-  // usize *thisSize = (usize *)((uint8_t *)ptr - alignof(max_align_t));
-  // ArenaBlock *it = (ArenaBlock *)(allocator->arb);
-}
 bool inarena(ArenaBlock *it, const void *ptr) {
   return (uintptr_t)ptr > (uintptr_t)it->buffer && (uintptr_t)ptr < (uintptr_t)it->buffer + (uintptr_t)it->size;
+}
+void arena_free(AllocatorV allocator, void *ptr) {
+  ArenaBlock *it = (ArenaBlock *)(allocator->arb);
+  while (it && !inarena(it, ptr))
+    it = it->next;
+  assertMessage(it, "ptr %p not in arena", ptr);
+  usize *lastSize = (usize *)((uint8_t *)ptr - alignof(max_align_t));
+  if (it->buffer + it->place == (u8 *)ptr + *lastSize)
+    it->place -= *lastSize + alignof(max_align_t);
 }
 usize arena_realsize(AllocatorV arena, void *ptr) {
   usize *lastSize = (usize *)((uint8_t *)ptr - alignof(max_align_t));
   return *lastSize;
 }
 void *arena_r_alloc(AllocatorV arena, void *ptr, usize size) {
+  if (!ptr)
+    return arena_alloc(arena, size);
+
   size = lineup(size, alignof(max_align_t));
   usize *lastSize = (usize *)((uint8_t *)ptr - alignof(max_align_t));
-  if (*lastSize > size)
-    return ptr;
 
-  ArenaBlock *it = (ArenaBlock *)(arena->arb);
-  usize *lastAllocatoinPos = (usize *)(it->buffer + it->place);
-
-  while (it && !(inarena(it, ptr)))
-    it = it->next;
-  assertMessage(it);
-  if (
-      lastSize + *lastSize == lastAllocatoinPos &&
-      it->place + (size - *lastSize) < it->size
-  ) {
-    it->place += size - *lastSize;
+  if (*lastSize >= size) {
     *lastSize = size;
     return ptr;
   }
+
+  ArenaBlock *it = (ArenaBlock *)(arena->arb);
+  while (it && !inarena(it, ptr))
+    it = it->next;
+  assertMessage(it, "ptr %p not in arena", ptr);
+
+  if (it->buffer + it->place == (u8 *)ptr + *lastSize) {
+    usize additional = size - *lastSize;
+    if (additional <= it->size - it->place) {
+      it->place += additional;
+      *lastSize = size;
+      return ptr;
+    }
+  }
+
   void *res = arena_alloc(arena, size);
-  memmove(res, ptr, (*lastSize));
+  memmove(res, ptr, *lastSize);
   arena_free(arena, ptr);
   return res;
 }

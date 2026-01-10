@@ -1,50 +1,59 @@
 #include "../arenaAllocator.h"
-#include "../hhmap.h"
-#include "../hlmap.h"
-// #include "../hmap_arena.h"
 #include "../print.h"
-#include "../wheels.h"
-
+//
+#include "../kmlast.c"
+REGISTER_SPECIAL_PRINTER("vason_obj", vason_object, {
+  PUTS(L"unimplemented");
+  // switch (in.tag) {
+  //   case vason_STR: {
+  //     USETYPEPRINTER(fptr, ((fptr){in.value->len, in.value->data.string}));
+  //   } break;
+  //   case vason_LST: {
+  //     PUTC(L'[');
+  //     for (u32 i = 0; i < in.value->len; i++) {
+  //       USENAMEDPRINTER("vason_obj", in.value->data.items[i]);
+  //       if (i < in.value->len - 1) {
+  //         PUTC(L',');
+  //       }
+  //     }
+  //     PUTC(L']');
+  //   } break;
+  //   case vason_MAP: {
+  //     PUTC(L'{');
+  //     for (u32 i = 0; i < in.value->len; i++) {
+  //       vason_object *item = &in.value->data.items[i];
+  //       if (item->key) {
+  //         USETYPEPRINTER(fptr, ((fptr){item->key->len, item->key->ptr}));
+  //         PUTC(L':');
+  //       }
+  //       USENAMEDPRINTER("vason_obj", *item);
+  //       if (i < in.value->len - 1)
+  //         PUTC(L';');
+  //     }
+  //     PUTC(L'}');
+  //   } break;
+  // }
+});
 int main(void) {
-  Arena_scoped *local = arena_new_ext(pageAllocator, 1);
+  Arena_scoped *local = arena_new_ext(defaultAlloc, 4096);
 
-  HHMap_scoped *small_map = HHMap_new(sizeof(int), sizeof(int), local, 32);
-  for (int i = 0; i < 64; i++) {
-    int v = i * i;
-    HHMap_set(small_map, &i, &v);
-  }
-  bool all = true;
-  for (int i = 0; i < 64; i++) {
-    int v;
-    assertMessage(HHMap_getSet(small_map, &i, &v));
-    println("{}->{}", i, v);
-  }
-  assertMessage(all, "hhmap couldnt retrieve all values ");
-  HLMap_scoped *small_map2 = HLMap_new(sizeof(int), sizeof(int), local, 32);
-  for (int i = 0; i < 64; i++) {
-    int v = i * i;
-    HLMap_set(small_map2, &i, &v);
-  }
-  all = true;
-  for (int i = 0; i < 64; i++) {
-    int v;
-    assertMessage(HLMap_getSet(small_map2, &i, &v));
-    println("{}->{}", i, v);
-  }
-  assertMessage(all, "hhmap couldnt retrieve all values ");
-
-  println("arena size: {}", arena_footprint(local));
-  println("map 1 footprint: {}", HHMap_footprint(small_map));
-  println("map 2 footprint: {}", HLMap_footprint(small_map2));
-
-  print("[");
-  for (u32 i = 0; i < small_map2->ulist.length; i++)
-    print("{wchar}", (*(u8 *)List_getRef(&small_map2->ulist, i)) ? L'▓' : L'░');
-  println("]");
-  HLMap_reload(&small_map2, 1.5);
-  print("[");
-  for (u32 i = 0; i < small_map2->ulist.length; i++)
-    print("{wchar}", (*(u8 *)List_getRef(&small_map2->ulist, i)) ? L'▓' : L'░');
-  println("]");
+  fptr string = fptr_fromCS(
+      (u8 *)("\n"
+             "a\n"
+             " [ \n"
+             "hello , world ,\n"
+             " { hello : world ; list : [hello/,world,]; }\n"
+             " ]"
+             "\n")
+  );
+  vason_token *t = vason_tokenize(local, string);
+  vason_handleEscape(string, t);
+  vason_combineStrings(string, t);
+  struct vason_result object = vason_parse(local, string, t);
+  // nullable(int) i = {};
+  // i.data = 1;
+  // i.exists = true;
   return 0;
 }
+
+#include "../wheels.h"

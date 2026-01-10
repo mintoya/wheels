@@ -1,4 +1,4 @@
-CC = zig cc
+CC = clang
 DIR = build
 # CFLAGS = -w -O0
 CFLAGS_NOTWIN32 = -g -O0 -w -ldl -fsanitize=address -D_GNU_SOURCE -lasan

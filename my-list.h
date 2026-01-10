@@ -55,7 +55,7 @@ static inline List *List_newInitL(const My_allocator *allocator, size_t bytes, u
   return l;
 }
 
-void List_append(List *l, const void *element);
+void *List_append(List *l, const void *element);
 void List_insert(List *l, unsigned int i, void *element);
 // helper function to append 0's
 void List_pad(List *l, unsigned int ammount);
@@ -63,7 +63,7 @@ List *List_fromArr(const My_allocator *, const void *source, unsigned int size, 
 void List_appendFromArr(List *l, const void *source, unsigned int i);
 
 extern inline uint32_t List_length(const List *l);
-extern inline void List_set(List *l, unsigned int i, const void *element);
+extern inline void *List_set(List *l, unsigned int i, const void *element);
 extern inline uint32_t List_search(const List *l, const void *element);
 extern inline void List_remove(List *l, unsigned int i);
 extern inline void List_zeroOut(List *l);
@@ -162,15 +162,19 @@ inline uint32_t List_length(const List *l) {
   else
     return 0;
 }
-inline void List_set(List *l, unsigned int i, const void *element) {
+inline void *List_set(List *l, unsigned int i, const void *element) {
   if (i < l->length) {
+    void *place = l->head + i * l->width;
     if (element) {
-      memcpy(l->head + i * l->width, element, l->width);
+      memcpy(place, element, l->width);
     } else {
-      memset(l->head + i * l->width, 0, l->width);
+      memset(place, 0, l->width);
     }
+    return place;
   } else if (i == l->length) {
-    List_append(l, element);
+    return List_append(l, element);
+  } else {
+    return NULL;
   }
 }
 inline uint32_t List_search(const List *l, const void *element) {
@@ -197,7 +201,7 @@ inline void List_zeroOut(List *l) {
 }
 void List_insert(List *l, unsigned int i, void *element) {
   if (i == l->length)
-    return List_append(l, element);
+    return (void)List_append(l, element);
   if (i > l->length)
     return;
   if (l->size < l->length + 1)
@@ -206,12 +210,13 @@ void List_insert(List *l, unsigned int i, void *element) {
   List_set(l, i, element);
   l->length++;
 }
-void List_append(List *l, const void *element) {
+void *List_append(List *l, const void *element) {
   if (l->size < l->length + 1)
     List_resize(l, LIST_GROW_EQ(l->length));
   l->length++;
-  List_set(l, l->length - 1, element);
+  return List_set(l, l->length - 1, element);
 }
+#include "stdio.h" 
 void List_forceResize(List *l, unsigned int newSize) {
   uint8_t *newPlace =
       (uint8_t *)aRealloc(l->allocator, l->head, newSize * l->width);
@@ -229,13 +234,8 @@ void List_forceResize(List *l, unsigned int newSize) {
   return;
 }
 void List_pad(List *l, unsigned int ammount) {
-  if (l->size < l->length + ammount) {
-    unsigned int newsize = l->size;
-    while (newsize < l->length + ammount) {
-      newsize = LIST_GROW_EQ(newsize);
-    }
-    List_resize(l, newsize);
-  }
+  if (l->size < l->length + ammount)
+    List_resize(l, l->length + ammount);
   memset(l->head + l->length * l->width, 0, ammount * l->width);
   l->length += ammount;
   return;
@@ -254,13 +254,8 @@ List *List_fromArr(const My_allocator *allocator, const void *source, unsigned i
 void List_appendFromArr(List *l, const void *source, unsigned int ammount) {
   if (!ammount)
     return;
-  if (l->size < l->length + ammount) {
-    unsigned int newsize = l->size;
-    while (newsize < l->length + ammount) {
-      newsize = LIST_GROW_EQ(newsize);
-    }
-    List_resize(l, newsize);
-  }
+  if (l->size < l->length + ammount)
+    List_resize(l, l->length + ammount);
   if (source)
     memcpy(l->head + l->length * l->width, source, ammount * l->width);
   else

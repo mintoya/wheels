@@ -6,24 +6,21 @@ template <typename T>
 struct listPlus {
   List *ptr;
   bool dofree : 1;
+  listPlus(List *p) { ptr = p; }
 
-  listPlus(const My_allocator *allocator = &defaultAllocator) {
+  listPlus(AllocatorV allocator = defaultAlloc) {
     ptr = List_new(allocator, sizeof(T));
     dofree = true;
   }
 
-  listPlus(List *p) { ptr = p; }
-
-  listPlus(T *arr, unsigned int length, const My_allocator *allocator = &defaultAllocator) {
-    ptr = List_new(allocator, sizeof(T));
-    List_fromArr(ptr, arr, length);
-  }
-  inline T *elements() { return (T *)ptr->head; }
-  inline T *self() { return (T *)ptr->head; }
+  listPlus(T *arr, unsigned int length, AllocatorV allocator = defaultAlloc) { return (T *)ptr->head; }
   inline const unsigned int length() { return ptr->length; }
 
   inline void dontfree() { dofree = false; }
-  inline void unmake() { List_free(ptr); }
+  inline void unmake() {
+    List_free(ptr);
+    ptr = nullptr;
+  }
   ~listPlus() {
     if (dofree)
       unmake();
@@ -56,8 +53,7 @@ struct listPlus {
   inline unsigned int capacity() const { return ptr->size; }
   template <typename FN>
   void foreach (FN &&function) {
-    for (int i = 0; i < length(); i++) {
+    for (int i = 0; i < length(); i++)
       function(i, get(i));
-    }
   }
 };

@@ -455,6 +455,11 @@ struct print_arg {
   REGISTER_SPECIAL_PRINTER("fptr<wchar>",fptr, {
       put((wchar*)in.ptr,_arb,in.width/sizeof(wchar),0);
   });
+  REGISTER_SPECIAL_PRINTER("fptr<char>",fptr, {
+      for (usize i = 0; i<in.width; i++) {
+        PUTC(in.ptr[i]);
+      }
+  });
   REGISTER_SPECIAL_PRINTER("fptr<void>", fptr, {
       const wchar hex_chars[17] = L"0123456789abcdef";
       char cut0s = 0;

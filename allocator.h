@@ -33,7 +33,10 @@ typedef Own_Allocator OwnAllocator;
 void *aAlloc(AllocatorV allocator, size_t size);
 void *aRealloc(AllocatorV allocator, void *oldptr, size_t size);
 void aFree(AllocatorV allocator, void *oldptr);
-#define aCreate(allocator, type) ((type *)(aAlloc(allocator, sizeof(type))))
+#define aCreateHelper(allocator, type, count, ...) \
+  ((type *)(aAlloc(allocator, sizeof(type) * count)))
+#define aCreate(allocator, type, ...) \
+  aCreateHelper(allocator, type __VA_OPT__(, __VA_ARGS__), 1)
 
 AllocatorV getDefaultAllocator(void);
 #define defaultAlloc (getDefaultAllocator())

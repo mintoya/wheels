@@ -1,9 +1,9 @@
 #ifndef UM_FP_H
 #define UM_FP_H
 #ifdef _WIN32
-// #include <malloc.h>
-// #else
-// #include <alloca.h>
+  #include <malloc.h>
+#else
+  #include <alloca.h>
 #endif
 #include "types.h"
 #include <stdalign.h>
@@ -12,12 +12,13 @@
 #include <stdlib.h>
 #include <wchar.h>
 
+
 typedef struct {
-  size_t width;
+  usize width;
   u8 *ptr;
 } fptr;
 typedef struct {
-  size_t width;
+  usize width;
   u8 ptr[];
 } bFptr;
 #define fptr_fromB(bfptr) ((fptr){.width = (bfptr).width, .ptr = (uint8_t *)(bfptr).ptr})
