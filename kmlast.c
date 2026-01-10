@@ -2,7 +2,6 @@
 #include "print.h"
 #include "types.h"
 #include <stdio.h>
-#include <sys/cdefs.h>
 
 struct vason_string {
   usize len, offset;
@@ -140,23 +139,22 @@ nullable(usize) stack_resolve_breakdown(usize start, slice(vason_token) t, vason
   }
 }
 
-slice(vason_level) breakdown(slice(vason_token) t, AllocatorV allocator, slice(u8) str) {
+slice(vason_level) breakdown(usize start, slice(vason_token) t, AllocatorV allocator, slice(u8) str) {
   List level;
   List_makeNew(allocator, &level, sizeof(vason_level), 5);
   enum { arr,
          map,
          undefined } mode = undefined;
-  usize start = 0;
 
-  for (each_slice(t, token)) {
-    if (*token == ARR_start) {
+  for (usize i = start; i < t.len; i++) {
+    if (t.ptr[i] == ARR_start) {
       mode = arr;
-      start = token - t.ptr;
+      start = i;
       break;
     }
-    if (*token == MAP_start) {
+    if (t.ptr[i] == MAP_start) {
       mode = map;
-      start = token - t.ptr;
+      start = i;
       break;
     }
   }
@@ -167,13 +165,13 @@ slice(vason_level) breakdown(slice(vason_token) t, AllocatorV allocator, slice(u
   assertMessage(!end_nullable.isnull);
   usize end = end_nullable.data;
 
-  println("starting at {}", start);
-  for (usize i = start; i < end; i++)
-    print("{u8},", t.ptr[i]);
-  println();
-  for (usize i = start; i < end; i++)
-    print("{char},", str.ptr[i]);
-  println();
+  // println("starting at {}", start);
+  // for (usize i = start; i < end; i++)
+  //   print("{u8},", t.ptr[i]);
+  // println();
+  // for (usize i = start; i < end; i++)
+  //   print("{char},", str.ptr[i]);
+  // println();
 
   usize i = start;
   enum { index,
@@ -204,7 +202,8 @@ slice(vason_level) breakdown(slice(vason_token) t, AllocatorV allocator, slice(u
         if (mode == map) {
           stritem.kind = mapMode == value ? vason_level_STR : vason_level_ID;
         }
-        List_append(&level, &stritem);
+        if (mode == arr || (inext != istart))
+          List_append(&level, &stritem);
         i = next;
       } break;
 

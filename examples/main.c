@@ -37,34 +37,41 @@ REGISTER_SPECIAL_PRINTER("vason_obj", vason_object, {
 int main(void) {
   Arena_scoped *local = arena_new_ext(defaultAlloc, 4096);
 
-  // slice(u8) string = {
-  //     113,
-  //     (u8"outside of /[] or /{}, shouldnt be read\n"
-  //      "[ \n"
-  //      " hello , world ,\n"
-  //      " {\n"
-  //      "  hello : world; \n"
-  //      "  list : [hello/,world,];\n"
-  //      " }\n"
-  //      "]"
-  //      "\n")
-  // };
   slice(u8) string = {
-      128,
+      113,
       (u8"outside of /[] or /{}, shouldnt be read\n"
-       "{ \n"
-       " hello world : world ;\n"
-       " 2:{\n"
+       "[ \n"
+       " hello , world ,\n"
+       " {\n"
        "  hello : world; \n"
        "  list : [hello/,world,];\n"
-       " };\n"
-       "}a: b;"
+       " }\n"
+       "]"
        "\n")
   };
+  // slice(u8) string = {
+  //     128,
+  //     (u8"outside of /[] or /{}, shouldnt be read\n"
+  //      "{ \n"
+  //      " hello world : world ;\n"
+  //      " 2:{\n"
+  //      "  hello : world; \n"
+  //      "  list : [hello/,world,];\n"
+  //      " };\n"
+  //      "}a: b;"
+  //      "\n")
+  // };
   println("input :\n{fptr}", string);
   auto t = vason_tokenize(local, string);
   vason_combineStrings(string, t);
-  breakdown(t, local, string);
+  auto level1 = breakdown(0, t, local, string);
+  println();
+  for (each_slice(level1, vsl)) {
+    if (vsl[0].kind != vason_level_STR && vsl[0].kind != vason_level_ID) {
+      auto level2 = breakdown(vsl[0].pos.offset, t, local, string);
+      aFree(local, level2.ptr);
+    }
+  }
 
   println("arena footprint: {}", arena_footprint(local));
   return 0;
