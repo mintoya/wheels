@@ -37,22 +37,36 @@ REGISTER_SPECIAL_PRINTER("vason_obj", vason_object, {
 int main(void) {
   Arena_scoped *local = arena_new_ext(defaultAlloc, 4096);
 
-  fptr string = fptr_fromCS(
-      (u8 *)("\n"
-             "a\n"
-             " [ \n"
-             "hello , world ,\n"
-             " { hello : world ; list : [hello/,world,]; }\n"
-             " ]"
-             "\n")
-  );
-  vason_token *t = vason_tokenize(local, string);
-  vason_handleEscape(string, t);
+  // slice(u8) string = {
+  //     113,
+  //     (u8"outside of /[] or /{}, shouldnt be read\n"
+  //      "[ \n"
+  //      " hello , world ,\n"
+  //      " {\n"
+  //      "  hello : world; \n"
+  //      "  list : [hello/,world,];\n"
+  //      " }\n"
+  //      "]"
+  //      "\n")
+  // };
+  slice(u8) string = {
+      128,
+      (u8"outside of /[] or /{}, shouldnt be read\n"
+       "{ \n"
+       " hello world : world ;\n"
+       " 2:{\n"
+       "  hello : world; \n"
+       "  list : [hello/,world,];\n"
+       " };\n"
+       "}a: b;"
+       "\n")
+  };
+  println("input :\n{fptr}", string);
+  auto t = vason_tokenize(local, string);
   vason_combineStrings(string, t);
-  struct vason_result object = vason_parse(local, string, t);
-  // nullable(int) i = {};
-  // i.data = 1;
-  // i.exists = true;
+  breakdown(t, local, string);
+
+  println("arena footprint: {}", arena_footprint(local));
   return 0;
 }
 

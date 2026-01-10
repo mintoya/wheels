@@ -1,10 +1,10 @@
 #ifndef MY_TYPES
-  #define MY_TYPES
-  #include <stdbool.h>
-  #include <stddef.h>
-  #include <stdint.h>
-  #include <time.h>
-  #define _XOPEN_SOURCE 700
+#define MY_TYPES
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <time.h>
+#define _XOPEN_SOURCE 700
 
 typedef wchar_t wchar;
 typedef unsigned int uint;
@@ -24,12 +24,11 @@ typedef double f64;
 typedef uintmax_t umax;
 typedef intmax_t imax;
 typedef size_t usize;
-  #if defined(_MSC_VER)
-    #include <BaseTsd.h>
+#if defined(_MSC_VER)
+  #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
-  #elif defined(__linux__)
-    #include <sys/types.h>
-  #endif
+#elif defined(__linux__)
+  #include <sys/types.h>
 #endif
 typedef ssize_t ssize;
 static_assert(sizeof(ssize) == sizeof(usize), "ssize and usize have to be the same length");
@@ -74,16 +73,28 @@ struct slice_type {
   #define slice_cat_(a, b) a##b
   #define slice_cat(a, b) slice_cat_(a, b)
 
-  #define nullable(type)                 \
-    struct slice_cat_(nullable_, type) { \
-      type data;                         \
-      bool exists : 1;                   \
+  #define nullable_tag(type, tag)       \
+    struct slice_cat_(nullable_, tag) { \
+      bool isnull : 1;                  \
+      type data;                        \
     }
 
-  #define slice(type)                 \
-    struct slice_cat_(slice_, type) { \
-      usize len;                      \
-      type *ptr;                      \
+  #define nullable(type) nullable_tag(type, type)
+  #define nullable_null(type) ((nullable(type)){.isnull = true})
+  #define nullable_real(type, value) ((nullable(type)){.isnull = false, .data = (value)})
+
+  #define slice_tag(type, tag)       \
+    struct slice_cat_(slice_, tag) { \
+      usize len;                     \
+      type *ptr;                     \
     }
+  #define slice(type) slice_tag(type, type)
+
+  #define each_slice(slice, e)       \
+    typeof(slice.ptr) e = slice.ptr; \
+    e < slice.ptr + slice.len;       \
+    e++
+  #define st(type) typeof(typeof(type (*)(size_t *))(*)[1]) // could be usefule
+
 #endif
 #endif // MY_TYPES
