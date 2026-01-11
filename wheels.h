@@ -67,3 +67,7 @@
   #define UM_FP_C
   #include "fptr.h"
 #endif
+#ifdef ASSERTMESSAGE_H
+  #define ASSERTMESSAGE_C
+  #include "assertMessage.h"
+#endif

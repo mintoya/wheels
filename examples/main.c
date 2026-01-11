@@ -4,56 +4,6 @@
 #include "../kmlast.c"
 #include <stdio.h>
 
-static void kmlFormatPrinter(
-    const wchar *data,
-    void *arb,
-    unsigned int length,
-    bool flush
-) {
-  static uint indentLevel = 0;
-
-  for (size_t index = 0; index < length; index++) {
-    wchar character = data[index];
-    {
-      switch (character) {
-        case '{':
-        case '[': {
-          putwchar(character);
-          putwchar('\n');
-          indentLevel++;
-          for (int i = 0; i < indentLevel; i++) {
-            putwchar(' ');
-          }
-        } break;
-        case '}':
-        case ']': {
-          putwchar('\033');
-          putwchar('[');
-          putwchar('1');
-          putwchar('D');
-          putwchar(character);
-          putwchar('\n');
-          indentLevel--;
-          for (int i = 0; i < indentLevel; i++) {
-            putwchar(' ');
-          }
-        } break;
-        case ';':
-        case ',': {
-          putwchar(character);
-          putwchar('\n');
-          for (int i = 0; i < indentLevel; i++) {
-            putwchar(' ');
-          }
-        } break;
-        default:
-          putwchar(character);
-      }
-    }
-  }
-  if (flush)
-    indentLevel = 0;
-}
 typedef struct vason_container vason_container;
 REGISTER_PRINTER(vason_container, {
   vason_object o = in.top;
@@ -104,7 +54,7 @@ int main(void) {
 
   struct vason_container c = parseStr(local, string);
 
-  print_wf(kmlFormatPrinter, "{vason_container}", c);
+  print("{vason_container}", c);
 
   println("arena footprint: {}", arena_footprint(local));
   return 0;

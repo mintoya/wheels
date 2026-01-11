@@ -12,7 +12,7 @@ pub fn build(b: *std.Build) void {
             .optimize = b.standardOptimizeOption(.{
                 .preferred_optimize_mode = .Debug,
             }),
-            .strip = false, // Ensure symbols aren't stripped
+            .strip = false,
         }),
     });
 
@@ -20,12 +20,14 @@ pub fn build(b: *std.Build) void {
         .file = b.path("examples/main.c"),
         .flags = &.{
             "-g",
-            "-w",
+            "-w","-gcodeview",
             "-std=c23",
         },
         .language = .c,
     });
-
+    if (target.result.os.tag == .windows) {
+        exe.root_module.linkSystemLibrary("dbghelp", .{});
+    }
     exe.linkage = .dynamic;
     exe.rdynamic = true;
 

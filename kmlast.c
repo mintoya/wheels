@@ -5,12 +5,14 @@
 struct vason_string {
   usize len, offset;
 };
+typedef enum : u8 {
+  vason_STR,
+  vason_ARR,
+  vason_MAP,
+  vason_ID,
+} vason_tag;
 typedef struct vason_object {
-  enum : u8 {
-    vason_STR,
-    vason_ARR,
-    vason_MAP,
-  } tag;
+  vason_tag tag;
   union {
     struct vason_string string;
     struct {
@@ -30,6 +32,25 @@ typedef struct vason_container {
   List *strings;
   List *objects;
 } vason_contianer;
+typedef struct vason_level {
+  enum {
+    vason_level_STR, // value , between , or :;
+    vason_level_ID,  // right before an list|object(when inside object) between ,:
+    vason_level_ARR, //
+    vason_level_MAP, //
+  } kind;
+  struct vason_string pos;
+} vason_level;
+struct breakdown_return {
+  enum {
+    arr,
+    map
+  } kind;
+  struct slice_vason_level {
+    usize len;
+    vason_level *ptr;
+  } items;
+};
 
 // just control characters for now
 bool vason_skip(char c) {
@@ -85,15 +106,6 @@ void vason_addEscapes(slice(u8) string, slice(vason_token) t) {
     }
   }
 }
-typedef struct vason_level {
-  enum {
-    vason_level_STR, // value , between , or :;
-    vason_level_ID,  // right before an list|object(when inside object) between ,:
-    vason_level_ARR, //
-    vason_level_MAP, //
-  } kind;
-  struct vason_string pos;
-} vason_level;
 
 // returns end of id
 bool isrid(vason_token t) {
@@ -189,16 +201,6 @@ nullable(usize) stack_resolve_breakdown(AllocatorV, usize start, slice(vason_tok
 //     return nullable_real(usize, start);
 //   }
 // }
-struct breakdown_return {
-  enum {
-    arr,
-    map
-  } kind;
-  struct slice_vason_level {
-    usize len;
-    vason_level *ptr;
-  } items;
-};
 struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV allocator, slice(u8) str) {
   List level;
   List_makeNew(allocator, &level, sizeof(vason_level), 5);
@@ -407,4 +409,55 @@ vason_contianer parseStr(AllocatorV allocator, slice(u8) string) {
   aFree(allocator, t.ptr);
 
   return res;
+}
+
+static void kmlFormatPrinter(
+    const wchar *data,
+    void *arb,
+    unsigned int length,
+    bool flush
+) {
+  static uint indentLevel = 0;
+
+  for (size_t index = 0; index < length; index++) {
+    wchar character = data[index];
+    {
+      switch (character) {
+        case '{':
+        case '[': {
+          putwchar(character);
+          putwchar('\n');
+          indentLevel++;
+          for (int i = 0; i < indentLevel; i++) {
+            putwchar(' ');
+          }
+        } break;
+        case '}':
+        case ']': {
+          putwchar('\033');
+          putwchar('[');
+          putwchar('1');
+          putwchar('D');
+          putwchar(character);
+          putwchar('\n');
+          indentLevel--;
+          for (int i = 0; i < indentLevel; i++) {
+            putwchar(' ');
+          }
+        } break;
+        case ';':
+        case ',': {
+          putwchar(character);
+          putwchar('\n');
+          for (int i = 0; i < indentLevel; i++) {
+            putwchar(' ');
+          }
+        } break;
+        default:
+          putwchar(character);
+      }
+    }
+  }
+  if (flush)
+    indentLevel = 0;
 }

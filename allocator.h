@@ -2,7 +2,6 @@
 #define MY_ALLOCATOR_H
 #include <stddef.h>
 #include <stdint.h>
-#include <sys/cdefs.h>
 
 [[gnu::const]]
 uintptr_t lineup(size_t unaligned, size_t aligneder);
