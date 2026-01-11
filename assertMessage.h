@@ -3,7 +3,7 @@
 #if defined(__linux__)
   #include <execinfo.h>
   #include <unistd.h>
-#else
+#elif defined(_WIN32) || (_WIN64)
   #define STDOUT_FILENO (_fileno(stdout))
   #define STDERR_FILENO (_fileno(stderr))
   //
@@ -15,6 +15,9 @@
   #include <winbase.h>
 size_t backtrace(void **array, size_t size);
 void backtrace_symbols_fd(void *array[], size_t size, int filnumber);
+#else
+  #define backtrace(...)
+  #define backtrace_symbols_fd(...)
 #endif
 #ifndef NDEBUG
   #define PRINTORANGE "\x1b[38;5;208m"
@@ -66,6 +69,7 @@ void backtrace_symbols_fd(void *array[], size_t size, int filnumber);
 #define ASSERTMESSAGE_C (1)
 #endif
 #ifdef ASSERTMESSAGE_C
+#if defined(_WIN32) || (_WIN64)
 size_t backtrace(void **array, size_t size) {
   return CaptureStackBackTrace(
       0, // Changed from 1 to 0 - skip frames in backtrace_symbols_fd instead
@@ -74,7 +78,7 @@ size_t backtrace(void **array, size_t size) {
       NULL
   );
 }
-#include <stdio.h>
+  #include <stdio.h>
 void backtrace_symbols_fd(void *array[], size_t size, int filnumber) {
   HANDLE process = GetCurrentProcess();
 
@@ -120,4 +124,5 @@ void backtrace_symbols_fd(void *array[], size_t size, int filnumber) {
 
   SymCleanup(process);
 }
+#endif
 #endif
