@@ -1,6 +1,6 @@
 #ifndef MY_PRINTER_H
 #define MY_PRINTER_H
-#include <errno.h>
+#include "assertMessage.h"
 #include <locale.h>
 #include <malloc.h>
 #include <stdarg.h>

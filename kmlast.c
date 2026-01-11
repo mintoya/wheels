@@ -1,16 +1,15 @@
+#include "allocator.h"
 #include "my-list.h"
 #include "print.h"
 #include "types.h"
-#include <stdio.h>
-
 struct vason_string {
   usize len, offset;
 };
 typedef struct vason_object {
   enum : u8 {
-    vason_STR = 0b00,
-    vason_ARR = 0b01,
-    vason_MAP = 0b10,
+    vason_STR,
+    vason_ARR,
+    vason_MAP,
   } tag;
   union {
     struct vason_string string;
@@ -25,6 +24,12 @@ typedef struct vason_object {
     } object;
   } data;
 } vason_object;
+typedef struct vason_container {
+  vason_object top;
+  const slice(u8) string;
+  List *strings;
+  List *objects;
+} vason_contianer;
 
 // just control characters for now
 bool vason_skip(char c) {
@@ -69,7 +74,7 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(u8) string) {
   }
   return t;
 }
-void vason_combineStrings(slice(u8) string, slice(vason_token) t) {
+void vason_addEscapes(slice(u8) string, slice(vason_token) t) {
   for (usize i = 0; i < t.len; i++) {
     if (t.ptr[i] == ESCAPE) {
       t.ptr[i] = STR_;
@@ -104,7 +109,7 @@ bool isrid(vason_token t) {
     } break;
   }
 }
-nullable(usize) stack_resolve_breakdown(usize start, slice(vason_token) t, vason_token query) {
+nullable(usize) stack_resolve_breakdown(AllocatorV, usize start, slice(vason_token) t, vason_token query) {
   switch (query) {
     case ARR_end:
     case MAP_end: {
@@ -117,13 +122,13 @@ nullable(usize) stack_resolve_breakdown(usize start, slice(vason_token) t, vason
 
         switch (t.ptr[i]) {
           case ARR_start: {
-            nullable(usize) next = stack_resolve_breakdown(i + 1, t, ARR_end);
+            nullable(usize) next = stack_resolve_breakdown(NULL, i + 1, t, ARR_end);
             if (next.isnull)
               return nullable_null(usize);
             i = next.data;
           } break;
           case MAP_start: {
-            nullable(usize) next = stack_resolve_breakdown(i + 1, t, MAP_end);
+            nullable(usize) next = stack_resolve_breakdown(NULL, i + 1, t, MAP_end);
             if (next.isnull)
               return nullable_null(usize);
             i = next.data;
@@ -139,11 +144,66 @@ nullable(usize) stack_resolve_breakdown(usize start, slice(vason_token) t, vason
   }
 }
 
-slice(vason_level) breakdown(usize start, slice(vason_token) t, AllocatorV allocator, slice(u8) str) {
+// nullable(usize) stack_resolve_breakdown(AllocatorV allocator, usize start, slice(vason_token) t, vason_token query) {
+//   List stack;
+//   List_makeNew(allocator, &stack, 1, 3);
+//   List_append(&stack, &query);
+//   while (stack.length) {
+//     query = *((vason_token *)List_getRef(&stack, stack.length - 1));
+//     switch (query) {
+//       case ARR_end:
+//       case MAP_end: {
+//         for (; start < t.len; start++) {
+//           if (!isrid(t.ptr[start]))
+//             continue;
+//           if (t.ptr[start] == query) {
+//             stack.length--;
+//             continue;
+//           }
+//           switch (t.ptr[start]) {
+//             case ARR_start: {
+//               List_append(&stack, &(vason_token){ARR_end});
+//             } break;
+//             case MAP_start: {
+//               List_append(&stack, &(vason_token){MAP_end});
+//             } break;
+//             default: {
+//               aFree(allocator, stack.head);
+//               return nullable_null(usize);
+//             }
+//           }
+//         }
+//         {
+//           aFree(allocator, stack.head);
+//           return nullable_null(usize);
+//         }
+//       }
+//       default:
+//         assertMessage(false, "cant search for that");
+//     }
+//   }
+//   aFree(allocator, stack.head);
+//   if (stack.length) {
+//     return nullable_null(usize);
+//   } else {
+//     return nullable_real(usize, start);
+//   }
+// }
+struct breakdown_return {
+  enum {
+    arr,
+    map
+  } kind;
+  struct slice_vason_level {
+    usize len;
+    vason_level *ptr;
+  } items;
+};
+struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV allocator, slice(u8) str) {
   List level;
   List_makeNew(allocator, &level, sizeof(vason_level), 5);
-  enum { arr,
-         map,
+  enum { arr = arr,
+         map = map,
          undefined } mode = undefined;
 
   for (usize i = start; i < t.len; i++) {
@@ -158,20 +218,15 @@ slice(vason_level) breakdown(usize start, slice(vason_token) t, AllocatorV alloc
       break;
     }
   }
-  assertMessage(mode != undefined, "couldnt find ");
+
+  if (mode == undefined)
+    goto early_return;
   start++;
 
-  nullable(usize) end_nullable = stack_resolve_breakdown(start, t, mode == arr ? ARR_end : MAP_end);
-  assertMessage(!end_nullable.isnull);
+  nullable(usize) end_nullable = stack_resolve_breakdown(allocator, start, t, mode == arr ? ARR_end : MAP_end);
+  if (end_nullable.isnull)
+    goto early_return;
   usize end = end_nullable.data;
-
-  // println("starting at {}", start);
-  // for (usize i = start; i < end; i++)
-  //   print("{u8},", t.ptr[i]);
-  // println();
-  // for (usize i = start; i < end; i++)
-  //   print("{char},", str.ptr[i]);
-  // println();
 
   usize i = start;
   enum { index,
@@ -184,6 +239,13 @@ slice(vason_level) breakdown(usize start, slice(vason_token) t, AllocatorV alloc
 
         while (next < end && t.ptr[next] == STR_)
           next++;
+        if (
+            t.ptr[next] == MAP_start ||
+            t.ptr[next] == ARR_start
+        ) {
+          i = next;
+          break;
+        }
 
         usize istart = i;
         usize inext = next;
@@ -209,11 +271,9 @@ slice(vason_level) breakdown(usize start, slice(vason_token) t, AllocatorV alloc
 
       case ARR_start:
       case MAP_start: {
-        nullable(usize) next_nullable = stack_resolve_breakdown(
-            i + 1, t,
-            t.ptr[i] == ARR_start ? ARR_end : MAP_end
-        );
-        assertMessage(!next_nullable.isnull);
+        nullable(usize) next_nullable = stack_resolve_breakdown(allocator, i + 1, t, t.ptr[i] == ARR_start ? ARR_end : MAP_end);
+        if (next_nullable.isnull)
+          goto early_return;
         usize next = next_nullable.data;
 
         List_append(
@@ -230,18 +290,23 @@ slice(vason_level) breakdown(usize start, slice(vason_token) t, AllocatorV alloc
       } break;
 
       case ARR_delim:
-        assertMessage(mode == arr);
+        if (mode != arr)
+          goto early_return;
         i++;
         break;
       case MAP_delim_ID: {
-        assertMessage(mode == map);
-        assertMessage(mapMode == index);
+        if (mode != map)
+          goto early_return;
+        if (mapMode != index)
+          goto early_return;
         mapMode = value;
         i++;
       } break;
       case MAP_delim: {
-        assertMessage(mode == map);
-        assertMessage(mapMode == value);
+        if (mode != map)
+          goto early_return;
+        if (mapMode != value)
+          goto early_return;
         mapMode = index;
         i++;
       } break;
@@ -250,30 +315,96 @@ slice(vason_level) breakdown(usize start, slice(vason_token) t, AllocatorV alloc
         break;
     }
   }
-
+  // clang-format off
+  early_return:
+  // clang-format on
   slice(vason_level) res = {level.length, (vason_level *)level.head};
-  for (each_slice(res, e)) {
-    switch (e[0].kind) {
-        // clang-format off
-      case vason_level_STR: print("S"); break;
-      case vason_level_ID: print("I"); break;
-      case vason_level_ARR: print("A"); break;
-      case vason_level_MAP: print("M"); break;
-        // clang-format on
-    }
-    println(
-        ":{}.{} ({fptr})",
-        e[0].pos.offset,
-        e[0].pos.len,
-        ((slice(u8)){e[0].pos.len, e[0].pos.offset + str.ptr})
-    );
-  }
-  return res;
+  return (struct breakdown_return){mode == arr ? arr : map, res};
 }
 
-struct vason_result {
-  vason_object object;
-  List *strings;
-  List *objects;
-  AllocatorV allocator;
-};
+vason_contianer vason_new(
+    AllocatorV allocator,
+    slice(u8) string
+) {
+  auto res = (vason_contianer){
+      .string = string,
+      .strings = mList(allocator, struct vason_string),
+      .objects = mList(allocator, vason_object),
+  };
+  return res;
+}
+void vason_free(vason_contianer c) {
+  List_free(c.objects);
+  List_free(c.strings);
+}
+vason_object vason_decender(
+    AllocatorV allocator,
+    vason_contianer container,
+    slice(vason_token) t,
+    slice(u8) string,
+    usize position
+) {
+  auto bd = breakdown(position, t, allocator, string);
+
+  vason_object this;
+  if (bd.kind == map) {
+    this = (typeof(this)){
+        .tag = vason_MAP,
+        .data = {
+            .object = {
+                .array = List_appendFromArr(container.objects, NULL, bd.items.len / 2),
+                .names = List_appendFromArr(container.strings, NULL, bd.items.len / 2),
+                .len = bd.items.len / 2,
+            }
+        }
+    };
+    for (usize i = 0; i < bd.items.len / 2; i++) {
+      this.data.object.names[i] = bd.items.ptr[i * 2].pos;
+      switch (bd.items.ptr[i * 2 + 1].kind) {
+        case vason_level_STR:
+          this.data.object.array[i].tag = vason_STR;
+          this.data.object.array[i].data.string = bd.items.ptr[i * 2 + 1].pos;
+          break;
+        default:
+          usize pos = bd.items.ptr[i * 2 + 1].pos.offset;
+          this.data.object.array[i] = vason_decender(allocator, container, t, string, pos);
+          break;
+      }
+    }
+  } else {
+    this = (typeof(this)){
+        .tag = vason_ARR,
+        .data = {
+            .list = {
+                .len = bd.items.len,
+                .array = List_appendFromArr(container.objects, NULL, bd.items.len),
+            },
+        }
+    };
+    for (usize i = 0; i < bd.items.len; i++) {
+      switch (bd.items.ptr[i].kind) {
+        case vason_level_STR:
+          this.data.list.array[i].tag = vason_STR;
+          this.data.list.array[i].data.string = bd.items.ptr[i].pos;
+          break;
+        default:
+          usize pos = bd.items.ptr[i].pos.offset;
+          this.data.list.array[i] = vason_decender(allocator, container, t, string, pos);
+          break;
+      }
+    }
+  }
+
+  aFree(allocator, bd.items.ptr);
+  return this;
+}
+vason_contianer parseStr(AllocatorV allocator, slice(u8) string) {
+  auto t = vason_tokenize(allocator, string);
+  vason_addEscapes(string, t);
+  struct vason_container res = vason_new(allocator, string);
+
+  res.top = vason_decender(allocator, res, t, string, 0);
+  aFree(allocator, t.ptr);
+
+  return res;
+}

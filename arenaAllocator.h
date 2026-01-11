@@ -40,16 +40,14 @@ void returnPage(void *);
 void *getPage(usize size) {
   usize pagesize = PAGESIZE;
   size = lineup(size + alignof(max_align_t), pagesize);
-  void *res = valElse(
+  void *res =
       mmap(
-          NULL,
-          size,
+          NULL, size,
           PROT_READ | PROT_WRITE,
           MAP_PRIVATE | MAP_ANON,
           -1, 0
-      ),
-      MAP_FAILED
-  );
+      );
+  assertMessage((uptr)res != (uptr)MAP_FAILED);
   static_assert(sizeof(usize) < alignof(max_align_t));
   *(usize *)res = size;
   res = (u8 *)res + alignof(max_align_t);

@@ -31,6 +31,7 @@ u32 HHMap_getMetaSize(const HHMap *);
 extern inline void *HHMap_getCoord(const HHMap *, u32 bucket, u32 index);
 u32 HHMap_count(const HHMap *map);
 void HHMap_clear(HHMap *map);
+[[gnu::pure, gnu::assume_aligned(alignof(max_align_t))]]
 u8 *HHMap_getKeyBuffer(const HHMap *map);
 extern inline void *HHMap_getKey(const HHMap *map, u32 n);
 extern inline void *HHMap_getVal(const HHMap *map, u32 n);
@@ -130,8 +131,8 @@ HHMap *HHMap_new(usize kSize, usize vSize, const My_allocator *allocator, u32 me
       sizeof(HHMap) +
       sizeof(HHMap_LesserList) * metaSize +
       sizeof(void **) * metaSize +
-      2 * alignof(max_align_t) +
-      2 * (kSize + vSize);
+      alignof(max_align_t) +
+      (kSize + vSize);
   HHMap *hm = (HHMap *)aAlloc(allocator, totalSize);
 
   HHMap_LesserList *lists = (HHMap_LesserList *)lineup(
@@ -156,15 +157,18 @@ HHMap *HHMap_new(usize kSize, usize vSize, const My_allocator *allocator, u32 me
   memset(hm->lists, 0, metaSize * sizeof(HHMap_LesserList));
   return hm;
 }
+[[gnu::pure, gnu::assume_aligned(alignof(max_align_t))]]
 u8 *HHMap_getKeyBuffer(const HHMap *map) {
-  usize kvs = map->keysize + map->metaSize;
   return (
-      (u8 *)map->listHeads +
-      map->metaSize * sizeof(void **) +
-      kvs
+      (u8 *)lineup(
+          (uptr)map->listHeads +
+              map->metaSize * sizeof(*map->listHeads),
+          alignof(max_align_t)
+      )
   );
 }
 
+[[gnu::pure]]
 u8 *HHMap_getValBuffer(const HHMap *map) {
   return (u8 *)HHMap_getKeyBuffer(map) + map->keysize;
 }
@@ -227,7 +231,7 @@ void HHMap_transform(HHMap **last, usize kSize, usize vSize, const My_allocator 
 
   *last = newMap;
 }
-__attribute__((always_inline)) static inline void *LesserList_getref(usize elw, HHMap_LesserList *hll, void *head, u32 idx) {
+[[gnu::always_inline]] static inline void *LesserList_getref(usize elw, HHMap_LesserList *hll, void *head, u32 idx) {
   return (u8 *)head + idx * (elw);
 }
 static inline void LesserList_appendGarbage(usize elw, HHMap_LesserList *hll, void **headptr, AllocatorV allocator) {

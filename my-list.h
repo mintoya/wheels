@@ -60,7 +60,7 @@ void List_insert(List *l, unsigned int i, void *element);
 // helper function to append 0's
 void List_pad(List *l, unsigned int ammount);
 List *List_fromArr(const My_allocator *, const void *source, unsigned int size, unsigned int length);
-void List_appendFromArr(List *l, const void *source, unsigned int i);
+void *List_appendFromArr(List *l, const void *source, unsigned int i);
 
 extern inline uint32_t List_length(const List *l);
 extern inline void *List_set(List *l, unsigned int i, const void *element);
@@ -216,7 +216,7 @@ void *List_append(List *l, const void *element) {
   l->length++;
   return List_set(l, l->length - 1, element);
 }
-#include "stdio.h" 
+#include "stdio.h"
 void List_forceResize(List *l, unsigned int newSize) {
   uint8_t *newPlace =
       (uint8_t *)aRealloc(l->allocator, l->head, newSize * l->width);
@@ -251,17 +251,18 @@ List *List_fromArr(const My_allocator *allocator, const void *source, unsigned i
     memcpy(res->head, source, length * width);
   return res;
 }
-void List_appendFromArr(List *l, const void *source, unsigned int ammount) {
+void *List_appendFromArr(List *l, const void *source, unsigned int ammount) {
   if (!ammount)
-    return;
+    return NULL;
   if (l->size < l->length + ammount)
     List_resize(l, l->length + ammount);
+  uint8_t *dest = l->head + l->length * l->width;
   if (source)
-    memcpy(l->head + l->length * l->width, source, ammount * l->width);
+    memcpy(dest, source, ammount * l->width);
   else
-    memset(l->head + l->length * l->width, 0, ammount * l->width);
+    memset(dest, 0, ammount * l->width);
   l->length += ammount;
-  return;
+  return dest;
 }
 
 List *List_deepCopy(List *l) { return List_fromArr(l->allocator, l->head, l->width, l->length); }

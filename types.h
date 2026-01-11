@@ -24,11 +24,16 @@ typedef double f64;
 typedef uintmax_t umax;
 typedef intmax_t imax;
 typedef size_t usize;
+
+typedef void *voidptr;
+
 #if defined(_MSC_VER)
   #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
 #elif defined(__linux__)
   #include <sys/types.h>
+#else
+typedef long long ssize_t;
 #endif
 typedef ssize_t ssize;
 static_assert(sizeof(ssize) == sizeof(usize), "ssize and usize have to be the same length");
@@ -90,11 +95,19 @@ struct slice_type {
     }
   #define slice(type) slice_tag(type, type)
 
+  #define slice_stat(s) {sizeof(s) / sizeof(s[0]), (typeof(s[0]) *)s}
   #define each_slice(slice, e)       \
     typeof(slice.ptr) e = slice.ptr; \
     e < slice.ptr + slice.len;       \
     e++
-  #define st(type) typeof(typeof(type (*)(size_t *))(*)[1]) // could be usefule
+  #define bslice_tag(type, tag)       \
+    struct slice_cat_(bslice_, tag) { \
+      usize len;                      \
+      type ptr[];                     \
+    } *
+  #define bslice(type) bslice_tag(type, type)
+bslice(int) a;
+  // #define st(type) typeof(typeof(type (*)(size_t *))(*)[1]) // could be usefule
 
 #endif
 #endif // MY_TYPES

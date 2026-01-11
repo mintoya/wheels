@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <wchar.h>
 
-
 typedef struct {
   usize width;
   u8 *ptr;
@@ -268,81 +267,7 @@ static int fptr_toInt(const fptr in) {
 }
 
 #define OBJ(ptr, fnel, ...) ((ptr)->fnel(ptr __VA_OPT__(, __VA_ARGS__)))
-// #define noAssertMessage
-#ifndef NDEBUG
-  #define PRINTORANGE "\x1b[38;5;208m"
-  #define PRINTRESET "\x1b[0m"
-  #define PRINTRED "\x1b[31m\n\n"
-  #ifndef noAssertMessage
-    #define assertMessage(expr, ...)   \
-      do {                             \
-        bool result = (expr);          \
-        if (!(result)) {               \
-          fprintf(                     \
-              stderr,                  \
-              PRINTRED                 \
-              "\nmessage:\n"           \
-              "" __VA_ARGS__           \
-          );                           \
-          fprintf(                     \
-              stderr,                  \
-              PRINTORANGE              \
-              "\nassert:\t%s\n"        \
-              "in fn :\t%s\n"          \
-              "file  :\t%s\n"          \
-              "line  :\t%d\n"          \
-              "\nfailed\n",            \
-              #expr,                   \
-              __PRETTY_FUNCTION__,     \
-              __FILE__,                \
-              __LINE__                 \
-          );                           \
-          fprintf(stderr, PRINTRESET); \
-          fflush(stderr);              \
-          abort();                     \
-        }                              \
-      } while (0)
 
-  #else
-    #include <assert.h>
-    #define assertMessage(bool, fmstr, ...) assert(bool)
-  #endif
-#else
-  #define assertMessage(...)
-#endif
-#define assertOnce(...) ({static bool hasRun = false; if(!hasRun)assertMessage(__VA_ARGS__);hasRun=true; })
-
-#define valElse(expr, ovalue, ...)              \
-  /* if expr==ovalue, return va_args or exit */ \
-  ({                                            \
-    typeof((expr)) res = (expr);                \
-    typeof(res) other = (ovalue);               \
-    if (res == ovalue) {                        \
-      typeof(res) elseBlock = ({                \
-        (typeof(res))(ovalue);                  \
-        __VA_OPT__((__VA_ARGS__);)              \
-      });                                       \
-      res = elseBlock;                          \
-      assertMessage(res != ovalue);             \
-    }                                           \
-    res;                                        \
-  })
-#define countof(v) (sizeof(v) / sizeof(v[i]))
-
-#define valFullElse(expr, onerror, ...)    \
-  /*if expr == anything in __VA_ARGS__,    \
-   do  onerror;*/                          \
-  do {                                     \
-    typeof((expr)) res = (expr);           \
-    typeof(res) errvals[] = {__VA_ARGS__}; \
-    int i = 0;                             \
-    for (; i < countof(errvals); i++) {    \
-      if (res == errvals[i]) {             \
-        onerror;                           \
-        break;                             \
-      }                                    \
-    }                                      \
-  } while (0)
 #endif // UM_FP_H
 #ifdef UM_FP_C
 [[gnu::pure]] int fptr_cmp(const fptr a, const fptr b) {

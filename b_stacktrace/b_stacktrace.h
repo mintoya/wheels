@@ -1,5 +1,5 @@
 #if !defined(B_STACKTRACE_INCLUDED)
-#define B_STACKTRACE_INCLUDED (1)
+  #define B_STACKTRACE_INCLUDED (1)
 /*
 b_stacktrace v0.23 -- a cross-platform stack-trace generator
 SPDX-License-Identifier: MIT
@@ -71,13 +71,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#if !defined(B_STACKTRACE_API)
-#define B_STACKTRACE_API extern
-#endif
+  #if !defined(B_STACKTRACE_API)
+    #define B_STACKTRACE_API extern
+  #endif
 
-#ifdef __cplusplus
+  #ifdef __cplusplus
 extern "C" {
-#endif
+  #endif
 
 /*
     A stacktrace handle
@@ -109,23 +109,23 @@ B_STACKTRACE_API char *b_stacktrace_to_string(b_stacktrace_handle stacktrace);
 */
 B_STACKTRACE_API char *b_stacktrace_get_string(void);
 
-/* version */
-#define B_STACKTRACE_VER_MAJOR 0
-#define B_STACKTRACE_VER_MINOR 20
+  /* version */
+  #define B_STACKTRACE_VER_MAJOR 0
+  #define B_STACKTRACE_VER_MINOR 20
 
-#ifdef __cplusplus
+  #ifdef __cplusplus
 }
-#endif
+  #endif
 
-#if defined(B_STACKTRACE_IMPL)
+  #if defined(B_STACKTRACE_IMPL)
 
-#if defined(__linux__) && !defined(_GNU_SOURCE)
-#define _GNU_SOURCE
-#endif
+    #if defined(__linux__) && !defined(_GNU_SOURCE)
+      #define _GNU_SOURCE
+    #endif
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
+    #include <stdarg.h>
+    #include <stdio.h>
+    #include <stdlib.h>
 
 typedef struct print_buf {
   char *buf;
@@ -168,19 +168,19 @@ char *b_stacktrace_get_string(void) {
   return ret;
 }
 
-#define B_STACKTRACE_MAX_DEPTH 1024
+    #define B_STACKTRACE_MAX_DEPTH 1024
 
-#if defined(_WIN32)
+    #if defined(_WIN32)
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <DbgHelp.h>
-#include <TlHelp32.h>
-#include <Windows.h>
+      #define WIN32_LEAN_AND_MEAN
+      #include <DbgHelp.h>
+      #include <TlHelp32.h>
+      #include <Windows.h>
+      #include <windows.h>
 
-#pragma comment(lib, "DbgHelp.lib")
+      #pragma comment(lib, "DbgHelp.lib")
 
-#define B_STACKTRACE_ERROR_FLAG ((DWORD64)1 << 63)
+      #define B_STACKTRACE_ERROR_FLAG ((DWORD64)1 << 63)
 
 typedef struct b_stacktrace_entry {
   DWORD64 AddrPC_Offset;
@@ -206,7 +206,7 @@ b_stacktrace_handle b_stacktrace_get(void) {
   RtlCaptureContext(&context);
 
   memset(&frame, 0, sizeof(frame));
-#ifdef _M_IX86
+      #ifdef _M_IX86
   imageType = IMAGE_FILE_MACHINE_I386;
   frame.AddrPC.Offset = context.Eip;
   frame.AddrPC.Mode = AddrModeFlat;
@@ -214,7 +214,7 @@ b_stacktrace_handle b_stacktrace_get(void) {
   frame.AddrFrame.Mode = AddrModeFlat;
   frame.AddrStack.Offset = context.Esp;
   frame.AddrStack.Mode = AddrModeFlat;
-#elif _M_X64
+      #elif _M_X64
   imageType = IMAGE_FILE_MACHINE_AMD64;
   frame.AddrPC.Offset = context.Rip;
   frame.AddrPC.Mode = AddrModeFlat;
@@ -222,7 +222,7 @@ b_stacktrace_handle b_stacktrace_get(void) {
   frame.AddrFrame.Mode = AddrModeFlat;
   frame.AddrStack.Offset = context.Rsp;
   frame.AddrStack.Mode = AddrModeFlat;
-#elif _M_IA64
+      #elif _M_IA64
   imageType = IMAGE_FILE_MACHINE_IA64;
   frame.AddrPC.Offset = context.StIIP;
   frame.AddrPC.Mode = AddrModeFlat;
@@ -232,9 +232,9 @@ b_stacktrace_handle b_stacktrace_get(void) {
   frame.AddrBStore.Mode = AddrModeFlat;
   frame.AddrStack.Offset = context.IntSp;
   frame.AddrStack.Mode = AddrModeFlat;
-#else
-#error "Platform not supported!"
-#endif
+      #else
+        #error "Platform not supported!"
+      #endif
 
   while (1) {
     b_stacktrace_entry *cur = ret + i++;
@@ -318,11 +318,11 @@ char *b_stacktrace_to_string(b_stacktrace_handle h) {
   return out.buf;
 }
 
-#elif defined(__APPLE__)
+    #elif defined(__APPLE__)
 
-#include <execinfo.h>
-#include <unistd.h>
-#include <dlfcn.h>
+      #include <dlfcn.h>
+      #include <execinfo.h>
+      #include <unistd.h>
 
 typedef struct b_stacktrace {
   void *trace[B_STACKTRACE_MAX_DEPTH];
@@ -354,13 +354,13 @@ char *b_stacktrace_to_string(b_stacktrace_handle h) {
   return out.buf;
 }
 
-#elif defined(__linux__)
+    #elif defined(__linux__)
 
-#include <dlfcn.h>
-#include <execinfo.h>
-#include <string.h>
-#include <ucontext.h>
-#include <unistd.h>
+      #include <dlfcn.h>
+      #include <execinfo.h>
+      #include <string.h>
+      #include <ucontext.h>
+      #include <unistd.h>
 
 typedef struct b_stacktrace {
   void *trace[B_STACKTRACE_MAX_DEPTH];
@@ -431,14 +431,14 @@ char *b_stacktrace_to_string(b_stacktrace_handle h) {
   return out.buf;
 }
 
-#else
+    #else
 /* noop implementation */
 char *b_stacktrace_get_string(void) {
   print_buf out = buf_init();
   buf_printf("b_stacktrace: unsupported platform\n");
   return out.buf;
 }
-#endif /* platform */
+    #endif /* platform */
 
-#endif /* B_STACKTRACE_IMPL */
-#endif /* B_STACKTRACE_INCLUDED */
+  #endif /* B_STACKTRACE_IMPL */
+#endif   /* B_STACKTRACE_INCLUDED */

@@ -2,7 +2,9 @@
 #define MY_ALLOCATOR_H
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/cdefs.h>
 
+[[gnu::const]]
 uintptr_t lineup(size_t unaligned, size_t aligneder);
 
 typedef struct My_allocator My_allocator;
@@ -30,11 +32,13 @@ typedef struct {
 
 typedef Own_Allocator OwnAllocator;
 
+[[gnu::alloc_size(2)]]
 void *aAlloc(AllocatorV allocator, size_t size);
+[[gnu::alloc_size(3)]]
 void *aRealloc(AllocatorV allocator, void *oldptr, size_t size);
 void aFree(AllocatorV allocator, void *oldptr);
 #define aCreateHelper(allocator, type, count, ...) \
-  ((type *)(aAlloc(allocator, sizeof(type) * count)))
+  ({type* res = ((type *)(aAlloc(allocator, sizeof(type) * count)));memset(res,0,sizeof(type)*count);   res; })
 #define aCreate(allocator, type, ...) \
   aCreateHelper(allocator, type __VA_OPT__(, __VA_ARGS__), 1)
 
@@ -44,10 +48,12 @@ AllocatorV getDefaultAllocator(void);
 #endif // MY_ALLOCATOR_H
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
+// #define MY_ALLOCATOR_STRICTEST
 #define MY_ALLOCATOR_C (1)
 #endif
 #ifdef MY_ALLOCATOR_C
 #include "fptr.h"
+#include <stdio.h>
 void *aAlloc(AllocatorV allocator, size_t size) {
   void *res = (allocator)->alloc(allocator, size);
 #ifdef MY_ALLOCATOR_STRICTEST
@@ -84,6 +90,7 @@ void default_free(const My_allocator *allocator, void *p) {
   #undef DEFAULT_SIZE_GETTER
 #endif
 
+#include "assertMessage.h"
 usize default_size(AllocatorV allocator, void *ptr) {
   usize (*getSize)(void *) = NULL;
 #if defined(_WIN32) || defined(_WIN64)

@@ -165,56 +165,6 @@ static OMap *parse(OMap *parent, stringList *lparent, fptr kml) {
   return parse(parent, lparent, kml_after(kml, val));
 }
 
-static void kmlFormatPrinter(
-    const wchar *data,
-    void *arb,
-    unsigned int length,
-    char flush
-) {
-  static uint indentLevel = 0;
-
-  for (size_t index = 0; index < length; index++) {
-    wchar character = data[index];
-    {
-      switch (character) {
-        case '{':
-        case '[': {
-          putwchar(character);
-          putwchar('\n');
-          indentLevel++;
-          for (int i = 0; i < indentLevel; i++) {
-            putwchar(' ');
-          }
-        } break;
-        case '}':
-        case ']': {
-          putwchar('\033');
-          putwchar('[');
-          putwchar('1');
-          putwchar('D');
-          putwchar(character);
-          putwchar('\n');
-          indentLevel--;
-          for (int i = 0; i < indentLevel; i++) {
-            putwchar(' ');
-          }
-        } break;
-        case ';':
-        case ',': {
-          putwchar(character);
-          putwchar('\n');
-          for (int i = 0; i < indentLevel; i++) {
-            putwchar(' ');
-          }
-        } break;
-        default:
-          putwchar(character);
-      }
-    }
-  }
-  if (flush)
-    indentLevel = 0;
-}
 #endif // KMLM_H
 #if defined(KMLM_C) || (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
   #define KMLM_C (1)
