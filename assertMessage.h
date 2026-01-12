@@ -1,5 +1,6 @@
 #ifndef ASSERTMESSAGE_H
 #define ASSERTMESSAGE_H
+#include <stdio.h>
 #if defined(__linux__)
   #include <execinfo.h>
   #include <unistd.h>
