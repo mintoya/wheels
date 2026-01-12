@@ -1,5 +1,5 @@
-#ifndef UM_FP_H
-#define UM_FP_H
+#ifndef FPTR_H
+#define FPTR_H
 #ifdef _WIN32
   #include <malloc.h>
 #else
@@ -16,11 +16,6 @@ typedef struct {
   usize width;
   u8 *ptr;
 } fptr;
-typedef struct {
-  usize width;
-  u8 ptr[];
-} bFptr;
-#define fptr_fromB(bfptr) ((fptr){.width = (bfptr).width, .ptr = (uint8_t *)(bfptr).ptr})
 
 struct fatter_pointer {
   fptr fpart;
@@ -36,8 +31,6 @@ typedef union {
   fptr fptrp;
 } ffptr;
 
-typedef fptr um_fp;
-
 // vptr version of dereferencing a value
 #define fptr_fromTypeDef(v) ((fptr){sizeof(typeof(v)), (u8 *)REF(typeof(v), v)})
 // _INC_STRING
@@ -47,7 +40,6 @@ static inline fptr fptr_fromCS(void *cstr) { return ((fptr){(size_t)strlen((char
 static inline fptr fptr_fromPL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
 // only sign  of result matters
 int fptr_cmp(const fptr a, const fptr b);
-static int (*um_fp_cmp)(const fptr, const fptr) = fptr_cmp;
 
 #include <string.h>
 static inline void fpmemset(uint8_t *ptr, const fptr element, size_t ammount) {
@@ -105,9 +97,9 @@ static inline T *ref_tmp(T &&v) {
     unsigned int args[] = {__VA_ARGS__};                                               \
     for (int i = 0; i < sizeof(args) / sizeof(unsigned int); i++) {                    \
       args[i] = (i == 0)                                                               \
-                    ? ((args[i] < string.width)                                        \
+                    ? ((args[i] < string.widt                                        \
                            ? args[i]                                                   \
-                           : string.width)                                             \
+                           : string.widt                                             \
                     : ((string.width < ((args[i] > args[i - 1])                        \
                                             ? args[i]                                  \
                                             : args[i - 1]))                            \
@@ -232,7 +224,13 @@ inline fptr fp_from(const char (&s)[N]) {
 }
 
 #endif
-static fptr fptr_trim(fptr in) {
+static fptr fptr_trim(fptr in);
+unsigned int fptr_toUint(const fptr in);
+[[gnu::pure]] int fptr_cmp(const fptr a, const fptr b);
+
+#endif // FPTR_H
+#ifdef FPTR_C
+fptr fptr_trim(fptr in) {
   while (isSkip(*in.ptr)) {
     in.ptr++;
     in.width--;
@@ -244,7 +242,7 @@ static fptr fptr_trim(fptr in) {
 }
 #undef isSkip
 #define isDigit(char) (char <= '9' && char >= '0')
-static unsigned int fptr_toUint(const fptr in) {
+unsigned int fptr_toUint(const fptr in) {
   fptr copy = fptr_trim(in);
   unsigned int res = 0;
   for (size_t place = 0; place < copy.width && isDigit(copy.ptr[place]); place++) {
@@ -254,7 +252,7 @@ static unsigned int fptr_toUint(const fptr in) {
   return res;
 }
 #undef isDigit
-static int fptr_toInt(const fptr in) {
+int fptr_toInt(const fptr in) {
   fptr number = fptr_trim(in);
   if (!number.width)
     return 0;
@@ -265,11 +263,6 @@ static int fptr_toInt(const fptr in) {
   }
   return (negetive ? -1 : 1) * fptr_toUint(number);
 }
-
-#define OBJ(ptr, fnel, ...) ((ptr)->fnel(ptr __VA_OPT__(, __VA_ARGS__)))
-
-#endif // UM_FP_H
-#ifdef UM_FP_C
 [[gnu::pure]] int fptr_cmp(const fptr a, const fptr b) {
   int wd = a.width - b.width;
   if (wd)

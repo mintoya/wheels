@@ -1,14 +1,14 @@
 #include "../arenaAllocator.h"
 #include "../print.h"
 //
-#include "../kmlast.c"
-#include <stdio.h>
+#include "../vason.h"
 
 typedef struct vason_container vason_container;
 REGISTER_PRINTER(vason_container, {
   vason_object o = in.top;
   switch (o.tag) {
     case vason_ARR:
+      PUTS(L"󰅨 ");
       PUTS(L"[");
       for (usize i = 0; i < o.data.list.len; i++) {
         struct vason_object value = o.data.list.array[i];
@@ -21,6 +21,7 @@ REGISTER_PRINTER(vason_container, {
       PUTS(L"]");
       break;
     case vason_MAP:
+      PUTS(L"󱃖 ");
       PUTS(L"{");
       for (usize i = 0; i < o.data.object.len; i++) {
         struct vason_string name = o.data.object.names[i];
@@ -36,6 +37,7 @@ REGISTER_PRINTER(vason_container, {
       PUTS(L"}");
       break;
     case vason_STR:
+      PUTS(L"󰅳 ");
       struct vason_string str = o.data.string;
       USETYPEPRINTER(fptr, fptr_fromPL(in.string.ptr + str.offset, str.len));
       break;
@@ -46,7 +48,7 @@ int main(void) {
   Arena_scoped *local = arena_new_ext(pageAllocator, 1);
 
   const u8 efile[] = {
-#embed "../kml/elements.kml"
+#embed "../vason/elements.vason"
   };
   slice(u8) string = slice_stat(efile);
 
@@ -54,7 +56,7 @@ int main(void) {
 
   struct vason_container c = parseStr(local, string);
 
-  print("{vason_container}", c);
+  println("{vason_container}", c);
 
   println("arena footprint: {}", arena_footprint(local));
   return 0;

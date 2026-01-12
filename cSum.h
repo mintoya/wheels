@@ -5,7 +5,6 @@
 #include "my-list.h"
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <sys/types.h>
 #define CSUM_START_BIT ((uint8_t)0x67)
 #define CSUM_END_BIT ((uint8_t)0x41)
@@ -36,9 +35,9 @@ typedef struct
   um_fp data;
 } checkData;
 
-static dataChecker cSum_new() {
+static dataChecker cSum_new(AllocatorV allocator) {
   printf("new csum item with  %ix redundancy\n", cSum_REDUNDANCY_AMMOUNT);
-  List *l = List_new(&defaultAllocator, sizeof(uint8_t));
+  List *l = List_new(allocator, sizeof(uint8_t));
   List_resize(l, 20);
   return (dataChecker){.checkSumScratch = l};
 }

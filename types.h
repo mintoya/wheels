@@ -33,7 +33,7 @@ typedef SSIZE_T ssize_t;
 #elif defined(__linux__)
   #include <sys/types.h>
 #else
-typedef long long ssize_t;
+typedef ptrdiff_t ssize_t;
 #endif
 typedef ssize_t ssize;
 static_assert(sizeof(ssize) == sizeof(usize), "ssize and usize have to be the same length");

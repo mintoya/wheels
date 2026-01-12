@@ -1,6 +1,7 @@
 #ifndef HMAP_H
 #define HMAP_H
 #include "allocator.h"
+#include "assertMessage.h"
 #include "fptr.h"
 #include "stringList.h"
 #include <stddef.h>
