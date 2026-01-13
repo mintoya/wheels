@@ -6,42 +6,27 @@
 
 typedef struct vason_container vason_container;
 REGISTER_PRINTER(vason_container, {
-  vason_object o = in.top;
-  switch (o.tag) {
-    case vason_ARR:
-      PUTS(L"󰅨 ");
-      PUTS(L"[");
-      for (usize i = 0; i < o.data.list.len; i++) {
-        struct vason_object value = *(vason_object *)List_getRef(in.objects, o.data.list.array + i);
-        typeof(in.top) duplicate = in.top;
-        in.top = value;
-        USETYPEPRINTER(vason_container, in);
-        in.top = duplicate;
-        PUTS(L",");
-      }
-      PUTS(L"]");
-      break;
-    case vason_MAP:
-      PUTS(L"󱃖 ");
-      PUTS(L"{");
-      for (usize i = 0; i < o.data.object.len; i++) {
-        struct vason_string name = *(struct vason_string *)List_getRef(in.strings, o.data.object.names + i);
-        struct vason_object value = *(vason_object *)List_getRef(in.objects, o.data.object.array + i);
-        USETYPEPRINTER(fptr, fptr_fromPL(in.string.ptr + name.offset, name.len));
-        PUTS(L":");
-        typeof(in.top) duplicate = in.top;
-        in.top = value;
-        USETYPEPRINTER(vason_container, in);
-        in.top = duplicate;
-        PUTS(L";");
-      }
-      PUTS(L"}");
-      break;
-    case vason_STR:
-      PUTS(L"󰅳 ");
-      struct vason_string str = o.data.string;
-      USETYPEPRINTER(fptr, fptr_fromPL(in.string.ptr + str.offset, str.len));
-      break;
+  for (auto i = 0; i < in.objects->length; i++) {
+    vason_object o = in.top;
+    switch (o.tag) {
+      case vason_ARR:
+        PUTS(L"󰅨 ");
+        PUTS(L"[");
+        for (usize i = 0; i < o.data.list.len; i++) {
+        }
+        PUTS(L"]");
+        break;
+      case vason_MAP:
+        PUTS(L"󱃖 ");
+        PUTS(L"{");
+        for (usize i = 0; i < o.data.object.len; i++) {
+        }
+        PUTS(L"}");
+        break;
+      case vason_STR:
+        PUTS(L"󰅳 ");
+        break;
+    }
   }
 });
 

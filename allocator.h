@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define MY_ALLOCATOR_STRICTEST
 [[gnu::const]]
 uintptr_t lineup(size_t unaligned, size_t aligneder);
 
@@ -47,7 +48,6 @@ AllocatorV getDefaultAllocator(void);
 #endif // MY_ALLOCATOR_H
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
-// #define MY_ALLOCATOR_STRICTEST
 #define MY_ALLOCATOR_C (1)
 #endif
 #ifdef MY_ALLOCATOR_C
@@ -68,7 +68,7 @@ void *aRealloc(AllocatorV allocator, void *oldptr, size_t size) {
   return res;
 }
 void aFree(AllocatorV allocator, void *oldptr) {
-  return ((allocator)->free(allocator, oldptr));
+  ((allocator)->free(allocator, oldptr));
 }
 void *default_alloc(const My_allocator *allocator, size_t s) {
   return malloc(s);

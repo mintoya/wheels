@@ -384,22 +384,25 @@ vason_object vason_decender(
             }
         }
     };
-    struct vason_string *theseStrings = List_appendFromArr(container.strings, NULL, bd.items.len / 2);
-    vason_object *theseObjects = List_appendFromArr(container.objects, NULL, bd.items.len / 2);
     for (usize i = 0; i < bd.items.len / 2; i++) {
-      theseStrings = List_getRef(container.strings, this.data.object.names);
-      theseObjects = List_getRef(container.objects, this.data.object.array);
-      theseStrings[i] = bd.items.ptr[i * 2].pos;
       switch (bd.items.ptr[i * 2 + 1].kind) {
         case vason_STR:
-          theseObjects[i] = (vason_object){
-              .tag = vason_STR,
-              .data.string = bd.items.ptr[i * 2 + 1].pos
-          };
+          List_set(
+              container.objects,
+              i + this.data.object.array,
+              REF(
+                  vason_object,
+                  ((vason_object){
+                      .tag = vason_STR,
+                      .data.string = bd.items.ptr[i * 2 + 1].pos,
+                  })
+
+              )
+          );
           break;
         default:
           usize pos = bd.items.ptr[i * 2 + 1].pos.offset;
-          List_set(container.objects, i, REF(vason_object, vason_decender(allocator, container, t, string, pos)));
+          List_set(container.objects, i + this.data.object.array, REF(vason_object, vason_decender(allocator, container, t, string, pos)));
           break;
       }
     }
@@ -413,17 +416,14 @@ vason_object vason_decender(
             },
         }
     };
-    vason_object *theseObjects = List_appendFromArr(container.objects, NULL, bd.items.len);
     for (usize i = 0; i < bd.items.len; i++) {
-      theseObjects = List_getRef(container.objects, this.data.list.array);
       switch (bd.items.ptr[i].kind) {
         case vason_STR:
-          theseObjects[i].tag = vason_STR;
-          theseObjects[i].data.string = bd.items.ptr[i].pos;
+          List_set(container.objects, i + this.data.list.array, REF(vason_object, ((vason_object){.tag = vason_STR, .data.string = bd.items.ptr[i].pos})));
           break;
         default:
           usize pos = bd.items.ptr[i].pos.offset;
-          List_set(container.objects, i, REF(vason_object, vason_decender(allocator, container, t, string, pos)));
+          List_set(container.objects, i + this.data.list.array, REF(vason_object, vason_decender(allocator, container, t, string, pos)));
           break;
       }
     }
