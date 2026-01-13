@@ -1,9 +1,8 @@
 build
-my-list/a*
-string-List/a*
-cSum/a*
 perf.*
 .gdb*
 .zig-cache
+.ccls-cache
 zig-out/.*
 zig-out/bin
+

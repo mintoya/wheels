@@ -1,0 +1,8 @@
+[
+  {
+    "directory": "/home/paa/Github/ziggy/wheels",
+    "command": "clang -std=c2y -Iinclude -Wall -c macroMap.c -o macroMap.o",
+    "file": "example/main.c"
+  }
+]
+

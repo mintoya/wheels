@@ -6,30 +6,74 @@
 typedef struct HHMap HHMap;
   #include "fptr.h"
   #include "my-list.h"
-
 /**
- * @brief create a new HHMap
- *
- * if `k` and `v` dont have compatible alignment,
- * HHMap_fset can compensage if adequate padding is added
- * to (`kSize`)
- *
- * @tparam k key type.
- * @tparam v val type.
- * @param kSize at least `sizeof(k)`.
- * @param vSize `sizeof(v)`.
- * @param buckets buckets used in map.
+ * Creates a new hash map
+ * `@param` **kSize** size of key type
+ * `@param` **vSize** size of value type
+ * `@param` **allocator** allocator
+ * `@param` **metaSize** number of buckets
+ *     each bucket is a dynamic array
+ * `@return` pointer to new HHMap or NULL on failure
  */
-HHMap *HHMap_new(usize kSize, usize vSize, const My_allocator *allocator, u32 metaSize);
-// crops or expands (with 0's) the keys and vals
-// if any argument is 0, it will assume you want the same one of that on the last ptr
-void HHMap_transform(HHMap **last, usize kSize, usize vSize, const My_allocator *allocator, u32 metaSize);
+HHMap *HHMap_new(
+    usize kSize,          //< size of key type
+    usize vSize,          //< size of value type
+    AllocatorV allocator, //< allocator
+    u32 metaSize          //< number of buckets
+);
+/**
+ * Creates a new hash, with same keys and vals as another hash map
+ * key and val size are trimmed or padded with 0's
+ * will replace **last**
+ * `@param` **last** last map
+ * `@param` **kSize** size of key type
+ * `@param` **allocator** allocator
+ * `@param` **vSize** size of value type
+ * `@param` **metaSize** number of buckets
+ */
+void HHMap_transform(HHMap **last, usize kSize, usize vSize, AllocatorV allocator, u32 metaSize);
+/**
+ * free's **hm**
+ * `@param` **hm** map
+ */
 void HHMap_free(HHMap *hm);
-void *HHMap_get(const HHMap *, const void *);
+/**
+ * get pointer to key from pointer to val
+ * `@param` **hm** map
+ * `@param` **key** pointer to key
+ * `@return` pointer to value, null if not found
+ */
+void *HHMap_get(const HHMap *hm, const void *key);
+/**
+ * set pointer to key from pointer to val
+ * `@param` **hm** map
+ * `@param` **key** pointer to key
+ * `@param` **val** pointer to value
+ */
 void HHMap_set(HHMap *map, const void *key, const void *val);
-extern inline u32 HHMap_getBucketSize(const HHMap *, u32);
+/**
+ * `@param` **hm** map
+ * `@param` **bucket** bucket index
+ * `@return` length of bucket[**bucket**]
+ */
+extern inline u32 HHMap_getBucketSize(const HHMap *hm, u32 bucket);
+/**
+ * `@param` **hm** map
+ * `@return` bucket count
+ */
 u32 HHMap_getMetaSize(const HHMap *);
-extern inline void *HHMap_getCoord(const HHMap *, u32 bucket, u32 index);
+/**
+ * helper for looping through all values
+ * `@param` **hm** map
+ * `@param` **bucket** bucket index
+ * `@param` **index** index inside bucket
+ * `@return` pointer to key, get the val by adding your padding
+ */
+extern inline void *HHMap_getCoord(const HHMap *hm, u32 bucket, u32 index);
+/**
+ * `@param` **hm** map
+ * `@return` total keys and vals
+ */
 u32 HHMap_count(const HHMap *map);
 void HHMap_clear(HHMap *map);
 [[gnu::pure, gnu::assume_aligned(alignof(max_align_t))]]
@@ -48,11 +92,27 @@ typedef struct HHMap_both {
 } HHMap_both;
 HHMap_both HHMap_getBoth(HHMap *map, const void *key);
 
-// get key store it in val
-// false if key doesnt exist
-bool HHMap_getSet(HHMap *map, const void *key, void *val);
+/**
+ * `@param` **hm** map
+ * `@param` **key** fat pointer to key
+ * `@param` **val** pointer to key
+ */
 void HHMap_fset(HHMap *map, const fptr key, void *val);
+/**
+ * `@param` **hm** map
+ * `@param` **key** fat pointer to key
+ * `@param` **val** pointer to key
+ *     not set if not found
+ */
 bool HHMap_fget(HHMap *map, const fptr key, void *val);
+/**
+ * like fset but just returns the pointer
+ * `@param` **hm** map
+ * `@param` **key** fat pointer to key
+ * `@param` **val** pointer to key
+ *     null set if not found
+ */
+void *HHMap_fget_ns(HHMap *map, const fptr key);
 
 static inline void HHMap_cleanup_handler(HHMap **v) {
   if (v && *v) {
@@ -60,31 +120,50 @@ static inline void HHMap_cleanup_handler(HHMap **v) {
     *v = NULL;
   }
 }
-  #define HHMap_setM(HhMap, key, val)                       \
-    ({                                                      \
-      typeof(key) kv = (key);                               \
-      typeof(val) vv = (val);                               \
-      assertMessage(HHMap_getKeySize(HhMap) == sizeof(kv)); \
-      assertMessage(HHMap_getValSize(HhMap) == sizeof(vv)); \
-      HHMap_set(HhMap, &kv, &vv);                           \
-    })
-  #define HHMap_getM(HhMap, type, key, elseBlock) \
-    ({                                            \
-      typeof(key) k = key;                        \
-      type rv;                                    \
-      void *ptr = HHMap_get(HhMap, &k);           \
-      if (ptr) {                                  \
-        memcpy(&rv, ptr, sizeof(rv));             \
-      } else                                      \
-        elseBlock                                 \
-            rv;                                   \
+  // makes sure key has enough padding to directly derefarance
+  // hmap_get
+  #define calign_second(Ta, Tb) \
+    offsetof(struct { Ta a; Tb b; }, b)
+
+  #define HMAP(Ta, Tb) typeof(Tb (*)(Ta))
+
+  #define HMAP_INIT_HELPER(allocator, keytype, valtype, bucketcount, ...) ({ \
+    (HMAP(keytype, valtype)) HHMap_new(                                      \
+        calign_second(keytype, valtype),                                     \
+        sizeof(valtype),                                                     \
+        allocator, bucketcount                                               \
+    );                                                                       \
+  })
+  // optional bucket count argument
+  #define HMAP_I(allocator, keytype, valtype, ...) \
+    HMAP_INIT_HELPER(allocator, keytype, valtype __VA_OPT__(, __VA_ARGS__), 32)
+  #define HMAP_FREE(map) ({ HHMap_free((HHMap *)map); })
+
+  #define HMAP_SET(map, key, val) ({                 \
+    static_assert(                                   \
+        __builtin_types_compatible_p(                \
+            typeof(map(key)), typeof(val)            \
+        )                                            \
+    );                                               \
+    HHMap_fset(                                      \
+        (HHMap *)map,                                \
+        (fptr){sizeof(typeof(key)), (void *)&(key)}, \
+        (typeof(map(key))[1]){(val)}                 \
+    );                                               \
+  })
+
+  #define HMAP_GET(map, key)                                                       \
+    ({                                                                             \
+      (typeof(map(key)) *)                                                         \
+          HHMap_fget_ns(                                                           \
+              (HHMap *)map, (fptr){sizeof(typeof(key)), (u8 *)&(typeof(key)){key}} \
+          );                                                                       \
     })
   #define HHMap_scoped [[gnu::cleanup(HHMap_cleanup_handler)]] HHMap
 
 #endif // HHMAP_H
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
-  #pragma once
   #define HHMAP_C (1)
 #endif
 #ifdef HHMAP_C
@@ -384,6 +463,13 @@ bool HHMap_fget(HHMap *map, const fptr key, void *val) {
     return false;
   memcpy(val, res, map->valsize);
   return true;
+}
+void *HHMap_fget_ns(HHMap *map, const fptr key) {
+  assertMessage(key.width <= HHMap_getKeySize(map));
+  u8 *nname = ((u8 *)map->listHeads + map->metaSize * sizeof(void **));
+  memcpy(nname, key.ptr, key.width);
+  memset(nname + key.width, 0, HHMap_getKeySize(map) - key.width);
+  return HHMap_get(map, nname);
 }
 HHMap_both HHMap_getBoth(HHMap *map, const void *key) {
   u8 *place = (u8 *)HHMap_get(map, key);

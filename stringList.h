@@ -1,7 +1,7 @@
 #ifndef STRING_LIST_H
+#include "assertMessage.h"
 #define STRING_LIST_H
 #include "allocator.h"
-#include "boxer.h"
 #include "fptr.h"
 #include "my-list.h"
 #include <assert.h>
@@ -24,9 +24,6 @@ static inline size_t stringList_footprint(stringList *sl) {
          List_fullHeadArea(&(sl->List_char));
 }
 
-typedef struct {
-  fptr raw;
-} stringListView;
 static inline void stringList_preload(stringList *sl, uint elementCount, uint elementSize) {
   List_resize(&(sl->List_stringMetaData), elementCount);
   List_resize(&(sl->List_char), elementCount * elementSize);
@@ -53,43 +50,6 @@ typedef struct {
   u8 *Arr_stringMetaData;
   u8 *Arr_char;
 } stringList_Solid;
-static inline stringListView stringList_toView(const My_allocator *allocator, stringList *sl) {
-  static const Boxer stringListBoxer = {2, {{.type = FPTR}, {.type = FPTR}}};
-  fptr meta = (fptr){List_headArea(&(sl->List_stringMetaData)), sl->List_stringMetaData.head};
-  fptr buff = (fptr){List_headArea(&(sl->List_char)), sl->List_char.head};
-  void *bx[2] = {&(meta), &(buff)};
-  fptr res = enBox(allocator, &stringListBoxer, bx);
-
-  return (stringListView){res};
-}
-static inline stringList_Solid stringList_fromView(stringListView slv) {
-  static const Boxer stringListBoxer = {2, {{.type = FPTR}, {.type = FPTR}}};
-  stringList_Solid res;
-  fptr meta, buff;
-  void *bx[2] = {&meta, &buff};
-  unBox(&stringListBoxer, bx, slv.raw);
-  return (stringList_Solid){
-      .metaSize = (unsigned int)(meta.width / sizeof(stringMetaData)),
-      .Arr_stringMetaData = (u8 *)meta.ptr,
-      .Arr_char = (u8 *)buff.ptr,
-  };
-}
-static inline int stringListView_length(stringListView slv) {
-  // meta is first
-  size_t size;
-  memcpy(&size, slv.raw.ptr, sizeof(size_t));
-  return size / sizeof(stringMetaData);
-}
-static inline fptr stringListView_get(stringListView slv, unsigned int index) {
-  stringList_Solid sls = stringList_fromView(slv);
-  if (index > sls.metaSize)
-    return nullFptr;
-  stringMetaData thisS;
-  memcpy(&thisS, sls.Arr_stringMetaData + sizeof(stringMetaData) * index, sizeof(stringMetaData));
-  return ((fptr){thisS.width, (uint8_t *)(sls.Arr_char + thisS.index)});
-}
-
-void stringListView_free(const My_allocator *allocator, stringListView slv);
 
 // returns length if not found
 u32 stringList_search(stringList *l, fptr key);
@@ -148,7 +108,7 @@ unsigned int stringList_search(stringList *l, fptr what) {
   unsigned int length = stringList_length(l);
 
   for (; res < length; res++) {
-    fptr thisS = ((um_fp){
+    auto thisS = ((fptr){
         .width = meta[res].width,
         .ptr = (uint8_t *)List_getRef(&(l->List_char), meta[res].index),
     });
@@ -210,7 +170,6 @@ void stringList_set(stringList *l, fptr value, u32 index) {
   }
 }
 
-void stringListView_free(const My_allocator *allocator, stringListView slv) { aFree(allocator, slv.raw.ptr); }
 void stringList_free(stringList *l) {
   const My_allocator *allocator = l->List_char.allocator;
   aFree(allocator, l->List_char.head);

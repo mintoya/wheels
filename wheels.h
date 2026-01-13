@@ -37,12 +37,6 @@
   #include "hhmap.h"
 #endif
 
-// hashmap with open adressing
-#ifdef HLMAP_H
-  #define HLMAP_C (1)
-  #include "hlmap.h"
-#endif
-
 #ifdef STRING_LIST_H
   #define STRING_LIST_C (1)
   #include "stringList.h"

@@ -85,6 +85,7 @@ struct slice_type {
     }
 
   #define nullable(type) nullable_tag(type, type)
+  #define nullable_fromPtr(type, ptr) ({type *p = ptr; nullable(type) r; r.isnull = p == NULL; if (!r.isnull) r.data = *p; r; })
   #define nullable_null(type) ((nullable(type)){.isnull = true})
   #define nullable_real(type, value) ((nullable(type)){.isnull = false, .data = (value)})
 
@@ -106,7 +107,6 @@ struct slice_type {
       type ptr[];                     \
     } *
   #define bslice(type) bslice_tag(type, type)
-bslice(int) a;
   // #define st(type) typeof(typeof(type (*)(size_t *))(*)[1]) // could be usefule
 
 #endif
