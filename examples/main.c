@@ -6,7 +6,7 @@
 
 typedef struct vason_container vason_container;
 REGISTER_PRINTER(vason_container, {
-  for (auto i = 0; i < in.objects->length; i++) {
+  for (auto i = 0; i < LIST_LENGTH(in.objects); i++) {
     vason_object o = in.top;
     switch (o.tag) {
       case vason_ARR:
@@ -30,11 +30,19 @@ REGISTER_PRINTER(vason_container, {
   }
 });
 
+#include "../types.h"
+
 int main(void) {
   Arena_scoped *local = arena_new_ext(pageAllocator, 1);
   const u8 efile[] = {
 #embed "../vason/elements.vason"
   };
+  HMAP(i8, i32)
+  map = HMAP_INIT(pageAllocator, i8, i32);
+  HMAP_SET(map, (i8)6, 7);
+  i32 *p = HMAP_GET(map, (i8)6);
+  HMAP_FREE(map);
+
   slice(u8) string = slice_stat(efile);
 
   println("input :\n{fptr}", string);
@@ -47,5 +55,4 @@ int main(void) {
   // println("arena footprint: {}", arena_footprint(real));
   return 0;
 }
-
 #include "../wheels.h"

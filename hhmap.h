@@ -135,29 +135,37 @@ static inline void HHMap_cleanup_handler(HHMap **v) {
     );                                                                       \
   })
   // optional bucket count argument
-  #define HMAP_I(allocator, keytype, valtype, ...) \
+  #define HMAP_INIT(allocator, keytype, valtype, ...) \
     HMAP_INIT_HELPER(allocator, keytype, valtype __VA_OPT__(, __VA_ARGS__), 32)
   #define HMAP_FREE(map) ({ HHMap_free((HHMap *)map); })
 
-  #define HMAP_SET(map, key, val) ({                 \
-    static_assert(                                   \
-        __builtin_types_compatible_p(                \
-            typeof(map(key)), typeof(val)            \
-        )                                            \
-    );                                               \
-    HHMap_fset(                                      \
-        (HHMap *)map,                                \
-        (fptr){sizeof(typeof(key)), (void *)&(key)}, \
-        (typeof(map(key))[1]){(val)}                 \
-    );                                               \
-  })
+  #define HMAP_SET(map, key, val)                         \
+    ({                                                    \
+      static_assert(                                      \
+          __builtin_types_compatible_p(                   \
+              HMAP(typeof(key), typeof(val)), typeof(map) \
+          )                                               \
+      );                                                  \
+      HHMap_fset(                                         \
+          (HHMap *)map,                                   \
+          fptr_fromTypeDef(key),                          \
+          (typeof(map(key))[1]){(val)}                    \
+      );                                                  \
+    })
 
-  #define HMAP_GET(map, key)                                                       \
-    ({                                                                             \
-      (typeof(map(key)) *)                                                         \
-          HHMap_fget_ns(                                                           \
-              (HHMap *)map, (fptr){sizeof(typeof(key)), (u8 *)&(typeof(key)){key}} \
-          );                                                                       \
+  #define HMAP_GET(map, key)                       \
+    ({                                             \
+      static_assert(                               \
+          __builtin_types_compatible_p(            \
+              HMAP(typeof(key), typeof(map(key))), \
+              typeof(map)                          \
+          )                                        \
+      );                                           \
+      (typeof(map(key)) *)                         \
+          HHMap_fget_ns(                           \
+              (HHMap *)map,                        \
+              fptr_fromTypeDef(key)                \
+          );                                       \
     })
   #define HHMap_scoped [[gnu::cleanup(HHMap_cleanup_handler)]] HHMap
 

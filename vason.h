@@ -5,7 +5,7 @@
 #include "print.h"
 #include "types.h"
 #include <string.h>
-struct vason_string {
+struct vason_span {
   usize len, offset;
 };
 typedef enum : u8 {
@@ -17,15 +17,15 @@ typedef enum : u8 {
 typedef struct vason_object {
   vason_tag tag;
   union {
-    struct vason_string string;
+    struct vason_span string;
     struct {
       u32 len;
-      u32 array; // [x]objects  list idexes
+      u32 objects; // [x]objects  list idexes
     } list;
     struct {
       u32 len;
-      u32 names; // [x]strings  list indexes
-      u32 array; // [x]objects  list idexes
+      u32 names;   // [x]strings  list indexes
+      u32 objects; // [x]objects  list idexes
     } object;
   } data;
 } vason_object;
@@ -83,8 +83,7 @@ void kmlFormatPrinter(
 typedef struct vason_container {
   vason_object top;
   const slice(u8) string;
-  List *strings;
-  List *objects;
+  LIST_t(vason_object) objects;
 } vason_contianer;
 
 vason_contianer parseStr(AllocatorV allocator, slice(u8) string);
@@ -96,7 +95,7 @@ vason_contianer parseStr(AllocatorV allocator, slice(u8) string);
 #ifdef VASON_PARSER_C
 typedef struct vason_level {
   vason_tag kind;
-  struct vason_string pos;
+  struct vason_span pos;
 } vason_level;
 struct breakdown_return {
   vason_tag kind;
@@ -349,15 +348,143 @@ vason_contianer vason_new(
 ) {
   auto res = (vason_contianer){
       .string = string,
-      .strings = mList(allocator, struct vason_string),
-      .objects = mList(allocator, vason_object),
+      .objects = List_new(allocator, sizeof(vason_object)),
   };
   return res;
 }
 void vason_free(vason_contianer c) {
-  List_free(c.objects);
-  List_free(c.strings);
+  LIST_DEINIT(c.objects);
 }
+
+void vason_parse_arr(
+    AllocatorV allocator,
+    vason_contianer container,
+    slice(vason_token) t,
+    slice(u8) string,
+    usize position,
+    vason_object *result
+);
+void vason_parse_map(
+    AllocatorV allocator,
+    vason_contianer container,
+    slice(vason_token) t,
+    slice(u8) string,
+    usize position,
+    vason_object *result
+) {
+  struct breakdown_return bd = breakdown(position, t, allocator, string);
+  auto ostart = LIST_LENGTH(container.objects);
+  auto nstart = ostart + bd.items.len / 2;
+
+  List_appendFromArr((void *)container.objects, NULL, bd.items.len);
+  *result = (typeof(*result)){
+      .tag = vason_MAP,
+      .data.object = {
+          .len = bd.items.len / 2,
+          .names = nstart,
+          .objects = ostart,
+      },
+  };
+
+  for (auto i = 0; i < bd.items.len; i += 2) {
+    auto itemid = bd.items.ptr[i];
+    auto item = bd.items.ptr[i + 1];
+    if (itemid.kind != vason_ID)
+      return;
+    LIST_SET(
+        container.objects, i / 2 + nstart,
+        ((vason_object){
+            .tag = vason_STR,
+            .data.string = bd.items.ptr[i].pos,
+        })
+    );
+    switch (item.kind) {
+      case vason_ID: {
+        assertMessage(false, "unreachable");
+      } break;
+      case vason_STR: {
+        LIST_SET(
+            container.objects, i / 2 + ostart,
+            ((vason_object){
+                .tag = vason_STR,
+                .data.string = bd.items.ptr[i].pos,
+            })
+
+        );
+      } break;
+      case vason_ARR: {
+        vason_parse_arr(
+            allocator,
+            container,
+            t, string, bd.items.ptr[i].pos.offset,
+            LIST_GET(container.objects, i / 2 + ostart)
+        );
+      } break;
+      case vason_MAP: {
+        vason_parse_map(
+            allocator,
+            container,
+            t, string, bd.items.ptr[i].pos.offset,
+            LIST_GET(container.objects, i / 2 + ostart)
+        );
+      } break;
+    }
+  }
+}
+void vason_parse_arr(
+    AllocatorV allocator,
+    vason_contianer container,
+    slice(vason_token) t,
+    slice(u8) string,
+    usize position,
+    vason_object *result
+) {
+  struct breakdown_return bd = breakdown(position, t, allocator, string);
+  auto start = List_length((void*)container.objects);
+  List_appendFromArr((void*)container.objects, NULL, bd.items.len);
+  *result = (typeof(*result)){
+      .tag = vason_ARR,
+      .data.list = {
+          .len = bd.items.len,
+          .objects = start,
+      },
+  };
+
+  for (auto i = 0; i < bd.items.len; i++) {
+    auto item = bd.items.ptr[i];
+    switch (item.kind) {
+      case vason_ID: {
+        assertMessage(false, "unreachable");
+      } break;
+      case vason_STR: {
+        LIST_SET(
+            container.objects, i + start,
+            ((vason_object){
+                .tag = vason_STR,
+                .data.string = bd.items.ptr[i].pos,
+            })
+        );
+      } break;
+      case vason_ARR: {
+        vason_parse_arr(
+            allocator,
+            container,
+            t, string, bd.items.ptr[i].pos.offset,
+            LIST_GET(container.objects, start + i)
+        );
+      } break;
+      case vason_MAP: {
+        vason_parse_map(
+            allocator,
+            container,
+            t, string, bd.items.ptr[i].pos.offset,
+            LIST_GET(container.objects, start + i)
+        );
+      } break;
+    }
+  }
+}
+
 vason_object vason_decender(
     AllocatorV allocator,
     vason_contianer container,
@@ -367,72 +494,27 @@ vason_object vason_decender(
 ) {
   auto bd = breakdown(position, t, allocator, string);
 
-  vason_object this;
+  List_append((void *)container.objects, NULL);
+  vason_object *this = LIST_GET(container.objects, 0);
+  this->tag = bd.kind;
   if (bd.malformed) {
-    this.tag = bd.kind;
-    memset(&this.data, 0, sizeof(this.data));
     goto early_return;
   }
-  if (bd.kind == vason_MAP) {
-    this = (typeof(this)){
-        .tag = vason_MAP,
-        .data = {
-            .object = {
-                .array = List_length(container.objects),
-                .names = List_length(container.strings),
-                .len = bd.items.len / 2,
-            }
-        }
-    };
-    for (usize i = 0; i < bd.items.len / 2; i++) {
-      switch (bd.items.ptr[i * 2 + 1].kind) {
-        case vason_STR:
-          List_set(
-              container.objects,
-              i + this.data.object.array,
-              REF(
-                  vason_object,
-                  ((vason_object){
-                      .tag = vason_STR,
-                      .data.string = bd.items.ptr[i * 2 + 1].pos,
-                  })
-
-              )
-          );
-          break;
-        default:
-          usize pos = bd.items.ptr[i * 2 + 1].pos.offset;
-          List_set(container.objects, i + this.data.object.array, REF(vason_object, vason_decender(allocator, container, t, string, pos)));
-          break;
-      }
-    }
-  } else {
-    this = (typeof(this)){
-        .tag = vason_ARR,
-        .data = {
-            .list = {
-                .len = bd.items.len,
-                .array = List_length(container.objects),
-            },
-        }
-    };
-    for (usize i = 0; i < bd.items.len; i++) {
-      switch (bd.items.ptr[i].kind) {
-        case vason_STR:
-          List_set(container.objects, i + this.data.list.array, REF(vason_object, ((vason_object){.tag = vason_STR, .data.string = bd.items.ptr[i].pos})));
-          break;
-        default:
-          usize pos = bd.items.ptr[i].pos.offset;
-          List_set(container.objects, i + this.data.list.array, REF(vason_object, vason_decender(allocator, container, t, string, pos)));
-          break;
-      }
-    }
+  switch (this->tag) {
+    case vason_ARR:
+      vason_parse_arr(allocator, container, t, string, position, this);
+      break;
+    case vason_MAP:
+      vason_parse_arr(allocator, container, t, string, position, this);
+      break;
+    default:
+      assertMessage(false, "unreachable");
   }
   // clang-format off
   early_return:
   // clang-format on
   aFree(allocator, bd.items.ptr);
-  return this;
+  return *this;
 }
 vason_contianer parseStr(AllocatorV allocator, slice(u8) string) {
   auto t = vason_tokenize(allocator, string);
