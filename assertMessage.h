@@ -5,8 +5,6 @@
   #include <execinfo.h>
   #include <unistd.h>
 #elif defined(_WIN32) || (_WIN64)
-  #define STDOUT_FILENO (_fileno(stdout))
-  #define STDERR_FILENO (_fileno(stderr))
   //
   #include <windows.h>
   //
@@ -15,47 +13,47 @@
   #include <io.h>
   #include <winbase.h>
 size_t backtrace(void **array, size_t size);
-void backtrace_symbols_fd(void *array[], size_t size, int filnumber);
-#else
-  #define backtrace(...)
-  #define backtrace_symbols_fd(...)
+char **backtrace_symbols(void *array[], size_t size);
 #endif
 #ifndef NDEBUG
   #define PRINTORANGE "\x1b[38;5;208m"
   #define PRINTRESET "\x1b[0m"
   #define PRINTRED "\x1b[31m\n\n"
   #ifndef noAssertMessage
-    #define assertMessage(expr, ...)                        \
-      do {                                                  \
-        bool result = (expr);                               \
-        if (!(result)) {                                    \
-          fprintf(                                          \
-              stderr,                                       \
-              PRINTRED                                      \
-              "\nmessage:\n"                                \
-              "" __VA_ARGS__                                \
-          );                                                \
-          fprintf(                                          \
-              stderr,                                       \
-              PRINTORANGE                                   \
-              "\nassert:\t%s\n"                             \
-              "in fn :\t%s\n"                               \
-              "file  :\t%s\n"                               \
-              "line  :\t%d\n"                               \
-              "\nfailed\n",                                 \
-              #expr,                                        \
-              __PRETTY_FUNCTION__,                          \
-              __FILE__,                                     \
-              __LINE__                                      \
-          );                                                \
-          fprintf(stderr, PRINTRESET);                      \
-          fflush(stderr);                                   \
-          /* TODO stack trace some other way? */            \
-          void *array[5];                                   \
-          size_t size = backtrace(array, 5);                \
-          backtrace_symbols_fd(array, size, STDERR_FILENO); \
-          abort();                                          \
-        }                                                   \
+    #define assertMessage(expr, ...)                 \
+      do {                                           \
+        bool result = (expr);                        \
+        if (!(result)) {                             \
+          fprintf(                                   \
+              stderr,                                \
+              PRINTRED                               \
+              "\nmessage:\n"                         \
+              "" __VA_ARGS__                         \
+          );                                         \
+          fprintf(                                   \
+              stderr,                                \
+              PRINTORANGE                            \
+              "\nassert:\t%s\n"                      \
+              "in fn :\t%s\n"                        \
+              "file  :\t%s\n"                        \
+              "line  :\t%d\n"                        \
+              "\nfailed\n",                          \
+              #expr,                                 \
+              __PRETTY_FUNCTION__,                   \
+              __FILE__,                              \
+              __LINE__                               \
+          );                                         \
+          fprintf(stderr, PRINTRESET);               \
+          fflush(stderr);                            \
+          /* TODO stack trace some other way? */     \
+          void *array[5];                            \
+          size_t size = backtrace(array, 5);         \
+          char **syms = backtrace_symbols(array, 5); \
+          for (auto i = 0; i < 5; i++) {             \
+            printf("%s\n", syms[i]);                 \
+          }                                          \
+          abort();                                   \
+        }                                            \
       } while (0)
   #else
     #include <assert.h>
@@ -80,25 +78,29 @@ size_t backtrace(void **array, size_t size) {
   );
 }
   #include <stdio.h>
-void backtrace_symbols_fd(void *array[], size_t size, int filnumber) {
+char **backtrace_symbols(void *array[], size_t size) {
+  char **result = (char **)malloc(sizeof(char *) * size + sizeof(char[512]) * size);
+  memset(result, 0, sizeof(char *) * size + sizeof(char[512]) * size);
+  for (auto i = 0; i < size; i++)
+    result[i] = ((char *)result) + sizeof(char *) * size + sizeof(char[512]) * i;
+
   HANDLE process = GetCurrentProcess();
 
-  // Initialize symbol handler with better options
   SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME);
-  if (!SymInitialize(process, NULL, TRUE)) {
-    char error_msg[] = "[Symbol initialization failed]\n";
-    _write(filnumber, error_msg, sizeof(error_msg) - 1);
-    return;
-  }
-
-  // Allocate buffer for symbol info
-  char buffer[sizeof(SYMBOL_INFO) + 256 * sizeof(char)];
-  SYMBOL_INFO *symbol = (SYMBOL_INFO *)buffer;
-  symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-  symbol->MaxNameLen = 255;
-
-  // Line info
+  if (!SymInitialize(process, NULL, TRUE))
+    return result;
+  struct {
+    SYMBOL_INFO info;
+    char buffer[256];
+  } sinfo = {
+      .info = {
+          .SizeOfStruct = sizeof(SYMBOL_INFO),
+          .MaxNameLen = 255,
+      }
+  };
+  SYMBOL_INFO *symbol = &(sinfo.info);
   IMAGEHLP_LINE64 line;
+
   line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
 
   for (unsigned int i = 0; i < size; i++) {
@@ -106,24 +108,22 @@ void backtrace_symbols_fd(void *array[], size_t size, int filnumber) {
     DWORD64 displacement = 0;
     DWORD line_displacement = 0;
 
-    char output[512];
+    char *output = result[i];
     int len = 0;
 
     if (SymFromAddr(process, address, &displacement, symbol)) {
-      // Try to get line information
       if (SymGetLineFromAddr64(process, address, &line_displacement, &line)) {
-        len = snprintf(output, sizeof(output), "%s+0x%llx (%s:%lu)\n", symbol->Name, displacement, line.FileName, line.LineNumber);
+        len = snprintf(output, 512, "%s+0x%llx (%s:%lu)\n", symbol->Name, displacement, line.FileName, line.LineNumber);
       } else {
-        len = snprintf(output, sizeof(output), "%s+0x%llx\n", symbol->Name, displacement);
+        len = snprintf(output, 512, "%s+0x%llx\n", symbol->Name, displacement);
       }
     } else {
-      len = snprintf(output, sizeof(output), "[Unable to resolve symbol at 0x%llx]\n", address);
+      len = snprintf(output, 512, "[Unable to resolve symbol at 0x%llx]\n", address);
     }
-
-    _write(filnumber, output, len);
   }
 
   SymCleanup(process);
+  return result;
 }
 #endif
 #endif

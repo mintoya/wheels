@@ -1,7 +1,6 @@
 #include "assertMessage.h" // debug symbols
 #include "hhmap.h"
 #include "print.h"
-#include <execinfo.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

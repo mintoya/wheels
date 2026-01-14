@@ -12,6 +12,7 @@ int main(void) {
   auto local = debugAllocatorInit(defaultAlloc);
   aCreate(local, int);
   debugAllocatorDeInit(local);
+  assertMessage(false);
   return 0;
 }
 #include "../wheels.h"

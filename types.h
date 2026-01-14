@@ -10,7 +10,11 @@
 typedef wchar_t wchar;
 typedef unsigned int uint;
 typedef unsigned char uchar;
+#if !defined(_WIN32)
 typedef char8_t c8;
+#else
+typedef char c8;
+#endif
 typedef char16_t c16;
 typedef char32_t c32;
 typedef uint8_t u8;
