@@ -195,26 +195,25 @@ static void fileprint(
 }
 
 static struct {
-  HHMap *data;
+  HMap *data;
 } PrinterSingleton;
 
 static void PrinterSingleton_init() {
-  PrinterSingleton.data = HHMap_new(
+  PrinterSingleton.data = HMap_new(
       sizeof(printerFunction),
       sizeof(printerFunction),
       defaultAlloc, 10
   );
 }
-static void PrinterSingleton_deinit() { HHMap_free(PrinterSingleton.data); }
 static void PrinterSingleton_append(fptr name, printerFunction function) {
-  if (name.width > HHMap_getKeySize(PrinterSingleton.data))
-    HHMap_transform(
+  if (name.width > HMap_getKeySize(PrinterSingleton.data))
+    HMap_transform(
         &PrinterSingleton.data,
-        name.width,
+        lineup(name.width, sizeof(printerFunction)),
         sizeof(printerFunction),
         NULL, 0
     );
-  HHMap_fset(
+  HMap_fset(
       PrinterSingleton.data,
       name,
       REF(printerFunction, function)
@@ -231,21 +230,22 @@ static printerFunction PrinterSingleton_get(fptr name) {
   } else if (!fptr_cmp(name, lastnames[!lasttick])) {
     return lastprinters[!lasttick];
   }
+  lasttick = !lasttick;
 
-  u8 *nname = (u8 *)HHMap_getKeyBuffer(PrinterSingleton.data);
-  memset(nname, 0, HHMap_getKeySize(PrinterSingleton.data));
-  memcpy(nname, name.ptr, name.width);
+  printerFunction *p = HMap_fget_ns(
+      PrinterSingleton.data, name
+  );
 
-  printerFunction p = NULL;
-  HHMap_both r = HHMap_getBoth(PrinterSingleton.data, nname);
-
-  if (r.val) {
-    memcpy(&p, r.val, sizeof(p));
-    lasttick = !lasttick;
-    lastprinters[lasttick] = p;
-    lastnames[lasttick] = ((fptr){name.width, (u8 *)r.key});
+  if (p) {
+    lastprinters[lasttick] = *p;
+    lastnames[lasttick] = ((fptr){
+        name.width,
+        ((u8 *)p - HMap_getKeySize(PrinterSingleton.data)),
+    });
+    return *p;
   }
-  return p;
+  return NULL;
+  ;
 }
 
 // arg utils
@@ -271,8 +271,6 @@ static printerFunction PrinterSingleton_get(fptr name) {
   PrinterSingleton_init();
 }
 #endif
-
-[[gnu::destructor]] static void printerDeinit() { PrinterSingleton_deinit(); }
 
 #define GETTYPEPRINTERFN(T) _##T##_printer
 #define MERGE_PRINTER_M(a, b) a##b

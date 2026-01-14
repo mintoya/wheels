@@ -7,7 +7,6 @@ pub fn build(b: *std.Build) void {
         .name = "wheels",
         .root_module = b.createModule(.{
             .target = target,
-            .omit_frame_pointer = false, // Enable this explicitly
             .link_libc = true,
             .optimize = b.standardOptimizeOption(.{
                 .preferred_optimize_mode = .Debug,
@@ -17,18 +16,16 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addCSourceFile(.{
-        .file = b.path("examples/alloctest.c"),
+        .file = b.path("examples/main.c"),
         .flags = &.{
             "-g",
             "-w",
-            "-gcodeview",
             "-std=c23",
         },
         .language = .c,
     });
-    if (target.result.os.tag == .windows) {
+    if (target.result.os.tag == .windows)
         exe.root_module.linkSystemLibrary("dbghelp", .{});
-    }
     exe.linkage = .dynamic;
     exe.rdynamic = true;
 

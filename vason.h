@@ -172,7 +172,6 @@ bool isrid(vason_token t) {
   }
 }
 nullable(usize) stack_resolve_breakdown(AllocatorV, usize start, slice(vason_token) t, vason_token query) {
-  typedef typeof(stack_resolve_breakdown(NULL, start, t, query)) returnType;
   switch (query) {
     case ARR_end:
     case MAP_end: {
@@ -401,8 +400,8 @@ vason_contianer parseStr(AllocatorV allocator, slice(c8) str) {
   slice(vason_token) t = vason_tokenize(allocator, str);
   mList(vason_object) bucket = mList_init(allocator, vason_object);
 
-  usize bdr = breakdown(0, t, allocator, str);
-  usize bdc = bdconvert(bucket, bdr, str, t, allocator);
+  struct breakdown_return bdr = breakdown(0, t, allocator, str);
+  vason_object bdc = bdconvert(bucket, bdr, str, t, allocator);
 
   aFree(allocator, bdr.items.ptr);
   aFree(allocator, t.ptr);

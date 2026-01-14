@@ -1,7 +1,7 @@
 #ifndef ASSERTMESSAGE_H
 #define ASSERTMESSAGE_H
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #if defined(__linux__)
   #include <execinfo.h>
   #include <unistd.h>
@@ -21,40 +21,43 @@ char **backtrace_symbols(void *array[], size_t size);
   #define PRINTRESET "\x1b[0m"
   #define PRINTRED "\x1b[31m\n\n"
   #ifndef noAssertMessage
-    #define assertMessage(expr, ...)                 \
-      do {                                           \
-        bool result = (expr);                        \
-        if (!(result)) {                             \
-          fprintf(                                   \
-              stderr,                                \
-              PRINTRED                               \
-              "\nmessage:\n"                         \
-              "" __VA_ARGS__                         \
-          );                                         \
-          fprintf(                                   \
-              stderr,                                \
-              PRINTORANGE                            \
-              "\nassert:\t%s\n"                      \
-              "in fn :\t%s\n"                        \
-              "file  :\t%s\n"                        \
-              "line  :\t%d\n"                        \
-              "\nfailed\n",                          \
-              #expr,                                 \
-              __PRETTY_FUNCTION__,                   \
-              __FILE__,                              \
-              __LINE__                               \
-          );                                         \
-          fprintf(stderr, PRINTRESET);               \
-          fflush(stderr);                            \
-          /* TODO stack trace some other way? */     \
-          void *array[5];                            \
-          size_t size = backtrace(array, 5);         \
-          char **syms = backtrace_symbols(array, 5); \
-          for (usize i = 0; i < 5; i++) {             \
-            printf("%s\n", syms[i]);                 \
-          }                                          \
-          abort();                                   \
-        }                                            \
+    // TODO move to a functoin
+    #define assertMessage(expr, ...)                                   \
+      do {                                                             \
+        bool result = (expr);                                          \
+        if (!(result)) {                                               \
+          fprintf(                                                     \
+              stderr,                                                  \
+              PRINTRED                                                 \
+              "\nmessage:\n"                                           \
+              "" __VA_ARGS__                                           \
+          );                                                           \
+          fprintf(                                                     \
+              stderr,                                                  \
+              PRINTORANGE                                              \
+              "\nassert:\t%s\n"                                        \
+              "in fn :\t%s\n"                                          \
+              "file  :\t%s\n"                                          \
+              "line  :\t%d\n"                                          \
+              "\nfailed\n",                                            \
+              #expr,                                                   \
+              __PRETTY_FUNCTION__,                                     \
+              __FILE__,                                                \
+              __LINE__                                                 \
+          );                                                           \
+          fprintf(stderr, PRINTRESET);                                 \
+          fflush(stderr);                                              \
+          /* TODO stack trace some other way? */                       \
+          void *array[5];                                              \
+          size_t size = backtrace(array, 5);                           \
+          char **syms = backtrace_symbols(array, size);                \
+          printf(PRINTRED "backtrace:\n==========================\n"); \
+          for (usize i = 0; i < size; i++) {                           \
+            printf("%s\n", syms[i]);                                   \
+          }                                                            \
+          printf("==========================\n" PRINTRESET);           \
+          abort();                                                     \
+        }                                                              \
       } while (0)
   #else
     #include <assert.h>

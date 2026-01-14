@@ -1,22 +1,7 @@
-// impl order matters
 
 #ifdef MY_PRINTER_H
   #define MY_PRINTER_C (1)
   #include "print.h"
-#endif
-
-// TODO
-// ordered map, based on stringlist
-// dynamic key and value sizes
-// index based linked list
-#ifdef OMAP_H
-  #define OMAP_C (1)
-  #include "omap.h"
-#endif
-
-#ifdef HHMAP_H
-  #define HHMAP_C (1)
-  #include "hhmap.h"
 #endif
 
 // TODO
@@ -28,6 +13,16 @@
 #ifdef VASON_PARSER_H
   #define VASON_PARSER_C (1)
   #include "vason.h"
+#endif
+
+#ifdef MY_DEBUG_ALLOCATOR_H
+  #define MY_DEBUG_ALLOCATOR_C (1)
+  #include "debugallocator.h"
+#endif
+
+#ifdef HMAP_H
+  #define HMAP_C (1)
+  #include "hhmap.h"
 #endif
 
 #ifdef MY_LIST_H

@@ -1,8 +1,13 @@
 [
   {
     "directory": "/home/paa/Github/ziggy/wheels",
-    "command": "clang -std=c2y -Iinclude -Wall -c macroMap.c -o macroMap.o",
+    "command": "clang -std=c2y"
     "file": "example/main.c"
+  }
+  {
+    "directory": "/home/paa/Github/ziggy/wheels",
+    "command": "clang -std=c2y"
+    "file": "example/includeAll.c"
   }
 ]
 

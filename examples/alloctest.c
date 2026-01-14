@@ -1,6 +1,6 @@
 #define PRINTER_LIST_TYPENAMES
 #include "../arenaAllocator.h"
-#include "../debugAllocator.c"
+#include "../debugallocator.c"
 #include "../fptr.h"
 #include "../hhmap.h"
 #include "../print.h"
