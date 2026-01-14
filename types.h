@@ -4,11 +4,15 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
+#include <uchar.h>
 #define _XOPEN_SOURCE 700
 
 typedef wchar_t wchar;
 typedef unsigned int uint;
 typedef unsigned char uchar;
+typedef char8_t c8;
+typedef char16_t c16;
+typedef char32_t c32;
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
@@ -101,13 +105,13 @@ struct slice_type {
     typeof(slice.ptr) e = slice.ptr; \
     e < slice.ptr + slice.len;       \
     e++
+
   #define bslice_tag(type, tag)       \
     struct slice_cat_(bslice_, tag) { \
       usize len;                      \
       type ptr[];                     \
     } *
   #define bslice(type) bslice_tag(type, type)
-  // #define st(type) typeof(typeof(type (*)(size_t *))(*)[1]) // could be usefule
 
 #endif
 #endif // MY_TYPES

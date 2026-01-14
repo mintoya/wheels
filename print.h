@@ -419,6 +419,13 @@ struct print_arg {
       l /= 10;
     }
   });
+  REGISTER_PRINTER(ssize, {
+    if (in < 0) {
+      PUTC(L'-');
+      in = -in;
+    }
+    USETYPEPRINTER(usize, (usize)in);
+  });
   REGISTER_PRINTER(uint, {
       USETYPEPRINTER(usize, (usize)in);
   });

@@ -4,8 +4,30 @@
 #include <stdint.h>
 
 #define MY_ALLOCATOR_STRICTEST
+
+#if defined(__clang__)
 [[gnu::const]]
-uintptr_t lineup(size_t unaligned, size_t aligneder);
+__attribute__((__overloadable__)) extern inline uintptr_t lineup_i(uintptr_t unaligned, size_t aligneder) {
+  return (unaligned / aligneder +
+          (unaligned % aligneder ? 1 : 0)) *
+         aligneder;
+}
+[[gnu::const]]
+__attribute__((__overloadable__)) extern inline size_t lineup(size_t unaligned, size_t aligneder) { return (size_t)(lineup_i(unaligned, aligneder)); }
+[[gnu::const]]
+__attribute__((__overloadable__)) extern inline void *lineup(void *unaligned, size_t aligneder) { return (void *)(lineup_i((uintptr_t)unaligned, aligneder)); }
+[[gnu::const]]
+__attribute__((__overloadable__)) extern inline uint8_t *lineup(uint8_t *unaligned, size_t aligneder) { return (void *)(lineup_i((uintptr_t)unaligned, aligneder)); }
+[[gnu::const]]
+__attribute__((__overloadable__)) extern inline char *lineup(char *unaligned, size_t aligneder) { return (void *)(lineup_i((uintptr_t)unaligned, aligneder)); }
+#else
+[[gnu::const]]
+extern inline uintptr_t lineup(uintptr_t unaligned, size_t aligneder) {
+  return (unaligned / aligneder +
+          (unaligned % aligneder ? 1 : 0)) *
+         aligneder;
+}
+#endif
 
 typedef struct My_allocator My_allocator;
 typedef const My_allocator *AllocatorV;
@@ -32,10 +54,11 @@ typedef struct {
 
 typedef Own_Allocator OwnAllocator;
 
-[[gnu::alloc_size(2)]]
+[[clang::ownership_returns(malloc), gnu::alloc_size(2)]]
 void *aAlloc(AllocatorV allocator, size_t size);
-[[gnu::alloc_size(3)]]
+[[gnu::alloc_size(3), clang::ownership_holds(aAlloc, 2)]]
 void *aRealloc(AllocatorV allocator, void *oldptr, size_t size);
+[[clang::ownership_takes(aAlloc, 2)]]
 void aFree(AllocatorV allocator, void *oldptr);
 #define aCreateHelper(allocator, type, count, ...) \
   ({type* res = ((type *)(aAlloc(allocator, sizeof(type) * count)));memset(res,0,sizeof(type)*count);   res; })
@@ -51,8 +74,10 @@ AllocatorV getDefaultAllocator(void);
 #define MY_ALLOCATOR_C (1)
 #endif
 #ifdef MY_ALLOCATOR_C
+#include "assertMessage.h"
 #include "fptr.h"
 #include <stdio.h>
+[[clang::ownership_returns(malloc), gnu::alloc_size(2)]]
 void *aAlloc(AllocatorV allocator, size_t size) {
   void *res = (allocator)->alloc(allocator, size);
 #ifdef MY_ALLOCATOR_STRICTEST
@@ -60,6 +85,7 @@ void *aAlloc(AllocatorV allocator, size_t size) {
 #endif
   return res;
 }
+[[gnu::alloc_size(3), clang::ownership_holds(aAlloc, 2)]]
 void *aRealloc(AllocatorV allocator, void *oldptr, size_t size) {
   void *res = (allocator)->ralloc(allocator, oldptr, size);
 #ifdef MY_ALLOCATOR_STRICTEST
@@ -67,18 +93,11 @@ void *aRealloc(AllocatorV allocator, void *oldptr, size_t size) {
 #endif
   return res;
 }
-void aFree(AllocatorV allocator, void *oldptr) {
-  ((allocator)->free(allocator, oldptr));
-}
-void *default_alloc(const My_allocator *allocator, size_t s) {
-  return malloc(s);
-}
-void *default_r_alloc(const My_allocator *allocator, void *p, size_t s) {
-  return realloc(p, s);
-}
-void default_free(const My_allocator *allocator, void *p) {
-  return free(p);
-}
+[[clang::ownership_takes(aAlloc, 2)]]
+void aFree(AllocatorV allocator, void *oldptr) { ((allocator)->free(allocator, oldptr)); }
+void *default_alloc(const My_allocator *allocator, size_t s) { return malloc(s); }
+void *default_r_alloc(const My_allocator *allocator, void *p, size_t s) { return realloc(p, s); }
+void default_free(const My_allocator *allocator, void *p) { return free(p); }
 #if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
   #define DEFAULT_SIZE_GETTER (1)
   #include <malloc.h>
@@ -118,14 +137,6 @@ AllocatorV getDefaultAllocator(void) {
   };
   // printf("default allocator: %p\n", &defaultAllocator);
   return &defaultAllocator;
-}
-[[gnu::const]]
-uintptr_t lineup(uptr unaligned, size_t aligneder) {
-  if (unaligned % aligneder != 0) {
-    return unaligned + aligneder - unaligned % aligneder;
-  } else {
-    return unaligned;
-  }
 }
 
 #endif

@@ -75,7 +75,16 @@ extern inline void *HHMap_getCoord(const HHMap *hm, u32 bucket, u32 index);
  * `@return` total keys and vals
  */
 u32 HHMap_count(const HHMap *map);
+/**
+ * deletes all keys and values
+ * does not free memory
+ * `@param` **hm** map
+ */
 void HHMap_clear(HHMap *map);
+/**
+ * used by fset and fget
+ * `@return` aligned memory big enough for key
+ */
 [[gnu::pure, gnu::assume_aligned(alignof(max_align_t))]]
 u8 *HHMap_getKeyBuffer(const HHMap *map);
 extern inline void *HHMap_getKey(const HHMap *map, u32 n);
@@ -114,7 +123,11 @@ bool HHMap_fget(HHMap *map, const fptr key, void *val);
  */
 void *HHMap_fget_ns(HHMap *map, const fptr key);
 
-static inline void HHMap_cleanup_handler(HHMap **v) {
+/**
+ * `@param` **vv** pointer to HHMap pointer
+ */
+static inline void HHMap_cleanup_handler(void *vv) {
+  HHMap **v = vv;
   if (v && *v) {
     HHMap_free(*v);
     *v = NULL;
@@ -123,49 +136,50 @@ static inline void HHMap_cleanup_handler(HHMap **v) {
   // makes sure key has enough padding to directly derefarance
   // hmap_get
   #define calign_second(Ta, Tb) \
-    offsetof(struct { Ta a; Tb b; }, b)
+    (offsetof(struct { Ta a; Tb b; }, b))
 
-  #define HMAP(Ta, Tb) typeof(Tb (*)(Ta))
+  #define mHmap(Ta, Tb) typeof(Tb (*)(Ta))
+  #define mHmap_scoped(Ta, Tb) [[gnu::cleanup(HHMap_cleanup_handler)]] mHmap(Ta, Tb)
 
   #define HMAP_INIT_HELPER(allocator, keytype, valtype, bucketcount, ...) ({ \
-    (HMAP(keytype, valtype)) HHMap_new(                                      \
+    (mHmap(keytype, valtype)) HHMap_new(                                     \
         calign_second(keytype, valtype),                                     \
         sizeof(valtype),                                                     \
         allocator, bucketcount                                               \
     );                                                                       \
   })
   // optional bucket count argument
-  #define HMAP_INIT(allocator, keytype, valtype, ...) \
+  #define mHmap_init(allocator, keytype, valtype, ...) \
     HMAP_INIT_HELPER(allocator, keytype, valtype __VA_OPT__(, __VA_ARGS__), 32)
-  #define HMAP_FREE(map) ({ HHMap_free((HHMap *)map); })
+  #define mHmap_free(map) ({ HHMap_free((HHMap *)map); })
 
-  #define HMAP_SET(map, key, val)                         \
-    ({                                                    \
-      static_assert(                                      \
-          __builtin_types_compatible_p(                   \
-              HMAP(typeof(key), typeof(val)), typeof(map) \
-          )                                               \
-      );                                                  \
-      HHMap_fset(                                         \
-          (HHMap *)map,                                   \
-          fptr_fromTypeDef(key),                          \
-          (typeof(map(key))[1]){(val)}                    \
-      );                                                  \
+  #define mHmap_set(map, key, val)                         \
+    ({                                                     \
+      static_assert(                                       \
+          __builtin_types_compatible_p(                    \
+              mHmap(typeof(key), typeof(val)), typeof(map) \
+          )                                                \
+      );                                                   \
+      HHMap_fset(                                          \
+          (HHMap *)map,                                    \
+          fptr_fromTypeDef(key),                           \
+          (typeof(map(key))[1]){(val)}                     \
+      );                                                   \
     })
 
-  #define HMAP_GET(map, key)                       \
-    ({                                             \
-      static_assert(                               \
-          __builtin_types_compatible_p(            \
-              HMAP(typeof(key), typeof(map(key))), \
-              typeof(map)                          \
-          )                                        \
-      );                                           \
-      (typeof(map(key)) *)                         \
-          HHMap_fget_ns(                           \
-              (HHMap *)map,                        \
-              fptr_fromTypeDef(key)                \
-          );                                       \
+  #define mHmap_get(map, key)                       \
+    ({                                              \
+      static_assert(                                \
+          __builtin_types_compatible_p(             \
+              mHmap(typeof(key), typeof(map(key))), \
+              typeof(map)                           \
+          )                                         \
+      );                                            \
+      (typeof(map(key)) *)                          \
+          HHMap_fget_ns(                            \
+              (HHMap *)map,                         \
+              fptr_fromTypeDef(key)                 \
+          );                                        \
     })
   #define HHMap_scoped [[gnu::cleanup(HHMap_cleanup_handler)]] HHMap
 
@@ -219,7 +233,7 @@ HHMap *HHMap_new(usize kSize, usize vSize, const My_allocator *allocator, u32 me
       sizeof(HHMap) +
       sizeof(HHMap_LesserList) * metaSize +
       sizeof(void **) * metaSize +
-      alignof(max_align_t) +
+      alignof(max_align_t) * 2 +
       (kSize + vSize);
   HHMap *hm = (HHMap *)aAlloc(allocator, totalSize);
 
@@ -257,8 +271,14 @@ u8 *HHMap_getKeyBuffer(const HHMap *map) {
 }
 
 [[gnu::pure]]
+/**
+ * used by fset and fget
+ * `@return` aligned memory big enough for value
+ */
 u8 *HHMap_getValBuffer(const HHMap *map) {
-  return (u8 *)HHMap_getKeyBuffer(map) + map->keysize;
+  return (u8 *)lineup(
+      (uptr)(u8 *)HHMap_getKeyBuffer(map) + map->keysize, alignof(max_align_t)
+  );
 }
 void HHMap_free(HHMap *hm) {
   const My_allocator *allocator = hm->allocator;
@@ -282,39 +302,33 @@ void HHMap_transform(HHMap **last, usize kSize, usize vSize, const My_allocator 
   if (metaSize == 0)
     metaSize = oldMap->metaSize;
   HHMap *newMap = HHMap_new(kSize, vSize, allocator, metaSize);
-  u8 *tempKey;
-  u8 *tempVal;
-  // u8 *tempKey = (u8 *)aAlloc(allocator, kSize);
-  // u8 *tempVal = (u8 *)aAlloc(allocator, vSize);
-  if (newMap->keysize > oldMap->keysize)
-    tempKey = HHMap_getKeyBuffer(newMap);
-  else
+
+  u8 *tempKey = HHMap_getKeyBuffer(newMap);
+  u8 *tempVal = HHMap_getValBuffer(newMap);
+
+  usize keyCopySize = (oldMap->keysize < kSize) ? oldMap->keysize : kSize;
+  usize valCopySize = (oldMap->valsize < vSize) ? oldMap->valsize : vSize;
+
+  if (newMap->keysize < oldMap->keysize)
     tempKey = HHMap_getKeyBuffer(oldMap);
-  if (newMap->valsize > oldMap->valsize)
-    tempVal = HHMap_getValBuffer(newMap);
-  else
+  if (newMap->valsize < oldMap->valsize)
     tempVal = HHMap_getValBuffer(oldMap);
-  u32 totalCount = HHMap_count(oldMap);
-  for (u32 n = 0; n < totalCount; n++) {
-    void *oldKey = HHMap_getKey(oldMap, n);
-    void *oldVal = HHMap_getVal(oldMap, n);
 
-    if (!oldKey || !oldVal) {
-      continue;
+  for (auto i = 0; i < HHMap_getMetaSize(oldMap); i++) {
+    for (auto j = 0; j < HHMap_getBucketSize(oldMap, i); j++) {
+      u8 *oldKey = HHMap_getCoord(oldMap, i, j);
+      u8 *oldVal = oldKey + oldMap->keysize;
+      if (!oldKey)
+        continue;
+      memset(tempKey, 0, kSize);
+      memcpy(tempKey, oldKey, keyCopySize);
+      memset(tempVal, 0, vSize);
+      memcpy(tempVal, oldVal, valCopySize);
+
+      HHMap_set(newMap, tempKey, tempVal);
     }
-    memset(tempKey, 0, kSize);
-    usize keyCopySize = (oldMap->keysize < kSize) ? oldMap->keysize : kSize;
-    memcpy(tempKey, oldKey, keyCopySize);
-
-    memset(tempVal, 0, vSize);
-    usize valCopySize = (oldMap->valsize < vSize) ? oldMap->valsize : vSize;
-    memcpy(tempVal, oldVal, valCopySize);
-
-    HHMap_set(newMap, tempKey, tempVal);
   }
 
-  // aFree(allocator, tempKey);
-  // aFree(allocator, tempVal);
   HHMap_free(oldMap);
 
   *last = newMap;

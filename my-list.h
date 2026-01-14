@@ -12,56 +12,79 @@
 #endif
 // clang-format on
 #include "allocator.h"
+
+typedef size_t List_index_t;
 typedef struct List {
   size_t width;
-  uint32_t length;
-  uint32_t size;
+  List_index_t length;
+  List_index_t size;
   uint8_t *head;
   AllocatorV allocator;
 } List;
 // same as list_resize but it enforces size
-void List_forceResize(List *l, unsigned int newSize);
+void List_forceResize(List *l, List_index_t newSize);
 
 [[gnu::pure]]
-extern inline size_t List_headArea(const List *l);
+extern inline size_t List_headArea(const List *l) {
+  return (l->width * l->length);
+}
 [[gnu::pure]]
 extern inline size_t List_fullHeadArea(const List *l) { return (l->width * l->size); }
 [[gnu::pure]]
-extern inline void *List_getRefForce(const List *l, unsigned int i) { return (l->head + l->width * i); };
+extern inline void *List_getRefForce(const List *l, List_index_t i) { return (l->head + l->width * i); };
 [[gnu::pure]]
-static void *List_getRef(const List *l, unsigned int i) { return l && (i < l->length) ? (l->head + l->width * i) : (NULL); }
-extern inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t init);
-extern inline void List_resize(List *l, unsigned int newSize);
+extern void *List_getRef(const List *l, List_index_t i) { return l && (i < l->length) ? (l->head + l->width * i) : (NULL); }
+void List_makeNew(AllocatorV allocator, List *l, size_t bytes, uint32_t init);
+extern inline void List_resize(List *l, List_index_t newSize) {
+  newSize = newSize ? newSize : 1;
+  if ((newSize > l->size || newSize < l->size / 8))
+    return List_forceResize(l, newSize);
+  return;
+}
 
-static inline List *List_new(const My_allocator *allocator, size_t bytes) {
+extern inline List *List_new(AllocatorV allocator, size_t bytes) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
   List_makeNew(allocator, l, bytes, 2);
   return l;
 }
 void List_free(List *l);
-static inline List *List_newInitL(const My_allocator *allocator, size_t bytes, uint32_t initSize) {
+extern inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t initSize) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
   List_makeNew(allocator, l, bytes, initSize);
   return l;
 }
 
 void *List_append(List *l, const void *element);
-void List_insert(List *l, unsigned int i, void *element);
+void List_insert(List *l, List_index_t i, void *element);
 // helper function to append 0's
-void List_pad(List *l, unsigned int ammount);
-List *List_fromArr(const My_allocator *, const void *source, unsigned int size, unsigned int length);
-void *List_appendFromArr(List *l, const void *source, unsigned int i);
+List *List_fromArr(AllocatorV, const void *source, size_t size, List_index_t length);
+void *List_appendFromArr(List *l, const void *source, List_index_t);
 
-inline uint32_t List_length(const List *l);
-extern inline void *List_set(List *l, unsigned int i, const void *element);
-extern inline uint32_t List_search(const List *l, const void *element);
-extern inline void List_remove(List *l, unsigned int i);
+[[gnu::pure]]
+extern inline List_index_t List_length(const List *l) { return l ? l->length : 0; }
+extern inline void *List_set(List *l, List_index_t i, const void *element) {
+  if (i < l->length) {
+    void *place = l->head + i * l->width;
+    if (element) {
+      memcpy(place, element, l->width);
+    } else {
+      memset(place, 0, l->width);
+    }
+    return place;
+  }
+  if (i == l->length)
+    return List_append(l, element);
+  return NULL;
+}
+extern inline List_index_t List_search(const List *l, const void *element);
+extern inline void List_remove(List *l, List_index_t i);
 extern inline void List_zeroOut(List *l);
 void *List_toBuffer(List *l);
 void *List_fromBuffer(void *ref);
 List *List_deepCopy(List *l);
 
-static void List_cleanup_handler(List **l) {
+static void List_cleanup_handler(void *ListPtrPtr) {
+  List **l = ListPtrPtr;
   if (l && *l)
     List_free(*l);
   *l = NULL;
@@ -69,30 +92,32 @@ static void List_cleanup_handler(List **l) {
 // experimental idk
 #define List_scoped [[gnu::cleanup(List_cleanup_handler)]] List
 
-#define LIST_t(T) typeof(T (*)(size_t))
-#define LIST_INIT(allocator, T) ({                    \
-  (LIST_t(T))(void *) List_new(allocator, sizeof(T)); \
+#define mList(T) typeof(T (*)(List *, size_t))
+#define mList_scoped(T) [[gnu::cleanup(List_cleanup_handler)]] mList(T)
+
+#define mList_init(allocator, T) ({                  \
+  (mList(T))(List *) List_new(allocator, sizeof(T)); \
 })
 
-#define LIST_DEINIT(list)    \
+#define mList_deInit(list)   \
   do {                       \
-    List_free((void *)list); \
+    List_free((List *)list); \
   } while (0)
 
-#define LIST_LENGTH(list) (((List *)((void *)list))->length)
-#define LIST_PUSH(list, val)                             \
-  do {                                                   \
-    List_append((void *)list, (typeof(list(0))[1]){val}) \
+#define mList_len(list) (((List *)(list))->length)
+#define mList_push(list, val)                                   \
+  do {                                                          \
+    List_append((List *)list, (typeof(list(NULL, 0))[1]){val}); \
   } while (0)
-#define LIST_GET(list, index) ({ (typeof(list(0)) *)List_getRef((void *)list, index); })
-#define LIST_SET(list, index, val) ({ List_set((void *)list, index, (typeof(list(0))[1]){val}); })
-#define LIST_INSERT(list, index, val)                            \
-  do {                                                           \
-    List_insert((void *)list, index, (typeof(list(0))[1]){val}); \
+#define mList_get(list, index) ({ (typeof(list(NULL, 0)) *)List_getRef((List *)list, index); })
+#define mList_set(list, index, val) ({ List_set((List *)list, index, (typeof(list(NULL, 0))[1]){val}); })
+#define mList_ins(list, index, val)                                    \
+  do {                                                                 \
+    List_insert((List *)list, index, (typeof(list(NULL, 0))[1]){val}); \
   } while (0)
-#define LIST_REMOVE(list, index)      \
+#define mList_rem(list, index)        \
   do {                                \
-    List_remove((void *)list, index); \
+    List_remove((List *)list, index); \
   } while (0)
 
 #endif // MY_LIST_H
@@ -108,20 +133,9 @@ static inline bool memzeroed(void *mem, size_t len) {
   }
   return true;
 }
-inline void List_resize(List *l, unsigned int newSize) {
-  newSize = newSize ? newSize : 1;
-  if ((newSize > l->size || newSize < l->size / 8))
-    return List_forceResize(l, newSize);
-  return;
-}
 
-inline size_t List_headArea(const List *l) {
-  return (l->width * l->length);
-}
 // all bytes list owns
-inline void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t initialSize) {
-  if (!l)
-    return;
+void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t initialSize) {
   *l = (List){
       .width = bytes,
       .length = 0,
@@ -142,30 +156,8 @@ void List_free(List *l) {
   l->width = 0;
   aFree(l->allocator, l);
 }
-[[gnu::pure]]
-extern inline uint32_t List_length(const List *l) {
-  if (l)
-    return l->length;
-  else
-    return 0;
-}
-inline void *List_set(List *l, unsigned int i, const void *element) {
-  if (i < l->length) {
-    void *place = l->head + i * l->width;
-    if (element) {
-      memcpy(place, element, l->width);
-    } else {
-      memset(place, 0, l->width);
-    }
-    return place;
-  } else if (i == l->length) {
-    return List_append(l, element);
-  } else {
-    return NULL;
-  }
-}
-inline uint32_t List_search(const List *l, const void *element) {
-  unsigned int i = 0;
+inline List_index_t List_search(const List *l, const void *element) {
+  List_index_t i = 0;
   if (element) {
     for (; i < l->length; i++) {
       if (!memcmp(element, List_getRef(l, i), l->width))
@@ -179,8 +171,8 @@ inline uint32_t List_search(const List *l, const void *element) {
   }
   return i;
 }
-inline void List_remove(List *l, unsigned int i) {
-  if (!l || i >= l->length)
+inline void List_remove(List *l, List_index_t i) {
+  if (i >= l->length)
     return;
   memmove(l->head + i * l->width, l->head + (i + 1) * l->width, (l->length - i - 1) * l->width);
   l->length--;
@@ -188,7 +180,7 @@ inline void List_remove(List *l, unsigned int i) {
 inline void List_zeroOut(List *l) {
   memset(l->head, 0, List_fullHeadArea(l));
 }
-void List_insert(List *l, unsigned int i, void *element) {
+void List_insert(List *l, List_index_t i, void *element) {
   if (i == l->length)
     return (void)List_append(l, element);
   if (i > l->length)
@@ -206,7 +198,7 @@ void *List_append(List *l, const void *element) {
   return List_set(l, l->length - 1, element);
 }
 #include "stdio.h"
-void List_forceResize(List *l, unsigned int newSize) {
+void List_forceResize(List *l, List_index_t newSize) {
   uint8_t *newPlace =
       (uint8_t *)aRealloc(l->allocator, l->head, newSize * l->width);
   if (!newPlace) {
@@ -222,14 +214,7 @@ void List_forceResize(List *l, unsigned int newSize) {
   }
   return;
 }
-void List_pad(List *l, unsigned int ammount) {
-  if (l->size < l->length + ammount)
-    List_resize(l, l->length + ammount);
-  memset(l->head + l->length * l->width, 0, ammount * l->width);
-  l->length += ammount;
-  return;
-}
-List *List_fromArr(const My_allocator *allocator, const void *source, unsigned int width, unsigned int length) {
+List *List_fromArr(AllocatorV allocator, const void *source, size_t width, List_index_t length) {
   List *res = (List *)aAlloc(allocator, sizeof(List));
   res->width = width;
   res->length = length;
@@ -240,7 +225,7 @@ List *List_fromArr(const My_allocator *allocator, const void *source, unsigned i
     memcpy(res->head, source, length * width);
   return res;
 }
-void *List_appendFromArr(List *l, const void *source, unsigned int ammount) {
+void *List_appendFromArr(List *l, const void *source, List_index_t ammount) {
   if (!ammount)
     return NULL;
   if (l->size < l->length + ammount)

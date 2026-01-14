@@ -5,7 +5,7 @@
       L,
       {
         H : hydrogen;
-        H/;e: helium;
+        He: helium;
         Li: lithium;
       },
     ];
