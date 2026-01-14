@@ -56,7 +56,7 @@ void HHMap_set(HHMap *map, const void *key, const void *val);
  * `@param` **bucket** bucket index
  * `@return` length of bucket[**bucket**]
  */
-extern inline u32 HHMap_getBucketSize(const HHMap *hm, u32 bucket);
+u32 HHMap_getBucketSize(const HHMap *hm, u32 bucket);
 /**
  * `@param` **hm** map
  * `@return` bucket count
@@ -69,7 +69,7 @@ u32 HHMap_getMetaSize(const HHMap *);
  * `@param` **index** index inside bucket
  * `@return` pointer to key, get the val by adding your padding
  */
-extern inline void *HHMap_getCoord(const HHMap *hm, u32 bucket, u32 index);
+void *HHMap_getCoord(const HHMap *hm, u32 bucket, u32 index);
 /**
  * `@param` **hm** map
  * `@return` total keys and vals
@@ -151,7 +151,7 @@ static inline void HHMap_cleanup_handler(void *vv) {
   // optional bucket count argument
   #define mHmap_init(allocator, keytype, valtype, ...) \
     HMAP_INIT_HELPER(allocator, keytype, valtype __VA_OPT__(, __VA_ARGS__), 32)
-  #define mHmap_free(map) ({ HHMap_free((HHMap *)map); })
+  #define mHmap_deinit(map) ({ HHMap_free((HHMap *)map); })
 
   #define mHmap_set(map, key, val)                         \
     ({                                                     \
@@ -166,6 +166,39 @@ static inline void HHMap_cleanup_handler(void *vv) {
           (typeof(map(key))[1]){(val)}                     \
       );                                                   \
     })
+
+  #define mHmap_each(map, keyType, keyDec, valType, valDec, ...)        \
+    static_assert(                                                      \
+        __builtin_types_compatible_p(                                   \
+            mHmap(typeof(keyType), typeof(valType)), typeof(map)        \
+        )                                                               \
+    );                                                                  \
+    for (auto i = 0; i < HHMap_getMetaSize((HHMap *)map); i++) {        \
+      for (auto j = 0; j < HHMap_getBucketSize((HHMap *)map, i); j++) { \
+        char *_keyptr = HHMap_getCoord((HHMap *)map, i, j);             \
+        char *_valptr = _keyptr + HHMap_getKeySize((HHMap *)map);       \
+        keyType keyDec = *(keyType *)_keyptr;                           \
+        valType valDec = *(valType *)_valptr;                           \
+        do {                                                            \
+          __VA_ARGS__                                                   \
+        } while (0);                                                    \
+      }                                                                 \
+    }
+
+  #define mHmap_rem(map, key)                       \
+    do {                                            \
+      static_assert(                                \
+          __builtin_types_compatible_p(             \
+              mHmap(typeof(key), typeof(map(key))), \
+              typeof(map)                           \
+          )                                         \
+      );                                            \
+      HHMap_fset(                                   \
+          (HHMap *)map,                             \
+          fptr_fromTypeDef(key),                    \
+          NULL                                      \
+      );                                            \
+    } while (0)
 
   #define mHmap_get(map, key)                       \
     ({                                              \
