@@ -1,4 +1,5 @@
 #include "allocator.h"
+#include "assertMessage.h"
 #include "my-list.h"
 #include <string.h>
 #if !defined(HLMAP_H)
@@ -63,25 +64,6 @@ static inline void HLMap_cleanup_handler(HLMap **v) {
     *v = NULL;
   }
 }
-  #define HLMap_setM(HhMap, key, val)                       \
-    ({                                                      \
-      typeof(key) kv = (key);                               \
-      typeof(val) vv = (val);                               \
-      assertMessage(HLMap_getKeySize(HhMap) == sizeof(kv)); \
-      assertMessage(HLMap_getValSize(HhMap) == sizeof(vv)); \
-      HLMap_set(HhMap, &kv, &vv);                           \
-    })
-  #define HLMap_getM(HhMap, type, key, elseBlock) \
-    ({                                            \
-      typeof(key) k = key;                        \
-      type rv;                                    \
-      void *ptr = HLMap_get(HhMap, &k);           \
-      if (ptr) {                                  \
-        memcpy(&rv, ptr, sizeof(rv));             \
-      } else                                      \
-        elseBlock                                 \
-            rv;                                   \
-    })
   #define HLMap_scoped [[gnu::cleanup(HLMap_cleanup_handler)]] HLMap
 
 #endif // HLMap_H

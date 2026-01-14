@@ -92,7 +92,7 @@ static void List_cleanup_handler(void *ListPtrPtr) {
 // experimental idk
 #define List_scoped [[gnu::cleanup(List_cleanup_handler)]] List
 
-#define mList(T) typeof(T (*)(List *, size_t))
+#define mList(T) typeof(T (*)(List *))
 #define mList_scoped(T) [[gnu::cleanup(List_cleanup_handler)]] mList(T)
 
 #define mList_init(allocator, T) ({                  \
@@ -107,13 +107,13 @@ static void List_cleanup_handler(void *ListPtrPtr) {
 #define mList_len(list) (((List *)(list))->length)
 #define mList_push(list, val)                                   \
   do {                                                          \
-    List_append((List *)list, (typeof(list(NULL, 0))[1]){val}); \
+    List_append((List *)list, (typeof(list(NULL))[1]){val}); \
   } while (0)
-#define mList_get(list, index) ({ (typeof(list(NULL, 0)) *)List_getRef((List *)list, index); })
-#define mList_set(list, index, val) ({ List_set((List *)list, index, (typeof(list(NULL, 0))[1]){val}); })
+#define mList_get(list, index) ({ (typeof(list(NULL)) *)List_getRef((List *)list, index); })
+#define mList_set(list, index, val) ({ List_set((List *)list, index, (typeof(list(NULL))[1]){val}); })
 #define mList_ins(list, index, val)                                    \
   do {                                                                 \
-    List_insert((List *)list, index, (typeof(list(NULL, 0))[1]){val}); \
+    List_insert((List *)list, index, (typeof(list(NULL))[1]){val}); \
   } while (0)
 #define mList_rem(list, index)        \
   do {                                \
