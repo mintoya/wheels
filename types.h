@@ -13,7 +13,7 @@ typedef unsigned char uchar;
 #if !defined(_WIN32)
 typedef char8_t c8;
 #else
-typedef char c8;
+typedef uchar c8;
 #endif
 typedef char16_t c16;
 typedef char32_t c32;
@@ -53,69 +53,41 @@ typedef uintptr_t uptr;
   #endif
 #endif
 
-#ifdef __cplusplus
-template <typename T>
-struct nullable_type {
-  T data;
-  bool exists : 1;
-  nullable_type(T d) {
-    data = d;
-    exists = true;
+#define slice_t(type) slice_##type
+#define slice_cat_(a, b) a##b
+#define slice_cat(a, b) slice_cat_(a, b)
+
+#define nullable_tag(type, tag)       \
+  struct slice_cat_(nullable_, tag) { \
+    bool isnull : 1;                  \
+    type data;                        \
   }
-  nullable_type(T *d) {
-    if (d) {
-      data = *d;
-      exists = true;
-    } else {
-      exists = false;
-    }
+
+#define nullable(type) nullable_tag(type, type)
+#define nullable_fromPtr(type, ptr) ({type *p = ptr; nullable(type) r; r.isnull = p == NULL; if (!r.isnull) r.data = *p; r; })
+#define nullable_null(type) ((nullable(type)){.isnull = true})
+#define nullable_real(type, value) ((nullable(type)){.isnull = false, .data = (value)})
+
+#define slice_tag(type, tag)       \
+  struct slice_cat_(slice_, tag) { \
+    usize len;                     \
+    type *ptr;                     \
   }
-};
-  #define nullable(type) nullable_type<type>
-template <typename T>
-struct slice_type {
-  usize len;
-  T *ptr;
-  template <usize N>
-  slice_type(T (&array)[N]) : len(N), ptr(array) {}
-};
+#define slice(type) slice_tag(type, type)
 
-  #define slice(type) slice_type<type>
-#else
-  #define slice_t(type) slice_##type
-  #define slice_cat_(a, b) a##b
-  #define slice_cat(a, b) slice_cat_(a, b)
+#define slice_stat(s) \
+  { sizeof(s) / sizeof(s[0]), (typeof(s[0]) *)s }
+#define each_slice(slice, e)       \
+  typeof(slice.ptr) e = slice.ptr; \
+  e < slice.ptr + slice.len;       \
+  e++
 
-  #define nullable_tag(type, tag)       \
-    struct slice_cat_(nullable_, tag) { \
-      bool isnull : 1;                  \
-      type data;                        \
-    }
+#define bslice_tag(type, tag)       \
+  struct slice_cat_(bslice_, tag) { \
+    usize len;                      \
+    type ptr[];                     \
+  }                                 \
+  *
+#define bslice(type) bslice_tag(type, type)
 
-  #define nullable(type) nullable_tag(type, type)
-  #define nullable_fromPtr(type, ptr) ({type *p = ptr; nullable(type) r; r.isnull = p == NULL; if (!r.isnull) r.data = *p; r; })
-  #define nullable_null(type) ((nullable(type)){.isnull = true})
-  #define nullable_real(type, value) ((nullable(type)){.isnull = false, .data = (value)})
-
-  #define slice_tag(type, tag)       \
-    struct slice_cat_(slice_, tag) { \
-      usize len;                     \
-      type *ptr;                     \
-    }
-  #define slice(type) slice_tag(type, type)
-
-  #define slice_stat(s) {sizeof(s) / sizeof(s[0]), (typeof(s[0]) *)s}
-  #define each_slice(slice, e)       \
-    typeof(slice.ptr) e = slice.ptr; \
-    e < slice.ptr + slice.len;       \
-    e++
-
-  #define bslice_tag(type, tag)       \
-    struct slice_cat_(bslice_, tag) { \
-      usize len;                      \
-      type ptr[];                     \
-    } *
-  #define bslice(type) bslice_tag(type, type)
-
-#endif
 #endif // MY_TYPES

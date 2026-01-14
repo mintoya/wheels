@@ -5,6 +5,7 @@
 #include "print.h"
 #include "types.h"
 #include <string.h>
+#include <time.h>
 struct vason_span {
   u32 len, offset;
 };
@@ -149,7 +150,7 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
       }
     }
   }
-  for (auto i = 0; i < t.len - 1; i++)
+  for (typeof(t.len) i = 0; i < t.len - 1; i++)
     if (t.ptr[i] == ESCAPE) {
       t.ptr[i] = STR_;
       t.ptr[i + 1] = STR_;
@@ -171,6 +172,7 @@ bool isrid(vason_token t) {
   }
 }
 nullable(usize) stack_resolve_breakdown(AllocatorV, usize start, slice(vason_token) t, vason_token query) {
+  typedef typeof(stack_resolve_breakdown(NULL, start, t, query)) returnType;
   switch (query) {
     case ARR_end:
     case MAP_end: {
@@ -364,7 +366,7 @@ vason_object bdconvert(
       if (bdr.kind == vason_MAP)
         res.span.len = (res.span.len / 2) * 2;
       List_appendFromArr((void *)containerList, NULL, res.span.len);
-      for (auto i = 0; i < res.span.len; i++) {
+      for (usize i = 0; i < res.span.len; i++) {
         switch (bdr.items.ptr[i].kind) {
           case vason_ID:
           case vason_STR: {
@@ -399,8 +401,8 @@ vason_contianer parseStr(AllocatorV allocator, slice(c8) str) {
   slice(vason_token) t = vason_tokenize(allocator, str);
   mList(vason_object) bucket = mList_init(allocator, vason_object);
 
-  auto bdr = breakdown(0, t, allocator, str);
-  auto bdc = bdconvert(bucket, bdr, str, t, allocator);
+  usize bdr = breakdown(0, t, allocator, str);
+  usize bdc = bdconvert(bucket, bdr, str, t, allocator);
 
   aFree(allocator, bdr.items.ptr);
   aFree(allocator, t.ptr);

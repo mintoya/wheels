@@ -1,6 +1,7 @@
 #ifndef ARENA_ALLOCATOR_H
 #define ARENA_ALLOCATOR_H
 #include "allocator.h"
+#include "assertMessage.h"
 #include <assert.h>
 #include <errno.h>
 #include <stdint.h>
@@ -175,6 +176,17 @@ ArenaBlock *arenablock_new(AllocatorV allocator, usize blockSize) {
   };
   return res;
 }
+usize arena_totalMem(My_allocator *arena) {
+  usize res = 0;
+  ArenaBlock *it = (ArenaBlock *)(arena->arb);
+  AllocatorV allocator = it->allocator;
+  while (it) {
+    ArenaBlock *next = it->next;
+    res += it->place;
+    it = next;
+  }
+  return res;
+}
 usize arena_footprint(My_allocator *arena) {
   usize res = 0;
   ArenaBlock *it = (ArenaBlock *)(arena->arb);
@@ -268,6 +280,8 @@ void *arena_alloc(AllocatorV ref, usize size) {
   size = lineup(size, alignof(max_align_t));
   ArenaBlock *it = (ArenaBlock *)(ref->arb);
   void *res = NULL;
+  while (it->next)
+    it = it->next;
   while (!res) {
     if (it->size - it->place >= size + alignof(max_align_t)) {
       *(usize *)(it->buffer + it->place) = size;
@@ -285,5 +299,24 @@ void *arena_alloc(AllocatorV ref, usize size) {
     }
   }
   return res;
+}
+void *arena_startStack(AllocatorV ref) {
+  ArenaBlock *it = (ArenaBlock *)(ref->arb);
+  while (it->next)
+    it = it->next;
+  return it->buffer + it->place;
+}
+void arena_endStack(AllocatorV ref, void *pointer) {
+  ArenaBlock *it = (ArenaBlock *)(ref->arb);
+  while (it && !((uintptr_t)it->buffer < (uintptr_t)pointer && (uintptr_t)it->buffer + it->size >= (uintptr_t)pointer))
+    it = it->next;
+  assertMessage(it);
+  ArenaBlock *freeing = it->next;
+  while (freeing) {
+    ArenaBlock *next = freeing->next;
+    aFree(freeing->allocator, freeing);
+    freeing = next;
+  }
+  it->place = (uintptr_t)pointer - (uintptr_t)it->buffer;
 }
 #endif // ARENA_ALLOCATOR_C

@@ -1,6 +1,7 @@
 #ifndef ASSERTMESSAGE_H
 #define ASSERTMESSAGE_H
 #include <stdio.h>
+#include <assert.h>
 #if defined(__linux__)
   #include <execinfo.h>
   #include <unistd.h>
@@ -49,7 +50,7 @@ char **backtrace_symbols(void *array[], size_t size);
           void *array[5];                            \
           size_t size = backtrace(array, 5);         \
           char **syms = backtrace_symbols(array, 5); \
-          for (auto i = 0; i < 5; i++) {             \
+          for (usize i = 0; i < 5; i++) {             \
             printf("%s\n", syms[i]);                 \
           }                                          \
           abort();                                   \

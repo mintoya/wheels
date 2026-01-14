@@ -9,7 +9,7 @@
 #include <stddef.h>
 
 int main(void) {
-  auto local = debugAllocatorInit(defaultAlloc);
+  My_allocator* local = debugAllocatorInit(defaultAlloc);
   aCreate(local, int);
   debugAllocatorDeInit(local);
   assertMessage(false);

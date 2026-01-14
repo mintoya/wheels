@@ -3,7 +3,6 @@
 #include "print.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 My_allocator *debugAllocatorInit(AllocatorV allocator);
 void debugAllocatorDeInit(My_allocator *allocator);
@@ -49,18 +48,28 @@ My_allocator *debugAllocatorInit(AllocatorV allocator) {
   return res;
 }
 void debugAllocatorDeInit(My_allocator *allocator) {
-  auto internals = (debugAllocatorInternals *)allocator->arb;
+  debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
   mHmap_each(
       internals->map,
       void *, ptr,
       struct tracedata, val,
       {
-        println("leaked {} bytes at {ptr}\n", val.size, ptr);
+        pEsc r = (pEsc){.fg = {255, 0, 0}, .fgset = 1};
+        pEsc g = (pEsc){.fg = {0, 255, 0}, .fgset = 1};
+        pEsc b = (pEsc){.fg = {0, 0, 255}, .fgset = 1};
+        println(
+            "leaked {}{}{} bytes at {}{ptr}{}\n"
+            "=========================================================\n",
+            g, val.size, (pEsc){.reset = 1}, b, ptr, r
+        );
         char **names = backtrace_symbols(val.trace + 2, 5);
-        for (auto i = 0; i < 5; i++)
+        for (usize i = 0; i < 5; i++)
           println("{cstr}", names[i]);
-        println();
+        println(
+            "=========================================================\n",
+        );
+        println("{}", (pEsc){.reset = 1});
 
         free(names);
         aFree(realAllocator, ptr);
@@ -72,7 +81,7 @@ void debugAllocatorDeInit(My_allocator *allocator) {
 }
 
 void *debugAllocator_alloc(AllocatorV allocator, usize size) {
-  auto internals = (debugAllocatorInternals *)allocator->arb;
+  debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
   void *res = aAlloc(realAllocator, size);
 
@@ -90,7 +99,7 @@ void *debugAllocator_alloc(AllocatorV allocator, usize size) {
 }
 
 void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size) {
-  auto internals = (debugAllocatorInternals *)allocator->arb;
+  debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
 
   // Remove old tracking
@@ -119,7 +128,7 @@ void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size) {
 }
 
 void debugAllocator_free(AllocatorV allocator, void *ptr) {
-  auto internals = (debugAllocatorInternals *)allocator->arb;
+  debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
 
   if (ptr) {

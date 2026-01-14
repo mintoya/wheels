@@ -8,7 +8,7 @@
 
 // clang-format off
 #ifndef LIST_GROW_EQ
-#define LIST_GROW_EQ(uint) ((uint + (uint << 1)) + 1)
+#define LIST_GROW_EQ(uint) ((uint + (uint*2)) + 1)
 #endif
 // clang-format on
 #include "allocator.h"
@@ -25,16 +25,42 @@ typedef struct List {
 void List_forceResize(List *l, List_index_t newSize);
 
 [[gnu::pure]]
+/**
+ * `@param` **l** list
+ * `@return` size of memory used by list
+ */
 extern inline size_t List_headArea(const List *l) {
   return (l->width * l->length);
 }
 [[gnu::pure]]
+/**
+ * `@param` **l** list
+ * `@return` size of memory reserved by list
+ */
 extern inline size_t List_fullHeadArea(const List *l) { return (l->width * l->size); }
 [[gnu::pure]]
+/**
+ * `@param` **l** list
+ * `@param` **i** index
+ * `@return` pointer to i`th element
+ *      - even if i is out of bounds
+ */
 extern inline void *List_getRefForce(const List *l, List_index_t i) { return (l->head + l->width * i); };
 [[gnu::pure]]
+/**
+ * `@param` **l** list
+ * `@param` **i** index
+ * `@return` pointer to i`th element
+ *      - null if i is more than **l**.length
+ */
 extern void *List_getRef(const List *l, List_index_t i) { return l && (i < l->length) ? (l->head + l->width * i) : (NULL); }
-void List_makeNew(AllocatorV allocator, List *l, size_t bytes, uint32_t init);
+/**
+ * writes list to **l**
+ * `@param` **allocator** allocator
+ * `@param` **bytes** size of each element
+ * `@param` **init** initial capacity
+ */
+void List_makeNew(AllocatorV allocator, List *l, size_t bytes, List_index_t init);
 extern inline void List_resize(List *l, List_index_t newSize) {
   newSize = newSize ? newSize : 1;
   if ((newSize > l->size || newSize < l->size / 8))
@@ -42,6 +68,12 @@ extern inline void List_resize(List *l, List_index_t newSize) {
   return;
 }
 
+/**
+ * creates new list 
+ * `@param` **allocator** allocator
+ * `@param` **bytes** size of each element
+ * `@return` new list 
+ */
 extern inline List *List_new(AllocatorV allocator, size_t bytes) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
   List_makeNew(allocator, l, bytes, 2);
@@ -54,11 +86,37 @@ extern inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t i
   return l;
 }
 
+/**
+ * appends element to list
+ * `@param` **l** list
+ * `@param` **element** pointer to value 
+ * `@return` **element** pointer to value *inside list*
+ */
 void *List_append(List *l, const void *element);
+/**
+ * inserts element into list
+ * `@param` **l** list
+ * `@param` **i** index to insert
+ * `@param` **element** pointer to value 
+ */
 void List_insert(List *l, List_index_t i, void *element);
-// helper function to append 0's
+/**
+ * create list from array 
+ * `@param` **allocator** allocator
+ * `@param` **source** pointer to value 
+ * `@param` **size**  element size 
+ * `@param` **length** element count
+ * `@reutrn` new list 
+ */
 List *List_fromArr(AllocatorV, const void *source, size_t size, List_index_t length);
-void *List_appendFromArr(List *l, const void *source, List_index_t);
+/**
+ * inserts elements into list
+ * `@param` **l** list
+ * `@param` **source** pointer to value 
+ * `@param` **length** element count
+ * `@return` adress of first inserted element
+ */
+void *List_appendFromArr(List *l, const void *source, List_index_t length);
 
 [[gnu::pure]]
 extern inline List_index_t List_length(const List *l) { return l ? l->length : 0; }
@@ -84,7 +142,7 @@ void *List_fromBuffer(void *ref);
 List *List_deepCopy(List *l);
 
 static void List_cleanup_handler(void *ListPtrPtr) {
-  List **l = ListPtrPtr;
+  List **l = (List **)ListPtrPtr;
   if (l && *l)
     List_free(*l);
   *l = NULL;
@@ -92,7 +150,7 @@ static void List_cleanup_handler(void *ListPtrPtr) {
 // experimental idk
 #define List_scoped [[gnu::cleanup(List_cleanup_handler)]] List
 
-#define mList(T) typeof(T (*)(List *))
+#define mList(T) typeof(T(*)(List *))
 #define mList_scoped(T) [[gnu::cleanup(List_cleanup_handler)]] mList(T)
 
 #define mList_init(allocator, T) ({                  \
@@ -104,20 +162,36 @@ static void List_cleanup_handler(void *ListPtrPtr) {
     List_free((List *)list); \
   } while (0)
 
+#define mList_arr(list) ({ (typeof(list(NULL)) *)(((List *)(list))->head); })
 #define mList_len(list) (((List *)(list))->length)
-#define mList_push(list, val)                                   \
-  do {                                                          \
+#define mList_cap(list) (((List *)(list))->size)
+#define mList_push(list, val)                                \
+  do {                                                       \
     List_append((List *)list, (typeof(list(NULL))[1]){val}); \
   } while (0)
+#define mList_pop(list) ({ ((List*)(list))->length--;*(typeof(list(NULL))*)List_getRefForce((List*)(list),((List*)list)->length ); })
 #define mList_get(list, index) ({ (typeof(list(NULL)) *)List_getRef((List *)list, index); })
 #define mList_set(list, index, val) ({ List_set((List *)list, index, (typeof(list(NULL))[1]){val}); })
-#define mList_ins(list, index, val)                                    \
-  do {                                                                 \
+#define mList_ins(list, index, val)                                 \
+  do {                                                              \
     List_insert((List *)list, index, (typeof(list(NULL))[1]){val}); \
   } while (0)
 #define mList_rem(list, index)        \
   do {                                \
     List_remove((List *)list, index); \
+  } while (0)
+#define each_mList(list, e)                \
+  typeof(list(NULL)) *e = mList_arr(list); \
+  e < mList_arr(list)[mList_len(list)];    \
+  e++
+#define mList_foreach(list, valtype, value, ...)            \
+  do {                                                      \
+    for (List_index_t _i = 0; _i < mList_len(list); _i++) { \
+      valtype value = *mList_get(list, _i);                 \
+      {                                                     \
+        __VA_ARGS__                                         \
+      }                                                     \
+    }                                                       \
   } while (0)
 
 #endif // MY_LIST_H
@@ -135,7 +209,7 @@ static inline bool memzeroed(void *mem, size_t len) {
 }
 
 // all bytes list owns
-void List_makeNew(const My_allocator *allocator, List *l, size_t bytes, uint32_t initialSize) {
+void List_makeNew(AllocatorV allocator, List *l, size_t bytes, List_index_t initialSize) {
   *l = (List){
       .width = bytes,
       .length = 0,
