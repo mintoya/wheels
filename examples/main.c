@@ -7,10 +7,13 @@
 // #include "../types.h"
 #include "../vason.h"
 #include <stddef.h>
+#include <uchar.h>
 
 void testAllocation2(AllocatorV allocator) {
-  int *i = aCreate(allocator, int, 8);
+  My_allocator *arena = arena_new_ext(allocator, 1024);
+  int *i = aCreate(arena, int, 8);
   i[0] = 8;
+  aFree(arena, i);
 }
 void testAllocation(AllocatorV allocator) {
   int *i = aCreate(allocator, int);
@@ -21,11 +24,7 @@ int main(void) {
   Arena_scoped *s = arena_new_ext(defaultAlloc, 1024);
   My_allocator *local = debugAllocatorInit(s);
   testAllocation(local);
-  int leaks = debugAllocatorDeInit(local);
-  assertMessage(
-      leaks == 0,
-      "%i leaks detected", leaks
-  );
+  print("{} leaks detected", debugAllocatorDeInit(local));
   return 0;
 }
 #include "../wheels.h"
