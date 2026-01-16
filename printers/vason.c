@@ -5,7 +5,10 @@ REGISTER_PRINTER(vason_container, {
   switch (in.top.tag) {
     case vason_ID:
     case vason_STR: {
-      PUTS(L"󰅳 ");
+      if (in.top.tag == vason_ID)
+        PUTS(L"󰅱 ");
+      else
+        PUTS(L"󰅳 ");
       slice(c8) str = {
           .len = in.top.span.len,
           .ptr = in.string.ptr + in.top.span.offset,
@@ -34,7 +37,6 @@ REGISTER_PRINTER(vason_container, {
         vason_object object = in.objects.ptr[i + in.top.span.offset + 1];
         in.top = name;
         USETYPEPRINTER(vason_container, in);
-        PUTS(L":");
         in.top = object;
         USETYPEPRINTER(vason_container, in);
 

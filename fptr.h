@@ -58,7 +58,7 @@ static inline char fptr_eq(fptr a, fptr b) { return !fptr_cmp(a, b); }
 #ifdef __cplusplus
 static bool operator==(const fptr &a, const fptr &b) { return fptr_eq(a, b); }
 static bool operator!=(const fptr &a, const fptr &b) { return !fptr_eq(a, b); }
-  #define typeof(x) std::decay_t<decltype(x)>
+  #define typeof(x) __typeof__(x)
 #endif
 
 #define setvar_aligned(var, ptr)                   \

@@ -1,0 +1,19 @@
+
+{
+  "symbols" : [
+      "H", "HE", "L",
+      {
+        "H" : "hydrogen",
+        "He": "helium",
+        "Li": "lithium"
+      }
+    ],
+    "names" : {
+      "list part":[
+        "H", "HE", "L"
+      ],
+      "H" : "hydrogen",
+      "He": "helium",
+      "Li": "lithium"
+    }
+}

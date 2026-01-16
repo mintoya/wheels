@@ -139,7 +139,7 @@ static inline void HMap_cleanup_handler(void *vv) {
 
   #define HMAP_INIT_HELPER(allocator, keytype, valtype, bucketcount, ...) ( \
       (mHmap(keytype, valtype))HMap_new(                                    \
-          offsetof(struct { keytype a; valtype b; }, b), sizeof(valtype), allocator, bucketcount  \
+          ({ struct T { keytype a; valtype b; }; __builtin_offsetof(struct T, b); }), sizeof(valtype), allocator, bucketcount                    \
       )                                                                     \
   )
   // optional bucket count argument

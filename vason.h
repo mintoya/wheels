@@ -318,25 +318,21 @@ nullable(usize) find_obj_end_heap(mList(vason_token) stack, usize start, slice(v
             (it == ARR_start && t.ptr[start] == ARR_end) ||
             (it == MAP_start && t.ptr[start] == MAP_end)
         ) {
-          // Changed continue to break
           break;
         } else {
-          goto early_return;
+          return nullable_null(usize);
         }
       } break;
       default:
-        break; // Added for clarity
+        break;
     }
     start++;
   }
 
   if (!mList_len(stack))
     return nullable_real(usize, start);
-
-  // clang-format off
-  early_return:
-  // clang-format on
-  return nullable_null(usize);
+  else
+    return nullable_null(usize);
 }
 struct breakdown_return {
   vason_tag kind;
@@ -346,6 +342,7 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
   List level;
   mList_scoped(vason_token) endList = mList_init(allocator, vason_token, 10);
   List_makeNew(allocator, &level, sizeof(vason_level), 5);
+  bool malofrmed = false;
   enum { vason_ARR = vason_ARR,
          vason_MAP = vason_MAP
   } mode = {};
@@ -378,46 +375,23 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
     switch (t.ptr[i]) {
       case STR_: {
         usize next = i + 1;
-
-        // clang-format off
-        //while_label:
-        // clang-format on
         while (next < end && t.ptr[next] == STR_)
           next++;
-
-        if (
-            t.ptr[next] == MAP_start ||
-            t.ptr[next] == ARR_start
-        ) {
-          i = next;
-          break;
-        }
-
-        usize istart = i;
-        usize inext = next;
-        while (istart < inext && vason_skip(str.ptr[istart]))
-          istart++;
-        while (inext > istart && vason_skip(str.ptr[inext - 1]))
-          inext--;
 
         vason_level stritem = {
             .kind = vason_STR,
             .pos = {
-                .len = inext - istart,
-                .offset = istart,
+                .len = next - i,
+                .offset = i,
             },
         };
-        if (mode == vason_MAP) {
+        if (mode == vason_MAP)
           stritem.kind = mapMode == value ? vason_STR : vason_ID;
-        }
-        if (mode == vason_ARR || (inext != istart))
-          List_append(&level, &stritem);
+        List_append(&level, &stritem);
         i = next;
       } break;
-
       case ARR_start:
       case MAP_start: {
-
         mList_push(endList, t.ptr[i]);
         nullable(usize) next_nullable = find_obj_end_heap(endList, i + 1, t);
         if (next_nullable.isnull)
@@ -437,23 +411,18 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
         i = next + 1;
       } break;
 
-      case ARR_delim:
-        if (mode != vason_ARR)
-          goto early_return;
-        i++;
-        break;
       case MAP_delim_ID: {
         if (mode != vason_MAP)
-          goto early_return;
-        if (mapMode != index)
           goto early_return;
         mapMode = value;
         i++;
       } break;
+      case ARR_delim:
       case MAP_delim: {
-        if (mode != vason_MAP)
-          goto early_return;
-        if (mapMode != value)
+        if (mode == vason_ARR) {
+          i++;
+          break;
+        } else if (mapMode != value)
           goto early_return;
         mapMode = index;
         i++;
@@ -463,16 +432,20 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
         break;
     }
   }
+  goto normal_return;
   // clang-format off
-  bool malofrmed = false;
-  if(false){
   early_return:
-    malofrmed = true;
-  }
+  malofrmed = true;
+  normal_return:
   // clang-format on
   List_forceResize(&level, level.length);
-  slice(vason_level) res = {level.length, (vason_level *)level.head};
-  return malofrmed ? (struct breakdown_return){vason_INVALID, res} : (struct breakdown_return){mode, res};
+  return (struct breakdown_return){
+      mode | (malofrmed ? vason_INVALID : 0),
+      (slice(vason_level)){
+          level.length,
+          (vason_level *)level.head,
+      },
+  };
 }
 
 vason_object bdconvert(
@@ -483,7 +456,12 @@ vason_object bdconvert(
     slice(vason_token) t,
     AllocatorV allocator
 ) {
+  // TODO deal with invalid types
+  bool isvalid = !(bdr.kind & vason_INVALID);
+  bdr.kind &= ~vason_INVALID;
   vason_object res = {.tag = bdr.kind};
+  if (!isvalid)
+    goto invalidLabel;
   switch (bdr.kind) {
     case vason_ID:  // impossible for now
     case vason_STR: // impossible for now
@@ -525,7 +503,7 @@ vason_object bdconvert(
     } break;
   }
   // clang-format off
-  // invalidLabel:
+  invalidLabel:
   // clang-format on
   return res;
 }

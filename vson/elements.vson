@@ -1,8 +1,6 @@
 {
   symbols : [
-      H,
-      HE,
-      L,
+      H, HE, L,
       {
         H : hydrogen;
         He: helium;
@@ -11,9 +9,7 @@
     ];
     names : {
       list part:[
-        H,
-        HE,
-        L,
+        H, HE, L,
       ];
       H : hydrogen;
       He: helium;
