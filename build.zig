@@ -20,7 +20,7 @@ pub fn build(b: *std.Build) void {
         .flags = &.{
             "-g",
             "-w",
-            "-std=c23",
+            "-std=c2y",
         },
         .language = .c,
     });

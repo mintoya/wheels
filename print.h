@@ -196,6 +196,7 @@ static void fileprint(
 
 static struct {
   HMap *data;
+  usize termWidth, termHeight;
 } PrinterSingleton;
 
 static void PrinterSingleton_init() {
@@ -547,6 +548,8 @@ struct print_arg {
   MAKE_PRINT_ARG_TYPE(int);
   #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(fptr);
+  #include "printer/genericName.h"
+  MAKE_PRINT_ARG_TYPE(ssize);
   #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(usize);
   #include "printer/genericName.h"

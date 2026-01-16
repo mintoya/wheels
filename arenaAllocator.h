@@ -19,7 +19,11 @@ static void arena_cleanup_handler(My_allocator **arenaPtr) {
     *arenaPtr = NULL;
   }
 }
+My_allocator *ownArenaInit(void);
+void ownArenaDeInit(My_allocator *);
+OwnAllocator arena_owned = {ownArenaInit, ownArenaDeInit};
 extern AllocatorV pageAllocator;
+
 #define Arena_scoped [[gnu::cleanup(arena_cleanup_handler)]] My_allocator
 #endif // ARENA_ALLOCATOR_H
 
@@ -205,18 +209,17 @@ My_allocator *ownArenaInit(void) {
 void ownArenaDeInit(My_allocator *d) {
   return arena_cleanup(d);
 }
-OwnAllocator arena_owned_new(void) {
-  return (OwnAllocator){ownArenaInit, ownArenaDeInit};
-}
 My_allocator *arena_new_ext(AllocatorV base, usize blockSize) {
   My_allocator *res = (My_allocator *)aAlloc(base, sizeof(My_allocator));
   *res = (My_allocator){
       arena_alloc,
       arena_free,
       arena_r_alloc,
-      arenablock_new(base, blockSize),
+      NULL,
       arena_realsize,
   };
+  res->arb = arenablock_new(base, blockSize);
+
   return res;
 }
 void arena_cleanup(My_allocator *arena) {
@@ -291,7 +294,7 @@ void *arena_alloc(AllocatorV ref, usize size) {
       it->place += size;
     } else {
       if (!it->next) {
-        int minsize = size + alignof(max_align_t);
+        int minsize = size + alignof(max_align_t) * 2 + sizeof(ArenaBlock);
         minsize = (minsize < it->size ? it->size : minsize);
         it->next = arenablock_new(it->allocator, minsize);
       }

@@ -1,0 +1,10 @@
+vson point 
+{
+  type name  : `point';
+  feilds: ignred [`x',`y'] ignored also ;
+  types : {
+    x : f32;
+    y : f32;
+  } ;
+} 
+

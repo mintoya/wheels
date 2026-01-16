@@ -6,15 +6,17 @@
 #include "types.h"
 #include <string.h>
 #include <time.h>
-struct vason_span {
+
+typedef struct vason_span {
   u32 len, offset;
-};
+} vason_span;
+
 typedef enum : u8 {
-  vason_STR,
-  vason_ARR,
-  vason_MAP,
-  vason_ID,
-  vason_INVALID,
+  vason_STR = 1 << 1,
+  vason_ARR = 1 << 2,
+  vason_MAP = 1 << 3,
+  vason_ID = 1 << 4,
+  vason_INVALID = 1 << 5,
 } vason_tag;
 
 /**
@@ -23,7 +25,7 @@ typedef enum : u8 {
  *  `vason_STR`: len&offset inside of vason_container.string
  *  `vason_ARR`: len&offset inside of vason_contianer.objects
  *  `vason_ID` : len&offset inside of vason_container.string
- *       - only within a map
+ *       - only within a map @ the even indexes
  *  `vason_MAP`: len&offset inside of vason_contianer.objects
  *       - len must be even,
  *       - even indexes: keys (`vason_ID`)
@@ -43,7 +45,7 @@ typedef struct vason_container {
 } vason_contianer;
 
 [[gnu::weak]]
-void kmlFormatPrinter(
+void vason_formatter_print(
     const wchar *data,
     void *arb,
     unsigned int length,
@@ -105,20 +107,15 @@ typedef struct vason_level {
   vason_tag kind;
   struct vason_span pos;
 } vason_level;
-struct breakdown_return {
-  vason_tag kind;
-  struct slice_vason_level {
-    usize len;
-    vason_level *ptr;
-  } items;
-};
 
 // just control characters for now
 bool vason_skip(char c) { return c < 33 && c != 0; }
-
 typedef enum : c8 {
   STR_,
+  STR_start = '`',
+  STR_end = '\'',
   ESCAPE = '/',
+  // ESCAPE = '\\', // handeled in tokenizer
   ARR_start = '[',
   ARR_end = ']',
   ARR_delim = ',',
@@ -127,7 +124,43 @@ typedef enum : c8 {
   MAP_delim_ID = ':',
   MAP_delim = ';',
 } vason_token;
-
+REGISTER_PRINTER(vason_token, {
+  switch (in) {
+    case STR_:
+      PUTC(L's');
+      break;
+    case STR_start:
+      PUTC(L'X');
+      break;
+    case STR_end:
+      PUTC(L'x');
+      break;
+    case ESCAPE:
+      PUTC('_');
+      break;
+    case ARR_start:
+      PUTC('[');
+      break;
+    case ARR_end:
+      PUTC(']');
+      break;
+    case ARR_delim:
+      PUTC(',');
+      break;
+    case MAP_start:
+      PUTC('{');
+      break;
+    case MAP_end:
+      PUTC('}');
+      break;
+    case MAP_delim_ID:
+      PUTC(':');
+      break;
+    case MAP_delim:
+      PUTC(';');
+      break;
+  }
+});
 slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
   slice(vason_token) t = {
       string.len,
@@ -137,6 +170,8 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
     t.ptr[i] = string.ptr[i];
     switch (t.ptr[i]) {
       case ESCAPE:
+      case STR_start:
+      case STR_end:
       case ARR_start:
       case ARR_end:
       case ARR_delim:
@@ -145,70 +180,171 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
       case MAP_delim_ID:
       case MAP_delim:
         break;
+      case '\\': {
+        t.ptr[i] = ESCAPE;
+      } break;
       default: {
         t.ptr[i] = STR_;
       }
     }
   }
+  // escape escape'd characters
   for (typeof(t.len) i = 0; i < t.len - 1; i++)
     if (t.ptr[i] == ESCAPE) {
       t.ptr[i] = STR_;
       t.ptr[i + 1] = STR_;
+      i++;
     }
+  // force strings inside delimiters
+  for (typeof(t.len) i = 0; i < t.len - 1; i++) {
+    if (t.ptr[i] == STR_start) {
+      i++;
+      while (i < t.len && t.ptr[i] != STR_end) {
+        t.ptr[i] = STR_;
+        i++;
+      }
+    } else if (t.ptr[i] == STR_) {
+      usize j = i;
+      while (j < t.len && t.ptr[j] == STR_)
+        j++;
+      switch (t.ptr[j]) {
+        case MAP_end:
+        case MAP_start:
+        case ARR_start:
+        case STR_start: {
+          for (usize ii = i; ii < j; ii++)
+            t.ptr[ii] = ESCAPE;
+
+        } break;
+        case STR_:
+        case STR_end:
+        case ESCAPE:
+        case ARR_end:
+        case ARR_delim:
+        case MAP_delim_ID:
+        case MAP_delim:
+          break;
+      }
+      i = j;
+    }
+  }
+  // force strings inside delimiters
+  for (typeof(t.len) i = t.len; i > 0; i--) {
+    if (t.ptr[i - 1] == STR_) {
+      usize j = i;
+      while (j > 0 && t.ptr[j - 1] == STR_)
+        j--;
+      switch (t.ptr[j - 1]) {
+        case ARR_end:
+        case MAP_end: {
+          for (usize ii = j; ii < i - 1; ii++)
+            t.ptr[ii] = ESCAPE;
+
+        } break;
+        case STR_start:
+        case STR_:
+        case STR_end:
+        case MAP_start:
+        case ARR_start:
+        case ESCAPE:
+        case ARR_delim:
+        case MAP_delim_ID:
+        case MAP_delim:
+          break;
+      }
+      i = j;
+    }
+  }
+  // remove strings after end of delimiter
+  for (typeof(t.len) i = 0; i < t.len; i++) {
+    if (t.ptr[i] == STR_end) {
+      i++;
+      while (i < t.len && t.ptr[i] == STR_)
+        t.ptr[i] = ESCAPE;
+    }
+  }
+  // remove spaces after strings
+  for (typeof(t.len) i = t.len; i > 0; i--) {
+    while (i > 0 && t.ptr[i - 1] == STR_ && isSkip(string.ptr[i - 1])) {
+      t.ptr[i - 1] = ESCAPE;
+      i--;
+    }
+    while (i > 0 && t.ptr[i - 1] == STR_)
+      i--;
+  }
+  // remove spaces before strings
+  for (typeof(t.len) i = 0; i < t.len; i++) {
+    if (t.ptr[i] == STR_start) {
+      while (t.ptr[i] != STR_end)
+        i++;
+      continue;
+    }
+    while (i < t.len && t.ptr[i] == STR_ && isSkip(string.ptr[i])) {
+      t.ptr[i] = ESCAPE;
+      i++;
+    }
+    while (i < t.len && t.ptr[i] == STR_)
+      i++;
+  }
+  // discard delimiters
+  for (typeof(t.len) i = 0; i < t.len; i++) {
+    switch (t.ptr[i]) {
+      case STR_start:
+      case STR_end:
+        t.ptr[i] = ESCAPE;
+        break;
+      default:
+        break;
+    }
+  }
+  for (typeof(t.len) i = 0; i < t.len - 1; i++) {
+    print("{vason_token}", t.ptr[i]);
+  }
+  println();
   return t;
 }
-// returns end of id
-bool isrid(vason_token t) {
-  switch (t) {
-    case ARR_start:
-    case ARR_end:
-    case MAP_start:
-    case MAP_end: {
-      return true;
-    } break;
-    default: {
-      return false;
-    } break;
-  }
-}
-nullable(usize) stack_resolve_breakdown(AllocatorV, usize start, slice(vason_token) t, vason_token query) {
-  switch (query) {
-    case ARR_end:
-    case MAP_end: {
-      for (usize i = start; i < t.len; i++) {
-        if (!isrid(t.ptr[i]))
-          continue;
-
-        if (t.ptr[i] == query)
-          return nullable_real(usize, i);
-
-        switch (t.ptr[i]) {
-          case ARR_start: {
-            nullable(usize) next = stack_resolve_breakdown(NULL, i + 1, t, ARR_end);
-            if (next.isnull)
-              return nullable_null(usize);
-            i = next.data;
-          } break;
-          case MAP_start: {
-            nullable(usize) next = stack_resolve_breakdown(NULL, i + 1, t, MAP_end);
-            if (next.isnull)
-              return nullable_null(usize);
-            i = next.data;
-          } break;
-          default:
-            return nullable_null(usize);
+// ! assumes query is on the stack list
+nullable(usize) find_obj_end_heap(mList(vason_token) stack, usize start, slice(vason_token) t) {
+  while (start < t.len && mList_len(stack)) {
+    switch (t.ptr[start]) {
+      case ARR_start:
+      case MAP_start: {
+        mList_push(stack, t.ptr[start]);
+      } break;
+      case MAP_end:
+      case ARR_end: {
+        vason_token it = mList_pop(stack);
+        if (
+            (it == ARR_start && t.ptr[start] == ARR_end) ||
+            (it == MAP_start && t.ptr[start] == MAP_end)
+        ) {
+          // Changed continue to break
+          break;
+        } else {
+          goto early_return;
         }
-      }
-      return nullable_null(usize);
+      } break;
+      default:
+        break; // Added for clarity
     }
-    default:
-      assertMessage(false, "cant search for that");
+    start++;
   }
+
+  if (!mList_len(stack))
+    return nullable_real(usize, start);
+
+  // clang-format off
+  early_return:
+  // clang-format on
   return nullable_null(usize);
 }
-
+struct breakdown_return {
+  vason_tag kind;
+  slice(vason_level) items;
+};
 struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV allocator, slice(c8) str) {
   List level;
+  mList_scoped(vason_token) endList = mList_init(allocator, vason_token, 10);
   List_makeNew(allocator, &level, sizeof(vason_level), 5);
   enum { vason_ARR = vason_ARR,
          vason_MAP = vason_MAP
@@ -228,12 +364,8 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
 
   start++;
 
-  nullable(usize) end_nullable = stack_resolve_breakdown(
-      allocator,
-      start,
-      t,
-      mode == vason_ARR ? ARR_end : MAP_end
-  );
+  mList_push(endList, t.ptr[start - 1]);
+  nullable(usize) end_nullable = find_obj_end_heap(endList, start, t);
   if (end_nullable.isnull)
     goto early_return;
   usize end = end_nullable.data;
@@ -285,7 +417,9 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
 
       case ARR_start:
       case MAP_start: {
-        nullable(usize) next_nullable = stack_resolve_breakdown(allocator, i + 1, t, t.ptr[i] == ARR_start ? ARR_end : MAP_end);
+
+        mList_push(endList, t.ptr[i]);
+        nullable(usize) next_nullable = find_obj_end_heap(endList, i + 1, t);
         if (next_nullable.isnull)
           goto early_return;
         usize next = next_nullable.data;
@@ -349,7 +483,6 @@ vason_object bdconvert(
     slice(vason_token) t,
     AllocatorV allocator
 ) {
-
   vason_object res = {.tag = bdr.kind};
   switch (bdr.kind) {
     case vason_ID:  // impossible for now

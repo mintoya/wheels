@@ -34,7 +34,7 @@ struct tracedata {
 typedef struct {
   mHmap(void *, struct tracedata) map;
   AllocatorV actualAllocator;
-  usize max, current;
+  usize max, current, totalAllocations;
 } debugAllocatorInternals;
 
 void *debugAllocator_alloc(AllocatorV allocator, usize size);
@@ -50,6 +50,7 @@ debugAllocatorInternals *initializeInternals(AllocatorV allocator) {
       .map = mHmap_init(allocator, void *, struct tracedata),
       .current = 0,
       .max = 0,
+      .totalAllocations = 0,
   };
   return internals;
 }
@@ -74,7 +75,9 @@ int debugAllocatorDeInit(My_allocator *allocator) {
   pEsc b = (pEsc){.fg = {0, 0, 255}, .fgset = 1};
   pEsc rst = (pEsc){.reset = 1};
 
-  println("maximum of {} bytes", internals->max);
+  println("maximum of {}{}{} bytes used at once", g, internals->max, rst);
+  println("{}{}{} allocs / reallocs", r, internals->totalAllocations, rst);
+  println("leaked {} bytes", internals->current);
 
   mHmap_each(
       internals->map,
@@ -109,6 +112,7 @@ void *debugAllocator_alloc(AllocatorV allocator, usize size) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
   void *res = aAlloc(realAllocator, size);
+  internals->totalAllocations++;
 
   struct tracedata data;
   backtrace(data.trace, 7);
@@ -125,6 +129,7 @@ void *debugAllocator_alloc(AllocatorV allocator, usize size) {
 void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
+  internals->totalAllocations++;
 
   struct tracedata *i = mHmap_get(internals->map, ptr);
 
