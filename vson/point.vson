@@ -1,10 +1,11 @@
-vson point 
+vson point, this part is ignored since 
+it's outside the /{/} <- escape
 {
-  type name  : `point';
-  feilds: ignred [`x',`y'] ignored also ;
-  types : {
+  type   : `point';
+  feilds : ignred [`x',`y'] ignored also ;
+  types  : {
     x : f32;
     y : f32;
-  } ;
+  } 
 } 
 

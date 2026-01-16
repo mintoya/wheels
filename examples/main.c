@@ -11,6 +11,9 @@
 c8 pointstr[] = {
 #embed "../vson/elements.vson"
 };
+// c8 pointstr[] = {
+// #embed "../vson/point.json"
+// };
 int main(void) {
   Arena_scoped *s = arena_new_ext(pageAllocator, 1);
   My_allocator *local = debugAllocatorInit(s);
@@ -23,7 +26,7 @@ int main(void) {
   );
   println("{} objects", vson.objects.len);
 
-  // aFree(local, vson.objects.ptr);
+  aFree(local, vson.objects.ptr);
 
   print("{} leaks detected", (ssize)debugAllocatorDeInit(local));
   return 0;

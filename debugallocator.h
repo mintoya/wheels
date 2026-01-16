@@ -154,7 +154,10 @@ void debugAllocator_free(AllocatorV allocator, void *ptr) {
   AllocatorV realAllocator = internals->actualAllocator;
 
   struct tracedata *data = mHmap_get(internals->map, ptr);
+
   internals->current -= data->size;
+  // internals->current -= data ? data->size : 0;
+
   mHmap_rem(internals->map, ptr);
 
   aFree(realAllocator, ptr);

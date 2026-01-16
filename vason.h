@@ -44,8 +44,19 @@ typedef struct vason_container {
   vason_object top;
 } vason_contianer;
 
-[[gnu::weak]]
-void vason_formatter_print(
+// TODO
+typedef struct vason_lazyObject {
+  vason_tag tag;
+  bool parsed : 1;
+  struct vason_span span;
+} vason_lazyObject;
+typedef struct vason_lazyContainer {
+  slice(c8) string;
+  mList(vason_object) objects;
+  vason_object top;
+} vason_lazyContainer;
+
+static void vason_formatter_print(
     const wchar *data,
     void *arb,
     unsigned int length,
@@ -161,6 +172,7 @@ REGISTER_PRINTER(vason_token, {
       break;
   }
 });
+
 slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
   slice(vason_token) t = {
       string.len,
@@ -189,14 +201,14 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
     }
   }
   // escape escape'd characters
-  for (typeof(t.len) i = 0; i < t.len - 1; i++)
+  for (typeof(t.len) i = 0; i + 1 < t.len; i++)
     if (t.ptr[i] == ESCAPE) {
       t.ptr[i] = STR_;
       t.ptr[i + 1] = STR_;
       i++;
     }
   // force strings inside delimiters
-  for (typeof(t.len) i = 0; i < t.len - 1; i++) {
+  for (typeof(t.len) i = 0; i + 1 < t.len; i++) {
     if (t.ptr[i] == STR_start) {
       i++;
       while (i < t.len && t.ptr[i] != STR_end) {
@@ -229,11 +241,13 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
     }
   }
   // force strings inside delimiters
-  for (typeof(t.len) i = t.len; i > 0; i--) {
+  for (ssize i = t.len; i > 0; i--) {
     if (t.ptr[i - 1] == STR_) {
       usize j = i;
       while (j > 0 && t.ptr[j - 1] == STR_)
         j--;
+      if (j == 0)
+        continue;
       switch (t.ptr[j - 1]) {
         case ARR_end:
         case MAP_end: {
@@ -264,10 +278,11 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
     }
   }
   // remove spaces after strings
-  for (typeof(t.len) i = t.len; i > 0; i--) {
+  for (ssize i = t.len; i > 0; i--) {
     while (i > 0 && t.ptr[i - 1] == STR_ && isSkip(string.ptr[i - 1])) {
       t.ptr[i - 1] = ESCAPE;
       i--;
+      continue;
     }
     while (i > 0 && t.ptr[i - 1] == STR_)
       i--;
@@ -297,7 +312,7 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
         break;
     }
   }
-  for (typeof(t.len) i = 0; i < t.len - 1; i++) {
+  for (typeof(t.len) i = 0; i < t.len; i++) {
     print("{vason_token}", t.ptr[i]);
   }
   println();
@@ -368,9 +383,6 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
   usize end = end_nullable.data;
 
   usize i = start;
-  enum { index,
-         value,
-  } mapMode = index;
   while (i < end) {
     switch (t.ptr[i]) {
       case STR_: {
@@ -386,7 +398,7 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
             },
         };
         if (mode == vason_MAP)
-          stritem.kind = mapMode == value ? vason_STR : vason_ID;
+          stritem.kind = vason_STR;
         List_append(&level, &stritem);
         i = next;
       } break;
@@ -414,7 +426,6 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
       case MAP_delim_ID: {
         if (mode != vason_MAP)
           goto early_return;
-        mapMode = value;
         i++;
       } break;
       case ARR_delim:
@@ -422,9 +433,7 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
         if (mode == vason_ARR) {
           i++;
           break;
-        } else if (mapMode != value)
-          goto early_return;
-        mapMode = index;
+        }
         i++;
       } break;
       default:
@@ -438,13 +447,77 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
   malofrmed = true;
   normal_return:
   // clang-format on
+
+  // try to make maps that dont make sense get processed
+  if (mode == vason_MAP && level.length) {
+    typedef enum { key,
+                   value,
+                   unknown } itemkind;
+    slice(itemkind) items = (slice(itemkind)){
+        level.length,
+        aCreate(allocator, itemkind, level.length),
+    };
+    // all objects are values
+    for (usize i = 0; i < level.length; i++) {
+      switch ((*(vason_level *)(List_getRef(&level, i))).kind) {
+        case vason_ARR:
+        case vason_MAP:
+          items.ptr[i] = value;
+          break;
+        default:
+          items.ptr[i] = unknown;
+          break;
+      }
+    }
+    // value preceded by value is unknown
+    for (usize i = 1; i < level.length; i++) {
+      if (items.ptr[i] == items.ptr[i - 1] && items.ptr[i] == value)
+        items.ptr[i] = unknown;
+    }
+    // first item is key if its a string
+    if ((*(vason_level *)(List_getRef(&level, 0))).kind == vason_STR) {
+      items.ptr[0] = key;
+    };
+    // all values preceded by key
+    for (usize i = 1; i < items.len; i++)
+      if (items.ptr[i] == value)
+        items.ptr[i - 1] = key;
+    // unknown preceded by key is a value
+    for (usize i = 0; i + 1 < items.len; i++)
+      if (items.ptr[i] == key)
+        if (items.ptr[i + 1] == unknown)
+          items.ptr[i + 1] = value;
+    // two unkowns after a value are a key-value pair
+    for (usize i = 0; i + 2 < items.len; i++)
+      if (items.ptr[i] == value)
+        if (items.ptr[i + 1] == unknown && items.ptr[i + 2] == unknown) {
+          items.ptr[i + 1] = key;
+          items.ptr[i + 2] = value;
+        }
+    // all others removed
+    for (ssize i = (ssize)items.len - 1; i >= 0; i--) {
+      if (items.ptr[i] == unknown) {
+        List_remove(&level, (usize)i);
+      } else if (items.ptr[i] == key) {
+        vason_level *node = (vason_level *)(List_getRef(&level, (usize)i));
+        node->kind = vason_ID;
+      }
+    }
+
+    if (List_length(&level) % 2)
+      level.length--;
+
+    aFree(allocator, items.ptr);
+  }
   List_forceResize(&level, level.length);
-  return (struct breakdown_return){
-      mode | (malofrmed ? vason_INVALID : 0),
+  slice(vason_level) listMemory =
       (slice(vason_level)){
           level.length,
           (vason_level *)level.head,
-      },
+      };
+  return (struct breakdown_return){
+      mode | (malofrmed ? vason_INVALID : 0),
+      listMemory
   };
 }
 
@@ -473,8 +546,8 @@ vason_object bdconvert(
           .offset = mList_len(containerList),
           .len = bdr.items.len,
       };
-      if (bdr.kind == vason_MAP)
-        res.span.len = (res.span.len / 2) * 2;
+      // if (bdr.kind == vason_MAP)
+      //   res.span.len = (res.span.len / 2) * 2;
       List_appendFromArr((void *)containerList, NULL, res.span.len);
       for (usize i = 0; i < res.span.len; i++) {
         switch (bdr.items.ptr[i].kind) {
