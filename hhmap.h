@@ -133,21 +133,13 @@ static inline void HMap_cleanup_handler(void *vv) {
     *v = NULL;
   }
 }
-typedef struct dontCall dontCall;
-/** actual map stores data as an array,
- *       -this way i can dereferance the key andvalue
- */
-  #define calign_second(Ta, Tb) \
-    (offsetof(struct { Ta a; Tb b; }, b))
 
-  #define mHmap(Ta, Tb) typeof(Tb (*)(HMap *, dontCall *, Ta))
+  #define mHmap(Ta, Tb) typeof(typeof(Tb(**)(HMap *, Ta)))
   #define mHmap_scoped(Ta, Tb) [[gnu::cleanup(HMap_cleanup_handler)]] mHmap(Ta, Tb)
 
   #define HMAP_INIT_HELPER(allocator, keytype, valtype, bucketcount, ...) ( \
       (mHmap(keytype, valtype))HMap_new(                                    \
-          calign_second(keytype, valtype),                                  \
-          sizeof(valtype),                                                  \
-          allocator, bucketcount                                            \
+          offsetof(struct { keytype a; valtype b; }, b), sizeof(valtype), allocator, bucketcount  \
       )                                                                     \
   )
   // optional bucket count argument
@@ -177,7 +169,8 @@ typedef struct dontCall dontCall;
             mHmap(typeof(keyType), typeof(valType)), typeof(map)           \
         )                                                                  \
     );                                                                     \
-    for (usize _i = 0; _i < HMap_getMetaSize((HMap *)map); _i++) {         \
+    usize _meta_count = HMap_getMetaSize((HMap *)map);                     \
+    for (usize _i = 0; _i < _meta_count; _i++) {                           \
       for (usize _j = 0; _j < HMap_getBucketSize((HMap *)map, _i); _j++) { \
         struct {                                                           \
           keyType a;                                                       \
@@ -196,34 +189,34 @@ typedef struct dontCall dontCall;
       }                                                                    \
     }
 
-  #define mHmap_rem(map, key)                                   \
-    do {                                                        \
-      static_assert(                                            \
-          __builtin_types_compatible_p(                         \
-              mHmap(typeof(key), typeof(map(NULL, NULL, key))), \
-              typeof(map)                                       \
-          )                                                     \
-      );                                                        \
-      HMap_fset(                                                \
-          (HMap *)map,                                          \
-          fptr_fromTypeDef(key),                                \
-          NULL                                                  \
-      );                                                        \
+  #define mHmap_rem(map, key)                                \
+    do {                                                     \
+      static_assert(                                         \
+          __builtin_types_compatible_p(                      \
+              mHmap(typeof(key), typeof((*map)(NULL, key))), \
+              typeof(map)                                    \
+          )                                                  \
+      );                                                     \
+      HMap_fset(                                             \
+          (HMap *)map,                                       \
+          fptr_fromTypeDef(key),                             \
+          NULL                                               \
+      );                                                     \
     } while (0)
 
-  #define mHmap_get(map, key)                                   \
-    ({                                                          \
-      static_assert(                                            \
-          __builtin_types_compatible_p(                         \
-              mHmap(typeof(key), typeof(map(NULL, NULL, key))), \
-              typeof(map)                                       \
-          )                                                     \
-      );                                                        \
-      (typeof(map(NULL, NULL, key)) *)                          \
-          HMap_fget_ns(                                         \
-              (HMap *)map,                                      \
-              fptr_fromTypeDef(key)                             \
-          );                                                    \
+  #define mHmap_get(map, key)                                \
+    ({                                                       \
+      static_assert(                                         \
+          __builtin_types_compatible_p(                      \
+              mHmap(typeof(key), typeof((*map)(NULL, key))), \
+              typeof(map)                                    \
+          )                                                  \
+      );                                                     \
+      (typeof((*map)(NULL, key)) *)                          \
+          HMap_fget_ns(                                      \
+              (HMap *)map,                                   \
+              fptr_fromTypeDef(key)                          \
+          );                                                 \
     })
   #define HMap_scoped [[gnu::cleanup(HMap_cleanup_handler)]] HHMap
 

@@ -149,9 +149,7 @@ static void List_cleanup_handler(void *ListPtrPtr) {
 }
 #define List_scoped [[gnu::cleanup(List_cleanup_handler)]] List
 
-typedef struct dontCall dontCall;
-
-#define mList(T) typeof(T (*)(List *, dontCall *))
+#define mList(T) typeof(T(**)(List *))
 #define mList_scoped(T) [[gnu::cleanup(List_cleanup_handler)]] mList(T)
 
 #define MLIST_INIT_HELPER(allocator, T, initLength, ...) ({ (mList(T)) List_newInitL(allocator, sizeof(T), initLength); })
@@ -163,36 +161,36 @@ typedef struct dontCall dontCall;
     List_free((List *)list); \
   } while (0)
 
-#define mList_arr(list) ({ (typeof(list(NULL, NULL)) *)(((List *)(list))->head); })
+#define mList_arr(list) ({ (typeof((*list)(NULL)) *)(((List *)(list))->head); })
 #define mList_len(list) (((List *)(list))->length)
 #define mList_cap(list) (((List *)(list))->size)
-#define mList_push(list, val)                     \
-  do {                                            \
-    typeof(typeof(list(NULL, NULL))) value = val; \
-    List_append((List *)list, &value);            \
+#define mList_push(list, val)                  \
+  do {                                         \
+    typeof(typeof((*list)(NULL))) value = val; \
+    List_append((List *)list, &value);         \
   } while (0)
-#define mList_pop(list) ({                                                               \
-  ((List *)(list))->length--;                                                            \
-  *(typeof(list(NULL, NULL)) *)List_getRefForce((List *)(list), ((List *)list)->length); \
+#define mList_pop(list) ({                                                            \
+  ((List *)(list))->length--;                                                         \
+  *(typeof((*list)(NULL)) *)List_getRefForce((List *)(list), ((List *)list)->length); \
 })
-#define mList_get(list, index) ({ (typeof(list(NULL, NULL)) *)List_getRef((List *)list, index); })
+#define mList_get(list, index) ({ (typeof((*list)(NULL)) *)List_getRef((List *)list, index); })
 #define mList_set(list, index, val)        \
   do {                                     \
-    typeof(list(NULL, NULL)) value = val;  \
+    typeof((*list)(NULL)) value = val;     \
     List_set((List *)list, index, &value); \
   } while (0)
 #define mList_ins(list, index, val)           \
   do {                                        \
-    typeof(list(NULL, NULL)) value = val;     \
+    typeof((*list)(NULL)) value = val;        \
     List_insert((List *)list, index, &value); \
   } while (0)
 #define mList_rem(list, index)        \
   do {                                \
     List_remove((List *)list, index); \
   } while (0)
-#define each_mList(list, e)                \
-  typeof(list(NULL)) *e = mList_arr(list); \
-  e < mList_arr(list)[mList_len(list)];    \
+#define each_mList(list, e)                   \
+  typeof((*list)(NULL)) *e = mList_arr(list); \
+  e < mList_arr(list)[mList_len(list)];       \
   e++
 #define mList_foreach(list, valtype, value, ...)            \
   do {                                                      \
