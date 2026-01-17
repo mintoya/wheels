@@ -17,7 +17,7 @@ typedef size_t List_index_t;
 typedef struct List {
   size_t width;
   List_index_t length;
-  List_index_t size;
+  List_index_t capacity;
   uint8_t *head;
   AllocatorV allocator;
 } List;
@@ -29,15 +29,13 @@ void List_forceResize(List *l, List_index_t newSize);
  * `@param` **l** list
  * `@return` size of memory used by list
  */
-extern inline size_t List_headArea(const List *l) {
-  return (l->width * l->length);
-}
+extern inline size_t List_headArea(const List *l) { return (l->width * l->length); }
 [[gnu::pure]]
 /**
  * `@param` **l** list
  * `@return` size of memory reserved by list
  */
-extern inline size_t List_fullHeadArea(const List *l) { return (l->width * l->size); }
+extern inline size_t List_fullHeadArea(const List *l) { return (l->width * l->capacity); }
 [[gnu::pure]]
 /**
  * `@param` **l** list
@@ -53,17 +51,18 @@ extern inline void *List_getRefForce(const List *l, List_index_t i) { return (l-
  * `@return` pointer to i`th element
  *      - null if i is more than **l**.length
  */
-extern void *List_getRef(const List *l, List_index_t i) { return l && (i < l->length) ? (l->head + l->width * i) : (NULL); }
+extern void *List_getRef(const List *l, List_index_t i) { return (i < l->length) ? (l->head + l->width * i) : (NULL); }
 /**
  * writes list to **l**
  * `@param` **allocator** allocator
+ * `@param` **l** size of each element
  * `@param` **bytes** size of each element
  * `@param` **init** initial capacity
  */
 void List_makeNew(AllocatorV allocator, List *l, size_t bytes, List_index_t init);
 extern inline void List_resize(List *l, List_index_t newSize) {
   newSize = newSize ? newSize : 1;
-  if ((newSize > l->size || newSize < l->size / 8))
+  if ((newSize > l->capacity || newSize < l->capacity / 8))
     return List_forceResize(l, newSize);
   return;
 }
@@ -170,7 +169,8 @@ using mList_t = T (**)(List *);
 
 #define mList_arr(list) ({ (typeof((*list)(NULL)) *)(((List *)(list))->head); })
 #define mList_len(list) (((List *)(list))->length)
-#define mList_cap(list) (((List *)(list))->size)
+#define mList_cap(list) (((List *)(list))->capacity)
+
 #define mList_push(list, val)                  \
   do {                                         \
     typeof(typeof((*list)(NULL))) value = val; \
@@ -228,12 +228,12 @@ void List_makeNew(AllocatorV allocator, List *l, size_t bytes, List_index_t init
   *l = (List){
       .width = bytes,
       .length = 0,
-      .size = initialSize,
+      .capacity = initialSize,
       .head = (uint8_t *)aAlloc(allocator, bytes * initialSize),
       .allocator = allocator,
   };
   if (allocator->size) {
-    l->size = allocator->size(allocator, l->head) / l->width;
+    l->capacity = allocator->size(allocator, l->head) / l->width;
   }
 }
 void List_free(List *l) {
@@ -274,14 +274,14 @@ void List_insert(List *l, List_index_t i, void *element) {
     return (void)List_append(l, element);
   if (i > l->length)
     return;
-  if (l->size < l->length + 1)
+  if (l->capacity < l->length + 1)
     List_resize(l, LIST_GROW_EQ(l->length));
   memmove(l->head + (i + 1) * l->width, l->head + (i)*l->width, (l->length - i) * l->width);
   List_set(l, i, element);
   l->length++;
 }
 void *List_append(List *l, const void *element) {
-  if (l->size < l->length + 1)
+  if (l->capacity < l->length + 1)
     List_resize(l, LIST_GROW_EQ(l->length));
   l->length++;
   return List_set(l, l->length - 1, element);
@@ -295,11 +295,10 @@ void List_forceResize(List *l, List_index_t newSize) {
     abort();
   } else {
     l->head = newPlace;
-    l->size = newSize;
-    if (l->allocator->size) {
-      l->size = l->allocator->size(l->allocator, l->head) / l->width;
-    }
-    l->length = (l->length < l->size) ? (l->length) : (l->size);
+    l->capacity = newSize;
+    if (l->allocator->size)
+      l->capacity = l->allocator->size(l->allocator, l->head) / l->width;
+    l->length = (l->length < l->capacity) ? (l->length) : (l->capacity);
   }
   return;
 }
@@ -307,7 +306,7 @@ List *List_fromArr(AllocatorV allocator, const void *source, size_t width, List_
   List *res = (List *)aAlloc(allocator, sizeof(List));
   res->width = width;
   res->length = length;
-  res->size = length;
+  res->capacity = length;
   res->allocator = allocator;
   res->head = (uint8_t *)aAlloc(allocator, length * width);
   if (res && res->head && source)
@@ -317,7 +316,7 @@ List *List_fromArr(AllocatorV allocator, const void *source, size_t width, List_
 void *List_appendFromArr(List *l, const void *source, List_index_t ammount) {
   if (!ammount)
     return NULL;
-  if (l->size < l->length + ammount)
+  if (l->capacity < l->length + ammount)
     List_resize(l, l->length + ammount);
   uint8_t *dest = l->head + l->length * l->width;
   if (source)

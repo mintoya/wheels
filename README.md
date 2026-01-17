@@ -1,28 +1,70 @@
 # Some wheels im reinventing
 
- ## um_fp.h
+ ## fptr.h
 a pointer + a length, used as both a generic pointer and 
 a "slice" in this library
- ## my-List & macroList .h
- my-list.h is a basic dynamic list implementation
- my-list.hpp is a cpp wrapper 
- macroList.h is an attempt to make using it less annoying in c
+meant to hold on to raw data 
+ ## types.h
+ - a bunch of zig style typedefs , things like u8,f64
+ - slice and nullable macros for even more zig style types
+ ## my-List 
+ - my-list.h is a basic dynamic list implementation
+ - example of macro usage: 
+```c
+  mList(int) list = mList_init(localArena, int);
+  mList_push(list, 4);
+  mList_push(list, 5);
+  mList_push(list, 6);
+  mList_push(list, 7);
+  // null since the list isnt that long
+  int *elem = mList_get(list, 0);
+  mList_foreach(list, int, v, {
+    println("{}", v);
+  });
+```
+ ## hhmap.h
+ - hash map with linked-list style collision resolution
+ but linked list elements are in a normal list buffer
+ - very close to [the vec in CC](https://github.com/JacksonAllan/CC) 
+ - example of macro usage: 
+```c
+  mHmap(int, int) map = mHmap_init(localArena, int, int);
+  mHmap_set(map, 1, 1);
+  mHmap_set(map, 2, 4);
+  mHmap_set(map, 3, 9);
+  mHmap_set(map, 4, 16);
+  // null since key doesnt exist
+  // also in the map otherwise
+  int *six = mHmap_get(map, 6);
+  mHmap_foreach(map, int, key, int, val, {
+    println("{} -> {}", key, val);
+  });
+```
  ## stringList.h
- metadata array + char array for array of arbitrary size elements 
+ **TODO** 
+ - metadata array + char array for array of arbitrary size elements 
  ## cSum.h
  basic checksum written for my keyboard project
- ## umap.h
- ordered map with stringlist and list as the backed, capable of holding copies
- of other umaps with the internal type
- ## hmap.h
- hash map with linked-list style collision resolution
- linked list elements are in a normal list buffer
- same type metadta from umap
- ## kml & kmlM .h
- custom object notation format
- kml is a parser that returns a slice of that input based on the parsing args
- kmlM is a version that turns a um_fp character array into its representation
- as a umap, printing it is also meant to serve as converting it the other way
+ ## vason.h (didnt know vson was taken lol)
+ custom config language parser
+ tried to make it as flexible as possible, 
+ it can hypothetically parse a json file 
+### basic syntax
+```vason
+    object 
+        {key:value; key2:value2;}
+    list 
+        [value,value,...]
+    string
+        `string'
+```
+- library doesnt reallocate the actual string input 
+- both / and \ are escape characters, highest priority
+- strings start with '`' and end with ''', second highest priority
+    - they dont nescecarily have to though
+    - uninterupted lines of characters are grouped
+- {} and [] are interchangeable
+- maps are triggered by the : or = characters
  ## print.h
  a *lot* of macros that make printing easier ( hopefully )
  based on u/jacksaccountonreddit's [better c generics](https://github.com/JacksonAllan/CC/blob/main/articles/Better_C_Generics_Part_1_The_Extendible_Generic.md) 

@@ -10,17 +10,17 @@
 typedef wchar_t wchar;
 typedef unsigned int uint;
 typedef unsigned char uchar;
-#if !defined(_WIN32)
-typedef char8_t c8;
-#else
-typedef uchar c8;
-#endif
-typedef char16_t c16;
-typedef char32_t c32;
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
+#if !defined(_WIN32)
+typedef char8_t c8;
+#else
+typedef u8 c8;
+#endif
+typedef char16_t c16;
+typedef char32_t c32;
 typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
@@ -28,6 +28,7 @@ typedef int64_t i64;
 
 typedef float f32;
 typedef double f64;
+typedef long double f128;
 
 typedef uintmax_t umax;
 typedef intmax_t imax;
@@ -76,7 +77,7 @@ typedef uintptr_t uptr;
 #define slice(type) slice_tag(type, type)
 
 #define slice_stat(s) \
-  { sizeof(s) / sizeof(s[0]), (typeof(s[0]) *)s }
+  {sizeof(s) / sizeof(s[0]), (typeof(s[0]) *)s}
 #define each_slice(slice, e)       \
   typeof(slice.ptr) e = slice.ptr; \
   e < slice.ptr + slice.len;       \
@@ -87,7 +88,7 @@ typedef uintptr_t uptr;
     usize len;                      \
     type ptr[];                     \
   }                                 \
-  *
+      *
 #define bslice(type) bslice_tag(type, type)
 
 #endif // MY_TYPES
