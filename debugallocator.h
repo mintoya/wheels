@@ -79,7 +79,7 @@ int debugAllocatorDeInit(My_allocator *allocator) {
   println("{}{}{} allocs / reallocs", r, internals->totalAllocations, rst);
   println("leaked {} bytes", internals->current);
 
-  mHmap_each(
+  mHmap_foreach(
       internals->map,
       void *, ptr,
       struct tracedata, val,

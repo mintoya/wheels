@@ -25,7 +25,6 @@ int main(void) {
       pointData.len, pointData, vson
   );
   println("{} objects", vson.objects.len);
-
   aFree(local, vson.objects.ptr);
 
   print("{} leaks detected", (ssize)debugAllocatorDeInit(local));

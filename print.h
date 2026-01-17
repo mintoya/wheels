@@ -233,7 +233,7 @@ static printerFunction PrinterSingleton_get(fptr name) {
   }
   lasttick = !lasttick;
 
-  printerFunction *p = HMap_fget_ns(
+  printerFunction *p = (typeof(p))HMap_fget_ns(
       PrinterSingleton.data, name
   );
 
@@ -246,7 +246,6 @@ static printerFunction PrinterSingleton_get(fptr name) {
     return *p;
   }
   return NULL;
-  ;
 }
 
 // arg utils

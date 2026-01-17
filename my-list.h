@@ -148,8 +148,15 @@ static void List_cleanup_handler(void *ListPtrPtr) {
   *l = NULL;
 }
 #define List_scoped [[gnu::cleanup(List_cleanup_handler)]] List
+#ifdef __cplusplus
+  #include <type_traits>
+template <typename T>
+using mList_t = T (**)(List *);
+  #define mList(T) mList_t<T>
+#else
+  #define mList(T) typeof(T(**)(List *))
+#endif
 
-#define mList(T) typeof(T(**)(List *))
 #define mList_scoped(T) [[gnu::cleanup(List_cleanup_handler)]] mList(T)
 
 #define MLIST_INIT_HELPER(allocator, T, initLength, ...) ({ (mList(T)) List_newInitL(allocator, sizeof(T), initLength); })

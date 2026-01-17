@@ -32,7 +32,7 @@ typedef struct
 
 typedef struct
 {
-  um_fp data;
+  fptr data;
 } checkData;
 
 static dataChecker cSum_new(AllocatorV allocator) {
@@ -48,7 +48,7 @@ static inline unsigned int csum_expectedLength(int messageLength) {
          (messageLength * cSum_REDUNDANCY_AMMOUNT);
 }
 
-static checkData cSum_toSum(dataChecker d, um_fp data) {
+static checkData cSum_toSum(dataChecker d, fptr data) {
   CHECK_TYPE sum = 0;
   for (unsigned int i = 0; i < data.width; i++) {
     sum = cSum_CHECK_EXPR(sum, ((uint8_t *)data.ptr)[i]);
@@ -78,7 +78,7 @@ static checkData cSum_toSum(dataChecker d, um_fp data) {
                    }};
   return res;
 }
-static um_fp cSum_fromSum(checkData data) {
+static fptr cSum_fromSum(checkData data) {
   // char *ptr1, *ptr2;
   uint8_t *ptrs[cSum_REDUNDANCY_AMMOUNT];
   CHECK_TYPE check;
@@ -117,7 +117,7 @@ static um_fp cSum_fromSum(checkData data) {
   if (checkResult != check) {
     return nullUmf;
   }
-  return (um_fp){
+  return (fptr){
       .width = dataLength,
       .ptr = ptrs[0],
   };

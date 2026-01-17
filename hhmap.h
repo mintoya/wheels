@@ -134,12 +134,23 @@ static inline void HMap_cleanup_handler(void *vv) {
   }
 }
 
-  #define mHmap(Ta, Tb) typeof(typeof(Tb(**)(HMap *, Ta)))
+  #ifdef __cplusplus
+    #include <type_traits>
+template <typename Ta, typename Tb>
+using mHmap_t = Tb (**)(HMap *, Ta);
+    #define mHmap(Ta, Tb) mHmap_t<Ta, Tb>
+    #define equaltypes_mHmap(T1, T2) std::is_same<T1, T2>::value
+  #else
+    #define mHmap(Ta, Tb) typeof(typeof(Tb(**)(HMap *, Ta)))
+    #define equaltypes_mHmap(T1, T2) \
+      (_Generic((typeof_unqual(T2) *)nullptr, typeof_unqual(T1) *: true, default: false))
+  #endif
+
   #define mHmap_scoped(Ta, Tb) [[gnu::cleanup(HMap_cleanup_handler)]] mHmap(Ta, Tb)
 
   #define HMAP_INIT_HELPER(allocator, keytype, valtype, bucketcount, ...) ( \
       (mHmap(keytype, valtype))HMap_new(                                    \
-          ({ struct T { keytype a; valtype b; }; __builtin_offsetof(struct T, b); }), sizeof(valtype), allocator, bucketcount                    \
+          ({ struct T { keytype a; valtype b; }; offsetof(struct T, b); }), sizeof(valtype), allocator, bucketcount                    \
       )                                                                     \
   )
   // optional bucket count argument
@@ -148,11 +159,11 @@ static inline void HMap_cleanup_handler(void *vv) {
   #define mHmap_deinit(map) ({ HMap_free((HMap *)map); })
 
   #define mHmap_set(map, key, val)                       \
-    ({                                                   \
+    do {                                                 \
       typeof(key) _k = (key);                            \
       typeof((*map)(NULL, key)) _v = (val);              \
       static_assert(                                     \
-          __builtin_types_compatible_p(                  \
+          equaltypes_mHmap(                              \
               mHmap(typeof(_k), typeof(_v)), typeof(map) \
           )                                              \
       );                                                 \
@@ -161,11 +172,11 @@ static inline void HMap_cleanup_handler(void *vv) {
           fptr_fromTypeDef(_k),                          \
           &_v                                            \
       );                                                 \
-    })
+    } while (0)
 
-  #define mHmap_each(map, keyType, keyDec, valType, valDec, ...)           \
+  #define mHmap_foreach(map, keyType, keyDec, valType, valDec, ...)        \
     static_assert(                                                         \
-        __builtin_types_compatible_p(                                      \
+        equaltypes_mHmap(                                                  \
             mHmap(typeof(keyType), typeof(valType)), typeof(map)           \
         )                                                                  \
     );                                                                     \
@@ -192,7 +203,7 @@ static inline void HMap_cleanup_handler(void *vv) {
   #define mHmap_rem(map, key)                                \
     do {                                                     \
       static_assert(                                         \
-          __builtin_types_compatible_p(                      \
+          equaltypes_mHmap(                                  \
               mHmap(typeof(key), typeof((*map)(NULL, key))), \
               typeof(map)                                    \
           )                                                  \
@@ -207,7 +218,7 @@ static inline void HMap_cleanup_handler(void *vv) {
   #define mHmap_get(map, key)                                \
     ({                                                       \
       static_assert(                                         \
-          __builtin_types_compatible_p(                      \
+          equaltypes_mHmap(                                  \
               mHmap(typeof(key), typeof((*map)(NULL, key))), \
               typeof(map)                                    \
           )                                                  \
@@ -276,9 +287,9 @@ HMap *HMap_new(usize kSize, usize vSize, const My_allocator *allocator, u32 meta
   HMap *hm = (HMap *)aAlloc(allocator, totalSize);
   *hm = (HMap){
       .allocator = allocator,
-      .metaSize = metaSize,
       .keysize = kSize,
       .valsize = vSize,
+      .metaSize = metaSize,
   };
   memset(hm->storage, 0, metaSize * sizeof(*hm->storage));
   return hm;
@@ -356,7 +367,7 @@ void HMap_transform(HMap **last, usize kSize, usize vSize, const My_allocator *a
 
   *last = newMap;
 }
-[[gnu::always_inline]] static inline void *LesserList_getref(usize elw, HMap_LesserList *hll, void *head, u32 idx) {
+[[gnu::always_inline]] static inline void *LesserList_getref(usize elw, const HMap_LesserList *hll, void *head, u32 idx) {
   return (u8 *)head + idx * (elw);
 }
 static inline void LesserList_appendGarbage(usize elw, HMap_LesserList *hll, void **headptr, AllocatorV allocator) {
