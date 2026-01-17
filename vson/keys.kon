@@ -1,8 +1,8 @@
 { 
   keyboard:{
     tapdances:[
-      { taps [ KEY_A ] holds[M( la ), M( ls )] }
-      { taps [ KEY_B ] holds[M( lc ), M( rs )] }
+      { taps:[ KEY_A ]; holds:[M( la ), M( ls )]; }
+      { taps:[ KEY_B ]; holds:[M( lc ), M( rs )]; }
     ];
     layers:[ 
       [ 

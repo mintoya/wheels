@@ -8,9 +8,12 @@
 #include <time.h>
 
 typedef struct vason_span {
-  u32 len, offset;
+  usize len, offset;
 } vason_span;
 
+/**
+ * if an invalid item needs to be extracted, with bit operations
+ */
 typedef enum : u8 {
   vason_STR = 1 << 1,
   vason_ARR = 1 << 2,
@@ -133,6 +136,7 @@ typedef enum : c8 {
   MAP_start = '{',
   MAP_end = '}',
   MAP_delim_ID = ':',
+  // MAP_delim_ID = '=', // also handled
   MAP_delim = ';',
 } vason_token;
 REGISTER_PRINTER(vason_token, {
@@ -192,6 +196,9 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
       case MAP_delim_ID:
       case MAP_delim:
         break;
+      case '=': {
+        t.ptr[i] = MAP_delim_ID;
+      } break;
       case '\\': {
         t.ptr[i] = ESCAPE;
       } break;
@@ -358,15 +365,11 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
   mList_scoped(vason_token) endList = mList_init(allocator, vason_token, 10);
   List_makeNew(allocator, &level, sizeof(vason_level), 5);
   bool malofrmed = false;
-  enum { vason_ARR = vason_ARR,
-         vason_MAP = vason_MAP
-  } mode = {};
-
   // clang-format off
   for (; start < t.len; start++) {
     switch (t.ptr[start]) {
-      case ARR_start: mode = vason_ARR; goto end_loop;
-      case MAP_start: mode = vason_MAP; goto end_loop;
+      case ARR_start:goto end_loop;
+      case MAP_start:goto end_loop;
       default: break;
     }
   }
@@ -390,16 +393,17 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
         while (next < end && t.ptr[next] == STR_)
           next++;
 
-        vason_level stritem = {
-            .kind = vason_STR,
-            .pos = {
-                .len = next - i,
-                .offset = i,
-            },
-        };
-        if (mode == vason_MAP)
-          stritem.kind = vason_STR;
-        List_append(&level, &stritem);
+        List_append(
+            &level,
+            &(vason_level){
+                .kind = vason_STR,
+                .pos = {
+                    .len = next - i,
+                    .offset = i,
+                },
+
+            }
+        );
         i = next;
       } break;
       case ARR_start:
@@ -424,16 +428,11 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
       } break;
 
       case MAP_delim_ID: {
-        if (mode != vason_MAP)
-          goto early_return;
+        ((vason_level *)List_getRef(&level, level.length - 1))->kind = vason_ID;
         i++;
       } break;
       case ARR_delim:
       case MAP_delim: {
-        if (mode == vason_ARR) {
-          i++;
-          break;
-        }
         i++;
       } break;
       default:
@@ -449,6 +448,16 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
   // clang-format on
 
   // try to make maps that dont make sense get processed
+  enum {
+    vason_MAP = vason_MAP,
+    vason_ARR = vason_ARR
+  } mode = vason_ARR;
+  for (usize i = 0; i < level.length; i++) {
+    if ((*(vason_level *)(List_getRef(&level, i))).kind == vason_ID) {
+      mode = vason_MAP;
+      break;
+    }
+  }
   if (mode == vason_MAP && level.length) {
     typedef enum { key,
                    value,
@@ -463,6 +472,9 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
         case vason_ARR:
         case vason_MAP:
           items.ptr[i] = value;
+          break;
+        case vason_ID:
+          items.ptr[i] = key;
           break;
         default:
           items.ptr[i] = unknown;

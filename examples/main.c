@@ -8,6 +8,12 @@
 #include "../vason.h"
 #include <stddef.h>
 
+// c8 pointstr[] = {
+// #embed "../vson/keys.kon"
+// };
+// c8 pointstr[] = {
+// #embed "../vson/lua.lua"
+// };
 c8 pointstr[] = {
 #embed "../vson/elements.vson"
 };
