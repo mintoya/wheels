@@ -5,29 +5,12 @@
 
 #define MY_ALLOCATOR_STRICTEST
 
-#if defined(__clang__)
 [[gnu::const]]
-__attribute__((__overloadable__)) extern inline uintptr_t lineup_i(uintptr_t unaligned, size_t aligneder) {
+static inline uintptr_t lineup(uintptr_t unaligned, size_t aligneder) {
   return (unaligned / aligneder +
           (unaligned % aligneder ? 1 : 0)) *
          aligneder;
 }
-[[gnu::const]]
-__attribute__((__overloadable__)) extern inline size_t lineup(size_t unaligned, size_t aligneder) { return (size_t)(lineup_i(unaligned, aligneder)); }
-[[gnu::const]]
-__attribute__((__overloadable__)) extern inline void *lineup(void *unaligned, size_t aligneder) { return (void *)(lineup_i((uintptr_t)unaligned, aligneder)); }
-[[gnu::const]]
-__attribute__((__overloadable__)) extern inline uint8_t *lineup(uint8_t *unaligned, size_t aligneder) { return (void *)(lineup_i((uintptr_t)unaligned, aligneder)); }
-[[gnu::const]]
-__attribute__((__overloadable__)) extern inline char *lineup(char *unaligned, size_t aligneder) { return (void *)(lineup_i((uintptr_t)unaligned, aligneder)); }
-#else
-[[gnu::const]]
-extern inline uintptr_t lineup(uintptr_t unaligned, size_t aligneder) {
-  return (unaligned / aligneder +
-          (unaligned % aligneder ? 1 : 0)) *
-         aligneder;
-}
-#endif
 
 typedef struct My_allocator My_allocator;
 typedef const My_allocator *AllocatorV;
