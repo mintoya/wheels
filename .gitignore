@@ -1,6 +1,7 @@
 build
 perf.*
 .gdb*
+.cache/
 .zig-cache
 .ccls-cache
 zig-out/.*
