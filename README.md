@@ -9,6 +9,7 @@ meant to hold on to raw data
  - slice and nullable macros for even more zig style types
  ## my-List 
  - my-list.h is a basic dynamic list implementation
+ - very close to [the vec in CC](https://github.com/JacksonAllan/CC) 
  - example of macro usage: 
 ```c
   mList(int) list = mList_init(localArena, int);
@@ -17,7 +18,7 @@ meant to hold on to raw data
   mList_push(list, 6);
   mList_push(list, 7);
   // null since the list isnt that long
-  int *elem = mList_get(list, 0);
+  int *elem = mList_get(list, 10);
   mList_foreach(list, int, v, {
     println("{}", v);
   });
@@ -25,7 +26,7 @@ meant to hold on to raw data
  ## hhmap.h
  - hash map with linked-list style collision resolution
  but linked list elements are in a normal list buffer
- - very close to [the vec in CC](https://github.com/JacksonAllan/CC) 
+
  - example of macro usage: 
 ```c
   mHmap(int, int) map = mHmap_init(localArena, int, int);
