@@ -31,7 +31,8 @@ int main(void) {
       pointData.len, pointData, vson
   );
   println("{} objects", vson.objects.len);
-  aFree(local, vson.objects.ptr);
+  // aFree(local, vson.objects.ptr);
+  // should see one leak
 
   print("{} leaks detected", (ssize)debugAllocatorDeInit(local));
   return 0;

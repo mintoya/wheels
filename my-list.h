@@ -8,7 +8,7 @@
 
 // clang-format off
 #ifndef LIST_GROW_EQ
-#define LIST_GROW_EQ(uint) ((uint + (uint*2)) + 1)
+#define LIST_GROW_EQ(uint) ((uint + (uint/2)) + 1)
 #endif
 // clang-format on
 #include "allocator.h"
@@ -78,6 +78,10 @@ extern inline List *List_new(AllocatorV allocator, size_t bytes) {
   List_makeNew(allocator, l, bytes, 2);
   return l;
 }
+/**
+ * frees list and its array
+ * `@param` **l** list
+ */
 void List_free(List *l);
 extern inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t initSize) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
@@ -133,11 +137,19 @@ extern inline void *List_set(List *l, List_index_t i, const void *element) {
     return List_append(l, element);
   return NULL;
 }
-extern inline List_index_t List_search(const List *l, const void *element);
+/*
+ * searches for a value which has an identical value to element
+ * `@param` **list**
+ * `@param` **element** pointer to list element searched
+ * `@return` length of list if it doesnt exist
+ */
+extern inline List_index_t List_locate(const List *l, const void *element);
 extern inline void List_remove(List *l, List_index_t i);
+/*
+ * sets all bits in space reserved to 0
+ * `@param` **list**
+ */
 extern inline void List_zeroOut(List *l);
-void *List_toBuffer(List *l);
-void *List_fromBuffer(void *ref);
 List *List_deepCopy(List *l);
 
 static void List_cleanup_handler(void *ListPtrPtr) {
@@ -167,7 +179,7 @@ using mList_t = T (**)(List *);
     List_free((List *)list); \
   } while (0)
 
-#define mList_arr(list) ({ (typeof((*list)(NULL)) *)(((List *)(list))->head); })
+#define mList_arr(list) (((typeof((*list)(NULL)) *)(((List *)(list))->head)))
 #define mList_len(list) (((List *)(list))->length)
 #define mList_cap(list) (((List *)(list))->capacity)
 
@@ -208,6 +220,10 @@ using mList_t = T (**)(List *);
       }                                                     \
     }                                                       \
   } while (0)
+#define mList_setCap(list, capacity)            \
+  do {                                          \
+    List_forceResize((List *)(list), capacity); \
+  } while (0)
 
 #endif // MY_LIST_H
 
@@ -245,7 +261,7 @@ void List_free(List *l) {
   l->width = 0;
   aFree(l->allocator, l);
 }
-inline List_index_t List_search(const List *l, const void *element) {
+inline List_index_t List_locate(const List *l, const void *element) {
   List_index_t i = 0;
   if (element) {
     for (; i < l->length; i++) {

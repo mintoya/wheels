@@ -70,57 +70,6 @@ typedef struct vason_lazyContainer {
   vason_lazyObject top;
 } vason_lazyContainer;
 
-static void vason_formatter_print(
-    const wchar *data,
-    void *arb,
-    unsigned int length,
-    bool flush
-) {
-  static uint indentLevel = 0;
-
-  for (size_t index = 0; index < length; index++) {
-    wchar character = data[index];
-    {
-      switch (character) {
-        case '{':
-        case '[': {
-          putwchar(character);
-          putwchar('\n');
-          indentLevel++;
-          for (int i = 0; i < indentLevel; i++) {
-            putwchar(' ');
-          }
-        } break;
-        case '}':
-        case ']': {
-          putwchar('\033');
-          putwchar('[');
-          putwchar('1');
-          putwchar('D');
-          putwchar(character);
-          putwchar('\n');
-          indentLevel--;
-          for (int i = 0; i < indentLevel; i++) {
-            putwchar(' ');
-          }
-        } break;
-        case ';':
-        case ',': {
-          putwchar(character);
-          putwchar('\n');
-          for (int i = 0; i < indentLevel; i++) {
-            putwchar(' ');
-          }
-        } break;
-        default:
-          putwchar(character);
-      }
-    }
-  }
-  if (flush)
-    indentLevel = 0;
-}
-
 vason_contianer parseStr(AllocatorV allocator, slice(c8) string);
 
 #endif // VASON_PARSER_H
@@ -232,29 +181,6 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
         t.ptr[i] = STR_;
         i++;
       }
-    } else if (t.ptr[i] == STR_) {
-      usize j = i;
-      while (j < t.len && t.ptr[j] == STR_)
-        j++;
-      switch (t.ptr[j]) {
-        case MAP_start:
-        case ARR_start:
-        case STR_start: {
-          for (usize ii = i; ii < j; ii++)
-            t.ptr[ii] = ESCAPE;
-
-        } break;
-        case MAP_end:
-        case STR_:
-        case STR_end:
-        case ESCAPE:
-        case ARR_end:
-        case ARR_delim:
-        case MAP_delim_ID:
-        case MAP_delim:
-          break;
-      }
-      i = j;
     }
   }
   // force strings inside delimiters ii

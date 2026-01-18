@@ -24,7 +24,7 @@ int main(void) {
   slice(c8) input = read_stdin();
   println("input len({}): {fptr}", input.len, input);
   vason_container parsed = parseStr(local, input);
-  println("parsed:\n{vason_container}", parsed);
+  print( "parsed:\n{vason_container}", parsed);
 }
 
 #include "../wheels.h"

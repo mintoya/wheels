@@ -1,8 +1,13 @@
 [
   {
     "directory": "/home/paa/Github/ziggy/wheels",
-    "command": "gcc -std=c2y",
+    "command": "clang -std=c2y",
     "file": "examples/parser.c"
+  },
+  {
+    "directory": "/home/paa/Github/ziggy/wheels",
+    "command": "clang -std=c2y",
+    "file": "examples/main.c"
   }
 ]
 

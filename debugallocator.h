@@ -153,13 +153,11 @@ void debugAllocator_free(AllocatorV allocator, void *ptr) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
 
-  struct tracedata *data = mHmap_get(internals->map, ptr);
-
-  internals->current -= data->size;
-  // internals->current -= data ? data->size : 0;
-
-  mHmap_rem(internals->map, ptr);
-
   aFree(realAllocator, ptr);
+
+  struct tracedata *data = mHmap_get(internals->map, ptr);
+  // internals->current -= data ? data->size : 0;
+  internals->current -= data->size;
+  mHmap_rem(internals->map, ptr);
 }
 #endif // MY_DEBUG_ALLOCATOR_C

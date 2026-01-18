@@ -1,13 +1,13 @@
-# Some wheels im reinventing
-
- ## fptr.h
+Some wheels im reinventing
+-
+ # fptr.h
 a pointer + a length, used as both a generic pointer and 
 a "slice" in this library
 meant to hold on to raw data 
- ## types.h
+ # types.h
  - a bunch of zig style typedefs , things like u8,f64
  - slice and nullable macros for even more zig style types
- ## my-List 
+ # my-List 
  - my-list.h is a basic dynamic list implementation
  - very close to [the vec in CC](https://github.com/JacksonAllan/CC) 
  - example of macro usage: 
@@ -23,7 +23,7 @@ meant to hold on to raw data
     println("{}", v);
   });
 ```
- ## hhmap.h
+ # hhmap.h
  - hash map with linked-list style collision resolution
  but linked list elements are in a normal list buffer
 
@@ -41,12 +41,12 @@ meant to hold on to raw data
     println("{} -> {}", key, val);
   });
 ```
- ## stringList.h
+ # stringList.h
  **TODO** 
  - metadata array + char array for array of arbitrary size elements 
- ## cSum.h
+ # cSum.h
  basic checksum written for my keyboard project
- ## vason.h (didnt know vson was taken lol)
+ # vason.h (didnt know vson was taken lol)
  custom config language parser
  tried to make it as flexible as possible, 
  it can hypothetically parse a json file 
@@ -66,7 +66,7 @@ meant to hold on to raw data
     - uninterupted lines of characters are grouped
 - {} and [] are interchangeable
 - maps are triggered by the : or = characters
- ## print.h
+ # print.h
  a *lot* of macros that make printing easier ( hopefully )
  based on u/jacksaccountonreddit's [better c generics](https://github.com/JacksonAllan/CC/blob/main/articles/Better_C_Generics_Part_1_The_Extendible_Generic.md) 
  ```c
@@ -97,7 +97,7 @@ meant to hold on to raw data
     // now you can call it with
     print("${}",((point){0,0}));
  ```
- ## wheels.h
+ # wheels.h
  this library was supposed to contain single header libraries, however,
  some structures depend on eachother, which means the implementation macros
  need to be called in order, this would be really annoying so wheels.h 
