@@ -1,0 +1,30 @@
+{
+  `key'      :`value';
+  `key2'     :`value2';
+  listkey    : [a,b,c,d];
+  listkey 2  : [`a'`b'`c'`d'];
+  list nest  : {
+    {
+      `key'      :`value';
+      `key2'     :`value2';
+      listkey    : [a,b,c,d];
+      listkey 2  : [`a'`b'`c'`d'];
+      list nest  : { }
+      object nest: {
+        `key'      :`value';
+        `key2'     :`value2';
+        listkey    : [a,b,c,d];
+        listkey 2  : [`a'`b'`c'`d'];
+        object nest: { }
+      }
+    },
+    {key:value;}
+  };
+  object nest: {
+    `key'      :`value';
+    `key2'     :`value2';
+    listkey    : [a,b,c,d];
+    listkey 2  : [`a'`b'`c'`d'];
+    object nest: { }
+  };
+}

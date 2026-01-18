@@ -22,6 +22,16 @@ typedef enum : u8 {
   vason_INVALID = 1 << 5,
 } vason_tag;
 
+typedef struct vason_treeObject vason_treeObject;
+typedef struct vason_treeObject *vason_treeObjectptr;
+typedef struct vason_treeObject {
+  vason_tag tag;
+  union {
+    slice(vason_treeObjectptr) children;
+    vason_span text;
+  } data;
+} vason_treeObject;
+
 /**
  * data based on `tag`
  * `span`:
@@ -50,13 +60,14 @@ typedef struct vason_container {
 // TODO
 typedef struct vason_lazyObject {
   vason_tag tag;
-  bool parsed : 1;
+  bool parsed;
   struct vason_span span;
 } vason_lazyObject;
+
 typedef struct vason_lazyContainer {
   slice(c8) string;
-  mList(vason_object) objects;
-  vason_object top;
+  mList(vason_lazyObject) objects;
+  vason_lazyObject top;
 } vason_lazyContainer;
 
 static void vason_formatter_print(
@@ -151,7 +162,6 @@ REGISTER_PRINTER(vason_token, {
       PUTC(L'x');
       break;
     case ESCAPE:
-      PUTC('_');
       break;
     case ARR_start:
       PUTC('[');
@@ -214,7 +224,7 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
       t.ptr[i + 1] = STR_;
       i++;
     }
-  // force strings inside delimiters
+  // force strings inside delimiters i
   for (typeof(t.len) i = 0; i + 1 < t.len; i++) {
     if (t.ptr[i] == STR_start) {
       i++;
@@ -227,7 +237,6 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
       while (j < t.len && t.ptr[j] == STR_)
         j++;
       switch (t.ptr[j]) {
-        case MAP_end:
         case MAP_start:
         case ARR_start:
         case STR_start: {
@@ -235,6 +244,7 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
             t.ptr[ii] = ESCAPE;
 
         } break;
+        case MAP_end:
         case STR_:
         case STR_end:
         case ESCAPE:
@@ -247,7 +257,7 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
       i = j;
     }
   }
-  // force strings inside delimiters
+  // force strings inside delimiters ii
   for (ssize i = t.len; i > 0; i--) {
     if (t.ptr[i - 1] == STR_) {
       usize j = i;
@@ -386,6 +396,10 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
   usize end = end_nullable.data;
 
   usize i = start;
+  enum {
+    vason_MAP = vason_MAP,
+    vason_ARR = vason_ARR
+  } mode = vason_ARR;
   while (i < end) {
     switch (t.ptr[i]) {
       case STR_: {
@@ -428,7 +442,10 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
       } break;
 
       case MAP_delim_ID: {
-        ((vason_level *)List_getRef(&level, level.length - 1))->kind = vason_ID;
+        if (level.length) {
+          ((vason_level *)List_getRef(&level, level.length - 1))->kind = vason_ID;
+          mode = vason_MAP;
+        }
         i++;
       } break;
       case ARR_delim:
@@ -448,16 +465,15 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
   // clang-format on
 
   // try to make maps that dont make sense get processed
-  enum {
-    vason_MAP = vason_MAP,
-    vason_ARR = vason_ARR
-  } mode = vason_ARR;
-  for (usize i = 0; i < level.length; i++) {
-    if ((*(vason_level *)(List_getRef(&level, i))).kind == vason_ID) {
-      mode = vason_MAP;
-      break;
+  if (mode != vason_MAP) {
+    for (usize i = 0; i < level.length; i++) {
+      if ((*(vason_level *)(List_getRef(&level, i))).kind == vason_ID) {
+        mode = vason_MAP;
+        break;
+      }
     }
   }
+
   if (mode == vason_MAP && level.length) {
     typedef enum { key,
                    value,
@@ -580,6 +596,63 @@ vason_object bdconvert(
             vason_object inner = bdconvert(containerList, next, str, t, allocator);
             aFree(allocator, next.items.ptr);
             mList_set(containerList, i + res.span.offset, inner);
+          } break;
+          case vason_INVALID:
+            break;
+        }
+      }
+    } break;
+  }
+  // clang-format off
+  invalidLabel:
+  // clang-format on
+  return res;
+}
+// not checked
+[[gnu::deprecated]]
+vason_lazyObject bdconvert_lazy(
+    mList(vason_lazyObject) containerList,
+    struct breakdown_return bdr,
+    // recursion for bdr
+    slice(c8) str,
+    slice(vason_token) t,
+    AllocatorV allocator
+) {
+  // TODO deal with invalid types
+  bool isvalid = !(bdr.kind & vason_INVALID);
+  bdr.kind &= ~vason_INVALID;
+  vason_lazyObject res = {.tag = bdr.kind};
+  if (!isvalid)
+    goto invalidLabel;
+  switch (bdr.kind) {
+    case vason_ID:  // impossible for now
+    case vason_STR: // impossible for now
+    case vason_INVALID:
+      break;
+    case vason_MAP:
+    case vason_ARR: {
+      res.span = (typeof(res.span)){
+          .offset = mList_len(containerList),
+          .len = bdr.items.len,
+      };
+      // if (bdr.kind == vason_MAP)
+      //   res.span.len = (res.span.len / 2) * 2;
+      List_appendFromArr((void *)containerList, NULL, res.span.len);
+      for (usize i = 0; i < res.span.len; i++) {
+        switch (bdr.items.ptr[i].kind) {
+          case vason_ID:
+          case vason_MAP:
+          case vason_ARR:
+          case vason_STR: {
+            mList_set(
+                containerList,
+                i + res.span.offset,
+                ((vason_lazyObject){
+                    .tag = bdr.items.ptr[i].kind,
+                    .parsed = true,
+                    .span = bdr.items.ptr[i].pos,
+                })
+            );
           } break;
           case vason_INVALID:
             break;

@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addCSourceFile(.{
-        .file = b.path("examples/main.c"),
+        .file = b.path("examples/parser.c"),
         .flags = &.{
             "-g",
             "-w",

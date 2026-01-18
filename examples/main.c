@@ -14,12 +14,12 @@
 // c8 pointstr[] = {
 // #embed "../vson/lua.lua"
 // };
-c8 pointstr[] = {
-#embed "../vson/elements.vson"
-};
 // c8 pointstr[] = {
-// #embed "../vson/point.json"
+// #embed "../vson/elements.vson"
 // };
+c8 pointstr[] = {
+#embed "../vson/capabilities.vason"
+};
 int main(void) {
   Arena_scoped *s = arena_new_ext(pageAllocator, 1);
   My_allocator *local = debugAllocatorInit(s);

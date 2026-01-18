@@ -1,22 +1,21 @@
 #ifndef MY_PRINTER_H
 #define MY_PRINTER_H
-#include "assertMessage.h"
-#include <locale.h>
-#include <malloc.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <wchar.h>
-
 #include "allocator.h"
+#include "assertMessage.h"
 #include "fptr.h"
 #include "hhmap.h"
 #include "my-list.h"
 #include "printer/variadic.h"
+#include "types.h"
+#include <locale.h>
+#include <malloc.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <string.h>
+#include <uchar.h>
 
 typedef void (*outputFunction)(
-    const wchar *,
+    const c32 *,
     void *,
     unsigned int,
     bool
@@ -53,150 +52,69 @@ typedef pEsc printerEscape;
       .clear = 1,    \
       .reset = 1,    \
   })
-#ifndef OVERRIDE_DEFAULT_PRINTER
-  #include <stdio.h>
-static void stdoutPrint(
-    const wchar *c,
-    void *,
-    unsigned int length,
-    bool flush
-) {
-  #define bufLen (2 << 16)
-  mbstate_t mbs = {0};
-  static thread_local struct
-  {
-    wchar buf[bufLen];
-    char crBuf[bufLen / sizeof(wchar) * 4];
-    usize place;
-    usize crPlace;
-  } buf = {
-      0
-  };
-
-  if (buf.place + length >= bufLen || flush) {
-    buf.crPlace = 0;
-    for (usize i = 0; i < buf.place; i++)
-      buf.crPlace += wcrtomb(buf.crBuf + buf.crPlace, buf.buf[i], &mbs);
-    fwrite(buf.crBuf, sizeof(char), buf.crPlace, stdout);
-    buf.crPlace = 0;
-
-    char *useBuffer;
-    usize useBufferPlace = 0;
-    if (length > bufLen) {
-      useBuffer = (char *)aAlloc(defaultAlloc, length * sizeof(char) * 4);
-    } else {
-      useBuffer = buf.crBuf;
-    }
-    for (usize i = 0; i < length; i++)
-      useBufferPlace += wcrtomb(useBuffer + useBufferPlace, c[i], &mbs);
-    fwrite(useBuffer, sizeof(char), useBufferPlace, stdout);
-
-    if (length > bufLen)
-      aFree(defaultAlloc, useBuffer);
-
-    buf.place = 0;
-    fflush(stdout);
-  } else {
-    memcpy(buf.buf + buf.place, c, length * sizeof(wchar));
-    buf.place += length;
-  }
-}
-static outputFunction defaultPrinter = stdoutPrint;
-#else
-extern outputFunction defaultPrinter;
-#endif
-
-static void snPrint(
-    const char *c,
-    void *buffer,
-    unsigned int length,
-    char flush
-) {
-  (void)flush;
-  ffptr snBuff = *(ffptr *)buffer;
-
-  usize start = snBuff.fptrp.width;
-  usize end1 = snBuff.fptrp.width + length;
-  usize end2 = snBuff.ffptr.capacity;
-  const usize end = end1 < end2 ? end1 : end2;
-
-  for (; start < end; start++)
-    snBuff.fptrp.ptr[start] = c[start - snBuff.fptrp.width];
-  snBuff.fptrp.width = end;
-  *(ffptr *)buffer = snBuff;
-}
-// #include "assert.h"
-static void asPrint(
-    const wchar *c,
-    void *listptr,
-    unsigned int length,
-    bool flush
-) {
-  (void)flush;
-  assertMessage(listptr != NULL);
-  List *list = *(List **)listptr;
-  if (!list)
-    list = List_new(defaultAlloc, sizeof(wchar));
-  switch (list->width) {
-    case sizeof(wchar):
-      List_appendFromArr(list, c, length);
-      break;
-    case sizeof(char): {
-      mbstate_t mbs = {0};
-
-      usize out = list->length;
-      List_resize(list, out + length * MB_CUR_MAX);
-
-      char *dst = (char *)List_getRefForce(list, out);
-
-      for (u32 i = 0; i < length; i++) {
-        usize l = wcrtomb(dst, c[i], &mbs);
-        assertMessage(l != (size_t)-1);
-        dst += l;
-        out += l;
-      }
-
-      list->length = out;
-    } break;
-    default:
-      assertMessage(false, "sizes %lu & %lu \n %lu not supported\n", sizeof(wchar), sizeof(char), list->width);
-      break;
-  }
-  *(List **)listptr = list;
-}
-
 static void fileprint(
-    const wchar_t *c,
+    const c32 *c,
     void *fileHandle,
     unsigned int length,
     bool flush
 ) {
-  FILE *f;
-  mbstate_t st;
-  char buf[MB_CUR_MAX];
-  unsigned int i;
+  constexpr usize BUF_ELEMENTS = (2 << 8);
+  constexpr usize MAX_UTF8_BYTES = 4;
+  FILE *file = (FILE *)fileHandle;
 
-  assertMessage(fileHandle);
-  f = (FILE *)fileHandle;
+  static thread_local struct {
+    c32 buf[BUF_ELEMENTS];
+    c8 crBuf[BUF_ELEMENTS * MAX_UTF8_BYTES];
+    usize place;
+  } buffer = {0};
 
-  memset(&st, 0, sizeof(st));
-
-  for (i = 0; i < length; ++i) {
-    size_t n = wcrtomb(buf, c[i], &st);
-    if (n == (size_t)-1) {
-      break; /* invalid wchar, stop */
+  static thread_local mbstate_t mbs = {0};
+  if (flush || (buffer.place + length) > BUF_ELEMENTS) {
+    usize writeByteCount = 0;
+    char *dest = (char *)buffer.crBuf;
+    for (usize i = 0; i < buffer.place; i++) {
+      ssize_t writelen = c32rtomb(dest + writeByteCount, buffer.buf[i], &mbs);
+      if (writelen == -1) {
+        memset(&mbs, 0, sizeof(mbs));
+        continue;
+      }
+      writeByteCount += writelen;
     }
-    fwrite(buf, 1, n, f);
-  }
 
-  if (flush) {
-    fflush(f);
+    for (usize i = 0; i < length; i++) {
+      if (writeByteCount + MAX_UTF8_BYTES > sizeof(buffer.crBuf)) {
+        fwrite(buffer.crBuf, 1, writeByteCount, file);
+        writeByteCount = 0;
+      }
+
+      ssize_t writelen = c32rtomb(dest + writeByteCount, c[i], &mbs);
+      if (writelen == -1) {
+        memset(&mbs, 0, sizeof(mbs));
+        continue;
+      }
+      writeByteCount += writelen;
+    }
+    if (writeByteCount > 0) {
+      fwrite(buffer.crBuf, 1, writeByteCount, file);
+    }
+    if (flush) {
+      fflush(file);
+    }
+
+    // 5. Reset buffer index
+    buffer.place = 0;
+
+  } else {
+    // BUFFERING: Logic fits in buffer, copy it.
+    // FIX: memcpy length is bytes, so we need length * sizeof(c32)
+    memcpy(buffer.buf + buffer.place, c, length * sizeof(c32));
+    buffer.place += length;
   }
 }
 
 static struct {
   HMap *data;
-  usize termWidth, termHeight;
+  // usize termWidth, termHeight;
 } PrinterSingleton;
 
 static void PrinterSingleton_init() {
@@ -282,8 +200,8 @@ static printerFunction PrinterSingleton_get(fptr name) {
 #define UNIQUE_PRINTER_FN2 \
   LABEL_PRINTER_GEN(printerConstructor, UNIQUE_GEN_PRINTER)
 
-#define PUTS(characters) put(characters, _arb, (sizeof(characters) / sizeof(wchar)) - 1, 0)
-#define PUTC(character) put(REF(wchar, character), _arb, 1, 0)
+#define PUTS(characters) put(characters, _arb, (sizeof(characters) / sizeof(c32)) - 1, 0)
+#define PUTC(character) put(REF(c32, character), _arb, 1, 0)
 
 #define REGISTER_PRINTER(T, ...)                                       \
   static void GETTYPEPRINTERFN(T)(                                     \
@@ -374,13 +292,13 @@ struct print_arg {
 
   REGISTER_PRINTER(fptr, {
     if (in.ptr) {for(usize i = 0;i<in.width;i++){
-      wchar c = (wchar)in.ptr[i];
+      c32 c = (c32)in.ptr[i];
       PUTC(c);
-    }} else { PUTS(L"__NULLUMF__"); }
+    }} else { PUTS(U"__NULLUMF__"); }
   });
   REGISTER_SPECIAL_PRINTER("ptr", void*,{
     uintptr_t v = (uintptr_t)in;
-    PUTS(L"0x");
+    PUTS(U"0x");
 
     int shift = (sizeof(uintptr_t) * 8) - 4;
     int leading = 1;
@@ -458,7 +376,7 @@ struct print_arg {
   });
 
   REGISTER_SPECIAL_PRINTER("fptr<wchar>",fptr, {
-      put((wchar*)in.ptr,_arb,in.width/sizeof(wchar),0);
+      put((c32*)in.ptr,_arb,in.width/sizeof(wchar),0);
   });
   REGISTER_SPECIAL_PRINTER("fptr<char>",fptr, {
       for (usize i = 0; i<in.width; i++) {
@@ -476,10 +394,10 @@ struct print_arg {
           });
       });
       if(useLength){
-        PUTS(L"<");
+        PUTS(U"<");
         USETYPEPRINTER(usize,in.width);
       }
-      PUTS(L"<");
+      PUTS(U"<");
       usize start = 0;
       if(cut0s) {
           for(usize i = 0; i < in.width; i++) {
@@ -496,44 +414,44 @@ struct print_arg {
           PUTC(hex_chars[top]);
           PUTC(hex_chars[bottom]);
       }
-      PUTS(L">");
+      PUTS(U">");
       if(useLength)
-        PUTS(L">");
+        PUTS(U">");
   });
   REGISTER_PRINTER(pEsc, {
     if (in.poset) {
 
-      PUTS(L"\033[");
+      PUTS(U"\033[");
       USETYPEPRINTER(uint, in.pos.row);
-      PUTS(L";");
+      PUTS(U";");
       USETYPEPRINTER(uint, in.pos.col);
-      PUTS(L"H");
+      PUTS(U"H");
     }
     if (in.fgset) {
-      PUTS(L"\033[38;2;");
+      PUTS(U"\033[38;2;");
       USETYPEPRINTER(uint, in.fg.r);
-      PUTS(L";");
+      PUTS(U";");
       USETYPEPRINTER(uint, in.fg.g);
-      PUTS(L";");
+      PUTS(U";");
       USETYPEPRINTER(uint, in.fg.b);
-      PUTS(L"m");
+      PUTS(U"m");
     }
 
     if (in.bgset) {
-      PUTS(L"\033[48;2;");
+      PUTS(U"\033[48;2;");
       USETYPEPRINTER(uint, in.bg.r);
-      PUTS(L";");
+      PUTS(U";");
       USETYPEPRINTER(uint, in.bg.g);
-      PUTS(L";");
+      PUTS(U";");
       USETYPEPRINTER(uint, in.bg.b);
-      PUTS(L"m");
+      PUTS(U"m");
     }
     if (in.clear) {
-      PUTS(L"\033[2J");
-      PUTS(L"\033[H");
+      PUTS(U"\033[2J");
+      PUTS(U"\033[H");
     }
     if (in.reset) {
-      PUTS(L"\033[0m");
+      PUTS(U"\033[0m");
     }
   });
   REGISTER_SPECIAL_PRINTER("u8", u8,{
@@ -604,7 +522,7 @@ void print_f(outputFunction put, void *arb, fptr fmt, ...);
   )
 
 #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
-#define print(fmt, ...) print_wf(defaultPrinter, fmt, __VA_ARGS__)
+#define print(fmt, ...) print_wfO(fileprint, stdout, fmt, __VA_ARGS__)
 #define println(fmt, ...) print(fmt "\n", __VA_ARGS__)
 
 #ifdef PRINTER_LIST_TYPENAMES
@@ -739,7 +657,7 @@ void print_f(outputFunction put, void *arb, const fptr fmt, ...) {
       tname = printer_arg_trim(tname);
       if (!assumedName.ref) {
         va_end(l);
-        return put(L"__ NO ARGUMENT PROVIDED, ENDING PRINT __\n", arb, 41, 1);
+        return put(U"__ NO ARGUMENT PROVIDED, ENDING PRINT __\n", arb, 41, 1);
       }
       print_f_helper(assumedName, tname, put, parseargs, arb);
       i = j;
@@ -749,11 +667,11 @@ void print_f(outputFunction put, void *arb, const fptr fmt, ...) {
       toggled = !toggled;
       if (!toggled) {
         wchar c = (wchar)(ccstr[i]);
-        put(REF(wchar, L'/'), arb, 1, 0);
+        put(REF(c32, L'/'), arb, 1, 0);
       }
     } else {
       toggled = 0;
-      wchar c = (wchar)(ccstr[i]);
+      c32 c = (c32)(ccstr[i]);
       put(&c, arb, 1, 0);
     }
   }
