@@ -81,12 +81,11 @@ meant to hold on to raw data
       int y;
     } point;
     REGISTER_PRINTER(point, {
-      PUTS("{x:", 3);
+      PUTS(U"{x:");
       USETYPEPRINTER(int, in.x); // use already registered printer
-      PUTS(",", 1);
-      PUTS("y:", 2);
+      PUTS(U",y:");
       USETYPEPRINTER(int, in.y);
-      PUTS("}", 1);
+      PUTS(U"}", 1);
     })
     // now you can call this with
     print("${point}",((point){0,0}));
