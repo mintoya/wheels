@@ -14,7 +14,7 @@ typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
-#if !defined(_WIN32)
+#if defined(__linux__)
 typedef char8_t c8;
 #else
 typedef u8 c8;
@@ -54,41 +54,42 @@ typedef uintptr_t uptr;
   #endif
 #endif
 
-#define slice_t(type) slice_##type
-#define slice_cat_(a, b) a##b
-#define slice_cat(a, b) slice_cat_(a, b)
+#ifndef __cplusplus
 
-#define nullable_tag(type, tag)       \
-  struct slice_cat_(nullable_, tag) { \
-    bool isnull : 1;                  \
-    type data;                        \
-  }
+  #define nullable(type)     \
+    struct nullable_##type { \
+      bool isnull : 1;       \
+      type data;             \
+    }
 
-#define nullable(type) nullable_tag(type, type)
-#define nullable_fromPtr(type, ptr) ({type *p = ptr; nullable(type) r; r.isnull = p == NULL; if (!r.isnull) r.data = *p; r; })
+  #define slice(type)     \
+    struct slice_##type { \
+      usize len;          \
+      type *ptr;          \
+    }
+
+#else
+template <typename T>
+struct slice_t {
+  usize len;
+  T *ptr;
+};
+template <typename T>
+struct nullable_t {
+  bool isnull : 1;
+  T data;
+};
+  #define nullable(T) nullable_t<T>
+  #define slice(T) slice_t<T>
+#endif
 #define nullable_null(type) ((nullable(type)){.isnull = true})
 #define nullable_real(type, value) ((nullable(type)){.isnull = false, .data = (value)})
-
-#define slice_tag(type, tag)       \
-  struct slice_cat_(slice_, tag) { \
-    usize len;                     \
-    type *ptr;                     \
-  }
-#define slice(type) slice_tag(type, type)
-
 #define slice_stat(s) \
   {sizeof(s) / sizeof(s[0]), (typeof(s[0]) *)s}
 #define each_slice(slice, e)       \
   typeof(slice.ptr) e = slice.ptr; \
   e < slice.ptr + slice.len;       \
   e++
-
-#define bslice_tag(type, tag)       \
-  struct slice_cat_(bslice_, tag) { \
-    usize len;                      \
-    type ptr[];                     \
-  }                                 \
-      *
-#define bslice(type) bslice_tag(type, type)
+#define nullable_fromPtr(type, ptr) ({type *p = ptr; nullable(type) r; r.isnull = p == NULL; if (!r.isnull) r.data = *p; r; })
 
 #endif // MY_TYPES
