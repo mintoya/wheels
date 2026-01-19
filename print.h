@@ -307,20 +307,20 @@ struct print_arg {
       if (nibble || !leading || shift == 0) {
         leading = 0;
         char c = (nibble < 10) ? ('0' + nibble) : ('a' + nibble - 10);
-        PUTC((wchar)c);
+        PUTC((c32)c);
       }
       shift -= 4;
     }
 
   });
-  REGISTER_PRINTER(char, {PUTC((wchar)in);});
-  REGISTER_PRINTER(wchar, {PUTC(in);});
+  REGISTER_PRINTER(char, {PUTC((c32)in);});
+  REGISTER_PRINTER(c32, {PUTC(in);});
   REGISTER_SPECIAL_PRINTER("cstr", char*,{
     if(!in)in = "__NULLCSTR__";
-    while(*in){ PUTC((wchar)*in); in++; } 
+    while(*in){ PUTC((c32)*in); in++; } 
   });
-  REGISTER_SPECIAL_PRINTER("wcstr", wchar*,{
-    if(!in)in = L"__NULLCSTR__";
+  REGISTER_SPECIAL_PRINTER("wcstr", c32*,{
+    if(!in)in = (c32*)U"__NULLCSTR__";
     while(*in){ PUTC(*in); in++; } 
   });
 
@@ -330,7 +330,7 @@ struct print_arg {
       l *= 10;
     while (l) {
       char c = in / l + '0';
-      PUTC((wchar)c);
+      PUTC((c32)c);
       in %= l;
       l /= 10;
     }
@@ -366,7 +366,7 @@ struct print_arg {
     if(!push)
         PUTC(L'.');
     for (int i = 0; i < 12; i++) {
-      wchar dig = L'0';
+      c32 dig = L'0';
       dig += ((unsigned int)in) % 10;
       PUTC(dig);
       if (i + 1 == push)
@@ -375,16 +375,13 @@ struct print_arg {
     }
   });
 
-  REGISTER_SPECIAL_PRINTER("fptr<wchar>",fptr, {
-      put((c32*)in.ptr,_arb,in.width/sizeof(wchar),0);
-  });
   REGISTER_SPECIAL_PRINTER("fptr<char>",fptr, {
       for (usize i = 0; i<in.width; i++) {
         PUTC(in.ptr[i]);
       }
   });
   REGISTER_SPECIAL_PRINTER("fptr<void>", fptr, {
-      const wchar hex_chars[17] = L"0123456789abcdef";
+      const c32 hex_chars[17] = U"0123456789abcdef";
       char cut0s = 0;
       char useLength = 0;
       PRINTERARGSEACH({
@@ -666,7 +663,7 @@ void print_f(outputFunction put, void *arb, const fptr fmt, ...) {
     } else if (ccstr[i] == '/') {
       toggled = !toggled;
       if (!toggled) {
-        wchar c = (wchar)(ccstr[i]);
+        c32 c = (c32)(ccstr[i]);
         put(REF(c32, L'/'), arb, 1, 0);
       }
     } else {
