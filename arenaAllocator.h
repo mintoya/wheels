@@ -1,13 +1,14 @@
+#define _GNU_SOURCE
 #ifndef ARENA_ALLOCATOR_H
-#define ARENA_ALLOCATOR_H
-#include "allocator.h"
-#include "assertMessage.h"
-#include <assert.h>
-#include <errno.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+  #define ARENA_ALLOCATOR_H
+  #include "allocator.h"
+  #include "assertMessage.h"
+  #include <assert.h>
+  #include <errno.h>
+  #include <stdint.h>
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
 
 OwnAllocator arena_owned_new(void);
 My_allocator *arena_new_ext(AllocatorV base, size_t blockSize);
@@ -24,24 +25,24 @@ void ownArenaDeInit(My_allocator *);
 OwnAllocator arena_owned = {ownArenaInit, ownArenaDeInit};
 extern AllocatorV pageAllocator;
 
-#define Arena_scoped [[gnu::cleanup(arena_cleanup_handler)]] My_allocator
+  #define Arena_scoped [[gnu::cleanup(arena_cleanup_handler)]] My_allocator
 #endif // ARENA_ALLOCATOR_H
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
-#define ARENA_ALLOCATOR_C (1)
+  #define ARENA_ALLOCATOR_C (1)
 #endif
 #ifdef ARENA_ALLOCATOR_C
 
-#include "fptr.h"
-#define PAGESIZE
+  #include "fptr.h"
+  #define PAGESIZE
 
 void *getPage(usize);
 void returnPage(void *);
-#if defined(__linux__) || defined(__APPLE__)
-  #include <sys/mman.h>
-  #include <unistd.h>
-  #undef PAGESIZE
-  #define PAGESIZE ((usize)sysconf(_SC_PAGESIZE))
+  #if defined(__linux__) || defined(__APPLE__)
+    #include <sys/mman.h>
+    #include <unistd.h>
+    #undef PAGESIZE
+    #define PAGESIZE ((usize)sysconf(_SC_PAGESIZE))
 void *getPage(usize size) {
   usize pagesize = PAGESIZE;
   size = lineup(size + alignof(max_align_t), pagesize);
@@ -73,13 +74,13 @@ void returnPage(void *page) {
       strerror(errno)
   );
 }
-#elif defined(_WIN32)
-  // #if !defined(_WIN32_LEAN_AND_MEAN)
-  //   #define _WIN32_LEAN_AND_MEAN
-  // #endif
-  #include <windows.h>
-  #undef PAGESIZE
-  #define PAGESIZE ({ SYSTEM_INFO si; GetSystemInfo(&si); si.dwPageSize; })
+  #elif defined(_WIN32)
+    // #if !defined(_WIN32_LEAN_AND_MEAN)
+    //   #define _WIN32_LEAN_AND_MEAN
+    // #endif
+    #include <windows.h>
+    #undef PAGESIZE
+    #define PAGESIZE ({ SYSTEM_INFO si; GetSystemInfo(&si); si.dwPageSize; })
 void *getPage(usize size) {
   usize pagesize = PAGESIZE;
   size = lineup(size + alignof(max_align_t), pagesize);
@@ -120,9 +121,9 @@ void returnPage(void *page) {
   }
 }
 
-#else
-  #error couldnt find page allocator
-#endif
+  #else
+    #error couldnt find page allocator
+  #endif
 
 void *allocatePage(AllocatorV _, usize size) {
   usize pagesize = PAGESIZE;
@@ -133,9 +134,19 @@ void *allocatePage(AllocatorV _, usize size) {
 void freePage(AllocatorV _, void *page) {
   return returnPage(page);
 }
-void *reallocatePage(AllocatorV _, void *page, usize __) {
-  assertMessage(false, "dont reallocate pages");
-  return NULL;
+
+void *reallocatePage(AllocatorV _, void *page, usize size) {
+  void *real_ptr = (uint8_t *)page - alignof(max_align_t);
+  usize old_size = *(usize *)real_ptr;
+  usize pagesize = PAGESIZE;
+  size = lineup(size, pagesize);
+
+  void *res = mremap(real_ptr, old_size, size, MREMAP_MAYMOVE);
+
+  assertMessage(res == MAP_FAILED, "mremap failed: system out of memory");
+
+  *(usize *)res = size;
+  return (uint8_t *)res + alignof(max_align_t);
 }
 usize getPageSize(AllocatorV _, void *page) {
   assertMessage(page);

@@ -91,31 +91,30 @@ void default_free(const My_allocator *allocator, void *p) { return free(p); }
   #undef DEFAULT_SIZE_GETTER
 #endif
 
-#include "assertMessage.h"
+#ifdef DEFAULT_SIZE_GETTER
 usize default_size(AllocatorV allocator, void *ptr) {
-  usize (*getSize)(void *) = NULL;
-#if defined(_WIN32) || defined(_WIN64)
-  getSize = _msize;
-#elif defined(__linux__)
-  getSize = malloc_usable_size;
-#elif defined(__APPLE__) || defined(__MACH__)
-  getSize = malloc_size;
-#else
-  getSize = NULL;
-#endif
-  assertMessage(getSize, "called getsize on unsupported platform");
+  #if defined(_WIN32) || defined(_WIN64)
+  usize (*getSize)(void *) = _msize;
+  #elif defined(__linux__)
+  usize (*getSize)(void *) = malloc_usable_size;
+  #elif defined(__APPLE__) || defined(__MACH__)
+  usize (*getSize)(void *) = malloc_size;
+  #else
+      // compile error
+  #endif
   return getSize(ptr);
 }
+#endif // DEFAULT_SIZE_GETTER
 AllocatorV getDefaultAllocator(void) {
   static const My_allocator defaultAllocator = (My_allocator){
       default_alloc,
       default_free,
       default_r_alloc,
-      NULL,
+      nullptr,
 #ifdef DEFAULT_SIZE_GETTER
       default_size
 #else
-      NULL
+      nullptr
 #endif
   };
   // printf("default allocator: %p\n", &defaultAllocator);

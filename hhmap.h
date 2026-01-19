@@ -375,17 +375,23 @@ void HMap_transform(HMap **last, usize kSize, usize vSize, AllocatorV allocator,
 
   *last = newMap;
 }
-[[gnu::always_inline]] static inline void *LesserList_getref(usize elw, const HMap_LesserList *hll, u32 idx) {
+[[gnu::always_inline]] void *LesserList_getref(usize elw, const HMap_LesserList *hll, u32 idx) {
   return (u8 *)(hll->ptr) + idx * (elw);
 }
-static inline void LesserList_appendGarbage(usize elw, HMap_LesserList *hll, AllocatorV allocator) {
+[[gnu::always_inline]] void LesserList_appendGarbage(usize elw, HMap_LesserList *hll, AllocatorV allocator) {
   if (!hll->capacity) {
     hll->ptr = aAlloc(allocator, elw);
-    hll->capacity = 1;
+    if (allocator->size)
+      hll->capacity = allocator->size(allocator, hll->ptr) / elw;
+    else
+      hll->capacity = 1;
   }
   if (hll->capacity < hll->length + 1) {
     hll->ptr = aRealloc(allocator, hll->ptr, hll->capacity * 2 * elw);
-    hll->capacity *= 2;
+    if (allocator->size)
+      hll->capacity = allocator->size(allocator, hll->ptr) / elw;
+    else
+      hll->capacity *= 2;
   }
   hll->length++;
 }
@@ -488,14 +494,14 @@ u32 HMap_countCollisions(const HMap *map) {
 
 usize HMap_footprint(const HMap *map) {
   usize res = 0;
-  for (u32 lindex = 0; lindex < map->metaSize; lindex++) {
-    if (map->storage[lindex].length)
-      res += (map->keysize + map->valsize) * map->storage[lindex].capacity;
-  }
+  usize elementSize = map->keysize + map->valsize;
+
   res += sizeof(HMap);
-  res += map->keysize + map->valsize;
-  res += map->metaSize * sizeof(HMap_LesserList) * 2;
-  res += map->metaSize * sizeof(void *) * 2;
+  res += sizeof(*(map->storage)) * map->metaSize;
+  res += elementSize;
+  for (u32 lindex = 0; lindex < map->metaSize; lindex++)
+    if (map->storage[lindex].length)
+      res += (elementSize)*map->storage[lindex].capacity;
   return res;
 }
 bool HMap_getSet(HMap *map, const void *key, void *val) {
@@ -537,7 +543,7 @@ HMap_both HMap_getBoth(HMap *map, const void *key) {
   u8 *place = (u8 *)HMap_get(map, key);
   if (!place)
     return (HMap_both){nullptr, nullptr};
-  return (HMap_both){place - map->valsize, place};
+  return (HMap_both){place - map->keysize, place};
 }
 
 void HMap_clear(HMap *map) {
