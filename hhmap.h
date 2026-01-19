@@ -130,7 +130,7 @@ static inline void HMap_cleanup_handler(void *vv) {
   HMap **v = (HMap **)vv;
   if (v && *v) {
     HMap_free(*v);
-    *v = NULL;
+    *v = nullptr;
   }
 }
 
@@ -148,20 +148,29 @@ using mHmap_t = Tb (**)(HMap *, Ta);
 
   #define mHmap_scoped(Ta, Tb) [[gnu::cleanup(HMap_cleanup_handler)]] mHmap(Ta, Tb)
 
-  #define HMAP_INIT_HELPER(allocator, keytype, valtype, bucketcount, ...) ( \
-      (mHmap(keytype, valtype))HMap_new(                                    \
-          ({ struct T { keytype a; valtype b; }; offsetof(struct T, b); }), sizeof(valtype), allocator, bucketcount                    \
-      )                                                                     \
+  #define mHmap_init_length(allocator, keytype, valtype, bucketcount, ...) ( \
+      (mHmap(keytype, valtype))HMap_new(                                     \
+          ({                                                                 \
+            struct T {                                                       \
+              keytype a;                                                     \
+              valtype b;                                                     \
+            };                                                               \
+            offsetof(struct T, b);                                           \
+          }),                                                                \
+          sizeof(valtype),                                                   \
+          allocator,                                                         \
+          bucketcount                                                        \
+      )                                                                      \
   )
   // optional bucket count argument
   #define mHmap_init(allocator, keytype, valtype, ...) \
-    HMAP_INIT_HELPER(allocator, keytype, valtype __VA_OPT__(, __VA_ARGS__), 32)
+    mHmap_init_length(allocator, keytype, valtype __VA_OPT__(, __VA_ARGS__), 32)
   #define mHmap_deinit(map) ({ HMap_free((HMap *)map); })
 
   #define mHmap_set(map, key, val)                       \
     do {                                                 \
       typeof(key) _k = (key);                            \
-      typeof((*map)(NULL, key)) _v = (val);              \
+      typeof((*map)(nullptr, key)) _v = (val);           \
       static_assert(                                     \
           equaltypes_mHmap(                              \
               mHmap(typeof(_k), typeof(_v)), typeof(map) \
@@ -185,7 +194,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
       const usize _meta_subcount = HMap_getBucketSize((HMap *)map, _i); \
       for (usize _j = 0; _j < _meta_subcount; _j++) {                   \
         struct {                                                        \
-          keyType a;                                                    \
+          const keyType a;                                              \
           valType b;                                                    \
         } *_element;                                                    \
         _element = (typeof(_element))                                   \
@@ -193,7 +202,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
                 (HMap *)map,                                            \
                 _i, _j                                                  \
             );                                                          \
-        keyType keyDec = _element->a;                                   \
+        const keyType keyDec = _element->a;                             \
         valType valDec = _element->b;                                   \
         {                                                               \
           __VA_ARGS__                                                   \
@@ -201,34 +210,34 @@ using mHmap_t = Tb (**)(HMap *, Ta);
       }                                                                 \
     }
 
-  #define mHmap_rem(map, key)                                \
-    do {                                                     \
-      static_assert(                                         \
-          equaltypes_mHmap(                                  \
-              mHmap(typeof(key), typeof((*map)(NULL, key))), \
-              typeof(map)                                    \
-          )                                                  \
-      );                                                     \
-      HMap_fset(                                             \
-          (HMap *)map,                                       \
-          fptr_fromTypeDef(key),                             \
-          NULL                                               \
-      );                                                     \
+  #define mHmap_rem(map, key)                                   \
+    do {                                                        \
+      static_assert(                                            \
+          equaltypes_mHmap(                                     \
+              mHmap(typeof(key), typeof((*map)(nullptr, key))), \
+              typeof(map)                                       \
+          )                                                     \
+      );                                                        \
+      HMap_fset(                                                \
+          (HMap *)map,                                          \
+          fptr_fromTypeDef(key),                                \
+          nullptr                                               \
+      );                                                        \
     } while (0)
 
-  #define mHmap_get(map, key)                                \
-    ({                                                       \
-      static_assert(                                         \
-          equaltypes_mHmap(                                  \
-              mHmap(typeof(key), typeof((*map)(NULL, key))), \
-              typeof(map)                                    \
-          )                                                  \
-      );                                                     \
-      (typeof((*map)(NULL, key)) *)                          \
-          HMap_fget_ns(                                      \
-              (HMap *)map,                                   \
-              fptr_fromTypeDef(key)                          \
-          );                                                 \
+  #define mHmap_get(map, key)                                   \
+    ({                                                          \
+      static_assert(                                            \
+          equaltypes_mHmap(                                     \
+              mHmap(typeof(key), typeof((*map)(nullptr, key))), \
+              typeof(map)                                       \
+          )                                                     \
+      );                                                        \
+      (typeof((*map)(nullptr, key)) *)                          \
+          HMap_fget_ns(                                         \
+              (HMap *)map,                                      \
+              fptr_fromTypeDef(key)                             \
+          );                                                    \
     })
   #define HMap_scoped [[gnu::cleanup(HMap_cleanup_handler)]] HMap
 
@@ -251,7 +260,7 @@ typedef struct HMap {
     void *ptr;
   } storage[];
 } HMap;
-typedef typeof((*((HMap *)NULL)->storage)) HMap_LesserList;
+typedef typeof((*((HMap *)nullptr)->storage)) HMap_LesserList;
 
 static inline umax HMap_hash(const fptr str) {
   umax hash = 5381;
@@ -280,7 +289,7 @@ HMap *HMap_new(usize kSize, usize vSize, AllocatorV allocator, u32 metaSize) {
 
   usize totalSize =
       sizeof(HMap) +
-      metaSize * sizeof(*(((HMap *)NULL)->storage)) +
+      metaSize * sizeof(*(((HMap *)nullptr)->storage)) +
       alignof(max_align_t) * 2 +
       (kSize + vSize);
   HMap *hm = (HMap *)aAlloc(allocator, totalSize);
@@ -330,7 +339,7 @@ void HMap_transform(HMap **last, usize kSize, usize vSize, AllocatorV allocator,
     kSize = oldMap->keysize;
   if (vSize == 0)
     vSize = oldMap->valsize;
-  if (allocator == NULL)
+  if (allocator == nullptr)
     allocator = oldMap->allocator;
   if (metaSize == 0)
     metaSize = oldMap->metaSize;
@@ -387,7 +396,7 @@ void HMap_set(HMap *map, const void *key, const void *val) {
   u32 lindex = (u32)(HMap_hash(fptr_fromPL(key, map->keysize)) % map->metaSize);
   HMap_LesserList *hll = &(map->storage[lindex]);
   u32 listindex = 0;
-  u8 *place = NULL;
+  u8 *place = nullptr;
   for (; listindex < hll->length; listindex++) {
     place = (u8 *)LesserList_getref(elw, hll, listindex);
     if (!memcmp(place, key, map->keysize))
@@ -408,16 +417,16 @@ void HMap_set(HMap *map, const void *key, const void *val) {
 
 void *HMap_get(const HMap *map, const void *key) {
   if (!key) {
-    return NULL;
+    return nullptr;
   }
   u32 lindex = (u32)(HMap_hash(fptr_fromPL(key, map->keysize)) % map->metaSize);
   usize elw = map->keysize + map->valsize;
   const HMap_LesserList *hll = &(map->storage[lindex]);
 
   if (!hll->ptr)
-    return NULL;
+    return nullptr;
   u32 listindex = 0;
-  u8 *place = NULL;
+  u8 *place = nullptr;
   for (; listindex < hll->length; listindex++) {
     place = (u8 *)LesserList_getref(elw, hll, listindex);
     if (!memcmp(place, key, map->keysize)) {
@@ -425,7 +434,7 @@ void *HMap_get(const HMap *map, const void *key) {
     }
   }
   if (listindex == hll->length)
-    return NULL;
+    return nullptr;
   return place + map->keysize;
 }
 
@@ -446,14 +455,14 @@ inline void *HMap_getKey(const HMap *map, u32 n) {
     i += map->storage[lindex].length;
     lindex++;
   }
-  return NULL;
+  return nullptr;
 }
 
 inline void *HMap_getVal(const HMap *map, u32 n) {
   u8 *place = (u8 *)HMap_getKey(map, n);
   if (place)
     return place + map->keysize;
-  return NULL;
+  return nullptr;
 }
 
 u32 HMap_count(const HMap *map) {
@@ -527,7 +536,7 @@ void *HMap_fget_ns(HMap *map, const fptr key) {
 HMap_both HMap_getBoth(HMap *map, const void *key) {
   u8 *place = (u8 *)HMap_get(map, key);
   if (!place)
-    return (HMap_both){NULL, NULL};
+    return (HMap_both){nullptr, nullptr};
   return (HMap_both){place - map->valsize, place};
 }
 
@@ -538,10 +547,10 @@ void HMap_clear(HMap *map) {
 
 inline void *HMap_getCoord(const HMap *map, u32 bucket, u32 index) {
   if (bucket > map->metaSize)
-    return NULL;
+    return nullptr;
   HMap_LesserList ll = map->storage[bucket];
   if (index > ll.length)
-    return NULL;
+    return nullptr;
   return (
       (u8 *)(map->storage[bucket].ptr) +
       (map->valsize + map->keysize) * index
