@@ -313,7 +313,7 @@ struct print_arg {
     }
 
   });
-  REGISTER_PRINTER(char, {PUTC((c32)in);});
+  REGISTER_PRINTER(c8, {PUTC((c32)in);});
   REGISTER_PRINTER(c32, {PUTC(in);});
   REGISTER_SPECIAL_PRINTER("cstr", char*,{
     if(!in)in = "__NULLCSTR__";
@@ -342,17 +342,7 @@ struct print_arg {
     }
     USETYPEPRINTER(usize, (usize)in);
   });
-  REGISTER_PRINTER(uint, {
-      USETYPEPRINTER(usize, (usize)in);
-  });
-  REGISTER_PRINTER(int, {
-    if (in < 0) {
-      PUTC(L'-');
-      in = -in;
-    }
-    USETYPEPRINTER(uint, (uint)in);
-  });
-  REGISTER_PRINTER(f64, {
+  REGISTER_PRINTER(f128, {
     if (in < 0) {
       PUTC(L'-');
       in *= -1;
@@ -373,6 +363,17 @@ struct print_arg {
         PUTC(L'.');
       in *= 10;
     }
+  });
+
+  REGISTER_PRINTER(uint, {
+      USETYPEPRINTER(usize, (usize)in);
+  });
+  REGISTER_PRINTER(int, {
+    if (in < 0) {
+      PUTC(L'-');
+      in = -in;
+    }
+    USETYPEPRINTER(uint, (uint)in);
   });
 
   REGISTER_SPECIAL_PRINTER("fptr<char>",fptr, {
@@ -451,8 +452,32 @@ struct print_arg {
       PUTS(U"\033[0m");
     }
   });
+
+
   REGISTER_SPECIAL_PRINTER("u8", u8,{
-    USETYPEPRINTER(uint, (uint)in);
+    USETYPEPRINTER(uint, (usize)in);
+  });
+  REGISTER_SPECIAL_PRINTER("u16", u16,{
+    USETYPEPRINTER(uint, (usize)in);
+  });
+  REGISTER_SPECIAL_PRINTER("u32", u32,{
+    USETYPEPRINTER(uint, (usize)in);
+  });
+  REGISTER_SPECIAL_PRINTER("u64", u64,{
+    USETYPEPRINTER(uint, (usize)in);
+  });
+
+  REGISTER_SPECIAL_PRINTER("i8", i8,{
+    USETYPEPRINTER(ssize, (ssize)in);
+  });
+  REGISTER_SPECIAL_PRINTER("i16", i16,{
+    USETYPEPRINTER(ssize, (ssize)in);
+  });
+  REGISTER_SPECIAL_PRINTER("i32", i32,{
+    USETYPEPRINTER(ssize, (ssize)in);
+  });
+  REGISTER_SPECIAL_PRINTER("i64", i64,{
+    USETYPEPRINTER(ssize, (ssize)in);
   });
 // type assumption
 #ifndef __cplusplus
@@ -467,9 +492,9 @@ struct print_arg {
   #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(usize);
   #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(f64);
+  MAKE_PRINT_ARG_TYPE(f128);
   #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(char);
+  MAKE_PRINT_ARG_TYPE(c8);
   #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(uint);
   #include "printer/genericName.h"

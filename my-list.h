@@ -224,6 +224,10 @@ using mList_t = T (**)(List *);
   do {                                          \
     List_forceResize((List *)(list), capacity); \
   } while (0)
+#define mList_pushArr(list, ptr, len)           \
+  do {                                          \
+    List_appendFromArr((List *)list, ptr, len); \
+  } while (0)
 
 #endif // MY_LIST_H
 
