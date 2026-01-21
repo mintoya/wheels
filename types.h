@@ -14,9 +14,7 @@ typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
-#if defined(__linux__)
 typedef u8 c8;
-#endif
 typedef char16_t c16;
 typedef char32_t c32;
 typedef int8_t i8;

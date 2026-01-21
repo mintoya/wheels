@@ -1,3 +1,4 @@
+#include <stddef.h>
 #define _GNU_SOURCE
 #ifndef ARENA_ALLOCATOR_H
   #define ARENA_ALLOCATOR_H
@@ -73,6 +74,19 @@ void returnPage(void *page) {
       page,
       strerror(errno)
   );
+  void movePage(void *page, usize size) {
+    void *real_ptr = (uint8_t *)page - alignof(max_align_t);
+    usize old_size = *(usize *)real_ptr;
+    usize pagesize = PAGESIZE;
+    size = lineup(size, pagesize);
+
+    void *res = mremap(real_ptr, old_size, size, MREMAP_MAYMOVE);
+
+    assertMessage(res == MAP_FAILED, "mremap failed: system out of memory");
+
+    *(usize *)res = size;
+    return (uint8_t *)res + alignof(max_align_t);
+  }
 }
   #elif defined(_WIN32)
     // #if !defined(_WIN32_LEAN_AND_MEAN)
@@ -120,34 +134,23 @@ void returnPage(void *page) {
     );
   }
 }
+void *movePage(void *page, usize size) {
+  usize *realsize = (usize *)((uptr)page - alignof(max_align_t));
+  if (*realsize >= size)
+    return page;
+  void *result = getPage(size);
+  memcpy(result, page, *realsize);
+  returnPage(page);
+  return result;
+}
 
   #else
     #error couldnt find page allocator
   #endif
 
-void *allocatePage(AllocatorV _, usize size) {
-  usize pagesize = PAGESIZE;
-  size = lineup(size, pagesize);
-  void *res = getPage(size);
-  return res;
-}
-void freePage(AllocatorV _, void *page) {
-  return returnPage(page);
-}
-
-void *reallocatePage(AllocatorV _, void *page, usize size) {
-  void *real_ptr = (uint8_t *)page - alignof(max_align_t);
-  usize old_size = *(usize *)real_ptr;
-  usize pagesize = PAGESIZE;
-  size = lineup(size, pagesize);
-
-  void *res = mremap(real_ptr, old_size, size, MREMAP_MAYMOVE);
-
-  assertMessage(res == MAP_FAILED, "mremap failed: system out of memory");
-
-  *(usize *)res = size;
-  return (uint8_t *)res + alignof(max_align_t);
-}
+void *allocatePage(AllocatorV _, usize size) { return getPage(size); }
+void freePage(AllocatorV _, void *page) { return returnPage(page); }
+void *reallocatePage(AllocatorV _, void *page, usize size) { return movePage(page, size); }
 usize getPageSize(AllocatorV _, void *page) {
   assertMessage(page);
   usize pagesize = PAGESIZE;

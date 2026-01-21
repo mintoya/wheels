@@ -9,8 +9,8 @@
 #include <stddef.h>
 #include <stdio.h>
 
-slice(c8) read_stdin() {
-  mList(c8) reading = mList_init(defaultAlloc, c8, 500);
+slice(c8) read_stdin(AllocatorV allocator) {
+  mList(c8) reading = mList_init(allocator, c8, 500);
   i32 c = 0;
   while ((c = fgetc(stdin)) != EOF)
     mList_push(reading, (c8)c);
@@ -21,10 +21,10 @@ slice(c8) read_stdin() {
 }
 int main(void) {
   Arena_scoped *local = arena_new_ext(pageAllocator, 1024);
-  slice(c8) input = read_stdin();
+  slice(c8) input = read_stdin(local);
   println("input len({}): {fptr}", input.len, input);
   vason_container parsed = parseStr(local, input);
-  print( "parsed:\n{vason_container}", parsed);
+  print("parsed:\n{vason_container}", parsed);
 }
 
 #include "../wheels.h"
