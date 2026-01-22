@@ -4,6 +4,7 @@
 #include "my-list.h"
 #include "print.h"
 #include "types.h"
+#include <stdarg.h>
 #include <string.h>
 #include <time.h>
 
@@ -70,6 +71,7 @@ typedef struct vason_lazyContainer {
   vason_lazyObject top;
 } vason_lazyContainer;
 
+vason_object vason_get(vason_contianer container, vason_object current, ...);
 vason_contianer parseStr(AllocatorV allocator, slice(c8) string);
 
 #endif // VASON_PARSER_H
@@ -255,10 +257,10 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
         break;
     }
   }
-  for (typeof(t.len) i = 0; i < t.len; i++) {
-    print("{vason_token}", t.ptr[i]);
-  }
-  println();
+  // for (typeof(t.len) i = 0; i < t.len; i++) {
+  //   print("{vason_token}", t.ptr[i]);
+  // }
+  // println();
   return t;
 }
 // ! assumes query is on the stack list
@@ -611,5 +613,60 @@ vason_contianer parseStr(AllocatorV allocator, slice(c8) str) {
   };
   aFree(allocator, bucket);
   return res;
+}
+#include <stdarg.h>
+
+vason_object
+vason_get(vason_contianer container, vason_object current, ...) {
+  constexpr vason_object notFound = (vason_object){.tag = vason_STR, .span = {0}};
+  va_list vlist;
+  va_start(vlist, current);
+  switch (current.tag) {
+    case vason_ARR: {
+      auto index = va_arg(vlist, usize);
+      if (index < current.span.len) {
+        auto fullOffset = index + current.span.offset;
+        if (fullOffset < container.objects.len) {
+          return container.objects.ptr[fullOffset];
+        } else {
+          va_end(vlist);
+          return notFound;
+        }
+      } else {
+        va_end(vlist);
+        return notFound;
+      }
+    };
+    case vason_MAP: {
+      auto str = va_arg(vlist, slice(c8));
+      for (usize i = 0; i < current.span.len; i += 2) {
+        // FIX: Add the offset to get the absolute index in the object pool
+        usize objIndex = current.span.offset + i;
+
+        if (container.objects.ptr[objIndex].tag == vason_ID) {
+          slice(c8) thisStr = (slice(c8)){
+              .len = container.objects.ptr[objIndex].span.len,
+              .ptr = container.string.ptr + container.objects.ptr[objIndex].span.offset,
+          };
+
+          if (thisStr.len == str.len) {
+            if (!strncmp((char *)str.ptr, (char *)thisStr.ptr, str.len)) {
+              va_end(vlist);
+              // Return the value (key is at objIndex, value is at objIndex + 1)
+              return container.objects.ptr[objIndex + 1];
+            }
+          }
+        }
+      }
+      va_end(vlist);
+      return notFound;
+    };
+    case vason_INVALID:
+    case vason_ID:
+    case vason_STR: {
+      va_end(vlist);
+      return notFound;
+    }
+  }
 }
 #endif

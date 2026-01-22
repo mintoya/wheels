@@ -74,19 +74,19 @@ void returnPage(void *page) {
       page,
       strerror(errno)
   );
-  void movePage(void *page, usize size) {
-    void *real_ptr = (uint8_t *)page - alignof(max_align_t);
-    usize old_size = *(usize *)real_ptr;
-    usize pagesize = PAGESIZE;
-    size = lineup(size, pagesize);
+}
+void *movePage(void *page, usize size) {
+  void *real_ptr = (uint8_t *)page - alignof(max_align_t);
+  usize old_size = *(usize *)real_ptr;
+  usize pagesize = PAGESIZE;
+  size = lineup(size, pagesize);
 
-    void *res = mremap(real_ptr, old_size, size, MREMAP_MAYMOVE);
+  void *res = mremap(real_ptr, old_size, size, MREMAP_MAYMOVE);
 
-    assertMessage(res == MAP_FAILED, "mremap failed: system out of memory");
+  assertMessage(res == MAP_FAILED, "mremap failed: system out of memory");
 
-    *(usize *)res = size;
-    return (uint8_t *)res + alignof(max_align_t);
-  }
+  *(usize *)res = size;
+  return (uint8_t *)res + alignof(max_align_t);
 }
   #elif defined(_WIN32)
     // #if !defined(_WIN32_LEAN_AND_MEAN)

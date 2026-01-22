@@ -19,12 +19,26 @@ slice(c8) read_stdin(AllocatorV allocator) {
   aFree(((List *)reading)->allocator, reading);
   return result;
 }
-int main(void) {
-  Arena_scoped *local = arena_new_ext(pageAllocator, 1024);
+int main(int nargs, char *args[nargs]) {
+  Arena_scoped *local = arena_new_ext(pageAllocator, 4096);
+  // My_allocator *local = debugAllocatorInit(arena);
   slice(c8) input = read_stdin(local);
-  println("input len({}): {fptr}", input.len, input);
   vason_container parsed = parseStr(local, input);
-  print("parsed:\n{vason_container}", parsed);
+  vason_object result = parsed.top;
+  for (usize i = 1; i < nargs; i++) {
+    // println("getting {cstr}", args[i]);
+    if (result.tag == vason_ARR) {
+      result = vason_get(parsed, result, (usize)atoi(args[i]));
+    } else {
+      result = vason_get(parsed, result, (slice(c8)){.ptr = (u8 *)args[i], .len = strlen(args[i])});
+    }
+  }
+  vason_contianer c = parsed;
+  c.top = result;
+  println("{vason_container}", c);
+  aFree(local, parsed.objects.ptr);
+  aFree(local, input.ptr);
+  // debugAllocatorDeInit(local);
 }
 
 #include "../wheels.h"
