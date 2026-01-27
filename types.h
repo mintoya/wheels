@@ -1,5 +1,6 @@
 #ifndef MY_TYPES
 #define MY_TYPES
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -14,7 +15,8 @@ typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
-typedef u8 c8;
+typedef char c8;
+static_assert(sizeof(c8) == 1, "c8 is wider than 1?");
 typedef char16_t c16;
 typedef char32_t c32;
 typedef int8_t i8;
@@ -40,8 +42,8 @@ typedef SSIZE_T ssize_t;
 #else
 typedef ptrdiff_t ssize_t;
 #endif
-typedef ssize_t ssize;
-static_assert(sizeof(ssize) == sizeof(usize), "ssize and usize have to be the same length");
+typedef ssize_t isize;
+static_assert(sizeof(isize) == sizeof(usize), "ssize and usize have to be the same length");
 typedef uintptr_t uptr;
 
 #ifndef __cplusplus

@@ -73,7 +73,7 @@ static void fileprint(
     usize writeByteCount = 0;
     char *dest = (char *)buffer.crBuf;
     for (usize i = 0; i < buffer.place; i++) {
-      ssize_t writelen = c32rtomb(dest + writeByteCount, buffer.buf[i], &mbs);
+      isize writelen = c32rtomb(dest + writeByteCount, buffer.buf[i], &mbs);
       if (writelen == -1) {
         memset(&mbs, 0, sizeof(mbs));
         continue;
@@ -87,7 +87,7 @@ static void fileprint(
         writeByteCount = 0;
       }
 
-      ssize_t writelen = c32rtomb(dest + writeByteCount, c[i], &mbs);
+      isize writelen = c32rtomb(dest + writeByteCount, c[i], &mbs);
       if (writelen == -1) {
         memset(&mbs, 0, sizeof(mbs));
         continue;
@@ -335,7 +335,7 @@ struct print_arg {
       l /= 10;
     }
   });
-  REGISTER_PRINTER(ssize, {
+  REGISTER_PRINTER(isize, {
     if (in < 0) {
       PUTC(L'-');
       in = -in;
@@ -455,29 +455,29 @@ struct print_arg {
 
 
   REGISTER_SPECIAL_PRINTER("u8", u8,{
-    USETYPEPRINTER(uint, (usize)in);
+    USETYPEPRINTER(usize, (usize)in);
   });
   REGISTER_SPECIAL_PRINTER("u16", u16,{
-    USETYPEPRINTER(uint, (usize)in);
+    USETYPEPRINTER(usize, (usize)in);
   });
   REGISTER_SPECIAL_PRINTER("u32", u32,{
-    USETYPEPRINTER(uint, (usize)in);
+    USETYPEPRINTER(usize, (usize)in);
   });
   REGISTER_SPECIAL_PRINTER("u64", u64,{
-    USETYPEPRINTER(uint, (usize)in);
+    USETYPEPRINTER(usize, (usize)in);
   });
 
   REGISTER_SPECIAL_PRINTER("i8", i8,{
-    USETYPEPRINTER(ssize, (ssize)in);
+    USETYPEPRINTER(isize, (isize)in);
   });
   REGISTER_SPECIAL_PRINTER("i16", i16,{
-    USETYPEPRINTER(ssize, (ssize)in);
+    USETYPEPRINTER(isize, (isize)in);
   });
   REGISTER_SPECIAL_PRINTER("i32", i32,{
-    USETYPEPRINTER(ssize, (ssize)in);
+    USETYPEPRINTER(isize, (isize)in);
   });
   REGISTER_SPECIAL_PRINTER("i64", i64,{
-    USETYPEPRINTER(ssize, (ssize)in);
+    USETYPEPRINTER(isize, (isize)in);
   });
 // type assumption
 #ifndef __cplusplus
@@ -488,7 +488,7 @@ struct print_arg {
   #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(fptr);
   #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(ssize);
+  MAKE_PRINT_ARG_TYPE(isize);
   #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(usize);
   #include "printer/genericName.h"
