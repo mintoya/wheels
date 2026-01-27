@@ -5,7 +5,12 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
-#include <uchar.h>
+#if __has_include("uchar.h")
+  #include <uchar.h>
+#else
+typedef unsigned short char16_t;
+typedef unsigned int char32_t;
+#endif
 #define _XOPEN_SOURCE 700
 
 typedef wchar_t wchar;
@@ -32,6 +37,12 @@ typedef void *voidptr;
 typedef uintmax_t umax;
 typedef intmax_t imax;
 typedef size_t usize;
+#if !defined(__cplusplus)
+  #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+  #else
+    #define nullptr ((void *)0)
+  #endif
+#endif
 
 #if defined(_MSC_VER)
   #include <BaseTsd.h>
