@@ -210,6 +210,15 @@ using mList_t = T (**)(List *);
   ((List *)(list))->length--;                                                         \
   *(typeof((*list)(NULL)) *)List_getRefForce((List *)(list), ((List *)list)->length); \
 })
+// technically never null since list capacity is non-zero
+#define mList_popFront(list)                                     \
+  ({                                                             \
+    mList_iType(list) result =                                   \
+        *(mList_iType(list) *)List_getRefForce((List *)list, 0); \
+    mList_rem(list, 0);                                          \
+    result;                                                      \
+  })
+
 #define mList_get(list, index) ({ (typeof((*list)(NULL)) *)List_getRef((List *)list, index); })
 #define mList_set(list, index, val)        \
   do {                                     \
