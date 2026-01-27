@@ -15,8 +15,7 @@ typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
-typedef char c8;
-static_assert(sizeof(c8) == 1, "c8 is wider than 1?");
+typedef uchar c8;
 typedef char16_t c16;
 typedef char32_t c32;
 typedef int8_t i8;
@@ -26,13 +25,13 @@ typedef int64_t i64;
 
 typedef float f32;
 typedef double f64;
+// ecactly an f64 on windows -_-
 typedef long double f128;
+typedef void *voidptr;
 
 typedef uintmax_t umax;
 typedef intmax_t imax;
 typedef size_t usize;
-
-typedef void *voidptr;
 
 #if defined(_MSC_VER)
   #include <BaseTsd.h>
@@ -41,9 +40,9 @@ typedef SSIZE_T ssize_t;
   #include <sys/types.h>
 #else
 typedef ptrdiff_t ssize_t;
+static_assert(sizeof(ssize_t) == sizeof(usize), "ssize and usize have to be the same length");
 #endif
 typedef ssize_t isize;
-static_assert(sizeof(isize) == sizeof(usize), "ssize and usize have to be the same length");
 typedef uintptr_t uptr;
 
 #ifndef __cplusplus

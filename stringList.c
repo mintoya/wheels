@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <stdlib.h>
 #if !defined(STRING_LIST_H)
   #define STRING_LIST_H (1)
@@ -6,10 +7,12 @@ typedef struct stringList stringList;
   #include "my-list.h"
   #include <stddef.h>
   #include <stdint.h>
+stringList *stringList_new(AllocatorV allocator, usize initSize);
+void stringList_free(stringList *sl);
 fptr stringList_get(stringList *, List_index_t);
-void stringList_set(stringList *, List_index_t, fptr);
+fptr stringList_set(stringList *, List_index_t, fptr);
 void stringList_remove(stringList *, List_index_t);
-void stringList_append(stringList *, List_index_t, fptr);
+fptr stringList_append(stringList *, List_index_t, fptr);
 void stringList_insert(stringList *, List_index_t, fptr);
 #endif
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
@@ -21,10 +24,18 @@ void stringList_insert(stringList *, List_index_t, fptr);
   #include "my-list.h"
   #include "types.h"
 struct vlength {
+  #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   u8 hasNext : 1;
   u8 data : 7;
+  #elif defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+  u8 data : 7;
+  u8 hasNext : 1;
+  #else
+    #error "undefiend byte order"
+  #endif
 };
-static_assert(sizeof(struct vlength) == 1, "check packing ");
+static_assert(sizeof(struct vlength) == sizeof(u8), "vlength warning");
+
 struct {
   struct vlength arr[sizeof(usize) * 8 / 7 + 1];
 } u64_toVlen(usize len) {
@@ -50,7 +61,7 @@ typedef struct {
   struct vlength header[1];
 } *vlqbuf;
   #define vlen_stat(stringLiteral) ({                   \
-    struct {                                            \
+    static struct [[gnu::packed]] {                     \
       typeof(usize_toVLen(0)) len;                      \
       typeof(stringLiteral) str;                        \
     } res;                                              \
@@ -60,7 +71,7 @@ typedef struct {
     };                                                  \
     (vlqbuf) & res;                                     \
   })
-fptr fconv(vlqbuf b) {
+fptr vlqbuf_toFptr(vlqbuf b) {
   return (fptr){
       .width = vlen_toUsize(b->header),
       .ptr = ({
@@ -70,6 +81,46 @@ fptr fconv(vlqbuf b) {
         (u8 *)(ptr + 1);
       })
   };
+}
+typedef struct stringList {
+  mList(ptrdiff_t) ulist;
+  mList(ptrdiff_t) flist;
+  usize len;
+  usize cap;
+  u8 *ptr;
+} stringList;
+stringList *stringList_new(AllocatorV allocator, usize initSize) {
+  stringList *res = aCreate(allocator, stringList);
+  *res = (typeof(*res)){
+      .flist = mList_init(allocator, ptrdiff_t),
+      .ulist = mList_init(allocator, ptrdiff_t),
+      .len = 0,
+      .ptr = aAlloc(allocator, initSize),
+  };
+  if (allocator->size)
+    res->cap = allocator->size(allocator, res->ptr);
+  else
+    res->cap = initSize;
+  return res;
+}
+void stringList_free(stringList *sl) {
+  AllocatorV allocator = ((List *)(sl->flist))->allocator;
+  mList_deInit(sl->flist);
+  mList_deInit(sl->ulist);
+  aFree(allocator, sl->ptr);
+  aFree(allocator, sl);
+}
+bool freeList_searchFunc(void *slp, void *a, void *b) {
+  u64 alen = vlen_toUsize((struct vlength *)(((stringList *)slp)->ptr + *(ptrdiff_t *)a));
+  u64 blen = vlen_toUsize((struct vlength *)(((stringList *)slp)->ptr + *(ptrdiff_t *)b));
+  return alen > blen;
+}
+fptr stringList_append(stringList *sl, List_index_t idx, fptr ptr) {
+  typeof(u64_toVlen(0)) lenStruct = u64_toVlen(ptr.width);
+  struct vlength *vl = lenStruct.arr;
+  List_index_t nextPlace = List_searchSorted((List *)sl->flist, vl, freeList_searchFunc);
+}
+fptr stringList_set(stringList *sl, List_index_t idx, fptr ptr) {
 }
 
 #endif

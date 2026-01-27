@@ -140,7 +140,7 @@ extern inline void *List_set(List *l, List_index_t i, const void *element) {
 /*
  * searches for a value which has an identical value to element
  * `@param` **list**
- * `@param` **element** pointer to list element searched
+ * `@param` **element** :pointer to list element searched
  * `@return` length of list if it doesnt exist
  */
 extern inline List_index_t List_locate(const List *l, const void *element);
@@ -151,6 +151,24 @@ extern inline void List_remove(List *l, List_index_t i);
  */
 extern inline void List_zeroOut(List *l);
 List *List_deepCopy(List *l);
+
+typedef bool (*List_searchFunc)(void *ctx, void *, void *);
+/**
+ * insert into sorted list
+ * `@param` **1** list     : list
+ * `@param` **2** element  : pointer to element
+ * `@param` **3** search fn: list search function pointer
+ */
+
+void List_insertSorted(List *, void *, List_searchFunc, void *ctx);
+/**
+ * binary search for sorted list
+ * `@param` **1** list     : list
+ * `@param` **2** element  : pointer to element
+ * `@param` **3** search fn: list search function pointer
+ */
+List_index_t List_searchSorted(List *, void *, List_searchFunc, void *arb);
+void List_qsort(List *l, List_searchFunc sorter, void *ctx);
 
 static void List_cleanup_handler(void *ListPtrPtr) {
   List **l = (List **)ListPtrPtr;
@@ -170,10 +188,10 @@ using mList_t = T (**)(List *);
 
 #define mList_scoped(T) [[gnu::cleanup(List_cleanup_handler)]] mList(T)
 
-#define MLIST_INIT_HELPER(allocator, T, initLength, ...) ({ (mList(T)) List_newInitL(allocator, sizeof(T), initLength); })
+#define MLIST_INIT_HELPER(allocator, T, initLength, ...) ((mList(T))List_newInitL(allocator, sizeof(T), initLength))
 #define mList_init(allocator, T, ...) \
   MLIST_INIT_HELPER(allocator, T __VA_OPT__(, __VA_ARGS__), 2)
-
+#define mList_iType(list) typeof((*list)(NULL))
 #define mList_deInit(list)   \
   do {                       \
     List_free((List *)list); \
@@ -228,6 +246,10 @@ using mList_t = T (**)(List *);
   do {                                          \
     List_appendFromArr((List *)list, ptr, len); \
   } while (0)
+// #define mList_sort(list, sortFunc) \
+//   do {                             \
+//     static_assert();                \
+//   } while (0)
 
 #endif // MY_LIST_H
 
@@ -349,4 +371,66 @@ void *List_appendFromArr(List *l, const void *source, List_index_t ammount) {
 
 List *List_deepCopy(List *l) { return List_fromArr(l->allocator, l->head, l->width, l->length); }
 
+List_index_t List_searchSorted(List *l, void *element, List_searchFunc sf, void *ctx) {
+  List_index_t low = 0;
+  List_index_t high = List_length(l);
+
+  while (low < high) {
+    List_index_t mid = low + (high - low) / 2;
+    void *mid_val = List_getRefForce(l, mid);
+
+    if (sf(ctx, element, mid_val))
+      high = mid;
+    else
+      low = mid + 1;
+  }
+  return low;
+}
+inline void List_swap(List *l, List_index_t a, List_index_t b) {
+  void *sc = List_append(l, NULL);
+  l->length--;
+  memcpy(
+      List_getRefForce(l, l->length),
+      List_getRefForce(l, a),
+      l->width
+  );
+  memcpy(
+      List_getRefForce(l, a),
+      List_getRefForce(l, b),
+      l->width
+  );
+  memcpy(
+      List_getRefForce(l, b),
+      List_getRefForce(l, l->length),
+      l->width
+  );
+}
+inline void List_qsortRecursive(List *l, List_index_t low, List_index_t high, List_searchFunc sorter, void *ctx) {
+  if (high - low < 2)
+    return;
+
+  void *pivot = List_getRefForce(l, high - 1);
+  List_index_t split = low;
+
+  for (List_index_t j = low; j < high - 1; j++) {
+    void *curr = List_getRefForce(l, j);
+    if (sorter(ctx, curr, pivot)) {
+      List_swap(l, split, j);
+      split++;
+    }
+  }
+
+  List_swap(l, split, high - 1);
+
+  List_qsortRecursive(l, low, split, sorter, ctx);
+  List_qsortRecursive(l, split + 1, high, sorter, ctx);
+}
+
+void List_qsort(List *l, List_searchFunc sorter, void *ctx) {
+  List_qsortRecursive(l, 0, List_length(l), sorter, ctx);
+}
+
+void List_insertSorted(List *l, void *element, List_searchFunc sf, void *ctx) {
+  List_insert(l, List_searchSorted(l, element, sf, ctx), element);
+}
 #endif
