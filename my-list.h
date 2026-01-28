@@ -1,5 +1,6 @@
 #ifndef MY_LIST_H
 #define MY_LIST_H
+#include <malloc.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -152,7 +153,10 @@ extern inline void List_remove(List *l, List_index_t i);
 extern inline void List_zeroOut(List *l);
 List *List_deepCopy(List *l);
 
-typedef bool (*List_searchFunc)(void *ctx, void *, void *);
+typedef struct List_searchFunc {
+  bool (*cmp)(const void *arb, void *a, void *b);
+  const void *arb;
+} List_searchFunc;
 /**
  * insert into sorted list
  * `@param` **1** list     : list
@@ -160,15 +164,15 @@ typedef bool (*List_searchFunc)(void *ctx, void *, void *);
  * `@param` **3** search fn: list search function pointer
  */
 
-void List_insertSorted(List *, void *, List_searchFunc, void *ctx);
+void List_insertSorted(List *, void *, List_searchFunc);
 /**
  * binary search for sorted list
  * `@param` **1** list     : list
  * `@param` **2** element  : pointer to element
  * `@param` **3** search fn: list search function pointer
  */
-List_index_t List_searchSorted(List *, void *, List_searchFunc, void *arb);
-void List_qsort(List *l, List_searchFunc sorter, void *ctx);
+List_index_t List_searchSorted(List *, void *, List_searchFunc);
+void List_qsort(List *l, List_searchFunc sorter, List_index_t start, List_index_t end);
 
 static void List_cleanup_handler(void *ListPtrPtr) {
   List **l = (List **)ListPtrPtr;
@@ -380,7 +384,7 @@ void *List_appendFromArr(List *l, const void *source, List_index_t ammount) {
 
 List *List_deepCopy(List *l) { return List_fromArr(l->allocator, l->head, l->width, l->length); }
 
-List_index_t List_searchSorted(List *l, void *element, List_searchFunc sf, void *ctx) {
+List_index_t List_searchSorted(List *l, void *element, List_searchFunc sf) {
   List_index_t low = 0;
   List_index_t high = List_length(l);
 
@@ -388,58 +392,56 @@ List_index_t List_searchSorted(List *l, void *element, List_searchFunc sf, void 
     List_index_t mid = low + (high - low) / 2;
     void *mid_val = List_getRefForce(l, mid);
 
-    if (sf(ctx, element, mid_val))
+    if (sf.cmp(sf.arb, element, mid_val))
       high = mid;
     else
       low = mid + 1;
   }
   return low;
 }
-inline void List_swap(List *l, List_index_t a, List_index_t b) {
-  void *sc = List_append(l, NULL);
-  l->length--;
-  memcpy(
-      List_getRefForce(l, l->length),
-      List_getRefForce(l, a),
-      l->width
-  );
-  memcpy(
-      List_getRefForce(l, a),
-      List_getRefForce(l, b),
-      l->width
-  );
-  memcpy(
-      List_getRefForce(l, b),
-      List_getRefForce(l, l->length),
-      l->width
-  );
-}
-inline void List_qsortRecursive(List *l, List_index_t low, List_index_t high, List_searchFunc sorter, void *ctx) {
-  if (high - low < 2)
-    return;
-
-  void *pivot = List_getRefForce(l, high - 1);
-  List_index_t split = low;
-
-  for (List_index_t j = low; j < high - 1; j++) {
-    void *curr = List_getRefForce(l, j);
-    if (sorter(ctx, curr, pivot)) {
-      List_swap(l, split, j);
-      split++;
+static inline void List_swap(List *l, List_index_t a, List_index_t b) {
+  size_t width = l->width;
+  if (width % sizeof(max_align_t)) {
+    void *sc = List_append(l, NULL);
+    l->length--;
+    memcpy(sc, List_getRefForce(l, a), width);
+    memcpy(List_getRefForce(l, a), List_getRefForce(l, b), width);
+    memcpy(List_getRefForce(l, b), sc, width);
+  } else {
+    max_align_t *pa = (max_align_t *)List_getRefForce(l, a);
+    max_align_t *pb = (max_align_t *)List_getRefForce(l, b);
+    max_align_t s;
+    for (List_index_t i = 0; i < width / sizeof(max_align_t); i++) {
+      s = pa[i];
+      pa[i] = pb[i];
+      pb[i] = s;
     }
   }
-
-  List_swap(l, split, high - 1);
-
-  List_qsortRecursive(l, low, split, sorter, ctx);
-  List_qsortRecursive(l, split + 1, high, sorter, ctx);
 }
 
-void List_qsort(List *l, List_searchFunc sorter, void *ctx) {
-  List_qsortRecursive(l, 0, List_length(l), sorter, ctx);
+void List_qsort(List *l, List_searchFunc sorter, List_index_t start, List_index_t end) {
+  List_index_t i = start, j = start;
+  end = end > l->length ? l->length : end;
+  if (end < start) {
+    for (; j < end - 1; j++) {
+      if (
+          sorter.cmp(
+              sorter.arb,
+              List_getRefForce(l, j),
+              List_getRefForce(l, end - 1)
+          )
+      ) {
+        List_swap(l, i, j);
+        i++;
+      }
+    }
+    List_swap(l, i, end - 1);
+    List_qsort(l, sorter, start, i);
+    List_qsort(l, sorter, i + 1, end);
+  }
 }
 
-void List_insertSorted(List *l, void *element, List_searchFunc sf, void *ctx) {
-  List_insert(l, List_searchSorted(l, element, sf, ctx), element);
+void List_insertSorted(List *l, void *element, List_searchFunc sf) {
+  List_insert(l, List_searchSorted(l, element, sf), element);
 }
 #endif
