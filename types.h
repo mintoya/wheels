@@ -4,12 +4,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <time.h>
 #if __has_include("uchar.h")
   #include <uchar.h>
 #else
-typedef unsigned short char16_t;
-typedef unsigned int char32_t;
+typedef uint8_t char8_t;
+typedef uint16_t char16_t;
+typedef uint32_t char32_t;
 #endif
 #define _XOPEN_SOURCE 700
 
@@ -30,7 +30,7 @@ typedef int64_t i64;
 
 typedef float f32;
 typedef double f64;
-// ecactly an f64 on windows -_-
+// long double is a double on windows -_-
 typedef long double f128;
 typedef void *voidptr;
 
@@ -44,10 +44,10 @@ typedef size_t usize;
   #endif
 #endif
 
-#if defined(_MSC_VER)
+#if __has_include(<BaseTsd.h>)
   #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
-#elif defined(__linux__)
+#elif __has_include(<sys/types.h>)
   #include <sys/types.h>
 #else
 typedef ptrdiff_t ssize_t;
@@ -56,14 +56,10 @@ static_assert(sizeof(ssize_t) == sizeof(usize), "ssize and usize have to be the 
 typedef ssize_t isize;
 typedef uintptr_t uptr;
 
-#ifndef __cplusplus
+#if !defined(__cplusplus)
   #ifndef thread_local
     #define thread_local _Thread_local
   #endif
-#endif
-
-#ifndef __cplusplus
-
   #define nullable(type)     \
     struct nullable_##type { \
       bool isnull : 1;       \
