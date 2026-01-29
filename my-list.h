@@ -1,5 +1,6 @@
 #ifndef MY_LIST_H
 #define MY_LIST_H
+#include <assert.h>
 #include <malloc.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -153,9 +154,12 @@ extern inline void List_remove(List *l, List_index_t i);
 extern inline void List_zeroOut(List *l);
 List *List_deepCopy(List *l);
 
+struct List_sortArg {
+  const void *arg, *a, *b;
+};
 typedef struct List_searchFunc {
-  bool (*cmp)(const void *arb, void *a, void *b);
-  const void *arb;
+  bool (*cmp)(struct List_sortArg *);
+  const void(*arg);
 } List_searchFunc;
 /**
  * insert into sorted list
@@ -392,7 +396,12 @@ List_index_t List_searchSorted(List *l, void *element, List_searchFunc sf) {
     List_index_t mid = low + (high - low) / 2;
     void *mid_val = List_getRefForce(l, mid);
 
-    if (sf.cmp(sf.arb, element, mid_val))
+    struct List_sortArg sa = (struct List_sortArg){
+        .arg = sf.arg,
+        .a = element,
+        .b = mid_val,
+    };
+    if (sf.cmp(&sa))
       high = mid;
     else
       low = mid + 1;
@@ -422,15 +431,15 @@ static inline void List_swap(List *l, List_index_t a, List_index_t b) {
 void List_qsort(List *l, List_searchFunc sorter, List_index_t start, List_index_t end) {
   List_index_t i = start, j = start;
   end = end > l->length ? l->length : end;
-  if (end < start) {
+  struct List_sortArg sa;
+  if (end > start) {
     for (; j < end - 1; j++) {
-      if (
-          sorter.cmp(
-              sorter.arb,
-              List_getRefForce(l, j),
-              List_getRefForce(l, end - 1)
-          )
-      ) {
+      sa = (struct List_sortArg){
+          .arg = sorter.arg,
+          .a = List_getRefForce(l, j),
+          .b = List_getRefForce(l, end - 1)
+      };
+      if (sorter.cmp(&sa)) {
         List_swap(l, i, j);
         i++;
       }
