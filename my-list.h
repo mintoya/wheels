@@ -157,6 +157,11 @@ List *List_deepCopy(List *l);
 struct List_sortArg {
   const void *arg, *a, *b;
 };
+
+/*
+ * something like in->a>in->b will sort a list of integers
+ * from high to low
+ */
 typedef struct List_searchFunc {
   bool (*cmp)(struct List_sortArg *);
   const void(*arg);
@@ -167,7 +172,6 @@ typedef struct List_searchFunc {
  * `@param` **2** element  : pointer to element
  * `@param` **3** search fn: list search function pointer
  */
-
 void List_insertSorted(List *, void *, List_searchFunc);
 /**
  * binary search for sorted list
@@ -176,6 +180,7 @@ void List_insertSorted(List *, void *, List_searchFunc);
  * `@param` **3** search fn: list search function pointer
  */
 List_index_t List_searchSorted(List *, void *, List_searchFunc);
+
 void List_qsort(List *l, List_searchFunc sorter, List_index_t start, List_index_t end);
 
 static void List_cleanup_handler(void *ListPtrPtr) {
@@ -263,11 +268,20 @@ using mList_t = T (**)(List *);
   do {                                          \
     List_appendFromArr((List *)list, ptr, len); \
   } while (0)
-// #define mList_sort(list, sortFunc) \
-//   do {                             \
-//     static_assert();                \
-//   } while (0)
+#define mList_sortedSearch(list, sorterFunction, val) ({   \
+  mList_iType(list) value = val;                           \
+  List_searchSorted((List *)list, &value, sorterFunction); \
+})
+#define mList_sortedInsert(list, sorterFunction, val) ({   \
+  mList_iType(list) value = val;                           \
+  List_insertSorted((List *)list, &value, sorterFunction); \
+})
 
+#define mList_vlaType(list) ({                                              \
+  size_t _vla_len = mList_len(list);                                        \
+  typeof (*mList_arr(list))(*_vla_ptr)[_vla_len] = (void *)mList_arr(list); \
+  _vla_ptr;                                                                 \
+})
 #endif // MY_LIST_H
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
