@@ -28,5 +28,5 @@ def main [ammount:int] {
     $filec = $filec + "#endif // VARIADIC_APPLY_H\n"
     return $filec
   }
-  | save - f variadic.h
+  | save -f variadic.h
 }

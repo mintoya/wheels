@@ -1,6 +1,7 @@
 
 def main [ammount:int] {
-  let amt = ([ $ammount, 10 ] | math max) do {
+  let amt = ([ $ammount, 10 ] | math max);
+  do {
     mut $filec = "\n"
     $filec = $filec + "#ifndef GENERICS_H\n"
     $filec = $filec + "#define GENERICS_H\n"
@@ -54,5 +55,5 @@ def main [ammount:int] {
 
     return $filec
   }
-  | save - f genericName.h
+  | save -f genericName.h
 }

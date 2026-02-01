@@ -19,17 +19,8 @@ typedef struct {
 
 struct fatter_pointer {
   fptr fpart;
-  size_t capacity;
+  usize capacity;
 };
-
-typedef union {
-  struct
-  {
-    fptr fpart;
-    size_t capacity;
-  } ffptr;
-  fptr fptrp;
-} ffptr;
 
 // vptr version of dereferencing a value
 #define fptr_fromTypeDef(v) ((fptr){sizeof(typeof(v)), (u8 *)REF(typeof(v), v)})
@@ -145,7 +136,6 @@ static inline T *ref_tmp(T &&v) {
   } while (0)
 #define nullFptr ((fptr){0})
 #define nullUmf nullFptr
-#define nullFFptr ((ffptr){0})
 
 #define um_block(var)                          \
   ((fptr){                                     \

@@ -1,18 +1,26 @@
 #include "my-list.h"
 #include "print.h"
-// sorts based on distance from favorite number now
-// example use of ctx
+#include "types.h"
+#include <stdlib.h>
 
-bool(int_sortFunc)(int *f, int *a, int *b) {
-  return *a < *b;
-};
+#define STRING_LIST_C (1)
+#include "stringList.c"
+
 int main(void) {
-  mList_scoped(i32) ilist = mList_init(defaultAlloc, i32);
-  mList_pushArr(ilist, ((int[10]){1, 2, 3, 5, 1, 3, 4, 0, -100, -3}), 10);
-  List_qsort((List *)ilist, (List_searchFunc)int_sortFunc, (i32[1]){3});
-  slice(i32) intslice = (typeof(intslice)){mList_len(ilist), mList_arr(ilist)};
-  for (each_slice(intslice, int32)) {
-    println("{}", *int32);
-  }
+  stringList *sl = stringList_new(defaultAlloc, 10);
+  println("null ?== {}", stringList_get(sl, 0));
+  stringList_append(sl, fp_from("hello world "));
+  stringList_append(sl, fp_from("hello world long "));
+  stringList_append(sl, fp_from("hello "));
+  println("set {}", stringList_set(sl, 0, fp_from("hellow")));
+
+  for (int i = 0; i < mList_len(sl->ulist); i++)
+    println("{} -> {}", i, stringList_get(sl, i));
+  println("byte count: {}", sl->len);
+  println("capacity : {}", sl->cap);
+
+  stringList_free(sl);
+  return 0;
 }
+
 #include "wheels.h"

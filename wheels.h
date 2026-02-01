@@ -5,10 +5,10 @@
 #endif
 
 // TODO
-#ifdef STRING_LIST_H
-  #define STRING_LIST_C (1)
-  #include "stringList.h"
-#endif
+// #ifdef STRING_LIST_H
+//   #define STRING_LIST_C (1)
+//   #include "stringList.h"
+// #endif
 
 #ifdef VASON_PARSER_H
   #define VASON_PARSER_C (1)

@@ -16,10 +16,10 @@ typedef struct HMap HMap;
  * `@return` pointer to new HMap or NULL on failure
  */
 HMap *HMap_new(
-    usize kSize,          //< size of key type
-    usize vSize,          //< size of value type
-    AllocatorV allocator, //< allocator
-    u32 metaSize          //< number of buckets
+    u32 kSize,
+    u32 vSize,
+    AllocatorV allocator,
+    u32 metaSize
 );
 /**
  * Creates a new hash, with same keys and vals as another hash map
@@ -251,8 +251,8 @@ using mHmap_t = Tb (**)(HMap *, Ta);
 
 typedef struct HMap {
   AllocatorV allocator;
-  usize keysize;
-  usize valsize;
+  u32 keysize;
+  u32 valsize;
   usize metaSize;
   [[clang::counted_by(metaSize)]] struct {
     u32 length;
@@ -284,7 +284,7 @@ static inline umax HMap_hash(const fptr str) {
   }
   return hash;
 }
-HMap *HMap_new(usize kSize, usize vSize, AllocatorV allocator, u32 metaSize) {
+HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, u32 metaSize) {
   assertMessage(kSize && vSize && metaSize && allocator);
 
   usize totalSize =

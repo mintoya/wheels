@@ -264,24 +264,21 @@ using mList_t = T (**)(List *);
   do {                                          \
     List_forceResize((List *)(list), capacity); \
   } while (0)
-#define mList_pushArr(list, ptr, len)           \
-  do {                                          \
-    List_appendFromArr((List *)list, ptr, len); \
+#define mList_pushArr(list, vla)                                       \
+  do {                                                                 \
+    List_appendFromArr((List *)list, vla, sizeof(vla) / sizeof(*vla)); \
   } while (0)
 #define mList_sortedSearch(list, sorterFunction, val) ({   \
   mList_iType(list) value = val;                           \
   List_searchSorted((List *)list, &value, sorterFunction); \
 })
-#define mList_sortedInsert(list, sorterFunction, val) ({   \
-  mList_iType(list) value = val;                           \
-  List_insertSorted((List *)list, &value, sorterFunction); \
-})
+#define mList_sortedInsert(list, sorterFunction, val)        \
+  do {                                                       \
+    mList_iType(list) value = val;                           \
+    List_insertSorted((List *)list, &value, sorterFunction); \
+  } while (0)
 
-#define mList_vlaType(list) ({                                              \
-  size_t _vla_len = mList_len(list);                                        \
-  typeof (*mList_arr(list))(*_vla_ptr)[_vla_len] = (void *)mList_arr(list); \
-  _vla_ptr;                                                                 \
-})
+#define mList_vla(list) ((mList_iType(list)(*)[mList_len(list)])mList_arr(list))
 #endif // MY_LIST_H
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
@@ -401,6 +398,25 @@ void *List_appendFromArr(List *l, const void *source, List_index_t ammount) {
 }
 
 List *List_deepCopy(List *l) { return List_fromArr(l->allocator, l->head, l->width, l->length); }
+static inline void List_swap(List *l, List_index_t a, List_index_t b) {
+  size_t width = l->width;
+  if (width % sizeof(max_align_t)) {
+    void *sc = List_append(l, NULL);
+    l->length--;
+    memcpy(sc, List_getRefForce(l, a), width);
+    memcpy(List_getRefForce(l, a), List_getRefForce(l, b), width);
+    memcpy(List_getRefForce(l, b), sc, width);
+  } else {
+    uintmax_t *pa = (uintmax_t *)List_getRefForce(l, a);
+    uintmax_t *pb = (uintmax_t *)List_getRefForce(l, b);
+    uintmax_t s;
+    for (List_index_t i = 0; i < width / sizeof(uintmax_t); i++) {
+      s = pa[i];
+      pa[i] = pb[i];
+      pb[i] = s;
+    }
+  }
+}
 
 List_index_t List_searchSorted(List *l, void *element, List_searchFunc sf) {
   List_index_t low = 0;
@@ -421,25 +437,6 @@ List_index_t List_searchSorted(List *l, void *element, List_searchFunc sf) {
       low = mid + 1;
   }
   return low;
-}
-static inline void List_swap(List *l, List_index_t a, List_index_t b) {
-  size_t width = l->width;
-  if (width % sizeof(max_align_t)) {
-    void *sc = List_append(l, NULL);
-    l->length--;
-    memcpy(sc, List_getRefForce(l, a), width);
-    memcpy(List_getRefForce(l, a), List_getRefForce(l, b), width);
-    memcpy(List_getRefForce(l, b), sc, width);
-  } else {
-    max_align_t *pa = (max_align_t *)List_getRefForce(l, a);
-    max_align_t *pb = (max_align_t *)List_getRefForce(l, b);
-    max_align_t s;
-    for (List_index_t i = 0; i < width / sizeof(max_align_t); i++) {
-      s = pa[i];
-      pa[i] = pb[i];
-      pb[i] = s;
-    }
-  }
 }
 
 void List_qsort(List *l, List_searchFunc sorter, List_index_t start, List_index_t end) {

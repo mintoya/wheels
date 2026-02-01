@@ -294,7 +294,7 @@ struct print_arg {
     if (in.ptr) {for(usize i = 0;i<in.width;i++){
       c32 c = (c32)in.ptr[i];
       PUTC(c);
-    }} else { PUTS(U"__NULLUMF__"); }
+    }} else { PUTS(U"__NULLFPTR__"); }
   });
   REGISTER_SPECIAL_PRINTER("ptr", void*,{
     uintptr_t v = (uintptr_t)in;
@@ -537,10 +537,10 @@ void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr 
 static thread_local uchar print_f_shouldFlush = 1;
 void print_f(outputFunction put, void *arb, fptr fmt, ...);
 
-#define print_wfO(printerfn, arb, fmt, ...)                                               \
-  print_f(                                                                                \
-      printerfn, arb, fp_from("" fmt) __VA_OPT__(, APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__)), \
-      EMPTY_PRINT_ARG                                                                     \
+#define print_wfO(printerfn, arb, fmt, ...)                                                                 \
+  print_f(                                                                                                  \
+      printerfn, arb, (fptr){sizeof(fmt), (u8 *)"" fmt} __VA_OPT__(, APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__)), \
+      EMPTY_PRINT_ARG                                                                                       \
   )
 
 #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
@@ -549,15 +549,15 @@ void print_f(outputFunction put, void *arb, fptr fmt, ...);
 
 #ifdef PRINTER_LIST_TYPENAMES
 [[gnu::constructor(205)]] static void post_init() {
-  outputFunction put = defaultPrinter;
+  // outputFunction put = defaultPrinter;
   print("==============================\n"
         "printer debug\n"
         "==============================\n");
   println("list of printer type names: ");
-  for (int i = 0; i < HHMap_count(PrinterSingleton.data); i++) {
+  for (int i = 0; i < HMap_count(PrinterSingleton.data); i++) {
     fptr key = ((fptr){
-        HHMap_getKeySize(PrinterSingleton.data),
-        (u8 *)HHMap_getKey(PrinterSingleton.data, i)
+        HMap_getKeySize(PrinterSingleton.data),
+        (u8 *)HMap_getKey(PrinterSingleton.data, i)
     });
     println(" {}", key);
   }
@@ -568,11 +568,11 @@ void print_f(outputFunction put, void *arb, fptr fmt, ...);
       "collisions: {}\n"
       "keysize   : {}\n"
       "==============================\n",
-      HHMap_getMetaSize(PrinterSingleton.data),
-      HHMap_footprint(PrinterSingleton.data),
-      (usize)HHMap_count(PrinterSingleton.data),
-      (int)HHMap_countCollisions(PrinterSingleton.data),
-      (int)HHMap_getKeySize(PrinterSingleton.data)
+      HMap_getMetaSize(PrinterSingleton.data),
+      HMap_footprint(PrinterSingleton.data),
+      (usize)HMap_count(PrinterSingleton.data),
+      (int)HMap_countCollisions(PrinterSingleton.data),
+      (int)HMap_getKeySize(PrinterSingleton.data)
   );
 }
 #endif // PRINTER_LIST_TYPENAMES

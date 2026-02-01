@@ -3,12 +3,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MY_ALLOCATOR_STRICTEST
+// #define MY_ALLOCATOR_STRICTEST
 
 [[gnu::const]]
 static inline uintptr_t lineup(uintptr_t unaligned, size_t aligneder) {
-  return (unaligned / aligneder +
-          (unaligned % aligneder ? 1 : 0)) *
+  return (unaligned / aligneder + !!(unaligned % aligneder)) *
          aligneder;
 }
 
@@ -27,7 +26,7 @@ typedef struct My_allocator {
   My_allocatorFree free;
   My_allocatorRealloc ralloc;
   void *arb;                      ///< userdata
-  My_allocatorGetActualSize size; ///< optional
+  My_allocatorGetActualSize size; ///< optional, check every time
 } My_allocator;
 
 typedef struct {

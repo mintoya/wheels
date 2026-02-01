@@ -71,7 +71,12 @@ typedef uintptr_t uptr;
       usize len;          \
       type *ptr;          \
     }
-
+  #define bit_cast(TYPE, VALUE) \
+    (((union {                  \
+       typeof(VALUE) src;       \
+       TYPE dst;                \
+     }){.src = (VALUE)})        \
+         .dst)
 #else
 template <typename T>
 struct slice_t {
@@ -89,7 +94,7 @@ struct nullable_t {
 #define nullable_null(type) ((nullable(type)){.isnull = true})
 #define nullable_real(type, value) ((nullable(type)){.isnull = false, .data = (value)})
 #define slice_stat(s) \
-  {sizeof(s) / sizeof(s[0]), (typeof(s[0]) *)s}
+  {sizeof(s) / sizeof((s)[0]), (typeof(s[0]) *)(s)}
 #define each_slice(slice, e)       \
   typeof(slice.ptr) e = slice.ptr; \
   e < slice.ptr + slice.len;       \
