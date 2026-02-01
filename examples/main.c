@@ -20,6 +20,7 @@
 c8 pointstr[] = {
 #embed "../vson/capabilities.vason"
 };
+
 int main(void) {
   Arena_scoped *s = arena_new_ext(pageAllocator, 1);
   My_allocator *local = debugAllocatorInit(s);
@@ -34,7 +35,7 @@ int main(void) {
   // aFree(local, vson.objects.ptr);
   // should see one leak
 
-  print("{} leaks detected", (ssize)debugAllocatorDeInit(local));
+  print("{} leaks detected", (isize)debugAllocatorDeInit(local));
   return 0;
 }
 #include "../wheels.h"

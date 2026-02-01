@@ -186,7 +186,7 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
     }
   }
   // force strings inside delimiters ii
-  for (ssize i = t.len; i > 0; i--) {
+  for (isize i = t.len; i > 0; i--) {
     if (t.ptr[i - 1] == STR_) {
       usize j = i;
       while (j > 0 && t.ptr[j - 1] == STR_)
@@ -223,7 +223,7 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
     }
   }
   // remove spaces after strings
-  for (ssize i = t.len; i > 0; i--) {
+  for (isize i = t.len; i > 0; i--) {
     while (i > 0 && t.ptr[i - 1] == STR_ && isSkip(string.ptr[i - 1])) {
       t.ptr[i - 1] = ESCAPE;
       i--;
@@ -451,7 +451,7 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
           items.ptr[i + 2] = value;
         }
     // all others removed
-    for (ssize i = (ssize)items.len - 1; i >= 0; i--) {
+    for (isize i = (isize)items.len - 1; i >= 0; i--) {
       if (items.ptr[i] == unknown) {
         List_remove(&level, (usize)i);
       } else if (items.ptr[i] == key) {
