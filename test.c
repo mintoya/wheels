@@ -13,6 +13,7 @@ int main(void) {
   stringList_append(sl, fp_from("hello world long "));
   stringList_append(sl, fp_from("hello "));
   println("set {}", stringList_set(sl, 0, fp_from("hellow")));
+  println("set {}", stringList_insert(sl,1,fp_from("one")));
 
   for (int i = 0; i < mList_len(sl->ulist); i++)
     println("{} -> {}", i, stringList_get(sl, i));
