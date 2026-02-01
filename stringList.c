@@ -14,7 +14,6 @@ fptr stringList_get(stringList *, List_index_t);
 void stringList_remove(stringList *, List_index_t);
 fptr stringList_append(stringList *, fptr);
 fptr stringList_set(stringList *, List_index_t, fptr);
-// TODO
 void stringList_insert(stringList *, List_index_t, fptr);
 #endif
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
@@ -202,6 +201,11 @@ fptr stringList_set(stringList *sl, List_index_t idx, fptr ptr) {
     });
   }
   return res;
+}
+void stringList_insert(stringList *sl, List_index_t idx, fptr ptr) {
+  stringList_append(sl, ptr);
+  ptrdiff_t place = mList_pop(sl->ulist);
+  mList_ins(sl->ulist, idx, place);
 }
 
 #endif
