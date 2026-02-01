@@ -143,7 +143,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
   #else
     #define mHmap(Ta, Tb) typeof(typeof(Tb(**)(HMap *, Ta)))
     #define equaltypes_mHmap(T1, T2) \
-      (_Generic((typeof_unqual(T2) *)nullptr, typeof_unqual(T1) *: true, default: false))
+      (_Generic((typeof(T2) *)nullptr, typeof(T1) *: true, default: false))
   #endif
 
   #define mHmap_scoped(Ta, Tb) [[gnu::cleanup(HMap_cleanup_handler)]] mHmap(Ta, Tb)
@@ -174,7 +174,8 @@ using mHmap_t = Tb (**)(HMap *, Ta);
       static_assert(                                     \
           equaltypes_mHmap(                              \
               mHmap(typeof(_k), typeof(_v)), typeof(map) \
-          )                                              \
+          ),                                             \
+          ""                                             \
       );                                                 \
       HMap_fset(                                         \
           (HMap *)map,                                   \
@@ -187,7 +188,8 @@ using mHmap_t = Tb (**)(HMap *, Ta);
     static_assert(                                                      \
         equaltypes_mHmap(                                               \
             mHmap(typeof(keyType), typeof(valType)), typeof(map)        \
-        )                                                               \
+        ),                                                              \
+        ""                                                              \
     );                                                                  \
     const usize _meta_count = HMap_getMetaSize((HMap *)map);            \
     for (usize _i = 0; _i < _meta_count; _i++) {                        \
@@ -216,7 +218,8 @@ using mHmap_t = Tb (**)(HMap *, Ta);
           equaltypes_mHmap(                                     \
               mHmap(typeof(key), typeof((*map)(nullptr, key))), \
               typeof(map)                                       \
-          )                                                     \
+          ),                                                    \
+          ""                                                    \
       );                                                        \
       HMap_fset(                                                \
           (HMap *)map,                                          \
@@ -231,7 +234,8 @@ using mHmap_t = Tb (**)(HMap *, Ta);
           equaltypes_mHmap(                                     \
               mHmap(typeof(key), typeof((*map)(nullptr, key))), \
               typeof(map)                                       \
-          )                                                     \
+          ),                                                    \
+          ""                                                    \
       );                                                        \
       (typeof((*map)(nullptr, key)) *)                          \
           HMap_fget_ns(                                         \

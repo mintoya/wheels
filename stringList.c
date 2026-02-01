@@ -1,6 +1,3 @@
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
 #if !defined(STRING_LIST_H)
   #define STRING_LIST_H (1)
 typedef struct stringList stringList;
@@ -8,14 +5,34 @@ typedef struct stringList stringList;
   #include "my-list.h"
   #include <stddef.h>
   #include <stdint.h>
+  #include <string.h>
+
+typedef struct vlength {
+  u8 hasNext : 1;
+  u8 data : 7;
+} vlength;
+  #define vlen_stat(stringLiteral) ({                 \
+    static struct [[gnu::packed]] {                   \
+      typeof(u64_toVLen(0)) len;                      \
+      typeof(stringLiteral) str;                      \
+    } res;                                            \
+    res = (typeof(res)){                              \
+        .len = u64_toVLen(sizeof(stringLiteral) - 1), \
+        .str = stringLiteral,                         \
+    };                                                \
+    (vlqbuf) & res;                                   \
+  })
+fptr vlqbuf_toFptr(vlength *b);
+
 stringList *stringList_new(AllocatorV allocator, usize initSize);
 void stringList_free(stringList *sl);
-fptr stringList_get(stringList *, List_index_t);
+fptr stringList_get(const stringList *, List_index_t);
 void stringList_remove(stringList *, List_index_t);
 fptr stringList_append(stringList *, fptr);
 fptr stringList_set(stringList *, List_index_t, fptr);
-// TODO
-void stringList_insert(stringList *, List_index_t, fptr);
+fptr stringList_insert(stringList *, List_index_t, fptr);
+stringList *stringList_copy(const stringList *);
+usize stringList_footprint(const stringList *);
 #endif
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
   #define STRING_LIST_C (1)
@@ -23,12 +40,27 @@ void stringList_insert(stringList *, List_index_t, fptr);
 
 #if defined(STRING_LIST_C)
 
+u64 vlen_toU64(vlength *);
+fptr vlqbuf_toFptr(vlength *b) {
+  return (fptr){
+      .width = vlen_toU64(b),
+      .ptr = ({
+        for (; b->hasNext; b++)
+          ;
+        (u8 *)(b + 1);
+      })
+  };
+}
+
   #include "my-list.h"
   #include "types.h"
-typedef struct vlength {
-  u8 hasNext : 1;
-  u8 data : 7;
-} vlength;
+  #if !defined(_countof)
+    #if __has_builtin(_Countof)
+      #define _countof _Countof
+    #else
+      #define _countof(array) (sizeof(array) / sizeof(array[0]))
+    #endif
+  #endif
 static_assert(sizeof(vlength) == sizeof(u8), "vlength warning");
 [[gnu::const]] u8 vl_u8(vlength vl) { return bit_cast(u8, vl); }
 struct {
@@ -48,27 +80,6 @@ u64 vlen_toU64(struct vlength *vlen) {
     res = (res << 7) | (vlen->data);
   } while (vlen++->hasNext);
   return res;
-}
-  #define vlen_stat(stringLiteral) ({                 \
-    static struct [[gnu::packed]] {                   \
-      typeof(u64_toVLen(0)) len;                      \
-      typeof(stringLiteral) str;                      \
-    } res;                                            \
-    res = (typeof(res)){                              \
-        .len = u64_toVLen(sizeof(stringLiteral) - 1), \
-        .str = stringLiteral,                         \
-    };                                                \
-    (vlqbuf) & res;                                   \
-  })
-fptr vlqbuf_toFptr(vlength *b) {
-  return (fptr){
-      .width = vlen_toU64(b),
-      .ptr = ({
-        for (; b->hasNext; b++)
-          ;
-        (u8 *)(b + 1);
-      })
-  };
 }
 typedef struct stringList {
   mList(ptrdiff_t) ulist; ///< use-list not sorted,
@@ -111,7 +122,7 @@ bool freeList_searchFunc(struct List_sortArg *s) {
 
   return alen > blen;
 }
-extern inline AllocatorV stringList_allocator(stringList *sl) {
+extern inline AllocatorV stringList_allocator(const stringList *sl) {
   return ((List *)sl->flist)->allocator;
 }
   #include "assertMessage.h"
@@ -128,7 +139,7 @@ fptr stringList_append(stringList *sl, fptr ptr) {
   memcpy(sl->ptr + sl->len, vl, width_length);
   ptrdiff_t potentialFree = mList_sortedSearch(
       sl->flist,
-      ((List_searchFunc){freeList_searchFunc, sl}),
+      ((List_sortFunc){freeList_searchFunc, sl}),
       sl->len
   );
   if (potentialFree) {
@@ -155,20 +166,19 @@ fptr stringList_append(stringList *sl, fptr ptr) {
   mList_push(sl->ulist, place);
   memcpy(sl->ptr + place, vl, width_length);
   memcpy(sl->ptr + place + width_length, ptr.ptr, ptr.width);
-  return ((fptr){
+  return (fptr){
       .width = ptr.width,
-      .ptr =
-          (u8 *)sl->ptr + place + width_length,
-  });
+      .ptr = (u8 *)sl->ptr + place + width_length,
+  };
 }
-fptr stringList_get(stringList *sl, List_index_t idx) {
+fptr stringList_get(const stringList *sl, List_index_t idx) {
   ptrdiff_t *place = mList_get(sl->ulist, idx);
   return place ? vlqbuf_toFptr(sl->ptr + *place) : nullFptr;
 }
 void stringList_remove(stringList *sl, List_index_t idx) {
   mList_sortedInsert(
       sl->flist,
-      ((List_searchFunc){freeList_searchFunc, sl}),
+      ((List_sortFunc){freeList_searchFunc, sl}),
       *mList_get(sl->ulist, idx)
   );
   mList_rem(sl->ulist, idx);
@@ -184,7 +194,7 @@ fptr stringList_set(stringList *sl, List_index_t idx, fptr ptr) {
     ptrdiff_t nextPlace = mList_pop(sl->ulist);
 
     ptrdiff_t last = *mList_get(sl->ulist, idx);
-    mList_sortedInsert(sl->flist, ((List_searchFunc){freeList_searchFunc, sl}), last);
+    mList_sortedInsert(sl->flist, ((List_sortFunc){freeList_searchFunc, sl}), last);
 
     mList_set(sl->ulist, idx, nextPlace);
   } else {
@@ -201,6 +211,27 @@ fptr stringList_set(stringList *sl, List_index_t idx, fptr ptr) {
             (u8 *)sl->ptr + *lastLen + width_length,
     });
   }
+  return res;
+}
+fptr stringList_insert(stringList *sl, List_index_t idx, fptr ptr) {
+  assertMessage(idx <= mList_len(sl->ulist));
+  fptr res = stringList_append(sl, ptr);
+  mList_ins(sl->ulist, idx, mList_pop(sl->ulist));
+  return res;
+}
+stringList *stringList_copy(const stringList *sl) {
+  stringList *res = stringList_new(stringList_allocator(sl), 10);
+  for (List_index_t i = 0; i < mList_len(sl->ulist); i++)
+    stringList_append(res, stringList_get(sl, i));
+  return res;
+}
+
+usize stringList_footprint(const stringList *sl) {
+  usize res = 0;
+  res += sizeof(List) * 2;
+  res += List_headArea((List *)sl->flist);
+  res += List_headArea((List *)sl->ulist);
+  res += sl->len;
   return res;
 }
 

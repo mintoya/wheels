@@ -162,26 +162,26 @@ struct List_sortArg {
  * something like in->a>in->b will sort a list of integers
  * from high to low
  */
-typedef struct List_searchFunc {
+typedef struct List_sortFunc {
   bool (*cmp)(struct List_sortArg *);
   const void(*arg);
-} List_searchFunc;
+} List_sortFunc;
 /**
  * insert into sorted list
  * `@param` **1** list     : list
  * `@param` **2** element  : pointer to element
  * `@param` **3** search fn: list search function pointer
  */
-void List_insertSorted(List *, void *, List_searchFunc);
+void List_insertSorted(List *, void *, List_sortFunc);
 /**
  * binary search for sorted list
  * `@param` **1** list     : list
  * `@param` **2** element  : pointer to element
  * `@param` **3** search fn: list search function pointer
  */
-List_index_t List_searchSorted(List *, void *, List_searchFunc);
+List_index_t List_searchSorted(List *, void *, List_sortFunc);
 
-void List_qsort(List *l, List_searchFunc sorter, List_index_t start, List_index_t end);
+void List_qsort(List *, List_sortFunc);
 
 static void List_cleanup_handler(void *ListPtrPtr) {
   List **l = (List **)ListPtrPtr;
@@ -330,7 +330,7 @@ inline List_index_t List_locate(const List *l, const void *element) {
   }
   return i;
 }
-inline void List_remove(List *l, List_index_t i) {
+extern inline void List_remove(List *l, List_index_t i) {
   if (i >= l->length)
     return;
   memmove(l->head + i * l->width, l->head + (i + 1) * l->width, (l->length - i - 1) * l->width);
@@ -401,8 +401,7 @@ List *List_deepCopy(List *l) { return List_fromArr(l->allocator, l->head, l->wid
 static inline void List_swap(List *l, List_index_t a, List_index_t b) {
   size_t width = l->width;
   if (width % sizeof(max_align_t)) {
-    void *sc = List_append(l, NULL);
-    l->length--;
+    uint8_t sc[l->width];
     memcpy(sc, List_getRefForce(l, a), width);
     memcpy(List_getRefForce(l, a), List_getRefForce(l, b), width);
     memcpy(List_getRefForce(l, b), sc, width);
@@ -418,7 +417,7 @@ static inline void List_swap(List *l, List_index_t a, List_index_t b) {
   }
 }
 
-List_index_t List_searchSorted(List *l, void *element, List_searchFunc sf) {
+List_index_t List_searchSorted(List *l, void *element, List_sortFunc sf) {
   List_index_t low = 0;
   List_index_t high = List_length(l);
 
@@ -439,9 +438,8 @@ List_index_t List_searchSorted(List *l, void *element, List_searchFunc sf) {
   return low;
 }
 
-void List_qsort(List *l, List_searchFunc sorter, List_index_t start, List_index_t end) {
+void List_qsort_bounds(List *l, List_sortFunc sorter, List_index_t start, List_index_t end) {
   List_index_t i = start, j = start;
-  end = end > l->length ? l->length : end;
   struct List_sortArg sa;
   if (end > start) {
     for (; j < end - 1; j++) {
@@ -456,12 +454,16 @@ void List_qsort(List *l, List_searchFunc sorter, List_index_t start, List_index_
       }
     }
     List_swap(l, i, end - 1);
-    List_qsort(l, sorter, start, i);
-    List_qsort(l, sorter, i + 1, end);
+    List_qsort_bounds(l, sorter, start, i);
+    List_qsort_bounds(l, sorter, i + 1, end);
   }
 }
 
-void List_insertSorted(List *l, void *element, List_searchFunc sf) {
+void List_qsort(List *l, List_sortFunc sorterd) {
+  List_qsort_bounds(l, sorterd, 0, l->length);
+}
+
+void List_insertSorted(List *l, void *element, List_sortFunc sf) {
   List_insert(l, List_searchSorted(l, element, sf), element);
 }
 #endif
