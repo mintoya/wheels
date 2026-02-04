@@ -162,26 +162,26 @@ struct List_sortArg {
  * something like in->a>in->b will sort a list of integers
  * from high to low
  */
-typedef struct List_sortFunc {
+typedef struct List_searchFunc {
   bool (*cmp)(struct List_sortArg *);
   const void(*arg);
-} List_sortFunc;
+} List_searchFunc;
 /**
  * insert into sorted list
  * `@param` **1** list     : list
  * `@param` **2** element  : pointer to element
  * `@param` **3** search fn: list search function pointer
  */
-void List_insertSorted(List *, void *, List_sortFunc);
+void List_insertSorted(List *, void *, List_searchFunc);
 /**
  * binary search for sorted list
  * `@param` **1** list     : list
  * `@param` **2** element  : pointer to element
  * `@param` **3** search fn: list search function pointer
  */
-List_index_t List_searchSorted(List *, void *, List_sortFunc);
+List_index_t List_searchSorted(List *, void *, List_searchFunc);
 
-void List_qsort(List *, List_sortFunc);
+void List_qsort(List *, List_searchFunc);
 
 static void List_cleanup_handler(void *ListPtrPtr) {
   List **l = (List **)ListPtrPtr;
@@ -417,7 +417,7 @@ static inline void List_swap(List *l, List_index_t a, List_index_t b) {
   }
 }
 
-List_index_t List_searchSorted(List *l, void *element, List_sortFunc sf) {
+List_index_t List_searchSorted(List *l, void *element, List_searchFunc sf) {
   List_index_t low = 0;
   List_index_t high = List_length(l);
 
@@ -438,7 +438,7 @@ List_index_t List_searchSorted(List *l, void *element, List_sortFunc sf) {
   return low;
 }
 
-void List_qsort_bounds(List *l, List_sortFunc sorter, List_index_t start, List_index_t end) {
+void List_qsort_bounds(List *l, List_searchFunc sorter, List_index_t start, List_index_t end) {
   List_index_t i = start, j = start;
   struct List_sortArg sa;
   if (end > start) {
@@ -459,11 +459,11 @@ void List_qsort_bounds(List *l, List_sortFunc sorter, List_index_t start, List_i
   }
 }
 
-void List_qsort(List *l, List_sortFunc sorterd) {
+void List_qsort(List *l, List_searchFunc sorterd) {
   List_qsort_bounds(l, sorterd, 0, l->length);
 }
 
-void List_insertSorted(List *l, void *element, List_sortFunc sf) {
+void List_insertSorted(List *l, void *element, List_searchFunc sf) {
   List_insert(l, List_searchSorted(l, element, sf), element);
 }
 #endif

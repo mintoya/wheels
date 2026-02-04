@@ -61,7 +61,7 @@ char **backtrace_symbols(void *array[], size_t size);
       } while (0)
   #else
     #include <assert.h>
-    #define assertMessage(bool, fmstr, ...) assert(bool)
+    #define assertMessage(bool,...) assert(bool)
   #endif
 #else
   #define assertMessage(...)

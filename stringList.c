@@ -145,11 +145,10 @@ fptr stringList_append(stringList *sl, fptr ptr) {
           );
     }
     sl->len += width_length + ptr.width;
-    if (allocator->size) {
+    if (allocator->size)
       sl->cap = allocator->size(allocator, sl->ptr);
-    } else {
+    else
       sl->cap = sl->len + width_length + ptr.width;
-    }
   }
   mList_push(sl->ulist, place);
   memcpy(sl->ptr + place, vl, width_length);

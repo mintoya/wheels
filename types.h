@@ -38,6 +38,7 @@ typedef uintmax_t umax;
 typedef intmax_t imax;
 typedef size_t usize;
 #if !defined(__cplusplus)
+  #define bitcast(to, from) ((typeof(union {typeof(to)a;typeof(from)b; })){.b = from}.a)
   #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
   #else
     #define nullptr ((void *)0)
@@ -71,12 +72,6 @@ typedef uintptr_t uptr;
       usize len;          \
       type *ptr;          \
     }
-  #define bit_cast(TYPE, VALUE) \
-    (((union {                  \
-       typeof(VALUE) src;       \
-       TYPE dst;                \
-     }){.src = (VALUE)})        \
-         .dst)
 #else
 template <typename T>
 struct slice_t {
