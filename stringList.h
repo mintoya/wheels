@@ -1,9 +1,25 @@
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
 #if !defined(STRING_LIST_H)
   #define STRING_LIST_H (1)
-typedef struct stringList stringList;
+  #include "my-list.h"
+  #include "types.h"
+  #include <stddef.h>
+  #include <string.h>
+typedef struct vlength {
+  u8 hasNext : 1;
+  u8 data : 7;
+} vlength;
+
+  #include "fptr.h"
+fptr vlqbuf_toFptr(vlength *b);
+typedef struct stringList {
+  mList(ptrdiff_t) ulist; ///< use-list not sorted,
+                          /// but sorting this is fine
+  mList(ptrdiff_t) flist; ///< free-list
+                          /// sorted, dont move anything
+  usize len;
+  usize cap;
+  vlength *ptr;
+} stringList;
   #include "fptr.h"
   #include "my-list.h"
   #include <stddef.h>
@@ -24,18 +40,14 @@ fptr stringList_insert(stringList *, List_index_t, fptr);
 
   #include "my-list.h"
   #include "types.h"
-typedef struct vlength {
-  u8 hasNext : 1;
-  u8 data : 7;
-} vlength;
 static_assert(sizeof(vlength) == sizeof(u8), "vlength warning");
-[[gnu::const]] u8 vl_u8(vlength vl) { return bit_cast(u8, vl); }
+[[gnu::const]] u8 vl_u8(vlength vl) { return bitcast(u8, vl); }
 struct {
   vlength _[sizeof(u64) * 8 / 7 + 1];
 } u64_toVlen(u64 len) {
   typeof(u64_toVlen(0)) res = {0};
-  for (int i = _countof(res._); i > 0; i--)
-    res._[_countof(res._) - i] = (typeof(*res._)){
+  for (int i = countof(res._); i > 0; i--)
+    res._[countof(res._) - i] = (typeof(*res._)){
         .data = (len >> ((i - 1) * 7)) & 0x7f,
         .hasNext = !!(i - 1),
     };
@@ -69,15 +81,6 @@ fptr vlqbuf_toFptr(vlength *b) {
       })
   };
 }
-typedef struct stringList {
-  mList(ptrdiff_t) ulist; ///< use-list not sorted,
-                          /// but sorting this is fine
-  mList(ptrdiff_t) flist; ///< free-list
-                          /// sorted, dont move anything
-  usize len;
-  usize cap;
-  vlength *ptr;
-} stringList;
 stringList *stringList_new(AllocatorV allocator, usize initSize) {
   stringList *res = aCreate(allocator, stringList);
   *res = (typeof(*res)){
@@ -118,7 +121,7 @@ fptr stringList_append(stringList *sl, fptr ptr) {
   typeof(u64_toVlen(0)) vl_ = u64_toVlen(ptr.width);
   ptrdiff_t place = 0;
   vlength *vl = vl_._;
-  usize width_length = _countof(vl_._);
+  usize width_length = countof(vl_._);
   for (; vl_u8(*vl) == vl_u8((vlength){.hasNext = 1, .data = 0}); vl++)
     width_length--;
 
@@ -136,12 +139,12 @@ fptr stringList_append(stringList *sl, fptr ptr) {
   } else {
     place = sl->len;
     AllocatorV allocator = stringList_allocator(sl);
-    if (sl->len + _countof(vl_._) + ptr.width > sl->cap) {
+    if (sl->len + countof(vl_._) + ptr.width > sl->cap) {
       sl->ptr =
           aRealloc(
               allocator,
               sl->ptr,
-              sl->len + _countof(vl_._) + ptr.width + sizeof(u64_toVlen(0))
+              sl->len + countof(vl_._) + ptr.width + sizeof(u64_toVlen(0))
           );
     }
     sl->len += width_length + ptr.width;
@@ -188,7 +191,7 @@ fptr stringList_set(stringList *sl, List_index_t idx, fptr ptr) {
   } else {
     typeof(u64_toVlen(0)) newlen = u64_toVlen(ptr.width);
     vlength *vl_new = newlen._;
-    usize width_length = _countof(newlen._);
+    usize width_length = countof(newlen._);
     for (; vl_u8(*vl_new) == vl_u8((vlength){.hasNext = 1, .data = 0}); vl_new++)
       width_length--;
     memcpy(sl->ptr + *lastLen, vl_new, width_length);

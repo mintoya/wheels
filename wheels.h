@@ -4,11 +4,10 @@
   #include "print.h"
 #endif
 
-// TODO
-// #ifdef STRING_LIST_H
-//   #define STRING_LIST_C (1)
-//   #include "stringList.h"
-// #endif
+#ifdef STRING_LIST_H
+  #define STRING_LIST_C (1)
+  #include "stringList.h"
+#endif
 
 #ifdef VASON_PARSER_H
   #define VASON_PARSER_C (1)
@@ -18,6 +17,11 @@
 #ifdef MY_DEBUG_ALLOCATOR_H
   #define MY_DEBUG_ALLOCATOR_C (1)
   #include "debugallocator.h"
+#endif
+
+#ifdef OMAP_H
+  #define OMAP_C (1)
+  #include "omap.h"
 #endif
 
 #ifdef HMAP_H
