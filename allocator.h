@@ -47,8 +47,7 @@ void aFree(AllocatorV allocator, void *oldptr);
 #define aCreate(allocator, type, ...) \
   aCreateHelper(allocator, type __VA_OPT__(, __VA_ARGS__), 1)
 
-AllocatorV getDefaultAllocator(void);
-#define defaultAlloc (getDefaultAllocator())
+extern AllocatorV defaultAlloc;
 
 #endif // MY_ALLOCATOR_H
 
@@ -104,20 +103,16 @@ usize default_size(AllocatorV allocator, void *ptr) {
   return getSize(ptr);
 }
 #endif // DEFAULT_SIZE_GETTER
-AllocatorV getDefaultAllocator(void) {
-  static const My_allocator defaultAllocator = (My_allocator){
-      default_alloc,
-      default_free,
-      default_r_alloc,
-      nullptr,
+static const My_allocator stdAllocator = {
+    default_alloc,
+    default_free,
+    default_r_alloc,
+    nullptr,
 #ifdef DEFAULT_SIZE_GETTER
-      default_size
+    default_size
 #else
-      nullptr
+    nullptr
 #endif
-  };
-  // printf("default allocator: %p\n", &defaultAllocator);
-  return &defaultAllocator;
-}
-
+};
+extern AllocatorV defaultAlloc = &stdAllocator;
 #endif

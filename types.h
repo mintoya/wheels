@@ -97,6 +97,8 @@ struct nullable_t {
 #define nullable_fromPtr(type, ptr) ({type *p = ptr; nullable(type) r; r.isnull = p == NULL; if (!r.isnull) r.data = *p; r; })
 #if !__has_include(<stdcountof.h>)
   #define countof(array) (sizeof(array) / sizeof(*array))
+#else
+  #include <stdcountof.h>
 #endif
 
 #endif // MY_TYPES

@@ -23,7 +23,7 @@ static void arena_cleanup_handler(My_allocator **arenaPtr) {
 }
 My_allocator *ownArenaInit(void);
 void ownArenaDeInit(My_allocator *);
-OwnAllocator arena_owned = {ownArenaInit, ownArenaDeInit};
+static OwnAllocator arena_owned = {ownArenaInit, ownArenaDeInit};
 extern AllocatorV pageAllocator;
 
   #define Arena_scoped [[gnu::cleanup(arena_cleanup_handler)]] My_allocator

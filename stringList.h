@@ -31,6 +31,7 @@ void stringList_remove(stringList *, List_index_t);
 fptr stringList_append(stringList *, fptr);
 fptr stringList_set(stringList *, List_index_t, fptr);
 fptr stringList_insert(stringList *, List_index_t, fptr);
+extern inline AllocatorV stringList_allocator(stringList *);
 #endif
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
   #define STRING_LIST_C (1)
