@@ -58,8 +58,8 @@ static void fileprint(
     unsigned int length,
     bool flush
 ) {
-  constexpr usize BUF_ELEMENTS = (2 << 8);
-  constexpr usize MAX_UTF8_BYTES = 4;
+#define BUF_ELEMENTS (2 << 8)
+#define MAX_UTF8_BYTES 4
   FILE *file = (FILE *)fileHandle;
 
   static thread_local struct {
@@ -121,7 +121,7 @@ static void PrinterSingleton_init() {
   PrinterSingleton.data = HMap_new(
       sizeof(printerFunction),
       sizeof(printerFunction),
-      defaultAlloc, 10
+      defaultAlloc, 1
   );
 }
 static void PrinterSingleton_append(fptr name, printerFunction function) {
@@ -369,11 +369,15 @@ struct print_arg {
       USETYPEPRINTER(usize, (usize)in);
   });
   REGISTER_PRINTER(int, {
-    if (in < 0) {
-      PUTC(L'-');
-      in = -in;
-    }
-    USETYPEPRINTER(uint, (uint)in);
+    if (in < 0) { PUTC(L'-'); in = -in; }
+    USETYPEPRINTER(usize, (usize)in);
+  });
+  REGISTER_PRINTER(u32, {
+      USETYPEPRINTER(usize, (usize)in);
+  });
+  REGISTER_PRINTER(i32, {
+    if (in < 0) { PUTC(L'-'); in = -in; }
+    USETYPEPRINTER(usize, (usize)in);
   });
 
   REGISTER_SPECIAL_PRINTER("fptr<char>",fptr, {
@@ -484,8 +488,6 @@ struct print_arg {
 
   #include "printer/genericName.h"
   #define MAKE_PRINT_ARG_TYPE(type) MAKE_NEW_TYPE(type)
-  MAKE_PRINT_ARG_TYPE(int);
-  #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(fptr);
   #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(isize);
@@ -494,11 +496,13 @@ struct print_arg {
   #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(f128);
   #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(c8);
-  #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(uint);
-  #include "printer/genericName.h"
   MAKE_PRINT_ARG_TYPE(pEsc);
+#if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
+  #include "printer/genericName.h"
+  MAKE_PRINT_ARG_TYPE(i32);
+  #include "printer/genericName.h"
+  MAKE_PRINT_ARG_TYPE(u32);
+#endif
    
   #define MAKE_PRINT_ARG(a)               \
     ((struct print_arg){                  \
