@@ -521,6 +521,7 @@ struct print_arg {
   MAKE_PRINT_ARG_TYPE(int);
   MAKE_PRINT_ARG_TYPE(fptr);
   MAKE_PRINT_ARG_TYPE(usize);
+  MAKE_PRINT_ARG_TYPE(isize);
   MAKE_PRINT_ARG_TYPE(f64);
   MAKE_PRINT_ARG_TYPE(char);
   MAKE_PRINT_ARG_TYPE(uint);

@@ -379,10 +379,10 @@ void HMap_transform(HMap **last, usize kSize, usize vSize, AllocatorV allocator,
 
   *last = newMap;
 }
-[[gnu::always_inline]] void *LesserList_getref(usize elw, const HMap_LesserList *hll, u32 idx) {
+[[gnu::always_inline]] static void *LesserList_getref(usize elw, const HMap_LesserList *hll, u32 idx) {
   return (u8 *)(hll->ptr) + idx * (elw);
 }
-[[gnu::always_inline]] void LesserList_appendGarbage(usize elw, HMap_LesserList *hll, AllocatorV allocator) {
+[[gnu::always_inline]] static void LesserList_appendGarbage(usize elw, HMap_LesserList *hll, AllocatorV allocator) {
   if (!hll->capacity) {
     hll->ptr = aAlloc(allocator, elw);
     if (allocator->size)

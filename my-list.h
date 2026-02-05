@@ -172,12 +172,14 @@ typedef struct List_searchFunc {
  * `@param` **2** element  : pointer to element
  * `@param` **3** search fn: list search function pointer
  */
-void List_insertSorted(List *, void *, List_searchFunc);
+List_index_t List_insertSorted(List *, void *, List_searchFunc);
 /**
  * binary search for sorted list
+ *  element will be passed as 'a' in the sortArg
  * `@param` **1** list     : list
  * `@param` **2** element  : pointer to element
  * `@param` **3** search fn: list search function pointer
+ *
  */
 List_index_t List_searchSorted(List *, void *, List_searchFunc);
 
@@ -273,10 +275,10 @@ using mList_t = T (**)(List *);
   List_searchSorted((List *)list, &value, sorterFunction); \
 })
 #define mList_sortedInsert(list, sorterFunction, val)        \
-  do {                                                       \
+  ({                                                         \
     mList_iType(list) value = val;                           \
     List_insertSorted((List *)list, &value, sorterFunction); \
-  } while (0)
+  })
 
 #define mList_vla(list) ((mList_iType(list)(*)[mList_len(list)])mList_arr(list))
 #endif // MY_LIST_H
@@ -463,7 +465,9 @@ void List_qsort(List *l, List_searchFunc sorterd) {
   List_qsort_bounds(l, sorterd, 0, l->length);
 }
 
-void List_insertSorted(List *l, void *element, List_searchFunc sf) {
-  List_insert(l, List_searchSorted(l, element, sf), element);
+List_index_t List_insertSorted(List *l, void *element, List_searchFunc sf) {
+  List_index_t res = List_searchSorted(l, element, sf);
+  List_insert(l, res, element);
+  return res;
 }
 #endif

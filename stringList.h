@@ -31,6 +31,7 @@ void stringList_remove(stringList *, List_index_t);
 fptr stringList_append(stringList *, fptr);
 fptr stringList_set(stringList *, List_index_t, fptr);
 fptr stringList_insert(stringList *, List_index_t, fptr);
+usize stringList_footprint(stringList *);
 extern inline AllocatorV stringList_allocator(stringList *);
 #endif
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
@@ -211,5 +212,8 @@ fptr stringList_insert(stringList *sl, List_index_t idx, fptr ptr) {
   mList_ins(sl->ulist, idx, place);
   return res;
 }
-
+usize stringList_footprint(stringList *sl) {
+  return sl->len + List_headArea((List *)sl->ulist) +
+         List_headArea((List *)sl->flist);
+}
 #endif
