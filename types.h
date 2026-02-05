@@ -37,12 +37,15 @@ typedef void *voidptr;
 typedef uintmax_t umax;
 typedef intmax_t imax;
 typedef size_t usize;
+
 #if !defined(__cplusplus)
-  #define bitcast(to, from) ((typeof(union {typeof(to)a;typeof(from)b; })){.b = from}.a)
   #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
   #else
     #define nullptr ((void *)0)
   #endif
+  #define bitcast(to, from) ((typeof(union {typeof(to)a;typeof(from)b; })){.b = from}.a)
+#else
+  #define bitcast(to, from) (std::bit_cast<to>(from))
 #endif
 
 #if __has_include(<BaseTsd.h>)
