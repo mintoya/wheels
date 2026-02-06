@@ -52,6 +52,19 @@ extern inline void *sList_set(sList_header *l, usize width, usize index, void *e
   sList_set(l, width, l->length - 1, element);
   return l;
 }
+[[nodiscard]] extern inline sList_header *sList_appendFromArr(AllocatorV allocator, sList_header *l, usize width, void *source, usize ammount) {
+  if (!ammount)
+    return NULL;
+  if (l->capacity < l->length + ammount)
+    l = sList_realloc(allocator, l, width, l->length + ammount);
+  uint8_t *dest = l->buf + l->length * width;
+  if (source)
+    memcpy(dest, source, ammount * width);
+  else
+    memset(dest, 0, ammount * width);
+  l->length += ammount;
+  return l;
+}
 extern inline void sList_remove(sList_header *l, usize width, usize i) {
   if (i >= l->length)
     return;
@@ -93,6 +106,10 @@ extern inline void sList_remove(sList_header *l, usize width, usize i) {
     do {                                                                                \
       typeof(*s) _val = val;                                                            \
       s = (typeof(s))sList_append(allocator, msList_header(s), sizeof(*s), &_val)->buf; \
+    } while (0)
+  #define msList_pushArr(allocator, s, vla)                                                                  \
+    do {                                                                                                     \
+      s = (typeof(s))sList_appendFromArr(allocator, msList_header(s), sizeof(*s), *vla, countof(*vla))->buf; \
     } while (0)
   #define msList_len(s) (msList_header(s)->length)
   #define msList_cap(s) (msList_header(s)->capacity)

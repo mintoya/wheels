@@ -12,13 +12,12 @@ typedef struct vlength {
   #include "fptr.h"
 fptr vlqbuf_toFptr(vlength *b);
 typedef struct stringList {
-  mList(ptrdiff_t) ulist; ///< use-list not sorted,
-                          /// but sorting this is fine
-  ptrdiff_t *flist;       ///< free-list
-                          /// sorted, dont move anything
-  usize len;
-  usize cap;
-  vlength *ptr;
+  ptrdiff_t *ulist; ///< use-list
+                    /// not sorted,
+  ptrdiff_t *flist; ///< free-list
+                    /// sorted
+  vlength *buff;
+  AllocatorV allocator;
 } stringList;
   #include "fptr.h"
   #include "my-list.h"
@@ -31,8 +30,8 @@ void stringList_remove(stringList *, List_index_t);
 fptr stringList_append(stringList *, fptr);
 fptr stringList_set(stringList *, List_index_t, fptr);
 fptr stringList_insert(stringList *, List_index_t, fptr);
+List_index_t stringList_len(stringList *);
 usize stringList_footprint(stringList *);
-extern inline AllocatorV stringList_allocator(stringList *);
 #endif
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
   #define STRING_LIST_C (1)
@@ -87,43 +86,39 @@ fptr vlqbuf_toFptr(vlength *b) {
 stringList *stringList_new(AllocatorV allocator, usize initSize) {
   stringList *res = aCreate(allocator, stringList);
   *res = (typeof(*res)){
-      .ulist = mList_init(allocator, ptrdiff_t),
+      .ulist = msList_init(allocator, ptrdiff_t),
       .flist = msList_init(allocator, ptrdiff_t),
-      .len = 0,
-      .ptr = (vlength *)aAlloc(allocator, initSize + sizeof(u64_toVlen(0))),
+      .buff = msList_init(allocator, vlength),
+      .allocator = allocator,
   };
-  if (allocator->size)
-    res->cap = allocator->size(allocator, res->ptr);
-  else
-    res->cap = initSize;
   return res;
 }
 void stringList_free(stringList *sl) {
-  AllocatorV allocator = ((List *)(sl->ulist))->allocator;
+  AllocatorV allocator = sl->allocator;
   msList_deInit(allocator, sl->flist);
-  mList_deInit(sl->ulist);
-  aFree(allocator, sl->ptr);
+  msList_deInit(sl->allocator, sl->ulist);
+  aFree(allocator, sl->buff);
   aFree(allocator, sl);
 }
-// will cause freelist to be sorted from high to low
-List_index_t freeList_sorter(stringList *sl, usize size, ptrdiff_t *freelist) {
+struct flsr {
+  List_index_t i;
+  bool f;
+};
+struct flsr freeList_sorter(stringList *sl, usize size, ptrdiff_t *freelist) {
   List_index_t b = 0;
   List_index_t t = msList_len(freelist);
   while (b < t) {
     List_index_t m = (b + t) / 2;
-    i64 blen = vlen_toU64((vlength *)(sl->ptr + freelist[m]));
+    i64 blen = vlen_toU64((vlength *)(sl->buff + freelist[m]));
     int r = (i64)size - (i64)blen;
     if (!r)
-      return m;
+      return (struct flsr){.i = m, .f = 1};
     else if (r > 0)
       t = m;
     else
       b = m + 1;
   }
-  return b;
-}
-extern inline AllocatorV stringList_allocator(stringList *sl) {
-  return ((List *)sl->ulist)->allocator;
+  return (struct flsr){.i = b, .f = 0};
 }
   #include "assertMessage.h"
 fptr stringList_append(stringList *sl, fptr ptr) {
@@ -134,91 +129,81 @@ fptr stringList_append(stringList *sl, fptr ptr) {
   for (; vl_u8(*vl) == vl_u8((vlength){.hasNext = 1, .data = 0}); vl++)
     width_length--;
 
-  List_index_t potentialFree = freeList_sorter(sl, ptr.width, sl->flist);
-  if (potentialFree) {
-    place = sl->flist[potentialFree - 1];
-    msList_rem(sl->flist, potentialFree - 1);
+  struct flsr potentialFree = freeList_sorter(sl, ptr.width, sl->flist);
+  if (potentialFree.f) {
+    place = sl->flist[potentialFree.i - 1];
+    msList_rem(sl->flist, potentialFree.i - 1);
   } else {
-    place = sl->len;
-    AllocatorV allocator = stringList_allocator(sl);
-    if (sl->len + countof(vl_._) + ptr.width > sl->cap) {
-      sl->ptr =
-          (typeof(sl->ptr))aRealloc(
-              allocator,
-              sl->ptr,
-              sl->len + countof(vl_._) + ptr.width + sizeof(u64_toVlen(0))
-          );
+    place = msList_len(sl->buff);
+    AllocatorV allocator = sl->allocator;
+    if (msList_len(sl->buff) + countof(vl_._) + ptr.width > msList_cap(sl->buff)) {
+      sList_realloc(sl->allocator, msList_header(sl->buff), sizeof(*sl->buff), ptr.width + countof(vl_._) + msList_len(sl->buff));
     }
-    sl->len += width_length + ptr.width;
-    if (allocator->size)
-      sl->cap = allocator->size(allocator, sl->ptr);
-    else
-      sl->cap = sl->len + width_length + ptr.width;
+    msList_header(sl->buff)->length += width_length + ptr.width;
   }
-  mList_push(sl->ulist, place);
-  memcpy(sl->ptr + place, vl, width_length);
-  memcpy(sl->ptr + place + width_length, ptr.ptr, ptr.width);
+  msList_push(sl->allocator, sl->ulist, place);
+  memcpy(sl->buff + place, vl, width_length);
+  memcpy(sl->buff + place + width_length, ptr.ptr, ptr.width);
   return ((fptr){
       .width = ptr.width,
       .ptr =
-          (u8 *)sl->ptr + place + width_length,
+          (u8 *)sl->buff + place + width_length,
   });
 }
 fptr stringList_get(stringList *sl, List_index_t idx) {
-  ptrdiff_t *place = mList_get(sl->ulist, idx);
-  return place ? vlqbuf_toFptr(sl->ptr + *place) : nullFptr;
+  return idx > msList_len(sl->ulist) ? nullFptr : vlqbuf_toFptr(sl->buff + sl->ulist[idx]);
 }
 void stringList_remove(stringList *sl, List_index_t idx) {
-  ptrdiff_t last = *mList_get(sl->ulist, idx);
+  assertMessage(msList_len(sl->ulist) > idx);
   msList_ins(
-      stringList_allocator(sl), sl->flist,
-      freeList_sorter(sl, vlen_toU64(sl->ptr + last), sl->flist),
-      last
+      sl->allocator, sl->flist,
+      freeList_sorter(sl, vlen_toU64(sl->buff + sl->ulist[idx]), sl->flist).i,
+      sl->ulist[idx]
   );
-  mList_rem(sl->ulist, idx);
+  msList_rem(sl->ulist, idx);
 }
 fptr stringList_set(stringList *sl, List_index_t idx, fptr ptr) {
-  ptrdiff_t *lastLen = mList_get(sl->ulist, idx);
-  assertMessage(lastLen);
-  u64 lastLen_length = vlen_toU64(sl->ptr + *lastLen);
+  assertMessage(idx < msList_len(sl->ulist));
+  ptrdiff_t *lastLen = sl->ulist + idx;
+  u64 lastLen_length = vlen_toU64(sl->buff + *lastLen);
   fptr res;
   if (lastLen_length < ptr.width) {
     res = stringList_append(sl, ptr);
 
-    ptrdiff_t nextPlace = mList_pop(sl->ulist);
+    ptrdiff_t nextPlace = msList_pop(sl->ulist);
 
-    ptrdiff_t last = *mList_get(sl->ulist, idx);
+    ptrdiff_t last = sl->ulist[idx];
     msList_ins(
-        stringList_allocator(sl), sl->flist,
-        freeList_sorter(sl, vlen_toU64(sl->ptr + last), sl->flist),
+        sl->allocator, sl->flist,
+        freeList_sorter(sl, vlen_toU64(sl->buff + last), sl->flist).i,
         last
     );
-
-    mList_set(sl->ulist, idx, nextPlace);
+    sl->ulist[idx] = nextPlace;
   } else {
     typeof(u64_toVlen(0)) newlen = u64_toVlen(ptr.width);
     vlength *vl_new = newlen._;
     usize width_length = countof(newlen._);
     for (; vl_u8(*vl_new) == vl_u8((vlength){.hasNext = 1, .data = 0}); vl_new++)
       width_length--;
-    memcpy(sl->ptr + *lastLen, vl_new, width_length);
-    memcpy(sl->ptr + *lastLen + width_length, ptr.ptr, ptr.width);
+    memcpy(sl->buff + *lastLen, vl_new, width_length);
+    memcpy(sl->buff + *lastLen + width_length, ptr.ptr, ptr.width);
     res = ((fptr){
         .width = ptr.width,
         .ptr =
-            (u8 *)sl->ptr + *lastLen + width_length,
+            (u8 *)sl->buff + *lastLen + width_length,
     });
   }
   return res;
 }
 fptr stringList_insert(stringList *sl, List_index_t idx, fptr ptr) {
   fptr res = stringList_append(sl, ptr);
-  mList_ins(sl->ulist, idx, mList_pop(sl->ulist));
+  msList_ins(sl->allocator, sl->ulist, idx, msList_pop(sl->ulist));
   return res;
 }
 usize stringList_footprint(stringList *sl) {
-  ;
-  return sl->len + List_headArea((List *)sl->ulist) +
-         sizeof(*msList_vla(sl->flist));
+  return msList_len(sl->buff) * sizeof(*sl->buff) +
+         msList_len(sl->ulist) * sizeof(*sl->ulist) +
+         msList_len(sl->flist) * sizeof(*sl->flist);
 }
+List_index_t stringList_len(stringList *sl) { return msList_len(sl->ulist); }
 #endif

@@ -121,7 +121,7 @@ static void PrinterSingleton_init() {
   PrinterSingleton.data = HMap_new(
       sizeof(printerFunction),
       sizeof(printerFunction),
-      defaultAlloc, 1
+      stdAlloc, 1
   );
 }
 static void PrinterSingleton_append(fptr name, printerFunction function) {
