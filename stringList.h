@@ -14,7 +14,7 @@ fptr vlqbuf_toFptr(vlength *b);
 typedef struct stringList {
   mList(ptrdiff_t) ulist; ///< use-list not sorted,
                           /// but sorting this is fine
-  mList(ptrdiff_t) flist; ///< free-list
+  ptrdiff_t *flist;       ///< free-list
                           /// sorted, dont move anything
   usize len;
   usize cap;
@@ -50,8 +50,8 @@ struct {
   typeof(u64_toVlen(0)) res = {0};
   for (int i = countof(res._); i > 0; i--)
     res._[countof(res._) - i] = (typeof(*res._)){
-        .data = (len >> ((i - 1) * 7)) & 0x7f,
         .hasNext = !!(i - 1),
+        .data = (u8)((len >> ((i - 1) * 7)) & 0x7f),
     };
   return res;
 }
@@ -83,13 +83,14 @@ fptr vlqbuf_toFptr(vlength *b) {
       })
   };
 }
+  #include "shortList.h"
 stringList *stringList_new(AllocatorV allocator, usize initSize) {
   stringList *res = aCreate(allocator, stringList);
   *res = (typeof(*res)){
-      .flist = mList_init(allocator, ptrdiff_t),
       .ulist = mList_init(allocator, ptrdiff_t),
+      .flist = msList_init(allocator, ptrdiff_t),
       .len = 0,
-      .ptr = aAlloc(allocator, initSize + sizeof(u64_toVlen(0))),
+      .ptr = (vlength *)aAlloc(allocator, initSize + sizeof(u64_toVlen(0))),
   };
   if (allocator->size)
     res->cap = allocator->size(allocator, res->ptr);
@@ -98,25 +99,31 @@ stringList *stringList_new(AllocatorV allocator, usize initSize) {
   return res;
 }
 void stringList_free(stringList *sl) {
-  AllocatorV allocator = ((List *)(sl->flist))->allocator;
-  mList_deInit(sl->flist);
+  AllocatorV allocator = ((List *)(sl->ulist))->allocator;
+  msList_deInit(allocator, sl->flist);
   mList_deInit(sl->ulist);
   aFree(allocator, sl->ptr);
   aFree(allocator, sl);
 }
 // will cause freelist to be sorted from high to low
-bool freeList_searchFunc(struct List_sortArg *s) {
-  stringList *slp = (typeof(slp))s->arg;
-  ptrdiff_t *a = (typeof(a))s->a;
-  ptrdiff_t *b = (typeof(a))s->b;
-
-  u64 alen = vlen_toU64((vlength *)(slp->ptr + *a));
-  u64 blen = vlen_toU64((vlength *)(slp->ptr + *b));
-
-  return alen > blen;
+List_index_t freeList_sorter(stringList *sl, usize size, ptrdiff_t *freelist) {
+  List_index_t b = 0;
+  List_index_t t = msList_len(freelist);
+  while (b < t) {
+    List_index_t m = (b + t) / 2;
+    i64 blen = vlen_toU64((vlength *)(sl->ptr + freelist[m]));
+    int r = (i64)size - (i64)blen;
+    if (!r)
+      return m;
+    else if (r > 0)
+      t = m;
+    else
+      b = m + 1;
+  }
+  return b;
 }
 extern inline AllocatorV stringList_allocator(stringList *sl) {
-  return ((List *)sl->flist)->allocator;
+  return ((List *)sl->ulist)->allocator;
 }
   #include "assertMessage.h"
 fptr stringList_append(stringList *sl, fptr ptr) {
@@ -127,23 +134,16 @@ fptr stringList_append(stringList *sl, fptr ptr) {
   for (; vl_u8(*vl) == vl_u8((vlength){.hasNext = 1, .data = 0}); vl++)
     width_length--;
 
-  if (sl->len + width_length > sl->cap)
-    sl->ptr = aRealloc(stringList_allocator(sl), sl->ptr, sl->len + sizeof(vl_));
-  memcpy(sl->ptr + sl->len, vl, width_length);
-  ptrdiff_t potentialFree = mList_sortedSearch(
-      sl->flist,
-      ((List_searchFunc){freeList_searchFunc, sl}),
-      sl->len
-  );
+  List_index_t potentialFree = freeList_sorter(sl, ptr.width, sl->flist);
   if (potentialFree) {
-    place = *mList_get(sl->flist, potentialFree - 1);
-    mList_rem(sl->flist, potentialFree - 1);
+    place = sl->flist[potentialFree - 1];
+    msList_rem(sl->flist, potentialFree - 1);
   } else {
     place = sl->len;
     AllocatorV allocator = stringList_allocator(sl);
     if (sl->len + countof(vl_._) + ptr.width > sl->cap) {
       sl->ptr =
-          aRealloc(
+          (typeof(sl->ptr))aRealloc(
               allocator,
               sl->ptr,
               sl->len + countof(vl_._) + ptr.width + sizeof(u64_toVlen(0))
@@ -169,10 +169,11 @@ fptr stringList_get(stringList *sl, List_index_t idx) {
   return place ? vlqbuf_toFptr(sl->ptr + *place) : nullFptr;
 }
 void stringList_remove(stringList *sl, List_index_t idx) {
-  mList_sortedInsert(
-      sl->flist,
-      ((List_searchFunc){freeList_searchFunc, sl}),
-      *mList_get(sl->ulist, idx)
+  ptrdiff_t last = *mList_get(sl->ulist, idx);
+  msList_ins(
+      stringList_allocator(sl), sl->flist,
+      freeList_sorter(sl, vlen_toU64(sl->ptr + last), sl->flist),
+      last
   );
   mList_rem(sl->ulist, idx);
 }
@@ -187,7 +188,11 @@ fptr stringList_set(stringList *sl, List_index_t idx, fptr ptr) {
     ptrdiff_t nextPlace = mList_pop(sl->ulist);
 
     ptrdiff_t last = *mList_get(sl->ulist, idx);
-    mList_sortedInsert(sl->flist, ((List_searchFunc){freeList_searchFunc, sl}), last);
+    msList_ins(
+        stringList_allocator(sl), sl->flist,
+        freeList_sorter(sl, vlen_toU64(sl->ptr + last), sl->flist),
+        last
+    );
 
     mList_set(sl->ulist, idx, nextPlace);
   } else {
@@ -208,12 +213,12 @@ fptr stringList_set(stringList *sl, List_index_t idx, fptr ptr) {
 }
 fptr stringList_insert(stringList *sl, List_index_t idx, fptr ptr) {
   fptr res = stringList_append(sl, ptr);
-  ptrdiff_t place = mList_pop(sl->ulist);
-  mList_ins(sl->ulist, idx, place);
+  mList_ins(sl->ulist, idx, mList_pop(sl->ulist));
   return res;
 }
 usize stringList_footprint(stringList *sl) {
+  ;
   return sl->len + List_headArea((List *)sl->ulist) +
-         List_headArea((List *)sl->flist);
+         sizeof(*msList_vla(sl->flist));
 }
 #endif

@@ -49,7 +49,7 @@ typedef size_t usize;
 template <typename T>
 static inline T *ref_tmp(T &&v) { return &v; }
   #define REF(type, value) ref_tmp(type{value})
-  #define bitcast(to, from) (std::bit_cast<to>(from))
+  #define bitcast(to, from) (std::_Bit_cast<to>(from))
   #define typeof(...) __typeof__(__VA_ARGS__)
 #endif
 
@@ -105,7 +105,7 @@ struct nullable_t {
 #define slice_vla(s) ((typeof (*(s.ptr))(*)[s.len])(s.ptr))
 
 #define nullable_fromPtr(type, ptr) ({type *p = ptr; nullable(type) r; r.isnull = p == NULL; if (!r.isnull) r.data = *p; r; })
-#if !__has_include(<stdcountof.h>)
+#if defined(__cplusplus) || !__has_include(<stdcountof.h>)
   #define countof(array) (sizeof(array) / sizeof(*array))
 #else
   #include <stdcountof.h>

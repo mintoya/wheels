@@ -100,8 +100,8 @@ extern inline void sList_remove(sList_header *l, usize width, usize i) {
   #define msList_vla(s) ((typeof (*s)(*)[msList_len(s)])s)
 
 #endif // SHORT_LIST_H
-#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-  #define SHORT_LIST_C (1)
-#endif
-#if defined(SHORT_LIST_C)
-#endif // SHORT_LIST_C
+// #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
+//   #define SHORT_LIST_C (1)
+// #endif
+// #if defined(SHORT_LIST_C)
+// #endif // SHORT_LIST_C

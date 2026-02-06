@@ -86,7 +86,7 @@ size_t backtrace(void **array, size_t size) {
 char **backtrace_symbols(void *array[], size_t size) {
   char **result = (char **)malloc(sizeof(char *) * size + sizeof(char[512]) * size);
   memset(result, 0, sizeof(char *) * size + sizeof(char[512]) * size);
-  for (auto i = 0; i < size; i++)
+  for (int i = 0; i < size; i++)
     result[i] = ((char *)result) + sizeof(char *) * size + sizeof(char[512]) * i;
 
   HANDLE process = GetCurrentProcess();
