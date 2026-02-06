@@ -2,6 +2,7 @@
 #define ASSERTMESSAGE_H
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #if defined(__linux__)
   #include <execinfo.h>
   #include <unistd.h>
@@ -56,12 +57,12 @@ char **backtrace_symbols(void *array[], size_t size);
             printf("%s\n", syms[i]);                                   \
           }                                                            \
           printf("==========================\n" PRINTRESET);           \
-          abort();                                                     \
+          exit(1);                                                     \
         }                                                              \
       } while (0)
   #else
     #include <assert.h>
-    #define assertMessage(bool,...) assert(bool)
+    #define assertMessage(bool, ...) assert(bool)
   #endif
 #else
   #define assertMessage(...)

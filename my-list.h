@@ -1,6 +1,5 @@
 #ifndef MY_LIST_H
 #define MY_LIST_H
-#include <assert.h>
 #include <malloc.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -20,8 +19,8 @@ typedef struct List {
   size_t width;
   List_index_t length;
   List_index_t capacity;
-  uint8_t *head;
   AllocatorV allocator;
+  uint8_t *head;
 } List;
 // same as list_resize but it enforces size
 void List_forceResize(List *l, List_index_t newSize);
@@ -90,6 +89,15 @@ extern inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t i
   List_makeNew(allocator, l, bytes, initSize);
   return l;
 }
+extern inline void *List_set(List *l, List_index_t i, const void *element) {
+  void *place = List_getRef(l, i);
+  if (place)
+    if (element)
+      memcpy(place, element, l->width);
+    else
+      memset(place, 0, l->width);
+  return place;
+}
 
 /**
  * appends element to list
@@ -97,7 +105,11 @@ extern inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t i
  * `@param` **element** pointer to value
  * `@return` **element** pointer to value *inside list*
  */
-void *List_append(List *l, const void *element);
+extern inline void *List_append(List *l, const void *element) {
+  if (l->capacity < l->length + 1)
+    List_resize(l, LIST_GROW_EQ(l->length));
+  return List_set(l, l->length++, element);
+}
 /**
  * inserts element into list
  * `@param` **l** list
@@ -125,20 +137,6 @@ void *List_appendFromArr(List *l, const void *source, List_index_t length);
 
 [[gnu::pure]]
 extern inline List_index_t List_length(const List *l) { return l ? l->length : 0; }
-extern inline void *List_set(List *l, List_index_t i, const void *element) {
-  if (i < l->length) {
-    void *place = l->head + i * l->width;
-    if (element) {
-      memcpy(place, element, l->width);
-    } else {
-      memset(place, 0, l->width);
-    }
-    return place;
-  }
-  if (i == l->length)
-    return List_append(l, element);
-  return NULL;
-}
 /*
  * searches for a value which has an identical value to element
  * `@param` **list**
@@ -216,10 +214,10 @@ using mList_t = T (**)(List *);
 #define mList_len(list) (((List *)(list))->length)
 #define mList_cap(list) (((List *)(list))->capacity)
 
-#define mList_push(list, val)                  \
-  do {                                         \
-    typeof(typeof((*list)(NULL))) value = val; \
-    List_append((List *)list, &value);         \
+#define mList_push(list, val)                 \
+  do {                                        \
+    typeof(typeof((*list)(NULL))) _val = val; \
+    List_append((List *)list, &_val);         \
   } while (0)
 #define mList_pop(list) ({                                                            \
   ((List *)(list))->length--;                                                         \
@@ -351,12 +349,6 @@ void List_insert(List *l, List_index_t i, void *element) {
   memmove(l->head + (i + 1) * l->width, l->head + (i)*l->width, (l->length - i) * l->width);
   List_set(l, i, element);
   l->length++;
-}
-void *List_append(List *l, const void *element) {
-  if (l->capacity < l->length + 1)
-    List_resize(l, LIST_GROW_EQ(l->length));
-  l->length++;
-  return List_set(l, l->length - 1, element);
 }
 #include "stdio.h"
 void List_forceResize(List *l, List_index_t newSize) {
