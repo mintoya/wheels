@@ -98,6 +98,7 @@ extern inline void sList_remove(sList_header *l, usize width, usize i) {
       s = (typeof(s))sList_insert(allocator, msList_header(s), sizeof(*s), idx, &_val)->buf; \
     } while (0);
 
+  #define msList_get(s, idx) ((typeof(s))sList_getRef(msList_header(s), sizeof(*s), idx))
   #define msList_rem(s, idx)                           \
     do {                                               \
       sList_remove(msList_header(s), sizeof(*s), idx); \

@@ -151,7 +151,9 @@ fptr stringList_append(stringList *sl, fptr ptr) {
   });
 }
 fptr stringList_get(stringList *sl, List_index_t idx) {
-  return idx > msList_len(sl->ulist) ? nullFptr : vlqbuf_toFptr(sl->buff + sl->ulist[idx]);
+  assertMessage(sl);
+  ptrdiff_t *place = msList_get(sl->ulist, idx);
+  return place ? vlqbuf_toFptr(sl->buff + *place) : nullFptr;
 }
 void stringList_remove(stringList *sl, List_index_t idx) {
   assertMessage(msList_len(sl->ulist) > idx);

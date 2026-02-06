@@ -72,7 +72,7 @@ char **backtrace_symbols(void *array[], size_t size);
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
 #define ASSERTMESSAGE_C (1)
 #endif
-#ifdef ASSERTMESSAGE_C
+#if defined(ASSERTMESSAGE_C) && !defined(noAssertMessage)
 #if defined(_WIN32) || (_WIN64)
 size_t backtrace(void **array, size_t size) {
   return CaptureStackBackTrace(
