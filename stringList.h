@@ -130,7 +130,7 @@ fptr stringList_append(stringList *sl, fptr ptr) {
     width_length--;
 
   struct flsr potentialFree = freeList_sorter(sl, ptr.width, sl->flist);
-  if (potentialFree.f) {
+  if (potentialFree.f || potentialFree.i) {
     place = sl->flist[potentialFree.i - 1];
     msList_rem(sl->flist, potentialFree.i - 1);
   } else {
