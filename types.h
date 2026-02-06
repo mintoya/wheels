@@ -39,13 +39,18 @@ typedef intmax_t imax;
 typedef size_t usize;
 
 #if !defined(__cplusplus)
+  #define REF(type, value) ((type[1]){value})
   #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
   #else
     #define nullptr ((void *)0)
   #endif
   #define bitcast(to, from) ((typeof(union {typeof(to)a;typeof(from)b; })){.b = from}.a)
 #else
+template <typename T>
+static inline T *ref_tmp(T &&v) { return &v; }
+  #define REF(type, value) ref_tmp(type{value})
   #define bitcast(to, from) (std::bit_cast<to>(from))
+  #define typeof(...) __typeof__(__VA_ARGS__)
 #endif
 
 #if __has_include(<BaseTsd.h>)

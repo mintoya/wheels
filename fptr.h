@@ -70,17 +70,6 @@ static bool operator!=(const fptr &a, const fptr &b) { return !fptr_eq(a, b); }
   (type *)newptr;                                                       \
 })
 
-#ifndef __cplusplus
-  #define REF(type, value) ((type[1]){value})
-// #define REF(type, value) ((type *)(&(type){(value)}))
-#else
-template <typename T>
-static inline T *ref_tmp(T &&v) {
-  return &v;
-}
-  #define REF(type, value) ref_tmp(type{value})
-
-#endif
 
 #define fptr_stack_split(string, ...) ({fptr* __temp__result = (fptr*)alloca( (sizeof((unsigned int[]){__VA_ARGS__}) / sizeof(unsigned int) + 1)*sizeof(fptr) ); \
   do {                                                                                 \

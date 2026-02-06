@@ -3,24 +3,32 @@
 #include "types.h"
 #include <stdlib.h>
 
-#define STRING_LIST_C (1)
-#include "stringList.c"
+#include "shortList.h"
 
 int main(void) {
-  stringList *sl = stringList_new(defaultAlloc, 10);
-  println("null ?== {}", stringList_get(sl, 0));
-  stringList_append(sl, fp_from("hello world "));
-  stringList_append(sl, fp_from("hello world long "));
-  stringList_append(sl, fp_from("hello "));
-  println("set {}", stringList_set(sl, 0, fp_from("hellow")));
-  println("set {}", stringList_insert(sl,1,fp_from("one")));
+  usize width = sizeof(int);
+  println("new");
+  sList_header *l = sList_new(defaultAlloc, 4, width);
 
-  for (int i = 0; i < mList_len(sl->ulist); i++)
-    println("{} -> {}", i, stringList_get(sl, i));
-  println("byte count: {}", sl->len);
-  println("capacity : {}", sl->cap);
+  for (int i = 0; i < 10; i++) {
+    println("appending {}", i);
+    l = sList_append(defaultAlloc, l, width, &i);
+  }
 
-  stringList_free(sl);
+  // Modern, readable array-style printing
+  print("[ ");
+  for (usize i = 0; i < l->length; i++) {
+    int val = *(int *)sList_getRef(l, width, i);
+
+    print("{}", (int)val);
+
+    // Add a comma separator, except for the last element
+    if (i < l->length - 1) {
+      print(", ");
+    }
+  }
+  print(" ]\n");
+
   return 0;
 }
 
