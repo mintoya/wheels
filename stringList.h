@@ -92,6 +92,8 @@ stringList *stringList_new(AllocatorV allocator, usize initSize) {
       .buff = (typeof(res->buff))aAlloc(allocator, initSize),
       .allocator = allocator,
   };
+  assertMessage(!msList_len(res->ulist), "should be 0, is %lu", msList_len(res->ulist));
+  assertMessage(!msList_len(res->flist), "should be 0, is %lu", msList_len(res->flist));
   if (allocator->size)
     res->cap = allocator->size(allocator, res->buff);
   else
@@ -161,6 +163,7 @@ fptr stringList_append(stringList *sl, fptr ptr) {
     }
     sl->len = offset + ptr.width + vlq_len;
   }
+  msList_push(sl->allocator, sl->ulist, offset);
   memcpy(sl->buff + offset, vlq_ptr, vlq_len);
   memcpy(sl->buff + offset + vlq_len, ptr.ptr, ptr.width);
   return (fptr){

@@ -33,12 +33,11 @@ struct OSearch_T {
   List_index_t i;
 };
 struct OSearch_T OMap_search(OMap *map, fptr key) {
-  stringList *sl = (stringList *)map;
-  List_index_t t = msList_len(sl->ulist) / 2;
+  List_index_t t = stringList_len(map->data) / 2;
   List_index_t b = 0;
   while (t > b) {
     List_index_t m = (t + b) / 2;
-    int cmp = fptr_cmp(key, stringList_get(sl, m * 2));
+    int cmp = fptr_cmp(key, stringList_get(map->data, m * 2));
     if (!cmp)
       return (struct OSearch_T){.found = true, .i = m * 2};
     else if (cmp > 0)
@@ -49,19 +48,18 @@ struct OSearch_T OMap_search(OMap *map, fptr key) {
   return (struct OSearch_T){.found = false, .i = b * 2};
 }
 fptr OMap_set(OMap *map, fptr key, fptr val) {
-  stringList *sl = (stringList *)map;
   struct OSearch_T place = OMap_search(map, key);
   fptr res = nullFptr;
   if (place.found) {
     if (!val.width) {
-      stringList_remove(sl, place.i);
-      stringList_remove(sl, place.i);
+      stringList_remove(map->data, place.i);
+      stringList_remove(map->data, place.i);
     } else {
-      res = stringList_set(sl, place.i + 1, val);
+      res = stringList_set(map->data, place.i + 1, val);
     }
   } else {
-    stringList_insert(sl, place.i, key);
-    res = stringList_insert(sl, place.i + 1, val);
+    stringList_insert(map->data, place.i, key);
+    res = stringList_insert(map->data, place.i + 1, val);
   }
   return res;
 }

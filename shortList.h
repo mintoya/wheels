@@ -31,6 +31,7 @@ sList_header *sList_realloc(AllocatorV allocator, sList_header *header, usize wi
     res->capacity = (s - sizeof(sList_header)) / width;
   } else
     res->capacity = width;
+  res->length = 0;
   return res;
 }
 extern inline void *sList_getRefForce(sList_header *l, usize width, usize i) { return (l->buf + width * i); }
