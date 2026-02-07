@@ -46,10 +46,17 @@ typedef size_t usize;
   #endif
   #define bitcast(to, from) ((typeof(union {typeof(to)a;typeof(from)b; })){.b = from}.a)
 #else
+  #include <bit>
 template <typename T>
 static inline T *ref_tmp(T &&v) { return &v; }
   #define REF(type, value) ref_tmp(type{value})
-  #define bitcast(to, from) (std::_Bit_cast<to>(from))
+template <class To, class From>
+To bit_cast_func(const From &src) noexcept {
+  To dst;
+  memcpy(&dst, &src, sizeof(To));
+  return dst;
+}
+  #define bitcast(to, from) (bit_cast_func<to>(from))
   #define typeof(...) __typeof__(__VA_ARGS__)
 #endif
 
