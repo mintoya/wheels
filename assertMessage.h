@@ -73,7 +73,7 @@ char **backtrace_symbols(void *array[], size_t size);
 #define ASSERTMESSAGE_C (1)
 #endif
 #if defined(ASSERTMESSAGE_C) && !defined(noAssertMessage)
-#if defined(_WIN32) || (_WIN64)
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(noAssertMessage)
 size_t backtrace(void **array, size_t size) {
   return CaptureStackBackTrace(
       0, // Changed from 1 to 0 - skip frames in backtrace_symbols_fd instead
