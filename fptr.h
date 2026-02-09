@@ -1,179 +1,65 @@
-#ifndef FPTR_H
-#define FPTR_H
-#ifdef _WIN32
-  #include <malloc.h>
-#else
-  #include <alloca.h>
-#endif
-#include "types.h"
-#include <stdalign.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <wchar.h>
+#if !defined(FPTR_H)
+  #define FPTR_H (1)
+  #include "types.h"
+  #include <stdalign.h>
+  #include <stdbool.h>
+  #include <stddef.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include <wchar.h>
 
 typedef struct {
   usize width;
   u8 *ptr;
 } fptr;
 
-struct fatter_pointer {
-  fptr fpart;
-  usize capacity;
-};
-
-// vptr version of dereferencing a value
-#define fptr_fromTypeDef(v) ((fptr){sizeof(typeof(v)), (u8 *)REF(typeof(v), v)})
-// _INC_STRING
-#include <string.h>
-static inline fptr fptr_fromCS(void *cstr) { return ((fptr){(size_t)strlen((char *)cstr), (u8 *)cstr}); }
-
+static inline fptr fptr_CS(void *cstr) { return ((fptr){(size_t)strlen((char *)cstr), (u8 *)cstr}); }
 static inline fptr fptr_fromPL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
-// only sign  of result matters
-int fptr_cmp(const fptr a, const fptr b);
 
-#include <string.h>
-static inline void fpmemset(uint8_t *ptr, const fptr element, size_t ammount) {
-  if (!ammount)
-    return;
-  memcpy(ptr, element.ptr, element.width);
-  for (size_t set = 1; set < ammount; set *= 2) {
-    size_t toset = ammount - set;
-    toset = set < toset ? set : toset;
-    memcpy(ptr + set * element.width, ptr, element.width * toset);
-  }
+static inline int fptr_cmp(const fptr a, const fptr b) {
+  return a.width - b.width ?: memcmp(a.ptr, b.ptr, a.width);
+}
+static inline char fptr_eq(fptr a, fptr b) {
+  return !fptr_cmp(a, b);
 }
 
-static inline char fptr_eq(fptr a, fptr b) { return !fptr_cmp(a, b); }
-
-#ifdef __cplusplus
+  #ifdef __cplusplus
 static bool operator==(const fptr &a, const fptr &b) { return fptr_eq(a, b); }
 static bool operator!=(const fptr &a, const fptr &b) { return !fptr_eq(a, b); }
-  #define typeof(x) __typeof__(x)
-#endif
+  #endif
 
-#define setvar_aligned(var, ptr)                   \
-  do {                                             \
-    const size_t alignment = alignof(typeof(var)); \
-    const uintptr_t address = (uintptr_t)(ptr);    \
-                                                   \
-    if (!(address & (alignment - 1))) {            \
-      var = *(typeof(var) *)(ptr);                 \
-    } else {                                       \
-      memcpy(&(var), (ptr), sizeof(typeof(var)));  \
-    }                                              \
-  } while (0)
+  #define nullFptr ((fptr){0})
 
-#define align_alloca(type) ({                                           \
-  uintptr_t newptr = (uintptr_t)alloca(sizeof(type) + alignof(type));   \
-  newptr += (alignof(type) - (newptr % alignof(type))) % alignof(type); \
-  (type *)newptr;                                                       \
-})
+  #define structEq(a, b) \
+    (fptr_eq(            \
+        fp_from(a),      \
+        fp_from(b)       \
+    ))
 
+  #ifndef __cplusplus
 
-#define fptr_stack_split(string, ...) ({fptr* __temp__result = (fptr*)alloca( (sizeof((unsigned int[]){__VA_ARGS__}) / sizeof(unsigned int) + 1)*sizeof(fptr) ); \
-  do {                                                                                 \
-    uint8_t *last;                                                                     \
-    unsigned int args[] = {__VA_ARGS__};                                               \
-    for (int i = 0; i < sizeof(args) / sizeof(unsigned int); i++) {                    \
-      args[i] = (i == 0)                                                               \
-                    ? ((args[i] < string.widt                                        \
-                           ? args[i]                                                   \
-                           : string.widt                                             \
-                    : ((string.width < ((args[i] > args[i - 1])                        \
-                                            ? args[i]                                  \
-                                            : args[i - 1]))                            \
-                           ? string.width                                              \
-                           : ((args[i] > args[i - 1])                                  \
-                                  ? args[i]                                            \
-                                  : args[i - 1]));                                     \
-      __temp__result[i] = (fptr){                                                              \
-          .width = (i == 0) ? (args[0]) : (args[i] - args[i - 1]),                     \
-          .ptr = (i == 0) ? (string.ptr) : (last),                                     \
-      };                                                                               \
-      last = ((uint8_t *)__temp__result[i].ptr) + __temp__result[i].width;                             \
-    }                                                                                  \
-    __temp__result[sizeof(args) / sizeof(unsigned int)] = (fptr){                              \
-        .width = string.width - ((uint8_t *)last - (uint8_t *)string.ptr),             \
-        .ptr = last,                                                                   \
-    };                                                                                 \
-  } while (0);__temp__result; })
-#define isSkip(char) ( \
-    char == ' ' ||     \
-    char == '\n' ||    \
-    char == '\r' ||    \
-    char == '\t'       \
-)
-#define UM_DEFAULT(...) {__VA_ARGS__}
-#define UM_CASE(fp, ...)     \
-  if (fptr_eq(fp, __temp)) { \
-    __VA_ARGS__              \
-  } else
-#define UM_SWITCH(fp, ...) \
-  do {                     \
-    fptr __temp = fp;      \
-    __VA_ARGS__            \
-  } while (0)
-#define lmemset(arr, arrlen, value)                     \
-  do {                                                  \
-    typeof(value) __temp = (value);                     \
-    fptr __tempFp = ((fptr){                            \
-        .width = sizeof(__temp),                        \
-        .ptr = ((uint8_t *)&(__temp)),                  \
-    });                                                 \
-    fpmemset(((uint8_t *)(arr)), (__tempFp), (arrlen)); \
-  } while (0)
-#define nullFptr ((fptr){0})
-#define nullUmf nullFptr
+    #define fp_fromT(struct)       \
+      ((fptr){                     \
+          .ptr = (u8 *)&(struct),  \
+          .width = sizeof(struct), \
+      })
+    #define is_comparr(x) \
+      (!__builtin_types_compatible_p(__typeof__(x), __typeof__(&(x)[0])))
 
-#define um_block(var)                          \
-  ((fptr){                                     \
-      .width = sizeof(var),                    \
-      .ptr = (uint8_t *)(typeof(var)[1]){var}, \
-  })
-#define um_blockT(type, ...)                    \
-  ((fptr){                                      \
-      .width = sizeof(type),                    \
-      .ptr = (uint8_t *)(type[1]){__VA_ARGS__}, \
-  })
+    #define fp_from(arr)                           \
+      _Generic(                                    \
+          arr,                                     \
+          char *: is_comparr(arr)                  \
+              ? (fptr){sizeof(arr) - 1, (u8 *)arr} \
+              : fptr_CS(arr),                      \
+          fptr: arr,                               \
+          default: (fptr){sizeof(arr), (u8 *)&arr} \
+      )
 
-#define structEq(a, b)              \
-  (fptr_eq(                         \
-      (fptr){                       \
-          .width = sizeof(a),       \
-          .ptr = (uint8_t *)(&(a)), \
-      },                            \
-      (fptr){                       \
-          .width = sizeof(b),       \
-          .ptr = (uint8_t *)(&(b)), \
-      }                             \
-  ))
-
-#ifndef __cplusplus
-
-  #define fp_fromT(struct)           \
-    ((fptr){                         \
-        .ptr = (uint8_t *)&(struct), \
-        .width = sizeof(struct),     \
-    })
-  #define fp_fromP(ref, size)  \
-    ((fptr){                   \
-        .ptr = (uint8_t *)ref, \
-        .width = size,         \
-    })
-  #define is_comparr(x) \
-    (!__builtin_types_compatible_p(__typeof__(x), __typeof__(&(x)[0])))
-  #define fp_from(val)                                                         \
-    ((fptr){                                                                   \
-        .width =                                                               \
-            (is_comparr(val) ? sizeof(val) - 1 : strlen((const char *)(val))), \
-        .ptr = (uint8_t *)(val),                                               \
-    })
-
-#else
-  #include <cstdint>
-  #include <cstring>
-  #include <string>
+  #else
+    #include <cstdint>
+    #include <cstring>
+    #include <string>
 template <typename T>
 inline fptr fp_from(T &val) {
   return {
@@ -201,53 +87,6 @@ inline fptr fp_from(const char (&s)[N]) {
       .ptr = const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(s)),
   };
 }
-
-#endif
-static fptr fptr_trim(fptr in);
-unsigned int fptr_toUint(const fptr in);
-[[gnu::pure]] int fptr_cmp(const fptr a, const fptr b);
-
+  #endif
+  #define fp fp_from
 #endif // FPTR_H
-#ifdef FPTR_C
-fptr fptr_trim(fptr in) {
-  while (isSkip(*in.ptr)) {
-    in.ptr++;
-    in.width--;
-  }
-  while (isSkip(*(in.ptr + in.width - 1))) {
-    in.width--;
-  }
-  return in;
-}
-#undef isSkip
-#define isDigit(char) (char <= '9' && char >= '0')
-unsigned int fptr_toUint(const fptr in) {
-  fptr copy = fptr_trim(in);
-  unsigned int res = 0;
-  for (size_t place = 0; place < copy.width && isDigit(copy.ptr[place]); place++) {
-    res *= 10;
-    res += copy.ptr[place] - '0';
-  }
-  return res;
-}
-#undef isDigit
-int fptr_toInt(const fptr in) {
-  fptr number = fptr_trim(in);
-  if (!number.width)
-    return 0;
-  char negetive = number.ptr[0] == '-';
-  if (negetive) {
-    number.ptr++;
-    number.width--;
-  }
-  return (negetive ? -1 : 1) * fptr_toUint(number);
-}
-[[gnu::pure]] int fptr_cmp(const fptr a, const fptr b) {
-  int wd = a.width - b.width;
-  if (wd)
-    return wd;
-  if (!a.ptr)
-    return 0;
-  return memcmp(a.ptr, b.ptr, a.width);
-}
-#endif

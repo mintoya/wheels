@@ -44,10 +44,10 @@
   #include "allocator.h"
 #endif
 
-#ifdef FPTR_H
-  #define FPTR_C (1)
-  #include "fptr.h"
-#endif
+// #ifdef FPTR_H
+//   #define FPTR_C (1)
+//   #include "fptr.h"
+// #endif
 
 #ifdef ASSERTMESSAGE_H
   #define ASSERTMESSAGE_C (1)

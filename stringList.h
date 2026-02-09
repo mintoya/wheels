@@ -4,7 +4,7 @@
   #include "types.h"
   #include <stddef.h>
   #include <string.h>
-typedef struct vlength {
+typedef struct [[gnu::packed]] vlength {
   u8 hasNext : 1;
   u8 data : 7;
 } vlength;

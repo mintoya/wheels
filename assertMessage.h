@@ -1,8 +1,10 @@
 #ifndef ASSERTMESSAGE_H
 #define ASSERTMESSAGE_H
 #include <assert.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdnoreturn.h>
 #if defined(__linux__)
   #include <execinfo.h>
   #include <unistd.h>
@@ -18,47 +20,32 @@ size_t backtrace(void **array, size_t size);
 char **backtrace_symbols(void *array[], size_t size);
 #endif
 #ifndef NDEBUG
-  #define PRINTORANGE "\x1b[38;5;208m"
-  #define PRINTRESET "\x1b[0m"
-  #define PRINTRED "\x1b[31m\n\n"
-  #ifndef noAssertMessage
-    // TODO move to a functoin
-    #define assertMessage(expr, ...)                                   \
-      do {                                                             \
-        bool result = (expr);                                          \
-        if (!(result)) {                                               \
-          fprintf(                                                     \
-              stderr,                                                  \
-              PRINTRED                                                 \
-              "\nmessage:\n"                                           \
-              "" __VA_ARGS__                                           \
-          );                                                           \
-          fprintf(                                                     \
-              stderr,                                                  \
-              PRINTORANGE                                              \
-              "\nassert:\t%s\n"                                        \
-              "in fn :\t%s\n"                                          \
-              "file  :\t%s\n"                                          \
-              "line  :\t%d\n"                                          \
-              "\nfailed\n",                                            \
-              #expr,                                                   \
-              __PRETTY_FUNCTION__,                                     \
-              __FILE__,                                                \
-              __LINE__                                                 \
-          );                                                           \
-          fprintf(stderr, PRINTRESET);                                 \
-          fflush(stderr);                                              \
-          /* TODO stack trace some other way? */                       \
-          void *array[5];                                              \
-          size_t size = backtrace(array, 5);                           \
-          char **syms = backtrace_symbols(array, size);                \
-          printf(PRINTRED "backtrace:\n==========================\n"); \
-          for (usize i = 0; i < size; i++) {                           \
-            printf("%s\n", syms[i]);                                   \
-          }                                                            \
-          printf("==========================\n" PRINTRESET);           \
-          exit(1);                                                     \
-        }                                                              \
+  #if !defined(noAssertMessage)
+void _assertMessageFail(
+    const char *expr_str,
+    const char *func,
+    const char *file,
+    uint line,
+    void *trace[5],
+    uint traceLen,
+    const char *fmt,
+    ...
+);
+    #define assertMessage(expr, ...)         \
+      do {                                   \
+        bool result = (expr);                \
+        if (!(result)) {                     \
+          void *array[5];                    \
+          size_t size = backtrace(array, 5); \
+          _assertMessageFail(                \
+              #expr,                         \
+              __PRETTY_FUNCTION__,           \
+              __FILE__,                      \
+              __LINE__,                      \
+              array,                         \
+              size, "" __VA_ARGS__           \
+          );                                 \
+        }                                    \
       } while (0)
   #else
     #include <assert.h>
@@ -73,7 +60,50 @@ char **backtrace_symbols(void *array[], size_t size);
 #define ASSERTMESSAGE_C (1)
 #endif
 #if defined(ASSERTMESSAGE_C) && !defined(noAssertMessage)
-#if (defined(_WIN32) || defined(_WIN64)) && !defined(noAssertMessage)
+
+#define PRINTORANGE "\x1b[38;5;208m"
+#define PRINTRESET "\x1b[0m"
+#define PRINTRED "\x1b[31m\n\n"
+[[noreturn, gnu::cold, gnu::format(printf, 7, 8)]]
+void _assertMessageFail(
+    const char *expr_str,
+    const char *func,
+    const char *file,
+    uint line,
+    void *trace[5],
+    uint traceLen,
+    const char *fmt,
+    ...
+) {
+  fprintf(stderr, PRINTRED "\nmessage:\n");
+
+  va_list args;
+  va_start(args, fmt);
+  vfprintf(stderr, fmt, args);
+  va_end(args);
+
+  fprintf(
+      stderr,
+      PRINTORANGE "\nassert:\t%s\n"
+                  "in fn :\t%s\n"
+                  "file  :\t%s\n"
+                  "line  :\t%d\n"
+                  "\nfailed\n" PRINTRESET,
+      expr_str, func, file, line
+  );
+  fflush(stderr);
+
+  char **syms = backtrace_symbols(trace, traceLen);
+
+  if (syms) {
+    fprintf(stderr, PRINTRED "backtrace:\n==========================\n");
+    for (size_t i = 0; i < traceLen; i++)
+      fprintf(stderr, "%s\n", syms[i]);
+    fprintf(stderr, "==========================\n" PRINTRESET);
+  }
+  exit(1);
+}
+#if (defined(_WIN32) || defined(_WIN64))
 size_t backtrace(void **array, size_t size) {
   return CaptureStackBackTrace(
       0, // Changed from 1 to 0 - skip frames in backtrace_symbols_fd instead

@@ -141,7 +141,7 @@ static void PrinterSingleton_append(fptr name, printerFunction function) {
 
 static printerFunction PrinterSingleton_get(fptr name) {
   static printerFunction lastprinters[2] = {NULL, NULL};
-  static fptr lastnames[2] = {nullUmf, nullUmf};
+  static fptr lastnames[2] = {nullFptr, nullFptr};
   static u8 lasttick = 0;
 
   if (!fptr_cmp(name, lastnames[lasttick])) {
@@ -221,7 +221,7 @@ static printerFunction PrinterSingleton_get(fptr name) {
 
 #define REGISTER_SPECIAL_PRINTER_NEEDID(id, str, type, ...)                          \
   static void id(outputFunction put, const void *_v_in_ptr, fptr args, void *_arb) { \
-    type in = *(type *)_v_in_ptr;                                                    \
+    type in = *(typeof(in) *)_v_in_ptr;                                              \
     __VA_ARGS__                                                                      \
   }                                                                                  \
   [[gnu::constructor(203)]] static void UNIQUE_PRINTER_FN2() {                       \
@@ -235,7 +235,7 @@ static printerFunction PrinterSingleton_get(fptr name) {
 #define REGISTER_SPECIAL_PRINTER(str, type, ...) \
   REGISTER_SPECIAL_PRINTER_NEEDID(UNIQUE_PRINTER_FN, str, type, __VA_ARGS__)
 #define USETYPEPRINTER(T, val) \
-  GETTYPEPRINTERFN(T)(put, (u8 *)(void *)REF(T, val), nullUmf, _arb)
+  GETTYPEPRINTERFN(T)(put, (u8 *)(void *)REF(T, val), nullFptr, _arb)
 #define USENAMEDPRINTER(strname, val)                                     \
   print_f_helper(                                                         \
       (struct print_arg){.ref = REF(typeof(val), val), .name = nullFptr}, \
@@ -390,10 +390,9 @@ struct print_arg {
       char cut0s = 0;
       char useLength = 0;
       PRINTERARGSEACH({
-          UM_SWITCH(arg,{
-              UM_CASE(fp_from("length"),{useLength = 1;});
-              UM_DEFAULT();
-          });
+          if (fptr_eq(fp_from("length"), arg)) {
+            useLength = 1;
+          }
       });
       if(useLength){
         PUTS(U"<");
@@ -535,17 +534,16 @@ struct print_arg {
    })
 #endif
 // clang-format on
-#define EMPTY_PRINT_ARG ((struct print_arg){.ref = NULL, .name = nullUmf})
 
 void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr args, void *arb);
 
-static thread_local uchar print_f_shouldFlush = 1;
-void print_f(outputFunction put, void *arb, fptr fmt, ...);
+static thread_local bool print_f_shouldFlush = 1;
+void print_f(outputFunction put, void *arb, const char *fmt, ...);
 
-#define print_wfO(printerfn, arb, fmt, ...)                                                                 \
-  print_f(                                                                                                  \
-      printerfn, arb, (fptr){sizeof(fmt), (u8 *)"" fmt} __VA_OPT__(, APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__)), \
-      EMPTY_PRINT_ARG                                                                                       \
+#define print_wfO(printerfn, arb, fmt, ...)                                   \
+  print_f(                                                                    \
+      printerfn, arb, fmt __VA_OPT__(, APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__)), \
+      ((struct print_arg){})                                                  \
   )
 
 #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
@@ -584,7 +582,6 @@ void print_f(outputFunction put, void *arb, fptr fmt, ...);
 
 // converts wchars to chars
 // writes length to olen
-void wchar_toUtf8(const wchar *input, u32 wlen, u8 *output, u32 *olen);
 #endif
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
@@ -592,27 +589,10 @@ void wchar_toUtf8(const wchar *input, u32 wlen, u8 *output, u32 *olen);
 #pragma once
 #endif
 #ifdef MY_PRINTER_C
-void wchar_toUtf8(const wchar *input, u32 wlen, u8 *output, u32 *olen) {
-  // assertMessage(*olen == 0, "this function will increment olen");
-  mbstate_t mbs = {0};
-  for (usize i = 0; i < wlen; i++)
-    *olen += wcrtomb(
-        (char *)(output + *olen),
-        input[i],
-        &mbs
-    );
-}
-inline unsigned int printer_arg_indexOf(fptr string, char c) {
-  int i;
-  char *ptr = (char *)string.ptr;
-  for (i = 0; i < string.width && ptr[i] != c; i++)
-    ;
-  return i;
-}
 
 inline fptr printer_arg_until(char delim, fptr string) {
   usize i = 0;
-  uint8_t *ptr = (uint8_t *)string.ptr;
+  u8 *ptr = (u8 *)string.ptr;
   while (i < string.width && ptr[i] != delim)
     i++;
   string.width = i;
@@ -663,19 +643,18 @@ void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr 
   }
 }
 
-void print_f(outputFunction put, void *arb, const fptr fmt, ...) {
-  const char *ccstr = (char *)fmt.ptr;
+void print_f(outputFunction put, void *arb, const char *fmt, ...) {
   va_list l;
   va_start(l, fmt);
   bool toggled = 0;
-  for (u32 i = 0; i < fmt.width; i++) {
-    if (ccstr[i] == '{' && !toggled) {
+  for (u32 i = 0; fmt[i]; i++) {
+    if (fmt[i] == '{' && !toggled) {
       u32 j = i + 1;
-      while (j < fmt.width && ccstr[j] != '}')
+      while (fmt[j] && fmt[j] != '}')
         j++;
       fptr typeName = {
           .width = j - i - 1,
-          .ptr = ((u8 *)fmt.ptr) + i + 1,
+          .ptr = ((u8 *)fmt) + i + 1,
       };
       struct print_arg assumedName = va_arg(l, struct print_arg);
 
@@ -690,15 +669,15 @@ void print_f(outputFunction put, void *arb, const fptr fmt, ...) {
       i = j;
       toggled = 0;
 
-    } else if (ccstr[i] == '/') {
+    } else if (fmt[i] == '/') {
       toggled = !toggled;
       if (!toggled) {
-        c32 c = (c32)(ccstr[i]);
+        c32 c = (c32)(fmt[i]);
         put(REF(c32, L'/'), arb, 1, 0);
       }
     } else {
       toggled = 0;
-      c32 c = (c32)(ccstr[i]);
+      c32 c = (c32)(fmt[i]);
       put(&c, arb, 1, 0);
     }
   }

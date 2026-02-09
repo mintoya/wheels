@@ -1,6 +1,5 @@
 #ifndef MY_LIST_H
 #define MY_LIST_H
-#include <malloc.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

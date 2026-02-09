@@ -24,10 +24,7 @@ static inline AllocatorV OMap_allocator(OMap *omap) {
 OMap *OMap_new(AllocatorV allocator, usize initSize) {
   return (OMap *)stringList_new(allocator, initSize);
 }
-void OMap_free(void *omapPtr) {
-  stringList_free((stringList *)omapPtr);
-}
-  #include "shortList.h"
+void OMap_free(void *omapPtr) { stringList_free((stringList *)omapPtr); }
 struct OSearch_T {
   bool found;
   List_index_t i;
@@ -54,9 +51,8 @@ fptr OMap_set(OMap *map, fptr key, fptr val) {
     if (!val.width) {
       stringList_remove(map->data, place.i);
       stringList_remove(map->data, place.i);
-    } else {
+    } else
       res = stringList_set(map->data, place.i + 1, val);
-    }
   } else {
     stringList_insert(map->data, place.i, key);
     res = stringList_insert(map->data, place.i + 1, val);

@@ -19,7 +19,7 @@ HMap *HMap_new(
     u32 kSize,
     u32 vSize,
     AllocatorV allocator,
-    u32 metaSize
+    usize metaSize
 );
 /**
  * Creates a new hash, with same keys and vals as another hash map
@@ -179,7 +179,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
       );                                                 \
       HMap_fset(                                         \
           (HMap *)map,                                   \
-          fptr_fromTypeDef(_k),                          \
+          fp_from(_k),                                   \
           &_v                                            \
       );                                                 \
     } while (0)
@@ -223,7 +223,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
       );                                                        \
       HMap_fset(                                                \
           (HMap *)map,                                          \
-          fptr_fromTypeDef(key),                                \
+          fp_from(key),                                         \
           nullptr                                               \
       );                                                        \
     } while (0)
@@ -240,7 +240,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
       (typeof((*map)(nullptr, key)) *)                          \
           HMap_fget_ns(                                         \
               (HMap *)map,                                      \
-              fptr_fromTypeDef(key)                             \
+              fp_from(key)                                      \
           );                                                    \
     })
   #define HMap_scoped [[gnu::cleanup(HMap_cleanup_handler)]] HMap
@@ -258,11 +258,11 @@ typedef struct HMap {
   u32 keysize;
   u32 valsize;
   usize metaSize;
-  [[clang::counted_by(metaSize)]] struct {
+  struct {
     u32 length;
     u32 capacity;
     void *ptr;
-  } storage[];
+  } storage[/*metasize*/];
 } HMap;
 typedef typeof((*((HMap *)nullptr)->storage)) HMap_LesserList;
 
@@ -288,7 +288,7 @@ static inline umax HMap_hash(const fptr str) {
   }
   return hash;
 }
-HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, u32 metaSize) {
+HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, usize metaSize) {
   assertMessage(kSize && vSize && metaSize && allocator);
 
   usize totalSize =

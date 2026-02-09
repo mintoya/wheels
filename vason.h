@@ -23,16 +23,6 @@ typedef enum : u8 {
   vason_INVALID = 1 << 5,
 } vason_tag;
 
-typedef struct vason_treeObject vason_treeObject;
-typedef struct vason_treeObject *vason_treeObjectptr;
-typedef struct vason_treeObject {
-  vason_tag tag;
-  union {
-    slice(vason_treeObjectptr) children;
-    vason_span text;
-  } data;
-} vason_treeObject;
-
 /**
  * data based on `tag`
  * `span`:
