@@ -203,24 +203,25 @@ using mList_t = T (**)(List *);
 #define MLIST_INIT_HELPER(allocator, T, initLength, ...) ((mList(T))List_newInitL(allocator, sizeof(T), initLength))
 #define mList_init(allocator, T, ...) \
   MLIST_INIT_HELPER(allocator, T __VA_OPT__(, __VA_ARGS__), 2)
+
 #define mList_iType(list) typeof((*list)(NULL))
 #define mList_deInit(list)   \
   do {                       \
     List_free((List *)list); \
   } while (0)
 
-#define mList_arr(list) (((typeof((*list)(NULL)) *)(((List *)(list))->head)))
+#define mList_arr(list) (((mList_iType(list) *)(((List *)(list))->head)))
 #define mList_len(list) (((List *)(list))->length)
 #define mList_cap(list) (((List *)(list))->capacity)
 
-#define mList_push(list, val)                 \
-  do {                                        \
-    typeof(typeof((*list)(NULL))) _val = val; \
-    List_append((List *)list, &_val);         \
+#define mList_push(list, val)         \
+  do {                                \
+    mList_iType(list) _val = val;     \
+    List_append((List *)list, &_val); \
   } while (0)
-#define mList_pop(list) ({                                                            \
-  ((List *)(list))->length--;                                                         \
-  *(typeof((*list)(NULL)) *)List_getRefForce((List *)(list), ((List *)list)->length); \
+#define mList_pop(list) ({                                                        \
+  ((List *)(list))->length--;                                                     \
+  *(mList_iType(list) *)List_getRefForce((List *)(list), ((List *)list)->length); \
 })
 // technically never null since list capacity is non-zero
 #define mList_popFront(list)                                     \
@@ -231,31 +232,34 @@ using mList_t = T (**)(List *);
     result;                                                      \
   })
 
-#define mList_get(list, index) ({ (typeof((*list)(NULL)) *)List_getRef((List *)list, index); })
+#define mList_get(list, index) ({ (mList_iType(list) *)List_getRef((List *)list, index); })
 #define mList_getOr(list, index, other) ({         \
   mList_iType(list) *ptr = mList_get(list, index); \
-  mList_iType(list) _res = other;                  \
-  if (ptr != ((typeof(ptr))0))                     \
+  mList_iType(list) _res;                          \
+  if (ptr != ((typeof(ptr))0)) {                   \
     _res = *ptr;                                   \
+  } else {                                         \
+    _res = other;                                  \
+  }                                                \
   _res;                                            \
 })
 #define mList_set(list, index, val)        \
   do {                                     \
-    typeof((*list)(NULL)) value = val;     \
+    mList_iType(list) value = val;         \
     List_set((List *)list, index, &value); \
   } while (0)
 #define mList_ins(list, index, val)           \
   do {                                        \
-    typeof((*list)(NULL)) value = val;        \
+    mList_iType(list) value = val;            \
     List_insert((List *)list, index, &value); \
   } while (0)
 #define mList_rem(list, index)        \
   do {                                \
     List_remove((List *)list, index); \
   } while (0)
-#define each_mList(list, e)                   \
-  typeof((*list)(NULL)) *e = mList_arr(list); \
-  e < mList_arr(list)[mList_len(list)];       \
+#define each_mList(list, e)               \
+  mList_iType(list) *e = mList_arr(list); \
+  e < mList_arr(list)[mList_len(list)];   \
   e++
 #define mList_foreach(list, valtype, value, ...)            \
   do {                                                      \

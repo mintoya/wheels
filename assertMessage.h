@@ -1,10 +1,11 @@
 #ifndef ASSERTMESSAGE_H
 #define ASSERTMESSAGE_H
+#include "types.h"
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdnoreturn.h>
+// #include <stdnoreturn.h>
 #if defined(__linux__)
   #include <execinfo.h>
   #include <unistd.h>
@@ -21,6 +22,8 @@ char **backtrace_symbols(void *array[], size_t size);
 #endif
 #ifndef NDEBUG
   #if !defined(noAssertMessage)
+
+[[noreturn, gnu::cold, gnu::format(printf, 7, 8)]]
 void _assertMessageFail(
     const char *expr_str,
     const char *func,
@@ -106,13 +109,12 @@ void _assertMessageFail(
 #if (defined(_WIN32) || defined(_WIN64))
 size_t backtrace(void **array, size_t size) {
   return CaptureStackBackTrace(
-      0, // Changed from 1 to 0 - skip frames in backtrace_symbols_fd instead
+      0, 
       size,
       array,
       NULL
   );
 }
-  #include <stdio.h>
 char **backtrace_symbols(void *array[], size_t size) {
   char **result = (char **)malloc(sizeof(char *) * size + sizeof(char[512]) * size);
   memset(result, 0, sizeof(char *) * size + sizeof(char[512]) * size);
@@ -156,7 +158,6 @@ char **backtrace_symbols(void *array[], size_t size) {
       len = snprintf(output, 512, "[Unable to resolve symbol at 0x%llx]\n", address);
     }
   }
-
   SymCleanup(process);
   return result;
 }
