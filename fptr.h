@@ -13,7 +13,7 @@ typedef struct {
   u8 *ptr;
 } fptr;
 
-static inline fptr fptr_CS(void *cstr) { return ((fptr){(size_t)strlen((char *)cstr), (u8 *)cstr}); }
+static inline fptr fptr_CS(void *cstr) { return ((fptr){(usize)strlen((char *)cstr), (u8 *)cstr}); }
 static inline fptr fptr_fromPL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
 
 static inline int fptr_cmp(const fptr a, const fptr b) {
@@ -64,27 +64,27 @@ template <typename T>
 inline fptr fp_from(T &val) {
   return {
       .width = sizeof(T),
-      .ptr = reinterpret_cast<uint8_t *>(&val),
+      .ptr = reinterpret_cast<u8 *>(&val),
   };
 }
 inline fptr fp_from(fptr u) { return u; }
 inline fptr fp_from(const std::string &s) {
   return {
       .width = s.size(),
-      .ptr = const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(s.data())),
+      .ptr = const_cast<u8 *>(reinterpret_cast<const u8 *>(s.data())),
   };
 }
 inline fptr fp_from(const char *s) {
   return {
       .width = std::strlen(s),
-      .ptr = const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(s)),
+      .ptr = const_cast<u8 *>(reinterpret_cast<const u8 *>(s)),
   };
 }
-template <size_t N>
+template <usize N>
 inline fptr fp_from(const char (&s)[N]) {
   return {
       .width = N - 1,
-      .ptr = const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(s)),
+      .ptr = const_cast<u8 *>(reinterpret_cast<const u8 *>(s)),
   };
 }
   #endif

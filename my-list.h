@@ -232,6 +232,13 @@ using mList_t = T (**)(List *);
   })
 
 #define mList_get(list, index) ({ (typeof((*list)(NULL)) *)List_getRef((List *)list, index); })
+#define mList_getOr(list, index, other) ({         \
+  mList_iType(list) *ptr = mList_get(list, index); \
+  mList_iType(list) _res = other;                  \
+  if (ptr != ((typeof(ptr))0))                     \
+    _res = *ptr;                                   \
+  _res;                                            \
+})
 #define mList_set(list, index, val)        \
   do {                                     \
     typeof((*list)(NULL)) value = val;     \
@@ -276,7 +283,14 @@ using mList_t = T (**)(List *);
     mList_iType(list) value = val;                           \
     List_insertSorted((List *)list, &value, sorterFunction); \
   })
-
+#define mList_pad(list, ammount)                     \
+  do {                                               \
+    List_appendFromArr((List *)list, NULL, ammount); \
+  } while (0)
+#define mList_clear(list)       \
+  do                            \
+    ((List *)list)->length = 0; \
+  while (0)
 #define mList_vla(list) ((mList_iType(list)(*)[mList_len(list)])mList_arr(list))
 #endif // MY_LIST_H
 
