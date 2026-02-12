@@ -26,6 +26,22 @@ static inline char fptr_eq(fptr a, fptr b) {
   #ifdef __cplusplus
 static bool operator==(const fptr &a, const fptr &b) { return fptr_eq(a, b); }
 static bool operator!=(const fptr &a, const fptr &b) { return !fptr_eq(a, b); }
+
+template <typename T>
+fptr toFptr(const slice_t<T> &a) {
+  return (fptr){
+      a.len * sizeof(T),
+      a.ptr,
+  };
+}
+template <typename T>
+static bool operator==(const slice_t<T> &a, const slice_t<T> &b) {
+  return fptr_eq(toFptr(a), toFptr(b));
+}
+template <typename T>
+static bool operator!=(const slice_t<T> &a, const slice_t<T> &b) {
+  return !fptr_eq(toFptr(a), toFptr(b));
+}
   #endif
 
   #define nullFptr ((fptr){0})

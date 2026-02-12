@@ -14,6 +14,7 @@
 OwnAllocator arena_owned_new(void);
 My_allocator *arena_new_ext(AllocatorV base, size_t blockSize);
 void arena_cleanup(My_allocator *arena);
+void arena_clear(My_allocator *arena);
 size_t arena_footprint(My_allocator *arena);
 static void arena_cleanup_handler(My_allocator **arenaPtr) {
   if (arenaPtr && *arenaPtr) {
@@ -246,6 +247,14 @@ void arena_cleanup(My_allocator *arena) {
   }
   aFree(&allocator, arena);
 }
+void arena_clear(My_allocator *arena) {
+  ArenaBlock *it = (ArenaBlock *)(arena->arb);
+  while (it) {
+    ArenaBlock *next = it->next;
+    it->place = 0;
+    it = next;
+  }
+}
 bool inarena(ArenaBlock *it, const void *ptr) {
   return (uintptr_t)ptr > (uintptr_t)it->buffer && (uintptr_t)ptr < (uintptr_t)it->buffer + (uintptr_t)it->size;
 }
@@ -317,23 +326,23 @@ void *my_arena_alloc(AllocatorV ref, usize size) {
   }
   return res;
 }
-void *arena_startStack(AllocatorV ref) {
-  ArenaBlock *it = (ArenaBlock *)(ref->arb);
-  while (it->next)
-    it = it->next;
-  return it->buffer + it->place;
-}
-void arena_endStack(AllocatorV ref, void *pointer) {
-  ArenaBlock *it = (ArenaBlock *)(ref->arb);
-  while (it && !((uintptr_t)it->buffer < (uintptr_t)pointer && (uintptr_t)it->buffer + it->size >= (uintptr_t)pointer))
-    it = it->next;
-  assertMessage(it);
-  ArenaBlock *freeing = it->next;
-  while (freeing) {
-    ArenaBlock *next = freeing->next;
-    aFree(freeing->allocator, freeing);
-    freeing = next;
-  }
-  it->place = (uintptr_t)pointer - (uintptr_t)it->buffer;
-}
+// void *arena_startStack(AllocatorV ref) {
+//   ArenaBlock *it = (ArenaBlock *)(ref->arb);
+//   while (it->next)
+//     it = it->next;
+//   return it->buffer + it->place;
+// }
+// void arena_endStack(AllocatorV ref, void *pointer) {
+//   ArenaBlock *it = (ArenaBlock *)(ref->arb);
+//   while (it && !((uintptr_t)it->buffer < (uintptr_t)pointer && (uintptr_t)it->buffer + it->size >= (uintptr_t)pointer))
+//     it = it->next;
+//   assertMessage(it);
+//   ArenaBlock *freeing = it->next;
+//   while (freeing) {
+//     ArenaBlock *next = freeing->next;
+//     aFree(freeing->allocator, freeing);
+//     freeing = next;
+//   }
+//   it->place = (uintptr_t)pointer - (uintptr_t)it->buffer;
+// }
 #endif // ARENA_ALLOCATOR_C

@@ -8,7 +8,7 @@
 
 // clang-format off
 #ifndef LIST_GROW_EQ
-#define LIST_GROW_EQ(uint) ((uint + (uint/2)) + 1)
+#define LIST_GROW_EQ(uint) ((uint + uint))
 #endif
 // clang-format on
 #include "allocator.h"
@@ -88,14 +88,13 @@ extern inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t i
   List_makeNew(allocator, l, bytes, initSize);
   return l;
 }
-extern inline void *List_set(List *l, List_index_t i, const void *element) {
+[[gnu::always_inline]]
+extern inline void List_set(List *l, List_index_t i, const void *element) {
   void *place = List_getRef(l, i);
   if (place)
-    if (element)
-      memcpy(place, element, l->width);
-    else
-      memset(place, 0, l->width);
-  return place;
+    element
+        ? memcpy(place, element, l->width)
+        : memset(place, 0, l->width);
 }
 
 /**
@@ -104,10 +103,15 @@ extern inline void *List_set(List *l, List_index_t i, const void *element) {
  * `@param` **element** pointer to value
  * `@return` **element** pointer to value *inside list*
  */
-extern inline void *List_append(List *l, const void *element) {
-  if (l->capacity < l->length + 1)
+[[gnu::always_inline]]
+extern inline void List_append(List *l, const void *element) {
+  if (__builtin_expect(!!((l->length) >= (l->capacity)), 0))
     List_resize(l, LIST_GROW_EQ(l->length));
-  return List_set(l, l->length++, element);
+  size_t width = l->width, length = l->length;
+  element
+      ? memcpy(l->head + width * length, element, width)
+      : memset(l->head + width * length, 0, width);
+  l->length++;
 }
 /**
  * inserts element into list
@@ -214,11 +218,16 @@ using mList_t = T (**)(List *);
 #define mList_len(list) (((List *)(list))->length)
 #define mList_cap(list) (((List *)(list))->capacity)
 
-#define mList_push(list, val)         \
-  do {                                \
-    mList_iType(list) _val = val;     \
-    List_append((List *)list, &_val); \
+#define mList_push(list, val)                                       \
+  do {                                                              \
+    if (                                                            \
+        __builtin_expect(!!(mList_len(list) >= mList_cap(list)), 0) \
+    )                                                               \
+      List_resize((List *)list, LIST_GROW_EQ(mList_len(list)));     \
+    mList_arr(list)[mList_len(list)] = (val);                       \
+    mList_len(list)++;                                              \
   } while (0)
+
 #define mList_pop(list) ({                                                        \
   ((List *)(list))->length--;                                                     \
   *(mList_iType(list) *)List_getRefForce((List *)(list), ((List *)list)->length); \
@@ -243,10 +252,11 @@ using mList_t = T (**)(List *);
   }                                                \
   _res;                                            \
 })
-#define mList_set(list, index, val)        \
-  do {                                     \
-    mList_iType(list) value = val;         \
-    List_set((List *)list, index, &value); \
+#define mList_set(list, index, val)    \
+  do {                                 \
+    index < mList_len(list)            \
+        ? mList_arr(list)[index] = val \
+        : ;                            \
   } while (0)
 #define mList_ins(list, index, val)           \
   do {                                        \
@@ -295,7 +305,9 @@ using mList_t = T (**)(List *);
   do                            \
     ((List *)list)->length = 0; \
   while (0)
-#define mList_vla(list) ((mList_iType(list)(*)[mList_len(list)])mList_arr(list))
+#if !defined(__cplusplus) || defined(__clang__)
+  #define mList_vla(list) ((typeof(mList_iType(list))(*)[mList_len(list)])mList_arr(list))
+#endif
 #endif // MY_LIST_H
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
