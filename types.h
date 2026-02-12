@@ -8,8 +8,10 @@
   #include <uchar.h>
 #else
 typedef uint8_t char8_t;
+  #if !defined __cplusplus
 typedef uint16_t char16_t;
 typedef uint32_t char32_t;
+  #endif
 #endif
 #define _XOPEN_SOURCE 700
 
@@ -46,7 +48,6 @@ typedef size_t usize;
   #endif
   #define bitcast(to, from) ((typeof(union {typeof(to)a;typeof(from)b; })){.b = from}.a)
 #else
-  #include <bit>
 template <typename T>
 static inline T *ref_tmp(T &&v) { return &v; }
   #define REF(type, value) ref_tmp(type{value})

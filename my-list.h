@@ -252,11 +252,10 @@ using mList_t = T (**)(List *);
   }                                                \
   _res;                                            \
 })
-#define mList_set(list, index, val)    \
-  do {                                 \
-    index < mList_len(list)            \
-        ? mList_arr(list)[index] = val \
-        : ;                            \
+#define mList_set(list, index, val) \
+  do {                              \
+    if (index < mList_len(list))    \
+      mList_arr(list)[index] = val; \
   } while (0)
 #define mList_ins(list, index, val)           \
   do {                                        \
@@ -328,8 +327,8 @@ void List_makeNew(AllocatorV allocator, List *l, size_t bytes, List_index_t init
       .width = bytes,
       .length = 0,
       .capacity = initialSize,
-      .head = (uint8_t *)aAlloc(allocator, bytes * initialSize),
       .allocator = allocator,
+      .head = (uint8_t *)aAlloc(allocator, bytes * initialSize),
   };
   if (allocator->size) {
     l->capacity = allocator->size(allocator, l->head) / l->width;

@@ -3,7 +3,6 @@
 #include "allocator.h"
 #include "fptr.h"
 #include "my-list.h"
-#include "print.h"
 #include "types.h"
 #include <stdarg.h>
 #include <string.h>
@@ -77,11 +76,11 @@ vason_get_func(vason_contianer c, vason_tag *tags, ...);
       vason_get_argsArr(__VA_ARGS__), \
       __VA_ARGS__                     \
   )
-vason_contianer parseStr(AllocatorV allocator, slice(c8) string);
 slice(vason_object) getChildren(vason_object obj, vason_container c);
 fptr vason_getString(vason_object obj, vason_contianer c);
 vason_object vason_mapGet(vason_object o, vason_container c, fptr k);
 vason_object vason_arrGet(vason_object o, vason_container c, u32 key);
+vason_contianer parseStr(AllocatorV allocator, slice(c8) string);
 #if defined __cplusplus
 typedef struct vason {
   typedef vason_contianer container;
@@ -254,10 +253,6 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
         break;
     }
   }
-  // for (typeof(t.len) i = 0; i < t.len; i++) {
-  //   print("{vason_token}", t.ptr[i]);
-  // }
-  // println();
   return t;
 }
 // ! assumes query is on the stack list
@@ -496,8 +491,8 @@ vason_object bdconvert(
     case vason_MAP:
     case vason_ARR: {
       res.span = (typeof(res.span)){
-          .offset = mList_len(containerList),
           .len = bdr.items.len,
+          .offset = mList_len(containerList),
       };
       // if (bdr.kind == vason_MAP)
       //   res.span.len = (res.span.len / 2) * 2;
@@ -546,8 +541,8 @@ vason_contianer parseStr(AllocatorV allocator, slice(c8) str) {
   vason_contianer res = {
       .string = str,
       .objects = (slice(vason_object)){
-          .ptr = (vason_object *)((List *)bucket)->head,
           .len = mList_len(bucket),
+          .ptr = (vason_object *)((List *)bucket)->head,
       },
       .top = bdc,
   };

@@ -146,9 +146,11 @@ void *movePage(void *page, usize size) {
 }
 
   #else
-    #error couldnt find page allocator
+  // #error couldnt find page allocator
+    #define pageAllocatorNotFound (1)
   #endif
 
+  #if !defined(pageAllocatorNotFound)
 void *allocatePage(AllocatorV _, usize size) { return getPage(size); }
 void freePage(AllocatorV _, void *page) { return returnPage(page); }
 void *reallocatePage(AllocatorV _, void *page, usize size) { return movePage(page, size); }
@@ -159,13 +161,14 @@ usize getPageSize(AllocatorV _, void *page) {
   assertMessage(!((uintptr_t)page % pagesize), "unalgned page pointer");
   return *(usize *)page;
 }
+const My_allocator pageAllocatorVal = (My_allocator){allocatePage, freePage, reallocatePage, NULL, getPageSize};
+AllocatorV pageAllocator = &pageAllocatorVal;
+  #endif
 void my_arena_free(AllocatorV arena, void *ptr);
 void *my_arena_alloc(AllocatorV arena, usize size);
 void *my_arena_r_alloc(AllocatorV arena, void *ptr, usize size);
 usize my_arena_realsize(AllocatorV arena, void *ptr);
 
-const My_allocator pageAllocatorVal = (My_allocator){allocatePage, freePage, reallocatePage, NULL, getPageSize};
-AllocatorV pageAllocator = &pageAllocatorVal;
 typedef struct ArenaBlock ArenaBlock;
 typedef struct ArenaBlock {
   ArenaBlock *next;
