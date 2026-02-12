@@ -6,7 +6,7 @@
   #include "string.h"
   #include "types.h"
   #ifndef SLIST_GROW_EQ
-    #define SLIST_GROW_EQ(len) (len + len / 2 + 1)
+    #define SLIST_GROW_EQ(len) (len + len)
   #endif
 
 typedef struct sList_header {
