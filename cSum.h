@@ -73,8 +73,8 @@ static checkData cSum_toSum(dataChecker d, fptr data) {
   List_append(d.checkSumScratch, tmp);
 
   checkData res = {.data = {
-                       .ptr = d.checkSumScratch->head,
                        .width = d.checkSumScratch->length,
+                       .ptr = d.checkSumScratch->head,
                    }};
   return res;
 }
@@ -84,12 +84,10 @@ static fptr cSum_fromSum(checkData data) {
   CHECK_TYPE check;
   CHECK_TYPE checkResult = 0;
   ptrs[0] = (uint8_t *)data.data.ptr;
-  if (ptrs[0][0] != CSUM_START_BIT) {
-    return nullUmf;
-  }
-  if (ptrs[0][data.data.width - 1] != CSUM_END_BIT) {
-    return nullUmf;
-  }
+  if (ptrs[0][0] != CSUM_START_BIT)
+    return nullFptr;
+  if (ptrs[0][data.data.width - 1] != CSUM_END_BIT)
+    return nullFptr;
   unsigned int dataLength = data.data.width;
   dataLength -= (sizeof(uint8_t) + sizeof(CHECK_TYPE));
 
@@ -114,9 +112,9 @@ static fptr cSum_fromSum(checkData data) {
         return nullFptr;
     checkResult = cSum_CHECK_EXPR(checkResult, c);
   }
-  if (checkResult != check) {
-    return nullUmf;
-  }
+  if (checkResult != check)
+    return nullFptr;
+
   return (fptr){
       .width = dataLength,
       .ptr = ptrs[0],

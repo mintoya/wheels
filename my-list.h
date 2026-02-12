@@ -328,8 +328,8 @@ void List_makeNew(AllocatorV allocator, List *l, size_t bytes, List_index_t init
       .width = bytes,
       .length = 0,
       .capacity = initialSize,
-      .head = (uint8_t *)aAlloc(allocator, bytes * initialSize),
       .allocator = allocator,
+      .head = (uint8_t *)aAlloc(allocator, bytes * initialSize),
   };
   if (allocator->size) {
     l->capacity = allocator->size(allocator, l->head) / l->width;
