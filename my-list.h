@@ -295,7 +295,9 @@ using mList_t = T (**)(List *);
   do                            \
     ((List *)list)->length = 0; \
   while (0)
-#define mList_vla(list) ((mList_iType(list)(*)[mList_len(list)])mList_arr(list))
+#if !defined(__cplusplus) || defined(__clang__)
+  #define mList_vla(list) ((typeof(mList_iType(list))(*)[mList_len(list)])mList_arr(list))
+#endif
 #endif // MY_LIST_H
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)

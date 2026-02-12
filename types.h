@@ -92,6 +92,8 @@ template <typename T>
 struct slice_t {
   usize len;
   T *ptr;
+  T *begin() const { return ptr; }
+  T *end() const { return ptr + len; }
 };
 template <typename T>
 struct nullable_t {
@@ -103,8 +105,10 @@ struct nullable_t {
 #endif
 #define nullable_null(type) ((nullable(type)){.isnull = true})
 #define nullable_real(type, value) ((nullable(type)){.isnull = false, .data = (value)})
-#define slice_stat(s) \
-  {sizeof(s) / sizeof((s)[0]), (typeof(s[0]) *)(s)}
+#if !defined(__cplusplus) || defined(__clang__)
+  #define slice_stat(s) \
+    {sizeof(s) / sizeof((s)[0]), (typeof(s[0]) *)(s)}
+#endif
 #define each_slice(slice, e)       \
   typeof(slice.ptr) e = slice.ptr; \
   e < slice.ptr + slice.len;       \

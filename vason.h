@@ -1,6 +1,7 @@
 #ifndef VASON_PARSER_H
 #define VASON_PARSER_H
 #include "allocator.h"
+#include "fptr.h"
 #include "my-list.h"
 #include "print.h"
 #include "types.h"
@@ -42,28 +43,68 @@ typedef struct vason_object {
   vason_tag tag;
   struct vason_span span;
 } vason_object;
+typedef struct vason_container vason_container;
 typedef struct vason_container {
   slice(c8) string;
   slice(vason_object) objects;
   vason_object top;
 } vason_contianer;
 
-// TODO
-typedef struct vason_lazyObject {
-  vason_tag tag;
-  bool parsed;
-  struct vason_span span;
-} vason_lazyObject;
-
-typedef struct vason_lazyContainer {
-  slice(c8) string;
-  mList(vason_lazyObject) objects;
-  vason_lazyObject top;
-} vason_lazyContainer;
-
-vason_object vason_get(vason_contianer container, vason_object current, ...);
+vason_container
+vason_get_func(vason_contianer c, vason_tag *tags, ...);
+#include "printer/variadic.h"
+#define vason_get_makeArg(j) ( \
+    (vason_tag) _Generic(      \
+        (j),                   \
+        i32: vason_ARR,        \
+        u32: vason_ARR,        \
+        fptr: vason_MAP,       \
+        default: vason_INVALID \
+    )                          \
+)
+#define vason_get_argsArr(...) ( \
+    (vason_tag[]){               \
+        APPLY_N(                 \
+            vason_get_makeArg,   \
+            __VA_ARGS__          \
+        ),                       \
+        vason_INVALID            \
+    }                            \
+)
+#define vason_get(container, ...)     \
+  vason_get_func(                     \
+      container,                      \
+      vason_get_argsArr(__VA_ARGS__), \
+      __VA_ARGS__                     \
+  )
 vason_contianer parseStr(AllocatorV allocator, slice(c8) string);
-
+slice(vason_object) getChildren(vason_object obj, vason_container c);
+fptr vason_getString(vason_object obj, vason_contianer c);
+vason_object vason_mapGet(vason_object o, vason_container c, fptr k);
+vason_object vason_arrGet(vason_object o, vason_container c, u32 key);
+#if defined __cplusplus
+typedef struct vason {
+  typedef vason_contianer container;
+  typedef vason_object object;
+  container self;
+  struct vason operator[](usize idx) {
+    auto r = *this;
+    r.self.top = vason_arrGet(self.top, self, (u32)idx);
+    return r;
+  }
+  struct vason operator[](fptr c) {
+    auto r = *this;
+    r.self.top = vason_mapGet(self.top, self, c);
+    return r;
+  }
+  fptr asString() {
+    if (self.top.tag != vason_STR && self.top.tag != vason_ID)
+      return nullFptr;
+    return vason_getString(self.top, self);
+  }
+  struct vason operator[](const std::string &c) { return (*this)[fp(c)]; }
+} vason;
+#endif
 #endif // VASON_PARSER_H
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
 #define VASON_PARSER_C (1)
@@ -91,43 +132,9 @@ typedef enum : c8 {
   // MAP_delim_ID = '=', // also handled
   MAP_delim = ';',
 } vason_token;
-REGISTER_PRINTER(vason_token, {
-  switch (in) {
-    case STR_:
-      PUTC(L's');
-      break;
-    case STR_start:
-      PUTC(L'X');
-      break;
-    case STR_end:
-      PUTC(L'x');
-      break;
-    case ESCAPE:
-      break;
-    case ARR_start:
-      PUTC('[');
-      break;
-    case ARR_end:
-      PUTC(']');
-      break;
-    case ARR_delim:
-      PUTC(',');
-      break;
-    case MAP_start:
-      PUTC('{');
-      break;
-    case MAP_end:
-      PUTC('}');
-      break;
-    case MAP_delim_ID:
-      PUTC(':');
-      break;
-    case MAP_delim:
-      PUTC(';');
-      break;
-  }
-});
-
+bool isSkip_vason(u8 in) {
+  return in > 0 && in < 33;
+}
 slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
   slice(vason_token) t = {
       string.len,
@@ -214,7 +221,7 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
   }
   // remove spaces after strings
   for (isize i = t.len; i > 0; i--) {
-    while (i > 0 && t.ptr[i - 1] == STR_ && isSkip(string.ptr[i - 1])) {
+    while (i > 0 && t.ptr[i - 1] == STR_ && isSkip_vason(string.ptr[i - 1])) {
       t.ptr[i - 1] = ESCAPE;
       i--;
       continue;
@@ -229,7 +236,7 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
         i++;
       continue;
     }
-    while (i < t.len && t.ptr[i] == STR_ && isSkip(string.ptr[i])) {
+    while (i < t.len && t.ptr[i] == STR_ && isSkip_vason(string.ptr[i])) {
       t.ptr[i] = ESCAPE;
       i++;
     }
@@ -526,63 +533,6 @@ vason_object bdconvert(
   // clang-format on
   return res;
 }
-// not checked
-[[gnu::deprecated]]
-vason_lazyObject bdconvert_lazy(
-    mList(vason_lazyObject) containerList,
-    struct breakdown_return bdr,
-    // recursion for bdr
-    slice(c8) str,
-    slice(vason_token) t,
-    AllocatorV allocator
-) {
-  // TODO deal with invalid types
-  bool isvalid = !(bdr.kind & vason_INVALID);
-  bdr.kind = (typeof(bdr.kind))(bdr.kind & ~vason_INVALID);
-  vason_lazyObject res = {.tag = bdr.kind};
-  if (!isvalid)
-    goto invalidLabel;
-  switch (bdr.kind) {
-    case vason_ID:  // impossible for now
-    case vason_STR: // impossible for now
-    case vason_INVALID:
-      break;
-    case vason_MAP:
-    case vason_ARR: {
-      res.span = (typeof(res.span)){
-          .offset = mList_len(containerList),
-          .len = bdr.items.len,
-      };
-      // if (bdr.kind == vason_MAP)
-      //   res.span.len = (res.span.len / 2) * 2;
-      List_appendFromArr((List *)containerList, NULL, res.span.len);
-      for (usize i = 0; i < res.span.len; i++) {
-        switch (bdr.items.ptr[i].kind) {
-          case vason_ID:
-          case vason_MAP:
-          case vason_ARR:
-          case vason_STR: {
-            mList_set(
-                containerList,
-                i + res.span.offset,
-                ((vason_lazyObject){
-                    .tag = bdr.items.ptr[i].kind,
-                    .parsed = true,
-                    .span = bdr.items.ptr[i].pos,
-                })
-            );
-          } break;
-          case vason_INVALID:
-            break;
-        }
-      }
-    } break;
-  }
-  // clang-format off
-  invalidLabel:
-  // clang-format on
-  return res;
-}
 vason_contianer parseStr(AllocatorV allocator, slice(c8) str) {
   slice(vason_token) t = vason_tokenize(allocator, str);
   mList(vason_object) bucket = mList_init(allocator, vason_object);
@@ -606,57 +556,70 @@ vason_contianer parseStr(AllocatorV allocator, slice(c8) str) {
 }
 #include <stdarg.h>
 
-vason_object
-vason_get(vason_contianer container, vason_object current, ...) {
-  constexpr vason_object notFound = (vason_object){.tag = vason_STR, .span = {0}};
-  va_list vlist;
-  va_start(vlist, current);
-  switch (current.tag) {
-    case vason_ARR: {
-      auto index = va_arg(vlist, usize);
-      if (index < current.span.len) {
-        auto fullOffset = index + current.span.offset;
-        if (fullOffset < container.objects.len) {
-          return container.objects.ptr[fullOffset];
+slice(vason_object) getChildren(vason_object obj, vason_container c) {
+  if (!(obj.tag == vason_MAP || obj.tag == vason_ARR))
+    return (slice(vason_object)){};
+  if (!(obj.span.len + obj.span.offset <= c.objects.len))
+    return (slice(vason_object)){};
+  return (slice(vason_object)){
+      obj.span.len,
+      c.objects.ptr + obj.span.offset,
+  };
+}
+fptr vason_getString(vason_object obj, vason_contianer c) {
+  if (!(obj.tag == vason_STR || obj.tag == vason_ID))
+    return nullFptr;
+  if (!(obj.span.len + obj.span.offset <= c.string.len))
+    return nullFptr;
+  return (fptr){
+      obj.span.len,
+      c.string.ptr + obj.span.offset,
+  };
+}
+vason_object vason_mapGet(vason_object o, vason_container c, fptr k) {
+  if (!(o.tag == vason_MAP))
+    return (vason_object){vason_INVALID};
+  slice(vason_object) children = getChildren(o, c);
+  for (i32 i = 0; i < children.len - 1; i += 2) {
+    if (fptr_eq(k, vason_getString(children.ptr[i], c)))
+      return children.ptr[i + 1];
+  }
+  return (vason_object){vason_INVALID};
+}
+vason_object vason_arrGet(vason_object o, vason_container c, u32 key) {
+  if (!(o.tag == vason_ARR))
+    return (vason_object){vason_INVALID};
+  slice(vason_object) children = getChildren(o, c);
+  if (children.len > key)
+    return (vason_object){vason_INVALID};
+  return children.ptr[key];
+}
+vason_container vason_get_func(vason_contianer c, vason_tag *tags, ...) {
+  va_list ap;
+  va_start(ap, tags);
+  while (c.top.tag != vason_INVALID) {
+    vason_tag t = *tags++;
+    switch (t) {
+      case vason_MAP:
+      case vason_ARR: {
+        if (t != c.top.tag) {
+          c.top.tag = vason_INVALID;
         } else {
-          va_end(vlist);
-          return notFound;
+          if (t == vason_MAP)
+            c.top = vason_mapGet(c.top, c, va_arg(ap, fptr));
+          if (t == vason_ARR)
+            c.top = vason_arrGet(c.top, c, va_arg(ap, u32));
         }
-      } else {
-        va_end(vlist);
-        return notFound;
-      }
-    };
-    case vason_MAP: {
-      auto str = va_arg(vlist, slice(c8));
-      for (usize i = 0; i < current.span.len; i += 2) {
-        // FIX: Add the offset to get the absolute index in the object pool
-        usize objIndex = current.span.offset + i;
-
-        if (container.objects.ptr[objIndex].tag == vason_ID) {
-          slice(c8) thisStr = (slice(c8)){
-              .len = container.objects.ptr[objIndex].span.len,
-              .ptr = container.string.ptr + container.objects.ptr[objIndex].span.offset,
-          };
-
-          if (thisStr.len == str.len) {
-            if (!strncmp((char *)str.ptr, (char *)thisStr.ptr, str.len)) {
-              va_end(vlist);
-              // Return the value (key is at objIndex, value is at objIndex + 1)
-              return container.objects.ptr[objIndex + 1];
-            }
-          }
-        }
-      }
-      va_end(vlist);
-      return notFound;
-    };
-    case vason_INVALID:
-    case vason_ID:
-    case vason_STR: {
-      va_end(vlist);
-      return notFound;
+      } break;
+      case vason_INVALID:
+        return c;
+      default:
+        c.top.tag = vason_INVALID;
     }
   }
+  va_end(ap);
+  c.top.tag = vason_INVALID;
+  return c;
 }
+
 #endif
