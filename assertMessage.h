@@ -24,7 +24,7 @@ char **backtrace_symbols(void *array[], size_t size);
   #if !defined(noAssertMessage)
 
 [[noreturn, gnu::cold, gnu::format(printf, 7, 8)]]
-void _assertMessageFail(
+void __attribute__((noreturn)) _assertMessageFail(
     const char *expr_str,
     const char *func,
     const char *file,
@@ -37,7 +37,7 @@ void _assertMessageFail(
     #define assertMessage(expr, ...)         \
       do {                                   \
         bool result = (expr);                \
-        if (!(result)) {                     \
+        if (__builtin_expect(!result, 0)) {  \
           void *array[5];                    \
           size_t size = backtrace(array, 5); \
           _assertMessageFail(                \
@@ -68,7 +68,7 @@ void _assertMessageFail(
 #define PRINTRESET "\x1b[0m"
 #define PRINTRED "\x1b[31m\n\n"
 [[noreturn, gnu::cold, gnu::format(printf, 7, 8)]]
-void _assertMessageFail(
+void __attribute__((noreturn)) _assertMessageFail(
     const char *expr_str,
     const char *func,
     const char *file,
@@ -109,7 +109,7 @@ void _assertMessageFail(
 #if (defined(_WIN32) || defined(_WIN64))
 size_t backtrace(void **array, size_t size) {
   return CaptureStackBackTrace(
-      0, 
+      0,
       size,
       array,
       NULL

@@ -252,11 +252,10 @@ using mList_t = T (**)(List *);
   }                                                \
   _res;                                            \
 })
-#define mList_set(list, index, val)    \
-  do {                                 \
-    index < mList_len(list)            \
-        ? mList_arr(list)[index] = val \
-        : ;                            \
+#define mList_set(list, index, val) \
+  do {                              \
+    if (index < mList_len(list))    \
+      mList_arr(list)[index] = val; \
   } while (0)
 #define mList_ins(list, index, val)           \
   do {                                        \
@@ -308,6 +307,7 @@ using mList_t = T (**)(List *);
 #if !defined(__cplusplus) || defined(__clang__)
   #define mList_vla(list) ((typeof(mList_iType(list))(*)[mList_len(list)])mList_arr(list))
 #endif
+#define mList_slice(list) {mList_len(list), mList_arr(list)}
 #endif // MY_LIST_H
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)

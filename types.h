@@ -37,6 +37,9 @@ typedef void *voidptr;
 typedef uintmax_t umax;
 typedef intmax_t imax;
 typedef size_t usize;
+#define ntype_max_u(T) ((T)(~((T)0)))
+#define ntype_max_i(T) ((T)(ntype_max_u(T) ^ (((T)1) << sizeof(T) * 8 - 1)))
+int j = ntype_max_i(int);
 
 #if !defined(__cplusplus)
   #define REF(type, value) ((type[1]){value})
@@ -51,7 +54,7 @@ template <typename T>
 static inline T *ref_tmp(T &&v) { return &v; }
   #define REF(type, value) ref_tmp(type{value})
 template <class To, class From>
-To bit_cast_func(const From &src) noexcept {
+inline To bit_cast_func(const From &src) noexcept {
   To dst;
   memcpy(&dst, &src, sizeof(To));
   return dst;
@@ -108,12 +111,12 @@ struct nullable_t {
 #if !defined(__cplusplus) || defined(__clang__)
   #define slice_stat(s) \
     {sizeof(s) / sizeof((s)[0]), (typeof(s[0]) *)(s)}
+  #define slice_vla(s) ((typeof (*(s.ptr))(*)[s.len])(s.ptr))
 #endif
 #define each_slice(slice, e)       \
   typeof(slice.ptr) e = slice.ptr; \
   e < slice.ptr + slice.len;       \
   e++
-#define slice_vla(s) ((typeof (*(s.ptr))(*)[s.len])(s.ptr))
 
 #define nullable_fromPtr(T, ptr)          \
   {                                       \
@@ -121,7 +124,7 @@ struct nullable_t {
       .data = ptr ? *ptr : (typeof(T)){}, \
   }
 #if defined(__cplusplus) || !__has_include(<stdcountof.h>)
-  #define countof(array) (sizeof(array) / sizeof(*array))
+  #define countof(array) (sizeof(array) / sizeof(*(array)))
 #else
   #include <stdcountof.h>
 #endif

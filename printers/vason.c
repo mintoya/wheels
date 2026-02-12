@@ -23,7 +23,7 @@ REGISTER_PRINTER(vason_container, {
     case vason_ARR: {
       PUTS(U"󰅨 ");
       PUTS(U"[");
-      for (auto i = 0; i < in.top.span.len; i++) {
+      for (usize i = 0; i < in.top.span.len; i++) {
         vason_object swap = in.objects.ptr[i + in.top.span.offset];
         vason_object origional = in.top;
         in.top = swap;
@@ -35,7 +35,7 @@ REGISTER_PRINTER(vason_container, {
     case vason_MAP: {
       PUTS(U"󱃖 ");
       PUTS(U"{");
-      for (auto i = 0; i < in.top.span.len; i += 2) {
+      for (usize i = 0; i < in.top.span.len; i += 2) {
         vason_object origional = in.top;
 
         vason_object name = in.objects.ptr[i + in.top.span.offset];

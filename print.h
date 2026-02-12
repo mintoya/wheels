@@ -348,7 +348,7 @@ struct print_arg {
       in *= -1;
     }
     int push = 0;
-    while (((int)in)) {
+    while (((usize)in)) {
       in /= 10;
       push++;
     }
@@ -357,7 +357,7 @@ struct print_arg {
         PUTC(L'.');
     for (int i = 0; i < 12; i++) {
       c32 dig = L'0';
-      dig += ((unsigned int)in) % 10;
+      dig += ((usize)in) % 10;
       PUTC(dig);
       if (i + 1 == push)
         PUTC(L'.');
@@ -522,6 +522,7 @@ struct print_arg {
   MAKE_PRINT_ARG_TYPE(usize);
   MAKE_PRINT_ARG_TYPE(isize);
   MAKE_PRINT_ARG_TYPE(f64);
+  MAKE_PRINT_ARG_TYPE(f128);
   MAKE_PRINT_ARG_TYPE(char);
   MAKE_PRINT_ARG_TYPE(uint);
   MAKE_PRINT_ARG_TYPE(pEsc);

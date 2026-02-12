@@ -59,7 +59,7 @@ vason_get_func(vason_contianer c, vason_tag *tags, ...);
         i32: vason_ARR,        \
         u32: vason_ARR,        \
         fptr: vason_MAP,       \
-        default: vason_INVALID \
+        default: vason_ID      \
     )                          \
 )
 #define vason_get_argsArr(...) ( \
@@ -613,6 +613,8 @@ vason_container vason_get_func(vason_contianer c, vason_tag *tags, ...) {
       } break;
       case vason_INVALID:
         return c;
+      case vason_ID:
+        assertMessage(false, "arg of wrong type? (u32|i32|fptr)");
       default:
         c.top.tag = vason_INVALID;
     }
