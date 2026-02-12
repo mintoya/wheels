@@ -111,7 +111,11 @@ struct nullable_t {
   e++
 #define slice_vla(s) ((typeof (*(s.ptr))(*)[s.len])(s.ptr))
 
-#define nullable_fromPtr(type, ptr) ({type *p = ptr; nullable(type) r; r.isnull = p == NULL; if (!r.isnull) r.data = *p; r; })
+#define nullable_fromPtr(T, ptr)          \
+  {                                       \
+      .isnull = !ptr,                     \
+      .data = ptr ? *ptr : (typeof(T)){}, \
+  }
 #if defined(__cplusplus) || !__has_include(<stdcountof.h>)
   #define countof(array) (sizeof(array) / sizeof(*array))
 #else
