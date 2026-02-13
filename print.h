@@ -467,8 +467,8 @@ struct print_arg {
 
   REGISTER_SPECIAL_PRINTER("x", u8,{
     const c32 hex_chars[17] = U"0123456789abcdef";
-    PUTC(hex_chars[in>>4]);
-    PUTC(hex_chars[in<<4>>4]);
+    PUTC(hex_chars[in>>4&0xf]);
+    PUTC(hex_chars[in&0xf]);
   });
 
   REGISTER_SPECIAL_PRINTER("u8", u8,{

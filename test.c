@@ -22,16 +22,11 @@ void(listWrite)(const c32 *c, mList(c32) wl, unsigned int len, bool flush) {
   res;                                                      \
 })
 int main(void) {
-  My_allocator *local = debugAllocatorInit(
-      stdAlloc,
-      (struct dbgAlloc_config){
-          .log = stdout,
-          // .track_total = 1,
-          .track_trace = 1,
-      }
+  println(
+      "ff? {x}\n"
+      "fa? {x}\n"
+      "af? {x}",
+      0xff, 0xfa, 0xaf
   );
-  slice(c32) sn = fmt_print(local, sn, "hello {} world", 6767);
-  println("{slice(c32)}", sn);
-  int leaks = debugAllocatorDeInit(local);
 }
 #include "wheels.h"

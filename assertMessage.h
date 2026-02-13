@@ -6,20 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 // #include <stdnoreturn.h>
-#if defined(__linux__)
-  #include <execinfo.h>
-  #include <unistd.h>
-#elif defined(_WIN32) || (_WIN64)
-  //
-  #include <windows.h>
-  //
-  #include <dbghelp.h>
-  #include <errhandlingapi.h>
-  #include <io.h>
-  #include <winbase.h>
 size_t backtrace(void **array, size_t size);
 char **backtrace_symbols(void *array[], size_t size);
-#endif
 #ifndef NDEBUG
   #if !defined(noAssertMessage)
 
@@ -57,13 +45,19 @@ void __attribute__((noreturn)) _assertMessageFail(
 #else
   #define assertMessage(...)
 #endif
-#define assertOnce(...) ({static bool hasRun = false; if(!hasRun)assertMessage(__VA_ARGS__);hasRun=true; })
+#define assertOnce(...)           \
+  do {                            \
+    static bool hasRun = false;   \
+    if (!hasRun)                  \
+      assertMessage(__VA_ARGS__); \
+    hasRun = true;                \
+  } while (0)
 #endif
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
 #define ASSERTMESSAGE_C (1)
 #endif
 #if defined(ASSERTMESSAGE_C) && !defined(noAssertMessage)
-
+#define ASSERTMESSAGE_OUTPUT(...) fprintf(stderr, __VA_ARGS__)
 #define PRINTORANGE "\x1b[38;5;208m"
 #define PRINTRESET "\x1b[0m"
 #define PRINTRED "\x1b[31m\n\n"
@@ -106,7 +100,18 @@ void __attribute__((noreturn)) _assertMessageFail(
   }
   exit(1);
 }
-#if (defined(_WIN32) || defined(_WIN64))
+
+#if defined(__linux__)
+  #include <execinfo.h>
+  #include <unistd.h>
+#elif defined(_WIN32) || (_WIN64)
+  //
+  #include <windows.h>
+  //
+  #include <dbghelp.h>
+  #include <errhandlingapi.h>
+  #include <io.h>
+  #include <winbase.h>
 size_t backtrace(void **array, size_t size) {
   return CaptureStackBackTrace(
       0,
@@ -160,6 +165,13 @@ char **backtrace_symbols(void *array[], size_t size) {
   }
   SymCleanup(process);
   return result;
+}
+#else
+size_t backtrace(void **array, size_t size) {
+  return 0;
+}
+char **backtrace_symbols(void *array[], size_t size) {
+  return NULL;
 }
 #endif
 #endif

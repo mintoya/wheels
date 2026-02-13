@@ -6,10 +6,12 @@ REGISTER_PRINTER(vason_container, {
     case vason_ID:
     case vason_STR: {
       if (in.top.tag == vason_ID) {
-        PUTS(U"󰅱 ");
-        USETYPEPRINTER(pEsc, ((pEsc){.bg = {255, 0, 0}, .bgset = 1}));
+        // PUTS(U"󰅱 ");
+        // USETYPEPRINTER(pEsc, ((pEsc){.bg = {255, 0, 0}, .bgset = 1}));
+        PUTS(U"(:) ");
       } else {
-        PUTS(U"󰅳 ");
+        PUTS(U"(S) ");
+        // PUTS(U"󰅳 ");
       }
       slice(c8) str = {
           .len = in.top.span.len,
@@ -17,11 +19,12 @@ REGISTER_PRINTER(vason_container, {
       };
       USENAMEDPRINTER("fptr", str);
       if (in.top.tag == vason_ID) {
-        USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));
+        // USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));
       }
     }; break;
     case vason_ARR: {
-      PUTS(U"󰅨 ");
+      // PUTS(U"󰅨 ");
+      PUTS(U"(A) ");
       PUTS(U"[");
       for (usize i = 0; i < in.top.span.len; i++) {
         vason_object swap = in.objects.ptr[i + in.top.span.offset];
@@ -33,7 +36,8 @@ REGISTER_PRINTER(vason_container, {
       PUTS(U"]");
     }; break;
     case vason_MAP: {
-      PUTS(U"󱃖 ");
+      // PUTS(U"󱃖 ");
+      PUTS(U"(M) ");
       PUTS(U"{");
       for (usize i = 0; i < in.top.span.len; i += 2) {
         vason_object origional = in.top;
@@ -50,7 +54,8 @@ REGISTER_PRINTER(vason_container, {
       PUTS(U"}");
     }; break;
     case vason_INVALID: {
-      PUTS(U"󰅰 ");
+      // PUTS(U"󰅰 ");
+      PUTS(U"(!) ");
     }; break;
   }
 });

@@ -42,7 +42,6 @@ typedef struct vason_object {
   vason_tag tag;
   struct vason_span span;
 } vason_object;
-typedef struct vason_container vason_container;
 typedef struct vason_container {
   slice(c8) string;
   slice(vason_object) objects;
@@ -86,6 +85,12 @@ typedef struct vason {
   typedef vason_contianer container;
   typedef vason_object object;
   container self;
+  inline vason_tag tag() const {
+    return self.top.tag;
+  }
+  inline usize countChildren() const {
+    return self.top.span.len;
+  }
   struct vason operator[](usize idx) {
     auto r = *this;
     r.self.top = vason_arrGet(self.top, self, (u32)idx);
