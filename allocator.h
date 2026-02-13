@@ -13,10 +13,10 @@ static inline uintptr_t lineup(uintptr_t unaligned, size_t aligneder) {
 
 typedef struct My_allocator My_allocator;
 typedef const My_allocator *AllocatorV;
-typedef void *(*My_allocatorAlloc)(AllocatorV, size_t);
-typedef void (*My_allocatorFree)(AllocatorV, void *);
-typedef void *(*My_allocatorRealloc)(AllocatorV, void *, size_t);
-typedef size_t (*My_allocatorGetActualSize)(AllocatorV, void *);
+typedef void *(*const My_allocatorAlloc)(AllocatorV, size_t);
+typedef void (*const My_allocatorFree)(AllocatorV, void *);
+typedef void *(*const My_allocatorRealloc)(AllocatorV, void *, size_t);
+typedef size_t (*const My_allocatorGetActualSize)(AllocatorV, void *);
 
 typedef My_allocator *(*OwnAllocatorInit)(void);
 typedef void (*OwnAllocatorDeInit)(My_allocator *);

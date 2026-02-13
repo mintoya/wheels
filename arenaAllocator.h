@@ -229,13 +229,15 @@ void ownArenaDeInit(My_allocator *d) {
 }
 My_allocator *arena_new_ext(AllocatorV base, usize blockSize) {
   My_allocator *res = (My_allocator *)aAlloc(base, sizeof(My_allocator));
-  *res = (My_allocator){
-      my_arena_alloc,
-      my_arena_free,
-      my_arena_r_alloc,
-      NULL,
-      my_arena_realsize,
-  };
+  const My_allocator allocatorConst =
+      (My_allocator){
+          my_arena_alloc,
+          my_arena_free,
+          my_arena_r_alloc,
+          NULL,
+          my_arena_realsize,
+      };
+  memcpy(res, &allocatorConst, sizeof(allocatorConst));
   res->arb = arenablock_new(base, blockSize);
 
   return res;

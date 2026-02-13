@@ -40,8 +40,7 @@ typedef uintmax_t umax;
 typedef intmax_t imax;
 typedef size_t usize;
 #define ntype_max_u(T) ((T)(~((T)0)))
-#define ntype_max_i(T) ((T)(ntype_max_u(T) ^ (((T)1) << sizeof(T) * 8 - 1)))
-int j = ntype_max_i(int);
+#define ntype_max_i(T) ((T)(ntype_max_u(T) ^ (((T)1) << (sizeof(T) * 8 - 1))))
 
 #if !defined(__cplusplus)
   #define REF(type, value) ((type[1]){value})

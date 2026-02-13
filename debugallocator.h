@@ -1,5 +1,6 @@
 #ifndef MY_DEBUG_ALLOCATOR_H
 #define MY_DEBUG_ALLOCATOR_H
+#include "allocator.h"
 #include "assertMessage.h" // debug symbols
 #include "hhmap.h"
 #include "print.h"
@@ -60,13 +61,14 @@ My_allocator *debugAllocatorInit(AllocatorV allocator, struct dbgAlloc_config co
       .current = 0,
       .total = 0,
   };
-  *res = (My_allocator){
+  My_allocator aconst = (My_allocator){
       .alloc = debugAllocator_alloc,
       .free = debugAllocator_free,
       .ralloc = debugAllocator_realloc,
       .arb = internals,
       .size = allocator->size,
   };
+  memcpy(res, &aconst, sizeof(aconst));
   return res;
 }
 int debugAllocatorDeInit(My_allocator *allocator) {

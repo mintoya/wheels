@@ -92,8 +92,8 @@ stringList *stringList_new(AllocatorV allocator, usize initSize) {
       .buff = (typeof(res->buff))aAlloc(allocator, initSize),
       .allocator = allocator,
   };
-  assertMessage(!msList_len(res->ulist), "should be 0, is %llu", msList_len(res->ulist));
-  assertMessage(!msList_len(res->flist), "should be 0, is %llu", msList_len(res->flist));
+  assertMessage(!msList_len(res->ulist), "should be 0, is %llu", (unsigned long long)msList_len(res->ulist));
+  assertMessage(!msList_len(res->flist), "should be 0, is %llu", (unsigned long long)msList_len(res->flist));
   if (allocator->size)
     res->cap = allocator->size(allocator, res->buff);
   else
