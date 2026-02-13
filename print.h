@@ -12,7 +12,18 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
-#include <uchar.h>
+
+#if defined(PRINTER_NOC32TOMB)
+static inline usize c32rtomb(char *s, c32 chars, mbstate_t *_) {
+  if (s)
+    *s = (char)chars;
+  else
+    return 0;
+  return 1;
+}
+#else
+  #include <uchar.h>
+#endif
 
 typedef void (*outputFunction)(
     const c32 *,
@@ -52,6 +63,7 @@ typedef pEsc printerEscape;
       .clear = 1,    \
       .reset = 1,    \
   })
+
 static void fileprint(
     const c32 *c,
     void *fileHandle,
@@ -101,12 +113,9 @@ static void fileprint(
       fflush(file);
     }
 
-    // 5. Reset buffer index
     buffer.place = 0;
 
   } else {
-    // BUFFERING: Logic fits in buffer, copy it.
-    // FIX: memcpy length is bytes, so we need length * sizeof(c32)
     memcpy(buffer.buf + buffer.place, c, length * sizeof(c32));
     buffer.place += length;
   }
@@ -456,6 +465,11 @@ struct print_arg {
     }
   });
 
+  REGISTER_SPECIAL_PRINTER("x", u8,{
+    const c32 hex_chars[17] = U"0123456789abcdef";
+    PUTC(hex_chars[in>>4]);
+    PUTC(hex_chars[in<<4>>4]);
+  });
 
   REGISTER_SPECIAL_PRINTER("u8", u8,{
     USETYPEPRINTER(usize, (usize)in);
@@ -511,27 +525,28 @@ struct print_arg {
   
   #else
   template <typename T>
-  constexpr const char *type_name_cstr() { return ""; }
+  constexpr const char *type_name_cstr(T arg) { return ""; }
   
   #define MAKE_PRINT_ARG_TYPE(type) \
     template <>                     \
-    constexpr const char *type_name_cstr<type>() { return #type; }
+    constexpr const char *type_name_cstr<type>(type arg) { return #type; }
   
-  MAKE_PRINT_ARG_TYPE(int);
+#if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
+#endif   
   MAKE_PRINT_ARG_TYPE(fptr);
-  MAKE_PRINT_ARG_TYPE(usize);
   MAKE_PRINT_ARG_TYPE(isize);
-  MAKE_PRINT_ARG_TYPE(f64);
+  MAKE_PRINT_ARG_TYPE(usize);
   MAKE_PRINT_ARG_TYPE(f128);
-  MAKE_PRINT_ARG_TYPE(char);
-  MAKE_PRINT_ARG_TYPE(uint);
   MAKE_PRINT_ARG_TYPE(pEsc);
-   
+#if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
+  MAKE_PRINT_ARG_TYPE(i32);
+  MAKE_PRINT_ARG_TYPE(u32);
+#endif
   
   #define MAKE_PRINT_ARG(a)                                          \
     ((struct print_arg){                                             \
        .ref = REF(typeof(a), a),                                    \
-       .name = fp_from(type_name_cstr<std::decay_t<decltype(a)>>()) \
+       .name = fp_from(type_name_cstr(a)) \
    })
 #endif
 // clang-format on
@@ -550,6 +565,8 @@ void print_f(outputFunction put, void *arb, const char *fmt, ...);
 #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
 #define print(fmt, ...) print_wfO(fileprint, stdout, fmt, __VA_ARGS__)
 #define println(fmt, ...) print(fmt "\n", __VA_ARGS__)
+#define print_(fmt, ...) print_wfO(fileprint, stdout, fmt, __VA_ARGS__)
+#define println_(fmt, ...) print(fmt "\n", __VA_ARGS__)
 
 #ifdef PRINTER_LIST_TYPENAMES
 [[gnu::constructor(205)]] static void post_init() {

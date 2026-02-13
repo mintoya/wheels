@@ -224,8 +224,7 @@ using mList_t = T (**)(List *);
         __builtin_expect(!!(mList_len(list) >= mList_cap(list)), 0) \
     )                                                               \
       List_resize((List *)list, LIST_GROW_EQ(mList_len(list)));     \
-    mList_arr(list)[mList_len(list)] = (val);                       \
-    mList_len(list)++;                                              \
+    mList_arr(list)[mList_len(list)++] = (val);                     \
   } while (0)
 
 #define mList_pop(list) ({                                                        \
@@ -240,8 +239,11 @@ using mList_t = T (**)(List *);
     mList_rem(list, 0);                                          \
     result;                                                      \
   })
-
-#define mList_get(list, index) ({ (mList_iType(list) *)List_getRef((List *)list, index); })
+#define mList_get(list, index) ({   \
+  index < mList_len(list)           \
+      ? mList_arr(list) + index     \
+      : (typeof(mList_arr(list)))0; \
+})
 #define mList_getOr(list, index, other) ({         \
   mList_iType(list) *ptr = mList_get(list, index); \
   mList_iType(list) _res;                          \
