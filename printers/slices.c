@@ -1,5 +1,7 @@
 #include "../print.h"
 #include "../types.h"
+#include <alloca.h>
+#include <string.h>
 
 REGISTER_SPECIAL_PRINTER_NEEDID(print_c8slice, "slice(c8)", slice(c8), {
   for (each_slice(in, i))
@@ -16,4 +18,13 @@ REGISTER_SPECIAL_PRINTER_NEEDID(print_i32slice, "slice(i32)", slice(i32), {
     PUTS(U",");
   }
   PUTS(U"]");
+});
+REGISTER_SPECIAL_PRINTER("slice", fptr, {
+  PRINTERARGSEACH({
+    PUTS(U"[");
+    USETYPEPRINTER(usize, in.width);
+    PUTS(U"]");
+    USETYPEPRINTER(fptr, arg);
+    // table of sizes?
+  });
 });

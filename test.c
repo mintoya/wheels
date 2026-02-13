@@ -28,5 +28,7 @@ int main(void) {
       "af? {x}",
       0xff, 0xfa, 0xaf
   );
+  typedef slice(c8) c8slice;
+  println("{slice:c8}", ((c8slice){.len = 7}));
 }
 #include "wheels.h"
