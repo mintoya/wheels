@@ -391,7 +391,7 @@ void HMap_transform(HMap **last, usize kSize, usize vSize, AllocatorV allocator,
       hll->capacity = 1;
   }
   if (hll->capacity < hll->length + 1) {
-    hll->ptr = aRealloc(allocator, hll->ptr, hll->capacity * 2 * elw);
+    hll->ptr = aResize(allocator, hll->ptr, hll->capacity * 2 * elw);
     if (allocator->size)
       hll->capacity = allocator->size(allocator, hll->ptr) / elw;
     else

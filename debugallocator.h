@@ -64,7 +64,7 @@ My_allocator *debugAllocatorInit(AllocatorV allocator, struct dbgAlloc_config co
   My_allocator aconst = (My_allocator){
       .alloc = debugAllocator_alloc,
       .free = debugAllocator_free,
-      .ralloc = debugAllocator_realloc,
+      .resize = debugAllocator_realloc,
       .arb = internals,
       .size = allocator->size,
   };
@@ -157,7 +157,7 @@ void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size) {
     internals->current -= i->size;
   mHmap_rem(internals->map, ptr);
 
-  void *res = aRealloc(realAllocator, ptr, size);
+  void *res = aResize(realAllocator, ptr, size);
 
   struct tracedata data = {.size = size};
   if (internals->config.track_trace)

@@ -7,7 +7,7 @@
 #include <stdlib.h>
 
 char **backtrace_symbols(void *const *array, int size);
-extern int backtrace(void **__array, int __size) __nonnull((1));
+extern int backtrace(void **__array, int __size) __attribute__((nonnull(1)));
 #ifndef NDEBUG
   #if !defined(noAssertMessage)
 
@@ -112,7 +112,8 @@ void __attribute__((noreturn)) _assertMessageFail(
   #include <errhandlingapi.h>
   #include <io.h>
   #include <winbase.h>
-int backtrace(void **array, size_t size) {
+
+int __attribute__((nonnull(1))) backtrace(void **array, int size) {
   return CaptureStackBackTrace(
       0,
       size,
@@ -120,7 +121,8 @@ int backtrace(void **array, size_t size) {
       NULL
   );
 }
-char **backtrace_symbols(void *array[], size_t size) {
+
+char **backtrace_symbols(void *const *array, int size) {
   char **result = (char **)malloc(sizeof(char *) * size + sizeof(char[512]) * size);
   memset(result, 0, sizeof(char *) * size + sizeof(char[512]) * size);
   for (int i = 0; i < size; i++)

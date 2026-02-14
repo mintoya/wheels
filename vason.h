@@ -1,36 +1,41 @@
 #ifndef VASON_PARSER_H
 #define VASON_PARSER_H
 #include "allocator.h"
+#include "assertMessage.h"
 #include "fptr.h"
 #include "my-list.h"
+#include "print.h"
 #include "types.h"
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
 
 typedef struct vason_span {
-  usize len, offset;
+  u16 len, offset;
 } vason_span;
 
 /**
  * if an invalid item needs to be extracted, with bit operations
  */
 typedef enum : u8 {
-  vason_STR = 1 << 1,
-  vason_ARR = 1 << 2,
-  vason_MAP = 1 << 3,
-  vason_ID = 1 << 4,
-  vason_INVALID = 1 << 5,
+  vason_STR /*    */ = 1 << 0,
+  vason_ARR /*    */ = 1 << 1,
+  vason_MAP /*    */ = 1 << 2,
+  vason_ID /*     */ = 1 << 3,
+  vason_INVALID /**/ = 1 << 7,
+  // vason_UNPARSED  = 1 << 6,
 } vason_tag;
 
 /**
  * data based on `tag`
+ * !the string is the same one passed into the parser,
+ *  it doesnt edit it
  * `span`:
  *  `vason_STR`: len&offset inside of vason_container.string
- *  `vason_ARR`: len&offset inside of vason_contianer.objects
+ *  `vason_ARR`: len&offset inside of vason_container.objects
  *  `vason_ID` : len&offset inside of vason_container.string
  *       - only within a map @ the even indexes
- *  `vason_MAP`: len&offset inside of vason_contianer.objects
+ *  `vason_MAP`: len&offset inside of vason_container.objects
  *       - len must be even,
  *       - even indexes: keys (`vason_ID`)
  *       - odd indexes: keys !(`vason_ID`)
@@ -38,18 +43,29 @@ typedef enum : u8 {
  *       - result of failed map or array parse
  *       - cannot exist in place o f `vason_ID`
  */
-typedef struct vason_object {
+typedef struct {
   vason_tag tag;
   struct vason_span span;
 } vason_object;
-typedef struct vason_container {
+// object to make getting easier
+// inneficient to have multiple of them for one parse
+typedef struct {
   slice(c8) string;
   slice(vason_object) objects;
   vason_object top;
-} vason_contianer;
-
+} vason_container;
+// TODO
+// typedef struct {
+//   vason_tag_todo tag;
+//   struct vason_span span;
+// } vason_object_todo;
+// typedef struct {
+//   slice(c8) string;
+//   mList(vason_object) objects;
+//   vason_object_todo top;
+// } vason_container_extended;
 vason_container
-vason_get_func(vason_contianer c, vason_tag *tags, ...);
+vason_get_func(vason_container c, vason_tag *tags, ...);
 #include "printer/variadic.h"
 #define vason_get_makeArg(j) ( \
     (vason_tag) _Generic(      \
@@ -76,15 +92,13 @@ vason_get_func(vason_contianer c, vason_tag *tags, ...);
       __VA_ARGS__                     \
   )
 slice(vason_object) getChildren(vason_object obj, vason_container c);
-fptr vason_getString(vason_object obj, vason_contianer c);
+fptr vason_getString(vason_object obj, vason_container c);
 vason_object vason_mapGet(vason_object o, vason_container c, fptr k);
 vason_object vason_arrGet(vason_object o, vason_container c, u32 key);
-vason_contianer parseStr(AllocatorV allocator, slice(c8) string);
+vason_container parseStr(AllocatorV allocator, slice(c8) string);
 #if defined __cplusplus
 typedef struct vason {
-  typedef vason_contianer container;
-  typedef vason_object object;
-  container self;
+  vason_container self;
   inline vason_tag tag() const {
     return self.top.tag;
   }
@@ -198,8 +212,8 @@ slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
         case ARR_end:
         case MAP_end: {
           for (usize ii = j; ii < i - 1; ii++)
-            t.ptr[ii] = ESCAPE;
-
+            // t.ptr[ii] = ESCAPE;
+            ;
         } break;
         case STR_start:
         case STR_:
@@ -306,12 +320,13 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
     vason_MAP = vason_MAP,
     vason_ARR = vason_ARR
   } mode = vason_ARR;
+  typeof(mode) startMode;
   usize end;
   // clang-format off
   for (; start < t.len; start++) {
     switch (t.ptr[start]) {
-      case ARR_start:goto end_loop;
-      case MAP_start:goto end_loop;
+      case ARR_start:startMode = vason_ARR;goto end_loop;
+      case MAP_start:startMode = vason_MAP;goto end_loop;
       default: break;
     }
   }
@@ -338,8 +353,8 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
         vason_level e = (vason_level){
             .kind = vason_STR,
             .pos = {
-                .len = next - i,
-                .offset = i,
+                .len = (typeof(e.pos.len))(next - i),
+                .offset = (typeof(e.pos.offset))i,
             },
 
         };
@@ -358,8 +373,8 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
             (vason_level){
                 .kind = (vason_tag)(t.ptr[i] == ARR_start ? vason_ARR : vason_MAP),
                 .pos = {
-                    .len = next - i + 1,
-                    .offset = i,
+                    .len = (typeof(l.pos.len))(next - i + 1),
+                    .offset = (typeof(l.pos.offset))i,
                 },
             };
         List_append(&level, &l);
@@ -403,6 +418,7 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
     typedef enum { key,
                    value,
                    unknown } itemkind;
+    vason_level *arr = (typeof(arr))level.head;
     slice(itemkind) items = (slice(itemkind)){
         level.length,
         aCreate(allocator, itemkind, level.length),
@@ -422,38 +438,47 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
           break;
       }
     }
-    // value preceded by value is unknown
-    for (usize i = 1; i < level.length; i++) {
-      if (items.ptr[i] == items.ptr[i - 1] && items.ptr[i] == value)
-        items.ptr[i] = unknown;
+
+    usize kstart = 0;
+    // make sure first thing is a key;
+    while (kstart < items.len && items.ptr[kstart] != key) {
+      if (arr[kstart].kind != vason_STR) {
+        items.ptr[kstart] = unknown;
+        kstart++;
+      } else {
+        items.ptr[kstart] = key;
+        break;
+      }
     }
-    // first item is key if its a string
-    if ((*(vason_level *)(List_getRef(&level, 0))).kind == vason_STR) {
-      items.ptr[0] = key;
-    };
-    // all values preceded by key
-    for (usize i = 1; i < items.len; i++)
-      if (items.ptr[i] == value)
-        items.ptr[i - 1] = key;
-    // unknown preceded by key is a value
-    for (usize i = 0; i + 1 < items.len; i++)
-      if (items.ptr[i] == key)
-        if (items.ptr[i + 1] == unknown)
-          items.ptr[i + 1] = value;
-    // two unkowns after a value are a key-value pair
-    for (usize i = 0; i + 2 < items.len; i++)
-      if (items.ptr[i] == value)
-        if (items.ptr[i + 1] == unknown && items.ptr[i + 2] == unknown) {
-          items.ptr[i + 1] = key;
-          items.ptr[i + 2] = value;
-        }
+    // string after key is a value
+    for (usize i = kstart; i < items.len; i++) {
+      if (items.ptr[i] == unknown && arr[i].kind == vason_STR && items.ptr[i - 1] == key)
+        items.ptr[i] = value;
+    }
+    // string before value is key
+    for (usize i = kstart; i < items.len - 1; i++) {
+      if (items.ptr[i] == unknown && arr[i].kind == vason_STR && items.ptr[i + 1] == value)
+        items.ptr[i] = key;
+    }
+    // make pairs
+    typeof(*items.ptr) expected = key;
+    for (usize i = kstart; i < items.len; i++) {
+      if (items.ptr[i] != expected)
+        items.ptr[i] = unknown;
+      else
+        expected = expected == key ? value : key;
+    }
+
     // all others removed
-    for (isize i = (isize)items.len - 1; i >= 0; i--) {
-      if (items.ptr[i] == unknown) {
-        List_remove(&level, (usize)i);
-      } else if (items.ptr[i] == key) {
-        vason_level *node = (vason_level *)(List_getRef(&level, (usize)i));
-        node->kind = vason_ID;
+    {
+      usize i = 0;
+      usize j = 0;
+      while (i < level.length) {
+        if (items.ptr[j] == unknown)
+          List_remove(&level, i);
+        else
+          i++;
+        j++;
       }
     }
 
@@ -462,7 +487,9 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
 
     aFree(allocator, items.ptr);
   }
-  List_forceResize(&level, level.length);
+  List_forceResize(&level, level.length ?: 1);
+  if (level.length == 0)
+    mode = startMode;
   slice(vason_level) listMemory =
       (slice(vason_level)){
           level.length,
@@ -496,11 +523,12 @@ vason_object bdconvert(
     case vason_MAP:
     case vason_ARR: {
       res.span = (typeof(res.span)){
-          .len = bdr.items.len,
-          .offset = mList_len(containerList),
+          .len = (typeof(res.span.len))bdr.items.len,
+          .offset = (typeof(res.span.len))mList_len(containerList),
       };
       // if (bdr.kind == vason_MAP)
       //   res.span.len = (res.span.len / 2) * 2;
+      //   bdr only returns even length maps
       List_appendFromArr((List *)containerList, NULL, res.span.len);
       for (usize i = 0; i < res.span.len; i++) {
         switch (bdr.items.ptr[i].kind) {
@@ -533,7 +561,11 @@ vason_object bdconvert(
   // clang-format on
   return res;
 }
-vason_contianer parseStr(AllocatorV allocator, slice(c8) str) {
+vason_container parseStr(AllocatorV allocator, slice(c8) str) {
+  assertMessage(
+      str.len < ntype_max_u(typeof(((vason_span *)NULL)->len)),
+      "vason_span isnt big enough to refer to string"
+  );
   slice(vason_token) t = vason_tokenize(allocator, str);
   mList(vason_object) bucket = mList_init(allocator, vason_object);
 
@@ -543,10 +575,10 @@ vason_contianer parseStr(AllocatorV allocator, slice(c8) str) {
   aFree(allocator, bdr.items.ptr);
   aFree(allocator, t.ptr);
 
-  vason_contianer res = {
+  vason_container res = {
       .string = str,
-      .objects = (slice(vason_object)){
-          .len = mList_len(bucket),
+      .objects = (typeof(res.objects)){
+          .len = (typeof(res.objects.len))mList_len(bucket),
           .ptr = (vason_object *)((List *)bucket)->head,
       },
       .top = bdc,
@@ -557,16 +589,17 @@ vason_contianer parseStr(AllocatorV allocator, slice(c8) str) {
 #include <stdarg.h>
 
 slice(vason_object) getChildren(vason_object obj, vason_container c) {
+  typedef typeof(getChildren((vason_object){}, (vason_container){})) T_res;
   if (!(obj.tag == vason_MAP || obj.tag == vason_ARR))
-    return (slice(vason_object)){};
+    return (T_res){};
   if (!(obj.span.len + obj.span.offset <= c.objects.len))
-    return (slice(vason_object)){};
-  return (slice(vason_object)){
+    return (T_res){};
+  return (T_res){
       obj.span.len,
       c.objects.ptr + obj.span.offset,
   };
 }
-fptr vason_getString(vason_object obj, vason_contianer c) {
+fptr vason_getString(vason_object obj, vason_container c) {
   if (!(obj.tag == vason_STR || obj.tag == vason_ID))
     return nullFptr;
   if (!(obj.span.len + obj.span.offset <= c.string.len))
@@ -579,7 +612,7 @@ fptr vason_getString(vason_object obj, vason_contianer c) {
 vason_object vason_mapGet(vason_object o, vason_container c, fptr k) {
   if (!(o.tag == vason_MAP))
     return (vason_object){vason_INVALID};
-  slice(vason_object) children = getChildren(o, c);
+  typeof(getChildren(o, c)) children = getChildren(o, c);
   for (i32 i = 0; i < children.len - 1; i += 2) {
     if (fptr_eq(k, vason_getString(children.ptr[i], c)))
       return children.ptr[i + 1];
@@ -589,12 +622,12 @@ vason_object vason_mapGet(vason_object o, vason_container c, fptr k) {
 vason_object vason_arrGet(vason_object o, vason_container c, u32 key) {
   if (!(o.tag == vason_ARR))
     return (vason_object){vason_INVALID};
-  slice(vason_object) children = getChildren(o, c);
+  typeof(getChildren(o, c)) children = getChildren(o, c);
   if (children.len > key)
     return (vason_object){vason_INVALID};
   return children.ptr[key];
 }
-vason_container vason_get_func(vason_contianer c, vason_tag *tags, ...) {
+vason_container vason_get_func(vason_container c, vason_tag *tags, ...) {
   va_list ap;
   va_start(ap, tags);
   while (c.top.tag != vason_INVALID) {

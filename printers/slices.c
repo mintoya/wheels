@@ -1,7 +1,6 @@
 #include "../print.h"
 #include "../types.h"
-#include <alloca.h>
-#include <string.h>
+#include <stdlib.h>
 
 REGISTER_SPECIAL_PRINTER_NEEDID(print_c8slice, "slice(c8)", slice(c8), {
   for (each_slice(in, i))
@@ -25,6 +24,7 @@ REGISTER_SPECIAL_PRINTER("slice", fptr, {
     USETYPEPRINTER(usize, in.width);
     PUTS(U"]");
     USETYPEPRINTER(fptr, arg);
-    // table of sizes?
+    // char *conName = (typeof(conName))malloc(sizeof("slice()") + arg.width);
+    // free(conName);
   });
 });

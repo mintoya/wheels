@@ -155,7 +155,7 @@ fptr stringList_append(stringList *sl, fptr ptr) {
   } else {
     offset = sl->len;
     if (offset + ptr.width + vlq_len > sl->len) {
-      sl->buff = (vlength *)aRealloc(sl->allocator, sl->buff, offset + ptr.width + vlq_len + 10);
+      sl->buff = (vlength *)aResize(sl->allocator, sl->buff, offset + ptr.width + vlq_len + 10);
       if (sl->allocator->size)
         sl->cap = sl->allocator->size(sl->allocator, sl->buff);
       else

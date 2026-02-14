@@ -1,13 +1,12 @@
 #include "../vason.h"
 #include "../print.h"
-typedef struct vason_container vason_container;
 REGISTER_PRINTER(vason_container, {
   switch (in.top.tag) {
     case vason_ID:
     case vason_STR: {
       if (in.top.tag == vason_ID) {
-        // PUTS(U"󰅱 ");
-        // USETYPEPRINTER(pEsc, ((pEsc){.bg = {255, 0, 0}, .bgset = 1}));
+        PUTS(U"󰅱 ");
+        USETYPEPRINTER(pEsc, ((pEsc){.bg = {255, 0, 0}, .bgset = 1}));
         PUTS(U"(:) ");
       } else {
         PUTS(U"(S) ");
@@ -23,8 +22,8 @@ REGISTER_PRINTER(vason_container, {
       }
     }; break;
     case vason_ARR: {
-      // PUTS(U"󰅨 ");
-      PUTS(U"(A) ");
+      PUTS(U"󰅨 ");
+      // PUTS(U"(A) ");
       PUTS(U"[");
       for (usize i = 0; i < in.top.span.len; i++) {
         vason_object swap = in.objects.ptr[i + in.top.span.offset];

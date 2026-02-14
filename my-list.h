@@ -147,7 +147,12 @@ extern inline List_index_t List_length(const List *l) { return l ? l->length : 0
  * `@return` length of list if it doesnt exist
  */
 extern inline List_index_t List_locate(const List *l, const void *element);
-extern inline void List_remove(List *l, List_index_t i);
+extern inline void List_remove(List *l, List_index_t i) {
+  if (i >= l->length)
+    return;
+  memmove(l->head + i * l->width, l->head + (i + 1) * l->width, (l->length - i - 1) * l->width);
+  l->length--;
+}
 /*
  * sets all bits in space reserved to 0
  * `@param` **list**
@@ -361,12 +366,6 @@ inline List_index_t List_locate(const List *l, const void *element) {
   }
   return i;
 }
-extern inline void List_remove(List *l, List_index_t i) {
-  if (i >= l->length)
-    return;
-  memmove(l->head + i * l->width, l->head + (i + 1) * l->width, (l->length - i - 1) * l->width);
-  l->length--;
-}
 inline void List_zeroOut(List *l) {
   memset(l->head, 0, List_fullHeadArea(l));
 }
@@ -381,10 +380,12 @@ void List_insert(List *l, List_index_t i, void *element) {
   List_set(l, i, element);
   l->length++;
 }
+#include "assertMessage.h"
 #include "stdio.h"
 void List_forceResize(List *l, List_index_t newSize) {
   uint8_t *newPlace =
-      (uint8_t *)aRealloc(l->allocator, l->head, newSize * l->width);
+      (uint8_t *)aResize(l->allocator, l->head, newSize * l->width);
+  assertMessage(newPlace);
   if (!newPlace) {
     fprintf(stderr, "cant resize list");
     abort();

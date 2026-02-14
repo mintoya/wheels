@@ -5,22 +5,11 @@
 #include "printers/slices.c"
 #include "stringList.h"
 #include "types.h"
+#include "vason.h"
 #include <malloc.h>
 #include <stdcountof.h>
 #include <stdio.h>
 
-void(listWrite)(const c32 *c, mList(c32) wl, unsigned int len, bool flush) {
-  List_appendFromArr((List *)wl, c, len);
-  if (flush)
-    mList_push(wl, 0);
-}
-#define fmt_print(allocator, slice, ...) ({                 \
-  mList(c32) chars = mList_init(allocator, c32);            \
-  print_wfO((outputFunction)listWrite, chars, __VA_ARGS__); \
-  typeof(slice) res = {mList_len(chars), mList_arr(chars)}; \
-  aFree(allocator, chars);                                  \
-  res;                                                      \
-})
 int main(void) {
   println(
       "ff? {x}\n"
@@ -28,7 +17,6 @@ int main(void) {
       "af? {x}",
       0xff, 0xfa, 0xaf
   );
-  typedef slice(c8) c8slice;
-  println("{slice:c8}", ((c8slice){.len = 7}));
+  println("{slice:c8}", ((slice(c8)){.len = 7}));
 }
 #include "wheels.h"

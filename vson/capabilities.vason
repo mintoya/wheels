@@ -1,15 +1,15 @@
 {
-  `key'      :`value';
-  `key2'     :`value2';
+  `key'       `value' `skipped by bdconvert'
+  `key2'     :`value2' skipped by tokenizer cause -> ;
   listkey    : [a,b,c,d];
-  listkey 2  : [`a'`b'`c'`d'];
-  list nest  : {
+  listkey 2  : [`a'`b'`c'`d']
+  list nest  : [
     {
       `key'      :`value';
       `key2'     :`value2';
       listkey    : [a,b,c,d];
       listkey 2  : [`a'`b'`c'`d'];
-      list nest  : { }
+      list nest  : [ ]
       object nest: {
         `key'      :`value';
         `key2'     :`value2';
@@ -19,7 +19,7 @@
       }
     },
     {key:value;}
-  };
+  ];
   object nest: {
     `key'      :`value';
     `key2'     :`value2';
