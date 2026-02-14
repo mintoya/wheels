@@ -1,7 +1,7 @@
 #if !defined(STRING_LIST_H)
   #define STRING_LIST_H (1)
   #include "my-list.h"
-  #include "types.h"
+  #include "mytypes.h"
   #include <stddef.h>
   #include <string.h>
 typedef struct [[gnu::packed]] vlength {
@@ -67,9 +67,7 @@ fptr stringList_set(stringList *, List_index_t, fptr);
 #endif
 
 #if defined(STRING_LIST_C)
-
   #include "my-list.h"
-  #include "types.h"
 static_assert(sizeof(vlength) == sizeof(u8), "vlength warning");
   #define vlen_stat(stringLiteral) ({                 \
     static struct [[gnu::packed]] {                   \

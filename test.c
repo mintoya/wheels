@@ -1,10 +1,10 @@
 #include "debugallocator.h"
 #include "my-list.h"
+#include "mytypes.h"
 #include "omap.h"
 #include "print.h"
 #include "printers/slices.c"
 #include "stringList.h"
-#include "types.h"
 #include "vason.h"
 #include <malloc.h>
 #include <stdcountof.h>

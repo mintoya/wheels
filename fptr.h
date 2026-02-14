@@ -1,6 +1,6 @@
 #if !defined(FPTR_H)
   #define FPTR_H (1)
-  #include "types.h"
+  #include "mytypes.h"
   #include <stdalign.h>
   #include <stdbool.h>
   #include <stddef.h>

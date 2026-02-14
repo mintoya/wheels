@@ -2,9 +2,9 @@
   #define SHORT_LIST_H (1)
   #include "allocator.h"
   #include "assertMessage.h"
+  #include "mytypes.h"
   #include "stdalign.h"
   #include "string.h"
-  #include "types.h"
   #ifndef SLIST_GROW_EQ
     #define SLIST_GROW_EQ(len) (len + len)
   #endif

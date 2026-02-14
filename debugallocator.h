@@ -4,7 +4,7 @@
 #include "assertMessage.h" // debug symbols
 #include "hhmap.h"
 #include "print.h"
-#include "types.h"
+#include "mytypes.h"
 #include <stdlib.h>
 
 struct dbgAlloc_config {

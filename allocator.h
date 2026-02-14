@@ -56,7 +56,7 @@ extern AllocatorV stdAlloc;
 #endif
 #ifdef MY_ALLOCATOR_C
 #include "assertMessage.h"
-#include "types.h"
+#include "mytypes.h"
 #include <stdio.h>
 [[clang::ownership_returns(malloc), gnu::alloc_size(2)]]
 void *aAlloc(AllocatorV allocator, size_t size) {

@@ -4,8 +4,8 @@
 #include "assertMessage.h"
 #include "fptr.h"
 #include "my-list.h"
+#include "mytypes.h"
 #include "print.h"
-#include "types.h"
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
