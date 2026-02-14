@@ -96,6 +96,12 @@ template <typename T>
 struct slice_t {
   usize len;
   T *ptr;
+  void set(usize idx, T val) { return idx < len ? ptr[idx] = val : (void)0; }
+  T *get(usize idx) { return idx < len ? ptr + idx : nullptr; }
+
+  T &operator[](usize idx) { return ptr[idx]; }
+  const T &operator[](usize idx) const { return ptr[idx]; }
+
   T *begin() const { return ptr; }
   T *end() const { return ptr + len; }
 };
