@@ -64,14 +64,15 @@ typedef pEsc printerEscape;
       .reset = 1,    \
   })
 
+#if !defined(NOFILEPRINTER)
 static void fileprint(
     const c32 *c,
     void *fileHandle,
     unsigned int length,
     bool flush
 ) {
-#define BUF_ELEMENTS (2 << 8)
-#define MAX_UTF8_BYTES 4
+  #define BUF_ELEMENTS (2 << 8)
+  #define MAX_UTF8_BYTES 4
   FILE *file = (FILE *)fileHandle;
 
   static thread_local struct {
@@ -120,6 +121,7 @@ static void fileprint(
     buffer.place += length;
   }
 }
+#endif
 
 static struct {
   HMap *data;

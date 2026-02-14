@@ -44,7 +44,7 @@ extern inline u64 vlen_toU64(struct vlength *vlen) {
 }
 extern inline fptr vlqbuf_toFptr(vlength *b) {
   return (fptr){
-      .width = vlen_toU64(b),
+      .width = (usize)vlen_toU64(b),
       .ptr = ({
         for (; b->hasNext; b++)
           ;

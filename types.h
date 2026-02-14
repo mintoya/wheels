@@ -4,7 +4,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#if __has_include("uchar.h")
+#define NOUCHAR_TYPES
+#if __has_include("uchar.h") && !defined(NOUCHAR_TYPES)
   #include <uchar.h>
 #else
 typedef uint8_t char8_t;
