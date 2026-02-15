@@ -54,19 +54,66 @@ typedef struct {
   slice(vason_object) objects;
   vason_object top;
 } vason_container;
-// TODO
-// typedef struct {
-//   vason_tag_todo tag;
-//   struct vason_span span;
-// } vason_object_todo;
-// typedef struct {
-//   slice(c8) string;
-//   mList(vason_object) objects;
-//   vason_object_todo top;
-// } vason_container_extended;
-vason_container
-vason_get_func(vason_container c, vason_tag *tags, ...);
-#include "printer/variadic.h"
+slice(vason_object) vason_getChildren(vason_object obj, vason_container c);
+fptr vason_getString(vason_object obj, vason_container c);
+vason_object vason_mapGet(vason_object o, vason_container c, fptr k);
+vason_object vason_arrGet(vason_object o, vason_container c, u32 key);
+static inline vason_container vason_mapGetContainer(vason_container o, fptr k) {
+  o.top = vason_mapGet(o.top, o, k);
+  return o;
+}
+static inline vason_container vason_arrGetContainer(vason_container o, u32 k) {
+  o.top = vason_arrGet(o.top, o, k);
+  return o;
+}
+REGISTER_PRINTER(vason_container, {
+  switch (in.top.tag) {
+    case vason_ID:
+    case vason_STR: {
+      if (in.top.tag == vason_ID)
+        PUTS(U"(:)");
+      else
+        PUTS(U"(S)");
+      USENAMEDPRINTER("fptr", vason_getString(in.top, in));
+    }; break;
+    case vason_ARR: {
+      PUTS(U"(A");
+      USETYPEPRINTER(usize, (usize)(in.top.span.len));
+      PUTS(U")[");
+      for (usize i = 0; i < in.top.span.len; i++) {
+        vason_object swap = in.objects.ptr[i + in.top.span.offset];
+        vason_object origional = in.top;
+        in.top = swap;
+        USETYPEPRINTER(vason_container, in);
+        in.top = origional;
+      }
+      PUTS(U"]");
+    }; break;
+    case vason_MAP: {
+      PUTS(U"(M");
+      USETYPEPRINTER(usize, (usize)(in.top.span.len / 2));
+      PUTS(U"){");
+      for (usize i = 0; i < in.top.span.len; i += 2) {
+        vason_object origional = in.top;
+        vason_object name = in.objects.ptr[i + in.top.span.offset];
+        vason_object object = in.objects.ptr[i + in.top.span.offset + 1];
+        in.top = name;
+        USETYPEPRINTER(vason_container, in);
+        in.top = object;
+        USETYPEPRINTER(vason_container, in);
+        in.top = origional;
+      }
+      PUTS(U"}");
+    }; break;
+    case vason_INVALID: {
+      PUTS(U"(!)");
+    }; break;
+  }
+});
+
+vason_container vason_get_func(vason_container c, vason_tag *tags, ...);
+
+#include "printer/variadic.h" // APPLY_N
 #define vason_get_makeArg(j) ( \
     (vason_tag) _Generic(      \
         (j),                   \
@@ -91,17 +138,11 @@ vason_get_func(vason_container c, vason_tag *tags, ...);
       vason_get_argsArr(__VA_ARGS__), \
       __VA_ARGS__                     \
   )
-slice(vason_object) getChildren(vason_object obj, vason_container c);
-fptr vason_getString(vason_object obj, vason_container c);
-vason_object vason_mapGet(vason_object o, vason_container c, fptr k);
-vason_object vason_arrGet(vason_object o, vason_container c, u32 key);
 vason_container parseStr(AllocatorV allocator, slice(c8) string);
 #if defined __cplusplus
 typedef struct vason {
   vason_container self;
-  inline vason_tag tag() const {
-    return self.top.tag;
-  }
+  inline vason_tag tag() const { return self.top.tag; }
   inline usize countChildren() const {
     return self.top.span.len;
   }
@@ -392,6 +433,18 @@ struct breakdown_return breakdown(usize start, slice(vason_token) t, AllocatorV 
       case MAP_delim: {
         i++;
       } break;
+      case ESCAPE: {
+        usize next = i + 1;
+        while (next < end && t.ptr[next] == ESCAPE)
+          next++;
+        // skips surrounded by commas get added as an empty string
+        if (
+            i > 0 && next < t.len && // mode == vason_ARR &&
+            t.ptr[next] == ARR_delim && t.ptr[i - 1] == ARR_delim
+        )
+          List_append(&level, REF(vason_level, ((vason_level){.kind = vason_STR, .pos = {}})));
+        i = next;
+      } break;
       default:
         i++;
         break;
@@ -588,8 +641,8 @@ vason_container parseStr(AllocatorV allocator, slice(c8) str) {
 }
 #include <stdarg.h>
 
-slice(vason_object) getChildren(vason_object obj, vason_container c) {
-  typedef typeof(getChildren((vason_object){}, (vason_container){})) T_res;
+slice(vason_object) vason_getChildren(vason_object obj, vason_container c) {
+  typedef typeof(vason_getChildren((vason_object){}, (vason_container){})) T_res;
   if (!(obj.tag == vason_MAP || obj.tag == vason_ARR))
     return (T_res){};
   if (!(obj.span.len + obj.span.offset <= c.objects.len))
@@ -612,7 +665,7 @@ fptr vason_getString(vason_object obj, vason_container c) {
 vason_object vason_mapGet(vason_object o, vason_container c, fptr k) {
   if (!(o.tag == vason_MAP))
     return (vason_object){vason_INVALID};
-  typeof(getChildren(o, c)) children = getChildren(o, c);
+  typeof(vason_getChildren(o, c)) children = vason_getChildren(o, c);
   for (i32 i = 0; i < children.len - 1; i += 2) {
     if (fptr_eq(k, vason_getString(children.ptr[i], c)))
       return children.ptr[i + 1];
@@ -622,8 +675,8 @@ vason_object vason_mapGet(vason_object o, vason_container c, fptr k) {
 vason_object vason_arrGet(vason_object o, vason_container c, u32 key) {
   if (!(o.tag == vason_ARR))
     return (vason_object){vason_INVALID};
-  typeof(getChildren(o, c)) children = getChildren(o, c);
-  if (children.len > key)
+  typeof(vason_getChildren(o, c)) children = vason_getChildren(o, c);
+  if (children.len < key)
     return (vason_object){vason_INVALID};
   return children.ptr[key];
 }
