@@ -157,9 +157,13 @@ typedef struct vason {
     return r;
   }
   fptr asString() {
-    if (self.top.tag != vason_STR && self.top.tag != vason_ID)
-      return nullFptr;
-    return vason_getString(self.top, self);
+    switch (self.top.tag) {
+      case vason_STR:
+      case vason_ID:
+        return vason_getString(self.top, self);
+      default:
+        return nullFptr;
+    }
   }
   struct vason operator[](const std::string &c) { return (*this)[(fptr){c.length(), (u8 *)c.c_str()}]; }
   struct vason operator[](const char *c) { return (*this)[(fptr){strlen(c), (u8 *)c}]; }
@@ -664,10 +668,10 @@ fptr vason_getString(vason_object obj, vason_container c) {
   };
 }
 vason_object vason_mapGet(vason_object o, vason_container c, fptr k) {
-  if (!(o.tag == vason_MAP))
+  if (o.tag != vason_MAP)
     return (vason_object){vason_INVALID};
   typeof(vason_getChildren(o, c)) children = vason_getChildren(o, c);
-  for (i32 i = 0; i < children.len - 1; i += 2) {
+  for (i32 i = 0; i + 1 < children.len; i += 2) {
     if (fptr_eq(k, vason_getString(children.ptr[i], c)))
       return children.ptr[i + 1];
   }
