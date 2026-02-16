@@ -3,7 +3,6 @@
 //
 #include "../debugallocator.h"
 #include "../printers/slices.c"
-#include "../printers/vason.c"
 #include "../types.h"
 #include "../vason.h"
 #include <stddef.h>

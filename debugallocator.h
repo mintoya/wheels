@@ -3,13 +3,19 @@
 #include "allocator.h"
 #include "assertMessage.h" // debug symbols
 #include "hhmap.h"
-#include "print.h"
 #include "mytypes.h"
+#include "print.h"
 #include <stdlib.h>
 
+#define quiet_override_warning(...)                                   \
+  _Pragma("clang diagnostic push")                                    \
+      _Pragma("clang diagnostic ignored \"-Winitializer-overrides\"") \
+          __VA_ARGS__                                                 \
+              _Pragma("clang diagnostic pop")
 struct dbgAlloc_config {
-  bool track_trace;
+  AllocatorV allocator;
   bool track_total;
+  bool track_trace;
   FILE *log;
 };
 /**
@@ -17,7 +23,15 @@ struct dbgAlloc_config {
  *      - backend allocator, it will also store itself here
  * `@return` debug allocator
  */
-My_allocator *debugAllocatorInit(AllocatorV allocator, struct dbgAlloc_config config);
+My_allocator *(debugAllocatorInit)(struct dbgAlloc_config config);
+#define debugAllocatorInit(...) quiet_override_warning( \
+    debugAllocatorInit(                                 \
+        (struct dbgAlloc_config){                       \
+            .allocator = stdAlloc, __VA_ARGS__          \
+        }                                               \
+    )                                                   \
+)
+
 /**
  * `@param` **allocator**  allocator
  *      - debug allocator
@@ -50,7 +64,8 @@ void debugAllocator_free(AllocatorV allocator, void *ptr);
 
 usize debugAllocator_size(AllocatorV allocator, void *ptr);
 
-My_allocator *debugAllocatorInit(AllocatorV allocator, struct dbgAlloc_config config) {
+My_allocator *(debugAllocatorInit)(struct dbgAlloc_config config) {
+  AllocatorV allocator = config.allocator;
   My_allocator *res = aCreate(allocator, My_allocator);
   debugAllocatorInternals *internals = aCreate(allocator, typeof(*internals));
   *internals = (debugAllocatorInternals){

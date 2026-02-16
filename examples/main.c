@@ -1,10 +1,10 @@
 #include "../arenaAllocator.h"
 #include "../print.h"
+#include <stddefer.h>
 //
 #include "../debugallocator.h"
+#include "../mltypes.h"
 #include "../printers/slices.c"
-#include "../printers/vason.c"
-#include "../types.h"
 #include "../vason.h"
 #include <stddef.h>
 
@@ -20,22 +20,25 @@
 c8 pointstr[] = {
 #embed "../vson/capabilities.vason"
 };
-
 int main(void) {
   Arena_scoped *s = arena_new_ext(pageAllocator, 1);
-  My_allocator *local = debugAllocatorInit(s);
+
+  My_allocator *local = debugAllocatorInit(
+          .log = stdout,
+          .allocator = stdAlloc,
+  );
+  defer print("{} leaks detected", (isize)debugAllocatorDeInit(local));
 
   slice(c8) pointData = slice_stat(pointstr);
   auto vson = parseStr(local, pointData);
+  defer aFree(local, vson.objects.ptr);
+
   println(
       "input {} :\n{slice(c8)}\n point:\n{vason_container}",
       pointData.len, pointData, vson
   );
   println("{} objects", vson.objects.len);
-  // aFree(local, vson.objects.ptr);
-  // should see one leak
 
-  print("{} leaks detected", (isize)debugAllocatorDeInit(local));
   return 0;
 }
 #include "../wheels.h"

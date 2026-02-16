@@ -686,6 +686,7 @@ vason_object vason_arrGet(vason_object o, vason_container c, u32 key) {
   return children.ptr[key];
 }
 vason_container vason_get_func(vason_container c, vason_tag *tags, ...) {
+
   va_list ap;
   va_start(ap, tags);
   while (c.top.tag != vason_INVALID) {

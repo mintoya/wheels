@@ -1,5 +1,5 @@
+#include "../mytypes.h"
 #include "../print.h"
-#include "../types.h"
 #include <stdlib.h>
 
 REGISTER_SPECIAL_PRINTER_NEEDID(print_c8slice, "slice(c8)", slice(c8), {

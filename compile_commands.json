@@ -1,10 +1,10 @@
 [
   {
-    "command": "clang -std=c2y",
+    "command": "clang -std=c2y -fdefer-ts",
     "file": "examples/parser.c"
   },
   {
-    "command": "clang -std=c2y",
+    "command": "clang -std=c2y -fdefer-ts",
     "file": "examples/main.c"
   }
 ]

@@ -1,0 +1,3 @@
+# .clangd file
+CompileFlags:
+  Add: [-std=c2y, -fdefer-ts]
