@@ -25,8 +25,8 @@ typedef struct My_allocator {
   My_allocatorAlloc alloc;
   My_allocatorFree free;
   My_allocatorResize resize;
-  void *arb;                      ///< userdata
-  My_allocatorGetActualSize size; ///< optional, check every time
+  My_allocatorGetActualSize size;  ///< optional, check every time
+  char alignas(max_align_t) arb[]; ///< userdata
 } My_allocator;
 
 typedef struct {
@@ -116,11 +116,10 @@ AllocatorV stdAlloc = (My_allocator[1]){{
     default_alloc,
     default_free,
     default_r_alloc,
-    nullptr,
 #ifdef DEFAULT_SIZE_GETTER
     default_size,
 #else
-    nullptr,
+    nullptr
 #endif
 }};
 #endif

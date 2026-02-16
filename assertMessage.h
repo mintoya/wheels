@@ -5,9 +5,17 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#if defined(__cplusplus)
+  #define EXTERNCSTART extern "C" {
+  #define EXTERNCEND }
+#else
+  #define EXTERNCSTART
+  #define EXTERNCEND
+#endif
+EXTERNCSTART
 char **backtrace_symbols(void *const *array, int size);
 extern int backtrace(void **__array, int __size) __attribute__((nonnull(1)));
+EXTERNCEND
 #ifndef NDEBUG
   #if !defined(noAssertMessage)
 
@@ -169,11 +177,13 @@ char **backtrace_symbols(void *const *array, int size) {
   return result;
 }
 #else
-size_t backtrace(void **array, size_t size) {
-  return 0;
+// char **backtrace_symbols(void *array[], size_t size) {
+//   return NULL;
+// }
+EXTERNCSTART
+char **backtrace_symbols(void *const *array, int size) { return NULL; }
+extern int backtrace(void **__array, int __size) __attribute__((nonnull(1))) { return 0; }
 }
-char **backtrace_symbols(void *array[], size_t size) {
-  return NULL;
-}
+EXTERNCEND
 #endif
 #endif

@@ -131,7 +131,8 @@ struct nullable_t {
       .data = ptr ? *ptr : (typeof(T)){}, \
   }
 #if defined(__cplusplus) || !__has_include(<stdcountof.h>)
-  #define countof(array) (sizeof(array) / sizeof(*(array)))
+  #define _Countof(array) (sizeof(array) / sizeof(*(array)))
+  #define countof(array) _Countof(array)
 #else
   #include <stdcountof.h>
 #endif

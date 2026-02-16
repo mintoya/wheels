@@ -58,6 +58,11 @@ typedef struct {
   usize max, current, total;
 } debugAllocatorInternals;
 
+typedef struct {
+  My_allocator allocator[1];
+  debugAllocatorInternals alignas(max_align_t) internals[1];
+} Debug_allocator_block;
+
 void *debugAllocator_alloc(AllocatorV allocator, usize size);
 void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size);
 void debugAllocator_free(AllocatorV allocator, void *ptr);
@@ -66,9 +71,8 @@ usize debugAllocator_size(AllocatorV allocator, void *ptr);
 
 My_allocator *(debugAllocatorInit)(struct dbgAlloc_config config) {
   AllocatorV allocator = config.allocator;
-  My_allocator *res = aCreate(allocator, My_allocator);
-  debugAllocatorInternals *internals = aCreate(allocator, typeof(*internals));
-  *internals = (debugAllocatorInternals){
+  Debug_allocator_block *res = aCreate(allocator, Debug_allocator_block);
+  res->internals[0] = (debugAllocatorInternals){
       .map = mHmap_init(allocator, void *, struct tracedata),
       .actualAllocator = allocator,
       .config = config,
@@ -76,15 +80,17 @@ My_allocator *(debugAllocatorInit)(struct dbgAlloc_config config) {
       .current = 0,
       .total = 0,
   };
-  My_allocator aconst = (My_allocator){
-      .alloc = debugAllocator_alloc,
-      .free = debugAllocator_free,
-      .resize = debugAllocator_realloc,
-      .arb = internals,
-      .size = allocator->size,
-  };
-  memcpy(res, &aconst, sizeof(aconst));
-  return res;
+  memcpy(
+      res->allocator,
+      (My_allocator[1]){(My_allocator){
+          .alloc = debugAllocator_alloc,
+          .free = debugAllocator_free,
+          .resize = debugAllocator_realloc,
+          .size = allocator->size,
+      }},
+      sizeof(My_allocator)
+  );
+  return res->allocator;
 }
 int debugAllocatorDeInit(My_allocator *allocator) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
