@@ -61,6 +61,22 @@ List_index_t stringList_len(stringList *);
 usize stringList_footprint(stringList *);
 fptr stringList_insert(stringList *, List_index_t, fptr);
 fptr stringList_set(stringList *, List_index_t, fptr);
+  #if defined __cplusplus
+struct strList {
+  stringList *ptr;
+  inline strList(AllocatorV allocator = stdAlloc, usize initSize = 20) {
+    ptr = stringList_new(allocator, initSize);
+  }
+  inline ~strList() { stringList_free(ptr); }
+  inline fptr get(List_index_t idx) { return stringList_get(ptr, idx); }
+  inline fptr set(List_index_t idx, fptr ptrf) { return stringList_set(ptr, idx, ptrf); }
+  inline void remove(List_index_t idx) { return stringList_remove(ptr, idx); }
+  inline fptr push(fptr ptrf) { return stringList_append(ptr, ptrf); }
+  inline fptr insert(List_index_t idx, fptr ptrf) { return stringList_insert(ptr, idx, ptrf); }
+  inline List_index_t len() { return stringList_len(ptr); }
+  const fptr operator[](usize idx) { return get(idx); }
+};
+  #endif
 #endif
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
   #define STRING_LIST_C (1)
@@ -191,31 +207,7 @@ fptr stringList_insert(stringList *sl, List_index_t i, fptr ptr) {
 }
 
 fptr stringList_set(stringList *sl, List_index_t i, fptr ptr) {
-  fptr old = stringList_get(sl, i);
-  assertMessage(old.ptr, "tried to set thing not in list");
-  if (old.width <= ptr.width) {
-    memcpy(old.ptr, ptr.ptr, ptr.width);
-    if (old.width < ptr.width) {
-      typeof(u64_toVlen(0)) vlq_struct = u64_toVlen(ptr.width);
-      usize vlq_len = 0;
-      vlength *vlq_ptr = vlq_struct._;
-      vlength *vlq_old = sl->buff + sl->ulist[i];
-      while (vlq_old[vlq_len].hasNext)
-        vlq_len++;
-      memcpy(vlq_old, vlq_ptr + countof(vlq_struct._) - vlq_len, vlq_len);
-    }
-    return old;
-  } else {
-    fptr res = stringList_append(sl, ptr);
-    ptrdiff_t newOffset = msList_pop(sl->ulist);
-    msList_ins(
-        sl->allocator,
-        sl->flist,
-        stringListFreeList_search(sl, vlen_toU64(sl->buff + sl->ulist[i])).i,
-        sl->ulist[i]
-    );
-    sl->ulist[i] = newOffset;
-    return res;
-  }
+  stringList_remove(sl, i);
+  return stringList_insert(sl, i, ptr);
 }
 #endif

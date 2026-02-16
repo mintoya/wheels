@@ -161,7 +161,8 @@ typedef struct vason {
       return nullFptr;
     return vason_getString(self.top, self);
   }
-  struct vason operator[](const std::string &c) { return (*this)[fp(c)]; }
+  struct vason operator[](const std::string &c) { return (*this)[(fptr){c.length(), (u8 *)c.c_str()}]; }
+  struct vason operator[](const char *c) { return (*this)[(fptr){strlen(c), (u8 *)c}]; }
 } vason;
 #endif
 #endif // VASON_PARSER_H
