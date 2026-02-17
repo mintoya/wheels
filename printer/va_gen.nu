@@ -14,11 +14,14 @@ def main [ammount:int] {
     $filec = $filec + $"_($i),"
     }
     $filec = $filec + "N,...) N\n"
-    $filec = $filec + "#define COUNT_ARGS(...) ARG_N(__VA_ARGS__"
+
+    $filec = $filec + "#define COUNT_ARGS_HELPER(...) ARG_N(__VA_ARGS__"
     for i in $ammount..0 {
     $filec = $filec + $",($i)"
     }
     $filec = $filec + ")\n"
+    $filec = $filec + "#define SELECT_FIRST_ARG(a,...) a\n"
+    $filec = $filec + "#define COUNT_ARGS(...) SELECT_FIRST_ARG(__VA_OPT__(COUNT_ARGS_HELPER(__VA_ARGS__), ) 0)\n"
 
     $filec = $filec + "#define CAT(A, B) A##B\n"
     $filec = $filec + "#define APPLY_MACRO_TO_ARGS_HELPER(N) CAT(APPLY_, N)\n"

@@ -93,7 +93,13 @@ inline fptr fp_from(const std::string &s) {
 inline fptr fp_from(const char *s) {
   return {
       .width = std::strlen(s),
-      .ptr = const_cast<u8 *>(reinterpret_cast<const u8 *>(s)),
+      .ptr = (u8 *)s,
+  };
+}
+inline fptr fp_from(char *s) {
+  return {
+      .width = std::strlen(s),
+      .ptr = (u8 *)s,
   };
 }
 template <usize N>

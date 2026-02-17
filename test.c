@@ -1,25 +1,49 @@
-#include "arenaAllocator.h"
-#include "allocator.h"
 #include "debugallocator.h"
-#include "my-list.h"
-#include "mytypes.h"
-#include "print.h"
+#include "vason.h"
+#include <stdio.h>
+void buffer_append(const c32 *chars, mList(u8) ctx_void, unsigned int count, bool is_final) {
 
+  for (unsigned int i = 0; i < count; i++) {
+    // Simple downcast for JSON/ASCII
+    if (chars[i] < 128) {
+      mList_push(ctx_void, (u8)chars[i]);
+    }
+  }
+
+  if (is_final) {
+    mList_push(ctx_void, 0); // Null terminator
+  }
+}
 int main(void) {
-  Arena_scoped *test = arena_new_ext(stdAlloc, 512);
-  My_allocator *dbg = debugAllocatorInit(
-          .allocator = test,
-          .log = stdout, .track_total = 1
+  My_allocator *local = debugAllocatorInit(
+          .log = stdout,
+          .track_total = 1,
+          .track_trace = 1,
   );
-  mList(int) ilist = mList_init(dbg, int);
+  defer_(debugAllocatorDeInit(local););
 
-  for (int i = 0; i < 100; i++)
-    mList_push(ilist, i * i);
+  println("start");
+  vason_live *root = vason_new(local, vason_MAP);
+  println("1");
 
-  for (int i = -1; i < 101; i++)
-    print("{},", mList_getOr(ilist, i, -999));
-  println();
-  mList_deInit(ilist);
-  debugAllocatorDeInit(dbg);
+  vason_mapSetStr(root, fp("project"), fp("vason_builder"));
+  vason_mapSetStr(root, fp("version"), fp("0.1.0"));
+
+  vason_live *tags = vason_new(local, vason_ARR);
+  vason_arrPushStr(tags, fp("c"));
+  vason_arrPushStr(tags, fp("json"));
+  vason_arrPushStr(tags, fp("fast"));
+
+  vason_mapSet(root, fp("tags"), tags);
+
+  vason_live *meta = vason_new(local, vason_MAP);
+  vason_mapSetStr(meta, fp("author"), fp("user"));
+  vason_mapSetStr(meta, fp("id"), fp("9942"));
+  vason_mapSet(root, fp("metadata"), meta);
+  mList(u8) chars = mList_init(local, u8);
+  print_wfO((outputFunction)buffer_append, chars, "{vason_live*}", root);
+  println("{vason_container}", parseStr(local, (slice(c8))mList_slice(chars)));
+
+  return 0;
 }
 #include "wheels.h"

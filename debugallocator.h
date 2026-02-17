@@ -60,7 +60,7 @@ typedef struct {
 
 typedef struct {
   My_allocator allocator[1];
-  debugAllocatorInternals alignas(max_align_t) internals[1];
+  alignas(alignof(max_align_t)) debugAllocatorInternals internals[1];
 } Debug_allocator_block;
 
 void *debugAllocator_alloc(AllocatorV allocator, usize size);

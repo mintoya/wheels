@@ -1,3 +1,16 @@
-# .clangd file
+If:
+  PathMatch: .*\.(h|hpp|cpp)
 CompileFlags:
-  Add: [-std=c2y, -fdefer-ts]
+  Add: 
+    - "-x"
+    - "c++"
+    - "-std=c++20"
+    - "-fdefer-ts"
+
+---
+If:
+  PathMatch: .*\.c
+CompileFlags:
+  Add: 
+    - "-std=c2y"
+    - "-fdefer-ts"

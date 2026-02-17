@@ -1,11 +1,10 @@
 #include <stddef.h>
-#define _GNU_SOURCE
 #ifndef ARENA_ALLOCATOR_H
   #define ARENA_ALLOCATOR_H
   #include "allocator.h"
   #include "assertMessage.h"
+  #include "print.h"
   #include <assert.h>
-  #include <errno.h>
   #include <stdint.h>
   #include <stdio.h>
   #include <stdlib.h>
@@ -22,6 +21,7 @@ static void arena_cleanup_handler(My_allocator **arenaPtr) {
     *arenaPtr = NULL;
   }
 }
+void my_arena_print_allocs(My_allocator *arena);
 My_allocator *ownArenaInit(void);
 void ownArenaDeInit(My_allocator *);
 static OwnAllocator arena_owned = {ownArenaInit, ownArenaDeInit};
@@ -84,7 +84,7 @@ void *movePage(void *page, usize size) {
 
   void *res = mremap(real_ptr, old_size, size, MREMAP_MAYMOVE);
 
-  assertMessage(res == MAP_FAILED, "mremap failed: system out of memory");
+  assertMessage(res != MAP_FAILED, "mremap failed oom");
 
   *(usize *)res = size;
   return (uint8_t *)res + alignof(max_align_t);
@@ -178,15 +178,15 @@ typedef struct ArenaBuf {
   ArenaBuf *next;
   usize place;
   usize size;
-  u8 alignas(max_align_t) buffer[/*size*/];
+  alignas(alignof(max_align_t)) u8 buffer[/*size*/];
 } ArenaBuf;
 typedef struct {
   My_allocator allocator[1];
-  ArenaHead alignas(max_align_t) block[1];
+  alignas(alignof(max_align_t)) ArenaHead block[1];
 } My_arena_includeBlock;
 
 ArenaBuf *arenablock_new(AllocatorV allocator, usize blockSize) {
-  ArenaBuf *res = aAlloc(allocator, sizeof(ArenaBuf) + blockSize);
+  ArenaBuf *res = (ArenaBuf *)aAlloc(allocator, sizeof(ArenaBuf) + blockSize);
   usize trueSize =
       allocator->size
           ? allocator->size(allocator, res) - sizeof(ArenaBuf)
@@ -194,8 +194,8 @@ ArenaBuf *arenablock_new(AllocatorV allocator, usize blockSize) {
 
   *res = (ArenaBuf){
       .next = nullptr,
-      .size = trueSize,
       .place = 0,
+      .size = trueSize,
   };
   return res;
 }
@@ -228,16 +228,14 @@ void ownArenaDeInit(My_allocator *d) {
 }
 My_allocator *arena_new_ext(AllocatorV base, usize blockSize) {
   My_arena_includeBlock *res = aCreate(base, My_arena_includeBlock);
-  memcpy(
-      res->allocator,
-      (My_allocator[1]){(My_allocator){
-          my_arena_alloc,
-          my_arena_free,
-          my_arena_r_alloc,
-          my_arena_realsize,
-      }},
-      sizeof(My_allocator)
-  );
+  static constexpr auto defaultArena =
+      (My_allocator){
+          .alloc = my_arena_alloc,
+          .free = my_arena_free,
+          .resize = my_arena_r_alloc,
+          .size = my_arena_realsize
+      };
+  memcpy(res->allocator, &defaultArena, sizeof(defaultArena));
   res->block[0] = (typeof(*res->block)){
       .allocator = base,
       .next = arenablock_new(base, blockSize),
@@ -246,13 +244,13 @@ My_allocator *arena_new_ext(AllocatorV base, usize blockSize) {
 }
 void arena_cleanup(My_allocator *arena) {
   ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
-  const My_allocator allocator = ((ArenaHead *)(arena->arb))->allocator[0];
+  AllocatorV allocator = ((ArenaHead *)(arena->arb))->allocator;
   while (it) {
     ArenaBuf *next = it->next;
-    aFree(&allocator, it);
+    aFree(allocator, it);
     it = next;
   }
-  aFree(&allocator, arena);
+  aFree(allocator, arena);
 }
 void arena_clear(My_allocator *arena) {
   ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
@@ -271,8 +269,10 @@ void my_arena_free(AllocatorV allocator, void *ptr) {
     it = it->next;
   assertMessage(it, "ptr %p not in arena", ptr);
   usize *lastSize = (usize *)((uint8_t *)ptr - alignof(max_align_t));
-  if (it->buffer + it->place == (u8 *)ptr + *lastSize)
+  if (it->buffer + it->place == (u8 *)ptr + *lastSize) {
     it->place -= *lastSize + alignof(max_align_t);
+  } else
+    *lastSize *= -1;
 }
 usize my_arena_realsize(AllocatorV arena, void *ptr) {
   usize *lastSize = (usize *)((uint8_t *)ptr - alignof(max_align_t));
@@ -332,5 +332,41 @@ void *my_arena_alloc(AllocatorV ref, usize size) {
     }
   }
   return res;
+}
+void my_arena_print_allocs(My_allocator *arena) {
+  ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
+  int chunk_idx = 0;
+
+  print_("--- Arena Allocation Map ---\n");
+  while (it) {
+    print_("Chunk {}: ptr={ptr}, cap={}, used={}\n", chunk_idx++, (void *)it, it->size, it->place);
+
+    usize offset = 0;
+    int alloc_count = 0;
+
+    // Walk the buffer until we hit the current 'place'
+    while (offset < it->place) {
+      // Read the size header stored at the current offset
+      isize raw_size = *(isize *)(it->buffer + offset);
+
+      // Handle your *lastSize *= -1 logic from my_arena_free
+      bool is_free = (raw_size < 0);
+      usize actual_size = is_free ? (usize)(-raw_size) : (usize)raw_size;
+
+      print_("  [{}] Offset: {} | Size: {} | Status: {cstr} | Ptr: {ptr}\n", alloc_count++, offset + alignof(max_align_t), actual_size, is_free ? "FREE" : "ACTIVE", (void *)(it->buffer + offset + alignof(max_align_t)));
+
+      // Jump to the next allocation:
+      // current offset + header space + the size of the data
+      offset += alignof(max_align_t) + actual_size;
+
+      // Safety: if a header is 0 (uninitialized memory), break to avoid infinite loop
+      if (actual_size == 0 && offset < it->place) {
+        print_("  !! Error: Zero-size allocation detected at offset {}\n", offset);
+        break;
+      }
+    }
+    it = it->next;
+  }
+  print_("----------------------------\n");
 }
 #endif // ARENA_ALLOCATOR_C

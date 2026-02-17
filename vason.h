@@ -5,8 +5,12 @@
 #include "fptr.h"
 #include "my-list.h"
 #include "mytypes.h"
+#include "omap.h"
 #include "print.h"
+#include "shortList.h"
+#include "stringList.h"
 #include <stdarg.h>
+#include <stddefer.h>
 #include <string.h>
 #include <time.h>
 
@@ -25,6 +29,21 @@ typedef enum : u8 {
   vason_INVALID /**/ = 1 << 7,
   // vason_UNPARSED  = 1 << 6,
 } vason_tag;
+typedef enum : c8 {
+  STR_,
+  STR_start = '`',
+  STR_end = '\'',
+  ESCAPE = '/',
+  // ESCAPE = '\\', // handeled in tokenizer
+  ARR_start = '[',
+  ARR_end = ']',
+  ARR_delim = ',',
+  MAP_start = '{',
+  MAP_end = '}',
+  MAP_delim_ID = ':',
+  // MAP_delim_ID = '=', // also handled
+  MAP_delim = ';',
+} vason_token;
 
 /**
  * data based on `tag`
@@ -110,6 +129,95 @@ REGISTER_PRINTER(vason_container, {
     }; break;
   }
 });
+typedef struct [[gnu::packed]] {
+  vason_tag tag;
+  union {
+    stringList list[1];
+    OMap map[1];
+  };
+} vason_live;
+typedef struct [[gnu::packed]] {
+  vason_tag tag;
+  union {
+    vason_live *next;
+    u8 string[];
+  };
+} vason_ref;
+REGISTER_SPECIAL_PRINTER("vason_live*", vason_live *, {
+  if (!in) {
+    PUTS(U"null");
+    return;
+  }
+
+  if (in->tag == vason_ARR) {
+    PUTC((c32)ARR_start);
+    stringList *sl = in->list;
+    usize len = stringList_len(sl);
+
+    for (usize i = 0; i < len; i++) {
+      if (i > 0)
+        PUTC((c32)ARR_delim);
+
+      fptr item = stringList_get(sl, i);
+      vason_ref *ref = (vason_ref *)item.ptr;
+
+      if (ref->tag == vason_STR || ref->tag == vason_ID) {
+        PUTC((c32)STR_start);
+        usize str_len = item.width - sizeof(vason_tag);
+        for (usize c = 0; c < str_len; c++) {
+          u8 ch = ref->string[c];
+          if (ch == STR_end || ch == ESCAPE)
+            PUTC((c32)ESCAPE);
+          PUTC((c32)ch);
+        }
+        PUTC((c32)STR_end);
+      } else {
+        USENAMEDPRINTER("vason_live*", ref->next);
+      }
+    }
+    PUTC((c32)ARR_end);
+
+  } else if (in->tag == vason_MAP) {
+    PUTC((c32)MAP_start);
+    stringList *sl = in->map->data;
+    usize len = stringList_len(sl);
+
+    for (usize i = 0; i < len; i += 2) {
+      if (i > 0)
+        PUTC((c32)MAP_delim);
+
+      fptr key = stringList_get(sl, i);
+      PUTC((c32)STR_start);
+      for (usize c = 0; c < key.width; c++) {
+        u8 ch = key.ptr[c];
+        if (ch == STR_end || ch == ESCAPE)
+          PUTC((c32)ESCAPE);
+        PUTC((c32)ch);
+      }
+      PUTC((c32)STR_end);
+
+      PUTC((c32)MAP_delim_ID);
+
+      fptr val = stringList_get(sl, i + 1);
+      vason_ref *ref = (vason_ref *)val.ptr;
+
+      if (ref->tag == vason_STR || ref->tag == vason_ID) {
+        PUTC((c32)STR_start);
+        usize str_len = val.width - sizeof(vason_tag);
+        for (usize c = 0; c < str_len; c++) {
+          u8 ch = ref->string[c];
+          if (ch == STR_end || ch == ESCAPE)
+            PUTC((c32)ESCAPE);
+          PUTC((c32)ch);
+        }
+        PUTC((c32)STR_end);
+      } else {
+        USENAMEDPRINTER("vason_live*", ref->next)
+      }
+    }
+    PUTC((c32)MAP_end);
+  }
+});
 
 vason_container vason_get_func(vason_container c, vason_tag *tags, ...);
 
@@ -139,6 +247,12 @@ vason_container vason_get_func(vason_container c, vason_tag *tags, ...);
       __VA_ARGS__                     \
   )
 vason_container parseStr(AllocatorV allocator, slice(c8) string);
+
+vason_live *vason_new /* */ (AllocatorV allocator, vason_tag tag);
+void vason_mapSet /*     */ (vason_live *map, fptr key, vason_live *val);
+void vason_mapSetStr /*  */ (vason_live *map, fptr key, fptr str);
+void vason_arrPush /*    */ (vason_live *arr, vason_live *val);
+void vason_arrPushStr /* */ (vason_live *arr, fptr str);
 #if defined __cplusplus
 typedef struct vason {
   vason_container self;
@@ -167,6 +281,8 @@ typedef struct vason {
   }
   struct vason operator[](const std::string &c) { return (*this)[(fptr){c.length(), (u8 *)c.c_str()}]; }
   struct vason operator[](const char *c) { return (*this)[(fptr){strlen(c), (u8 *)c}]; }
+  explicit operator bool() const { return tag() != vason_INVALID; }
+
 } vason;
 #endif
 #endif // VASON_PARSER_H
@@ -180,55 +296,41 @@ typedef struct vason_level {
 } vason_level;
 
 // just control characters for now
-bool vason_skip(char c) { return c < 33 && c != 0; }
-typedef enum : c8 {
-  STR_,
-  STR_start = '`',
-  STR_end = '\'',
-  ESCAPE = '/',
-  // ESCAPE = '\\', // handeled in tokenizer
-  ARR_start = '[',
-  ARR_end = ']',
-  ARR_delim = ',',
-  MAP_start = '{',
-  MAP_end = '}',
-  MAP_delim_ID = ':',
-  // MAP_delim_ID = '=', // also handled
-  MAP_delim = ';',
-} vason_token;
+bool vason_skip(char c) { return c <= ' ' && c != 0; }
 bool isSkip_vason(u8 in) {
   return in > 0 && in < 33;
+}
+vason_token vason_toToken(c8 c) {
+  switch ((vason_token)c) {
+    case ESCAPE:
+    case STR_start:
+    case STR_end:
+    case ARR_start:
+    case ARR_end:
+    case ARR_delim:
+    case MAP_start:
+    case MAP_end:
+    case MAP_delim_ID:
+    case MAP_delim:
+      return (vason_token)c;
+    case '=': {
+      return MAP_delim_ID;
+    } break;
+    case '\\': {
+      return ESCAPE;
+    } break;
+    default: {
+      return STR_;
+    }
+  }
 }
 slice(vason_token) vason_tokenize(AllocatorV allocator, slice(c8) string) {
   slice(vason_token) t = {
       string.len,
       aCreate(allocator, vason_token, string.len)
   };
-  for (usize i = 0; i < t.len; i++) {
-    t.ptr[i] = (vason_token)string.ptr[i];
-    switch (t.ptr[i]) {
-      case ESCAPE:
-      case STR_start:
-      case STR_end:
-      case ARR_start:
-      case ARR_end:
-      case ARR_delim:
-      case MAP_start:
-      case MAP_end:
-      case MAP_delim_ID:
-      case MAP_delim:
-        break;
-      case '=': {
-        t.ptr[i] = MAP_delim_ID;
-      } break;
-      case '\\': {
-        t.ptr[i] = ESCAPE;
-      } break;
-      default: {
-        t.ptr[i] = STR_;
-      }
-    }
-  }
+  for (usize i = 0; i < t.len; i++)
+    t.ptr[i] = vason_toToken(string.ptr[i]);
   // escape escape'd characters
   for (typeof(t.len) i = 0; i + 1 < t.len; i++)
     if (t.ptr[i] == ESCAPE) {
@@ -715,5 +817,50 @@ vason_container vason_get_func(vason_container c, vason_tag *tags, ...) {
   c.top.tag = vason_INVALID;
   return c;
 }
+//
+//
+//
+// code version
+// dont really care how fast this is
+//
+//
+//
+vason_live *vason_new(AllocatorV allocator, vason_tag tag) {
+  assertMessage(tag == vason_MAP || tag == vason_ARR, "only MAP,ARR supported");
+  vason_live *res = aCreate(allocator, vason_live);
+  res->tag = tag;
+  stringList *sl = stringList_new(allocator, 1);
+  defer_(aFree(allocator, sl););
+  *res->list = *sl;
+  return res;
+}
+void vason_mapSet(vason_live *map, fptr key, vason_live *val) {
+  vason_ref ref = {.tag = val->tag, .next = val};
+  fptr ref_fptr = {sizeof(ref), (u8 *)&ref};
+  OMap_set(map->map, key, ref_fptr);
+}
+void vason_arrPush(vason_live *arr, vason_live *val) {
+  vason_ref ref = {.tag = val->tag, .next = val};
+  fptr ref_fptr = {sizeof(ref), (u8 *)&ref};
+  stringList_append(arr->list, ref_fptr);
+}
+void vason_arrPushStr(vason_live *arr, fptr str) {
+  usize size = sizeof(vason_tag) + str.width;
+  vason_ref *ref = (typeof(ref))aAlloc(arr->list->allocator, size);
+  defer_({ aFree(arr->list->allocator, ref); });
 
+  ref->tag = vason_STR;
+  memcpy(ref->string, str.ptr, str.width);
+  fptr ref_fptr = {size, (u8 *)ref};
+  stringList_append(arr->list, ref_fptr);
+}
+void vason_mapSetStr(vason_live *map, fptr key, fptr str) {
+  usize size = sizeof(vason_tag) + str.width;
+  vason_ref *ref = (typeof(ref))aAlloc(map->list->allocator, size);
+  defer_({ aFree(map->list->allocator, ref); });
+  ref->tag = vason_STR;
+  memcpy(ref->string, str.ptr, str.width);
+  fptr ref_fptr = {size, (u8 *)ref};
+  OMap_set(map->map, key, ref_fptr);
+}
 #endif

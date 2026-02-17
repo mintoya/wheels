@@ -1,22 +1,19 @@
 #ifndef MY_TYPES
 #define MY_TYPES
+#define _XOPEN_SOURCE 700
+#define _GNU_SOURCE
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#define NOUCHAR_TYPES
 #if __has_include("uchar.h") && !defined(NOUCHAR_TYPES)
   #include <uchar.h>
 #else
-typedef uint8_t char8_t;
   #if !defined __cplusplus
-typedef uint16_t char16_t;
-typedef uint32_t char32_t;
+typedef uint32_t c32;
   #endif
 #endif
-#define _XOPEN_SOURCE 700
 
-typedef wchar_t wchar;
 typedef unsigned int uint;
 typedef unsigned char uchar;
 typedef uint8_t u8;
@@ -24,7 +21,6 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 typedef uchar c8;
-typedef char16_t c16;
 typedef char32_t c32;
 typedef int8_t i8;
 typedef int16_t i16;
@@ -135,6 +131,17 @@ struct nullable_t {
   #define countof(array) _Countof(array)
 #else
   #include <stdcountof.h>
+
+#endif
+#if defined(__cplusplus)
+  #include <memory>
+  #define DEFER_CONCAT(a, b) a##b
+  #define DEFER_NAME(a, b) DEFER_CONCAT(a, b)
+  #define defer_(...) \
+    std::shared_ptr<void> DEFER_NAME(deferptr, __LINE__)(nullptr, [&](void *) { __VA_ARGS__; })
+#else
+  #include <stddefer.h>
+  #define defer_(...) defer{__VA_ARGS__};
 #endif
 
 #endif // MY_TYPES

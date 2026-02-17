@@ -177,9 +177,6 @@ char **backtrace_symbols(void *const *array, int size) {
   return result;
 }
 #else
-// char **backtrace_symbols(void *array[], size_t size) {
-//   return NULL;
-// }
 EXTERNCSTART
 char **backtrace_symbols(void *const *array, int size) { return NULL; }
 extern int backtrace(void **__array, int __size) __attribute__((nonnull(1))) { return 0; }

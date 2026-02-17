@@ -34,13 +34,13 @@
 #define APPLY_30(M, a, ...) M(a), APPLY_29(M, __VA_ARGS__)
 #define APPLY_31(M, a, ...) M(a), APPLY_30(M, __VA_ARGS__)
 #define APPLY_32(M, a, ...) M(a), APPLY_31(M, __VA_ARGS__)
-#define ARG_N(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, N, ...) \
-  N
-#define COUNT_ARGS(...) \
-  ARG_N(__VA_ARGS__, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define ARG_N(_1,_2,_3,_4,_5,_6,_7,_8,_9,_10,_11,_12,_13,_14,_15,_16,_17,_18,_19,_20,_21,_22,_23,_24,_25,_26,_27,_28,_29,_30,_31,_32,N,...) N
+#define COUNT_ARGS_HELPER(...) ARG_N(__VA_ARGS__,32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0)
+#define SELECT_FIRST_ARG(a,...) a
+#define COUNT_ARGS(...) SELECT_FIRST_ARG(__VA_OPT__(COUNT_ARGS_HELPER(__VA_ARGS__), ) 0)
 #define CAT(A, B) A##B
 #define APPLY_MACRO_TO_ARGS_HELPER(N) CAT(APPLY_, N)
-#define APPLY_N(MACRO, ...) \
+#define APPLY_N(MACRO, ...)                                                    \
   APPLY_MACRO_TO_ARGS_HELPER(COUNT_ARGS(__VA_ARGS__))(MACRO, __VA_ARGS__)
 
 #endif // VARIADIC_APPLY_H
