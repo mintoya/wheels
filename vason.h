@@ -7,10 +7,8 @@
 #include "mytypes.h"
 #include "omap.h"
 #include "print.h"
-#include "shortList.h"
 #include "stringList.h"
 #include <stdarg.h>
-#include <stddefer.h>
 #include <string.h>
 #include <time.h>
 
@@ -140,7 +138,7 @@ typedef struct [[gnu::packed]] {
   vason_tag tag;
   union {
     vason_live *next;
-    u8 string[];
+    u8 string[0];
   };
 } vason_ref;
 REGISTER_SPECIAL_PRINTER("vason_live*", vason_live *, {
