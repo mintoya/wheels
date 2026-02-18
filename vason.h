@@ -193,11 +193,8 @@ REGISTER_SPECIAL_PRINTER("vason_live*", vason_live *, {
           PUTC((c32)ESCAPE);
         PUTC((c32)ch);
       }
-      PUTS(((c32[3]){
-          STR_end,
-          MAP_delim_ID,
-      }));
-
+      PUTC((c32)STR_end);
+      PUTC((c32)MAP_delim_ID);
       vason_ref *ref = (vason_ref *)kv.val.ptr;
 
       if (ref->tag == vason_STR) {
