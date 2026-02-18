@@ -138,7 +138,7 @@ struct nullable_t {
   #define DEFER_CONCAT(a, b) a##b
   #define DEFER_NAME(a, b) DEFER_CONCAT(a, b)
   #define defer_(...) \
-    std::shared_ptr<void> DEFER_NAME(deferptr, __LINE__)(nullptr, [&](void *) { __VA_ARGS__; })
+    std::shared_ptr<void> DEFER_NAME(deferptr, __LINE__)(nullptr, [&](void *) { __VA_ARGS__ })
 #else
   #include <stddefer.h>
   #define defer_(...) defer{__VA_ARGS__};

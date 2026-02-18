@@ -12,6 +12,11 @@ fptr OMap_set(OMap *map, fptr key, fptr val);
 fptr OMap_get(OMap *map, fptr key);
 usize OMap_footprint(OMap *map);
 List_index_t OMap_len(OMap *map);
+struct OMap_both {
+  fptr key;
+  fptr val;
+};
+struct OMap_both OMap_getN(OMap *, List_index_t);
 #endif
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
   #define OMAP_C (1)
@@ -68,5 +73,19 @@ fptr OMap_get(OMap *map, fptr key) {
 usize OMap_footprint(OMap *map) {
   return stringList_footprint((stringList *)map);
 }
+
 List_index_t OMap_len(OMap *map) { return stringList_len(map->data) / 2; }
+struct OMap_both OMap_getN(OMap *map, List_index_t i) {
+  if (i < OMap_len(map)) {
+    return (struct OMap_both){
+        stringList_get(map->data, i * 2),
+        stringList_get(map->data, i * 2 + 1),
+    };
+  }
+  return (struct OMap_both){
+      nullFptr,
+      nullFptr,
+  };
+}
+
 #endif

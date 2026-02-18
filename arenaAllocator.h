@@ -1,10 +1,13 @@
 #include <stddef.h>
 #ifndef ARENA_ALLOCATOR_H
   #define ARENA_ALLOCATOR_H
+  #include "mytypes.h"
+  //
   #include "allocator.h"
   #include "assertMessage.h"
   #include "print.h"
   #include <assert.h>
+  #include <errno.h>
   #include <stdint.h>
   #include <stdio.h>
   #include <stdlib.h>

@@ -83,6 +83,7 @@ static inline vason_container vason_arrGetContainer(vason_container o, u32 k) {
   o.top = vason_arrGet(o.top, o, k);
   return o;
 }
+
 REGISTER_PRINTER(vason_container, {
   switch (in.top.tag) {
     case vason_ID:
@@ -152,8 +153,8 @@ REGISTER_SPECIAL_PRINTER("vason_live*", vason_live *, {
     stringList *sl = in->list;
     usize len = stringList_len(sl);
 
-    for (usize i = 0; i < len; i++) {
-      if (i > 0)
+    for (auto i = 0; i < len; i++) {
+      if (i)
         PUTC((c32)ARR_delim);
 
       fptr item = stringList_get(sl, i);
@@ -164,7 +165,7 @@ REGISTER_SPECIAL_PRINTER("vason_live*", vason_live *, {
         usize str_len = item.width - sizeof(vason_tag);
         for (usize c = 0; c < str_len; c++) {
           u8 ch = ref->string[c];
-          if (ch == STR_end || ch == ESCAPE)
+          if (ch == STR_end)
             PUTC((c32)ESCAPE);
           PUTC((c32)ch);
         }
@@ -177,34 +178,34 @@ REGISTER_SPECIAL_PRINTER("vason_live*", vason_live *, {
 
   } else if (in->tag == vason_MAP) {
     PUTC((c32)MAP_start);
-    stringList *sl = in->map->data;
-    usize len = stringList_len(sl);
+    OMap *sl = in->map;
+    usize len = OMap_len(sl);
 
-    for (usize i = 0; i < len; i += 2) {
-      if (i > 0)
+    for (auto i = 0; i < len; i++) {
+      if (i)
         PUTC((c32)MAP_delim);
 
-      fptr key = stringList_get(sl, i);
+      auto kv = OMap_getN(sl, i);
       PUTC((c32)STR_start);
-      for (usize c = 0; c < key.width; c++) {
-        u8 ch = key.ptr[c];
-        if (ch == STR_end || ch == ESCAPE)
+      for (usize c = 0; c < kv.key.width; c++) {
+        u8 ch = kv.key.ptr[c];
+        if (ch == STR_end)
           PUTC((c32)ESCAPE);
         PUTC((c32)ch);
       }
-      PUTC((c32)STR_end);
+      PUTS(((c32[3]){
+          STR_end,
+          MAP_delim_ID,
+      }));
 
-      PUTC((c32)MAP_delim_ID);
+      vason_ref *ref = (vason_ref *)kv.val.ptr;
 
-      fptr val = stringList_get(sl, i + 1);
-      vason_ref *ref = (vason_ref *)val.ptr;
-
-      if (ref->tag == vason_STR || ref->tag == vason_ID) {
+      if (ref->tag == vason_STR) {
         PUTC((c32)STR_start);
-        usize str_len = val.width - sizeof(vason_tag);
+        usize str_len = kv.val.width - sizeof(vason_tag);
         for (usize c = 0; c < str_len; c++) {
           u8 ch = ref->string[c];
-          if (ch == STR_end || ch == ESCAPE)
+          if (ch == STR_end)
             PUTC((c32)ESCAPE);
           PUTC((c32)ch);
         }
@@ -853,12 +854,11 @@ void vason_arrPushStr(vason_live *arr, fptr str) {
   stringList_append(arr->list, ref_fptr);
 }
 void vason_mapSetStr(vason_live *map, fptr key, fptr str) {
-  usize size = sizeof(vason_tag) + str.width;
-  vason_ref *ref = (typeof(ref))aAlloc(map->list->allocator, size);
-  defer_({ aFree(map->list->allocator, ref); });
+  vason_ref *ref = (typeof(ref))aAlloc(map->list->allocator, sizeof(vason_tag) + str.width);
+  defer_(aFree(map->list->allocator, ref););
   ref->tag = vason_STR;
   memcpy(ref->string, str.ptr, str.width);
-  fptr ref_fptr = {size, (u8 *)ref};
+  fptr ref_fptr = {str.width + sizeof(vason_tag), (u8 *)ref};
   OMap_set(map->map, key, ref_fptr);
 }
 #endif
