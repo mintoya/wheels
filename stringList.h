@@ -2,6 +2,7 @@
   #define STRING_LIST_H (1)
   #include "my-list.h"
   #include "mytypes.h"
+  #include "shortList.h"
   #include <stddef.h>
   #include <string.h>
 typedef struct [[gnu::packed]] vlength {
@@ -96,7 +97,6 @@ static_assert(sizeof(vlength) == sizeof(u8), "vlength warning");
     };                                                \
     (vlqbuf) & res;                                   \
   })
-  #include "shortList.h"
 stringList *stringList_new(AllocatorV allocator, usize initSize) {
   stringList *res = aCreate(allocator, stringList);
   *res = (typeof(*res)){

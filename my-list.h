@@ -290,6 +290,10 @@ using mList_t = T (**)(List *);
   do {                                          \
     List_forceResize((List *)(list), capacity); \
   } while (0)
+#define mList_reserve(list, capacity)      \
+  do {                                     \
+    List_resize((List *)(list), capacity); \
+  } while (0)
 #define mList_pushArr(list, vla)                                       \
   do {                                                                 \
     List_appendFromArr((List *)list, vla, sizeof(vla) / sizeof(*vla)); \
