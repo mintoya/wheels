@@ -46,17 +46,17 @@ typedef void *(*const My_allocatorResize)(AllocatorV, void *, size_t);
  *  @param 2 pointer    *non-null* pointer must've come from same allocator
  *  @return uszble allocation size
  */
-typedef size_t (*const My_allocatorGetActualSize)(AllocatorV, void *);
+typedef size_t (*const My_allocatorGetUsable)(AllocatorV, void *);
 
 typedef My_allocator *(*OwnAllocatorInit)(void);
 typedef void (*OwnAllocatorDeInit)(My_allocator *);
 
 typedef struct My_allocator {
-  My_allocatorAlloc alloc;
-  My_allocatorFree free;
-  My_allocatorResize resize;
-  My_allocatorGetActualSize size;           ///< optional, check every time
-  alignas(alignof(max_align_t)) char arb[]; ///< userdata
+  My_allocatorAlloc /*    */ alloc;
+  My_allocatorFree /*     */ free;
+  My_allocatorResize /*   */ resize;
+  My_allocatorGetUsable /**/ size;   ///< optional, check every time
+  max_align_t /*          */ arb[0]; ///< userdata
 } My_allocator;
 
 typedef struct {
