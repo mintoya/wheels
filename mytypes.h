@@ -133,15 +133,34 @@ struct nullable_t {
   #include <stdcountof.h>
 
 #endif
+// provides defer_ and defer in case of cpp
 #if defined(__cplusplus)
   #include <memory>
   #define DEFER_CONCAT(a, b) a##b
   #define DEFER_NAME(a, b) DEFER_CONCAT(a, b)
   #define defer_(...) \
-    std::shared_ptr<void> DEFER_NAME(deferptr, __LINE__)(nullptr, [&](void *) { __VA_ARGS__ })
+    std::shared_ptr<void> DEFER_NAME(deferptr, __LINE__)(nullptr, [&](void *) -> void { __VA_ARGS__ })
+template <typename F>
+struct Deferrer {
+  F fn;
+  ~Deferrer() { fn(); }
+};
+
+struct DeferHelper {
+  template <typename F>
+  Deferrer<F> operator+(F &&f) { return {std::forward<F>(f)}; }
+};
+
+  #define DEFER_CONCAT(a, b) a##b
+  #define DEFER_NAME(a, b) DEFER_CONCAT(a, b)
+  #define defer auto DEFER_NAME(_defer_, __LINE__) = DeferHelper() + [&]()
 #else
   #include <stddefer.h>
   #define defer_(...) defer{__VA_ARGS__};
 #endif
 
+#define enum_named(name, underlying, ...) \
+  constexpr struct {                      \
+    underlying __VA_ARGS__;               \
+  } name
 #endif // MY_TYPES

@@ -829,7 +829,7 @@ vason_live *vason_new(AllocatorV allocator, vason_tag tag) {
   vason_live *res = aCreate(allocator, vason_live);
   res->tag = tag;
   stringList *sl = stringList_new(allocator, 1);
-  defer_(aFree(allocator, sl););
+  defer { aFree(allocator, sl); };
   *res->list = *sl;
   return res;
 }
@@ -846,7 +846,7 @@ void vason_arrPush(vason_live *arr, vason_live *val) {
 void vason_arrPushStr(vason_live *arr, fptr str) {
   usize size = sizeof(vason_tag) + str.width;
   vason_ref *ref = (typeof(ref))aAlloc(arr->list->allocator, size);
-  defer_({ aFree(arr->list->allocator, ref); });
+  defer { aFree(arr->list->allocator, ref); };
 
   ref->tag = vason_STR;
   memcpy(ref->string, str.ptr, str.width);
@@ -855,7 +855,7 @@ void vason_arrPushStr(vason_live *arr, fptr str) {
 }
 void vason_mapSetStr(vason_live *map, fptr key, fptr str) {
   vason_ref *ref = (typeof(ref))aAlloc(map->list->allocator, sizeof(vason_tag) + str.width);
-  defer_(aFree(map->list->allocator, ref););
+  defer { aFree(map->list->allocator, ref); };
   ref->tag = vason_STR;
   memcpy(ref->string, str.ptr, str.width);
   fptr ref_fptr = {str.width + sizeof(vason_tag), (u8 *)ref};

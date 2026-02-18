@@ -1,7 +1,8 @@
 #include "arenaAllocator.h"
 #include "debugallocator.h"
+#include "printer/variadic.h"
 #include "vason.h"
-#include <stdio.h>
+
 void buffer_append(const c32 *chars, mList(u8) ctx_void, unsigned int count, bool is_final) {
 
   for (unsigned int i = 0; i < count; i++) {
