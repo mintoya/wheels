@@ -2,8 +2,8 @@
 #include "../print.h"
 //
 #include "../debugallocator.h"
+#include "../mytypes.h"
 #include "../printers/slices.c"
-#include "../types.h"
 #include "../vason.h"
 #include <stddef.h>
 #include <stdio.h>
@@ -20,24 +20,20 @@ slice(c8) read_stdin(AllocatorV allocator) {
 }
 int main(int nargs, char *args[nargs]) {
   Arena_scoped *local = arena_new_ext(pageAllocator, 4096);
-  // My_allocator *local = debugAllocatorInit(arena);
+  defer { arena_cleanup(local); };
+
   slice(c8) input = read_stdin(local);
   vason_container parsed = parseStr(local, input);
-  vason_object result = parsed.top;
   for (usize i = 1; i < nargs; i++) {
-    // println("getting {cstr}", args[i]);
-    if (result.tag == vason_ARR) {
-      result = vason_get(parsed, result, (usize)atoi(args[i]));
+    if (parsed.top.tag == vason_ARR) {
+      parsed = vason_get(parsed, atoi(args[i]));
     } else {
-      result = vason_get(parsed, result, (slice(c8)){.ptr = (u8 *)args[i], .len = strlen(args[i])});
+      parsed = vason_get(parsed, ((slice(c8)){.ptr = (u8 *)args[i], .len = strlen(args[i])}));
     }
   }
-  vason_contianer c = parsed;
-  c.top = result;
-  println("{vason_container}", c);
+  println("{vason_container}", parsed);
   aFree(local, parsed.objects.ptr);
   aFree(local, input.ptr);
-  // debugAllocatorDeInit(local);
 }
 
 #include "../wheels.h"
