@@ -16,6 +16,7 @@ typedef uint32_t c32;
 
 typedef unsigned int uint;
 typedef unsigned char uchar;
+typedef unsigned long ulong;
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
