@@ -356,7 +356,14 @@ void my_arena_print_allocs(My_allocator *arena) {
       bool is_free = (raw_size < 0);
       usize actual_size = is_free ? (usize)(-raw_size) : (usize)raw_size;
 
-      print_("  [{}] Offset: {} | Size: {} | Status: {cstr} | Ptr: {ptr}\n", alloc_count++, offset + alignof(max_align_t), actual_size, is_free ? "FREE" : "ACTIVE", (void *)(it->buffer + offset + alignof(max_align_t)));
+      print_(
+          "  [{}] Offset: {} | Size: {} | Status: {cstr} | Ptr: {ptr}\n",
+          alloc_count++,
+          offset + alignof(max_align_t),
+          actual_size,
+          is_free ? "FREE" : "ACTIVE",
+          (void *)(it->buffer + offset + alignof(max_align_t))
+      );
 
       // Jump to the next allocation:
       // current offset + header space + the size of the data

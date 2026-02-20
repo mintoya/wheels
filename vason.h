@@ -218,22 +218,22 @@ REGISTER_SPECIAL_PRINTER("vason_live*", vason_live *, {
 vason_container vason_get_func(vason_container c, vason_tag *tags, ...);
 
 #include "printer/variadic.h" // APPLY_N
-#define vason_get_makeArg(j) ( \
-    (vason_tag) _Generic(      \
-        (j),                   \
-        i32: vason_ARR,        \
-        u32: vason_ARR,        \
-        fptr: vason_MAP,       \
-        default: vason_ID      \
-    )                          \
-)
+#define vason_get_makeArg(j) (                         \
+                                 (vason_tag) _Generic( \
+                                     (j),              \
+                                     i32: vason_ARR,   \
+                                     u32: vason_ARR,   \
+                                     fptr: vason_MAP,  \
+                                     default: vason_ID \
+                                 )                     \
+                             ),
 #define vason_get_argsArr(...) ( \
     (vason_tag[]){               \
         APPLY_N(                 \
             vason_get_makeArg,   \
             __VA_ARGS__          \
-        ),                       \
-        vason_INVALID            \
+        )                        \
+            vason_INVALID        \
     }                            \
 )
 #define vason_get(container, ...)     \

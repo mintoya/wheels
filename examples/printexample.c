@@ -5,19 +5,19 @@ typedef struct {
   int y;
 } point;
 REGISTER_PRINTER(point, {
-  PUTS(L"{x:");
+  PUTS(U"{x:");
   USETYPEPRINTER(int, in.x);
-  PUTS(L",");
-  PUTS(L"y:");
+  PUTS(U",");
+  PUTS(U"y:");
   USETYPEPRINTER(int, in.y);
-  PUTS(L"}");
+  PUTS(U"}");
 })
 
 #include "../printer/genericName.h" // advances typenaems
 MAKE_PRINT_ARG_TYPE(point);
 
 int main() {
-  mList(point) points = mList_init(defaultAlloc, point);
+  mList(point) points = mList_init(stdAlloc, point);
   mList_push(points, ((point){6, 1}));
   mList_push(points, ((point){0, 2}));
   mList_ins(points, 1, ((point){1, 0}));

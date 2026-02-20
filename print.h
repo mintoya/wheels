@@ -523,7 +523,7 @@ struct print_arg {
     ((struct print_arg){                  \
         .ref = REF(typeof(a), a),         \
         .name = fp_from(GENERIC_NAME(a)), \
-    })
+    }),
   
   #else
   template <typename T>
@@ -549,7 +549,7 @@ struct print_arg {
     ((struct print_arg){                                             \
        .ref = REF(typeof(a), a),                                    \
        .name = fp_from(type_name_cstr(a)) \
-   })
+   }),
 #endif
 // clang-format on
 
@@ -558,10 +558,9 @@ void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr 
 static thread_local bool print_f_shouldFlush = 1;
 void print_f(outputFunction put, void *arb, const char *fmt, ...);
 
-#define print_wfO(printerfn, arb, fmt, ...)                                   \
-  print_f(                                                                    \
-      printerfn, arb, fmt __VA_OPT__(, APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__)), \
-      ((struct print_arg){})                                                  \
+#define print_wfO(printerfn, arb, fmt, ...)                                                       \
+  print_f(                                                                                        \
+      printerfn, arb, fmt, __VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){}) \
   )
 
 #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
