@@ -161,6 +161,7 @@ struct DeferHelper {
 #endif
 
 #define enum_named(name, underlying, ...) \
+  typedef underlying name##_t;            \
   constexpr struct {                      \
     underlying __VA_ARGS__;               \
   } name

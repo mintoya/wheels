@@ -1,0 +1,12 @@
+{
+  zero,
+  [1]   : one,
+  [7]   : seven,
+  `map' : {
+    k:v,
+  },
+  `arr' : {
+    a,b,c
+  },
+  `key' : value,
+}
