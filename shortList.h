@@ -6,7 +6,7 @@
   #include "stdalign.h"
   #include "string.h"
   #ifndef SLIST_GROW_EQ
-    #define SLIST_GROW_EQ(len) (len + len)
+    #define SLIST_GROW_EQ(len) (len + len / 2 + 1)
   #endif
 
 typedef struct sList_header {
@@ -92,6 +92,7 @@ extern inline void sList_remove(sList_header *l, usize width, usize i) {
   #define msList_deInit(allocator, s)     \
     do {                                  \
       aFree(allocator, msList_header(s)); \
+      s = NULL;                           \
     } while (0)
   #define msList_ins(allocator, s, idx, val)                                                 \
     do {                                                                                     \

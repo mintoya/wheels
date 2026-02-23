@@ -12,6 +12,13 @@
   #include <stdio.h>
   #include <stdlib.h>
   #include <string.h>
+  // TODO
+  // #if HAS_ASAN
+  // #  include <sanitizer/asan_interface.h>
+  // #else
+  // #  define ASAN_POISON_MEMORY_REGION(addr, size)
+  // #  define ASAN_UNPOISON_MEMORY_REGION(addr, size)
+  // #endif
 
 OwnAllocator arena_owned_new(void);
 My_allocator *arena_new_ext(AllocatorV base, size_t blockSize);

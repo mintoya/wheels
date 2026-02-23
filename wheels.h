@@ -11,7 +11,7 @@
 
 #ifdef VASON_PARSER_H
   #define VASON_PARSER_C (1)
-  #include "vason.h"
+  #include "vason_arr.h"
 #endif
 
 #ifdef MY_DEBUG_ALLOCATOR_H

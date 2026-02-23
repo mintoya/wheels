@@ -232,9 +232,8 @@ using mList_t = T (**)(List *);
     mList_arr(list)[mList_len(list)++] = (val);                     \
   } while (0)
 
-#define mList_pop(list) ({                                                        \
-  ((List *)(list))->length--;                                                     \
-  *(mList_iType(list) *)List_getRefForce((List *)(list), ((List *)list)->length); \
+#define mList_pop(list) ({            \
+  mList_arr(list)[--mList_len(list)]; \
 })
 // technically never null since list capacity is non-zero
 #define mList_popFront(list)                                     \

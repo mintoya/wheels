@@ -629,20 +629,19 @@ inline fptr printer_arg_after(char delim, fptr slice) {
   return slice;
 }
 inline fptr printer_arg_trim(fptr in) {
-  fptr res = in;
-  int front = 0;
-  int back = in.width - 1;
-  while (front < in.width && ((uint8_t *)in.ptr)[front] == ' ') {
-    front++;
+  while (
+      in.width &&
+      in.ptr[0] <= ' '
+  ) {
+    in.ptr++;
+    in.width--;
   }
-  while (back > front && ((uint8_t *)in.ptr)[front] == ' ') {
-    back--;
-  }
-  res = (fptr){
-      .width = (usize)(back - front + 1),
-      .ptr = in.ptr + front,
-  };
-  return res;
+  while (
+      in.width &&
+      in.ptr[in.width - 1] <= ' '
+  )
+    in.width--;
+  return in;
 }
 
 void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr args, void *_arb) {

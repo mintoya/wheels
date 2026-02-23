@@ -12,10 +12,12 @@
   #define EXTERNCSTART
   #define EXTERNCEND
 #endif
-EXTERNCSTART
-char **backtrace_symbols(void *const *array, int size);
+#if defined(__linux__)
+  #include <execinfo.h>
+#else
+extern char **backtrace_symbols(void *const *__array, int __size);
 extern int backtrace(void **__array, int __size) __attribute__((nonnull(1)));
-EXTERNCEND
+#endif
 #ifndef NDEBUG
   #if !defined(noAssertMessage)
 
@@ -106,7 +108,7 @@ void __attribute__((noreturn)) _assertMessageFail(
       fprintf(stderr, "%s\n", syms[i]);
     fprintf(stderr, "==========================\n" PRINTRESET);
   }
-  exit(1);
+  __builtin_trap();
 }
 
 #if defined(__linux__)

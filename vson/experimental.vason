@@ -1,12 +1,11 @@
 {
-  zero,
-  [1]   : one,
-  [7]   : seven,
-  `map' : {
-    k:v,
-  },
-  `arr' : {
-    a,b,c
-  },
-  `key' : value,
+  zero                                       ,
+  one                                        ,
+  two                                        ,
+  three                                      ,
+  a:b                                        ,
+  m:{a,b,c:d}                                ,
+  {a:a,b,c,d}                                ,
+  {}                                         ,
+  there will be no non-adjacent arrays
 }

@@ -49,8 +49,8 @@ typedef size_t usize;
   #define bitcast(to, from) ((typeof(union {typeof(to)a;typeof(from)b; })){.b = from}.a)
 #else
 template <typename T>
-static inline T *ref_tmp(T &&v) { return &v; }
-  #define REF(type, value) ref_tmp(type{value})
+static inline T *TEMPORARY_REF_UB(T &&v) { return &v; }
+  #define REF(type, value) TEMPORARY_REF_UB((type){value})
 template <class To, class From>
 inline To bit_cast_func(const From &src) noexcept {
   To dst;
@@ -151,13 +151,23 @@ struct DeferHelper {
   template <typename F>
   Deferrer<F> operator+(F &&f) { return {std::forward<F>(f)}; }
 };
+  // idk
 
   #define DEFER_CONCAT(a, b) a##b
   #define DEFER_NAME(a, b) DEFER_CONCAT(a, b)
   #define defer auto DEFER_NAME(_defer_, __LINE__) = DeferHelper() + [&]()
 #else
-  #include <stddefer.h>
-  #define defer_(...) defer{__VA_ARGS__};
+  #if __has_include(<stddefer.h>)
+    #include <stddefer.h>
+    #define defer_(...) defer{__VA_ARGS__};
+  #else
+    #ifdef __clang__
+static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
+      #define _DEFER_CONCAT_IMPL(x, y) x##y
+      #define _DEFER_CONCAT(x, y) _DEFER_CONCAT_IMPL(x, y)
+      #define defer __attribute__((cleanup(_defer_cleanup_block))) void (^_DEFER_CONCAT(_defer_var_, __COUNTER__))(void) = ^
+    #endif
+  #endif
 #endif
 
 #define enum_named(name, underlying, ...) \
@@ -165,4 +175,12 @@ struct DeferHelper {
   constexpr struct {                      \
     underlying __VA_ARGS__;               \
   } name
+
+#include "printer/variadic.h"
+#define PRAGMA_MAKE_STR(...) #__VA_ARGS__
+#define MAKE_PRAGMA(warning) _Pragma(PRAGMA_MAKE_STR(clang diagnostic ignored warning))
+#define DIAGNOSTIC_PUSH(...) \
+  APPLY_N(MAKE_PRAGMA, __VA_ARGS__)
+#define DIAGNOSTIC_POP() \
+  _Pragma("clangd diagnostic pop")
 #endif // MY_TYPES

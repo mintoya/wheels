@@ -142,7 +142,6 @@ int debugAllocatorDeInit(My_allocator *allocator) {
       }
   );
   mHmap_deinit(internals->map);
-  aFree(realAllocator, internals);
   aFree(realAllocator, allocator);
   return leaks;
 }

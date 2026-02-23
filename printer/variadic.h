@@ -22,8 +22,8 @@
 #define APPLY_N_HELPER_INVOKE() APPLY_N_HELPER
 
 #define COUNT_ONE_MACRO(x) +1
-#define COUNT_ARGS(...) (__VA_OPT__(APPLY_N(COUNT_ONE_MACRO, __VA_ARGS__)))
-#define comp_if(bool, then, else) \
-  __builtin_choose_expr(bool, then, else)
+#define COUNT_ARGS(...) (__VA_OPT__(APPLY_N(COUNT_ONE_MACRO, __VA_ARGS__)) + 0)
+// #define comp_if(bool, then, else) \
+//   __builtin_choose_expr(bool, then, else)
 
 #endif // VARIADIC_APPLY_H
