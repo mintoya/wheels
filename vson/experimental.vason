@@ -4,8 +4,6 @@
   two                                        ,
   three                                      ,
   a:b                                        ,
-  m:{a,b,c:d}                                ,
-  {a:a,b,c,d}                                ,
   {}                                         ,
   there will be no non-adjacent arrays
 }
