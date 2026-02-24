@@ -34,11 +34,9 @@ int main(int nargs, char *args[]) {
   // vason_print(c, 0);
   println("{vason_container}", c);
   println(
-      "indexes :{}\n"
       "tables  :{}\n"
       "tags    :{}\n"
       "text    :{}\n",
-      sizeof(*msList_vla(c.indexes)),
       sizeof(*msList_vla(c.tables_strings)),
       sizeof(*msList_vla(c.tags)),
       c.text.len,
