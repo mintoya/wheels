@@ -21,7 +21,10 @@ int main(int nargs, char *args[]) {
       mList_push(chars, c);
   }
   slice(c8) str = mList_slice(chars);
-  // println("input:\n{fptr}\n", str);
+  println("input:\n{fptr}\n", str);
+
+  // slice(c8) str = slice_stat(u"]");
+
   vason_container c = vason_parseString(local, str);
   defer { vason_container_free(c); };
 
@@ -42,15 +45,3 @@ int main(int nargs, char *args[]) {
       c.text.len,
   );
 }
-
-// (')233
-// indexes :1668
-// tables  :3336
-// tags    :417
-// text    :4023
-//
-// (')233
-// indexes :834
-// tables  :1668
-// tags    :417
-// text    :4026

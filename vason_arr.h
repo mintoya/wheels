@@ -476,10 +476,13 @@ void vason_parse_level2(
 //     }
 // }
 REGISTER_PRINTER(vason_container, {
-  if (in.current >= msList_len(in.tags))
+  if (in.current >= msList_len(in.tags) || in.tags[in.current] & vason_INVALID) {
     PUTS(U"(!)");
-  else if (in.tags[in.current] & vason_UNPARSED)
+    return;
+  } else if (in.tags[in.current] & vason_UNPARSED) {
     PUTS(U"(?)");
+    return;
+  }
   switch (in.tags[in.current]) {
     case vason_INVALID:
     case vason_UNPARSED:
