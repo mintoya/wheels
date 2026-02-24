@@ -147,13 +147,15 @@ static inline bool isIgnored(c8 in) { return in <= ' ' && in; }
 static inline vason_span basic_trim(slice(c8) in, vason_span span) {
   while (
       span.len &&
-      isIgnored(in.ptr[span.offset])) {
+      isIgnored(in.ptr[span.offset])
+  ) {
     span.offset++;
     span.len--;
   }
   while (
       span.len &&
-      isIgnored(in.ptr[span.offset + span.len - 1]))
+      isIgnored(in.ptr[span.offset + span.len - 1])
+  )
     span.len--;
   return span;
 }
@@ -485,20 +487,22 @@ REGISTER_PRINTER(vason_container, {
   else if (in.tags[in.current] & vason_UNPARSED)
     PUTS(U"(?)");
   switch (in.tags[in.current]) {
+    case vason_INVALID:
+    case vason_UNPARSED:
+      __builtin_unreachable();
+      break;
     case vason_PAIR: {
       vason_span vs = in.tables_strings[in.indexes[in.current]];
-      PUTS(U"(:)");
-      for (auto i = vs.offset; i < vs.offset + vs.len; i++) {
-        if (i != vs.offset)
-          PUTS(U",");
-        in.current = i;
-        USETYPEPRINTER(vason_container, in);
-      }
-      PUTS(U"}");
+      PUTS(U"(:)<");
+      in.current = vs.offset;
+      USETYPEPRINTER(vason_container, in);
+      PUTS(U",");
+      in.current++;
+      USETYPEPRINTER(vason_container, in);
+      PUTS(U">");
     } break;
     case vason_STRING: {
       vason_span vs = in.tables_strings[in.indexes[in.current]];
-      PUTS(U"(')");
       USETYPEPRINTER(fptr, ((fptr){vs.len, vs.offset + in.text.ptr}));
     } break;
     case vason_TABLE: {

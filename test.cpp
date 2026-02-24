@@ -30,5 +30,14 @@ int main(int nargs, char *args[]) {
     else
       c = c[args[i]];
   }
-  vason_print(c, 0);
+  println(
+      "indexes :{}\n"
+      "tables  :{}\n"
+      "tags    :{}\n"
+      "text    :{}\n",
+      sizeof(*msList_vla(c.self.indexes)),
+      sizeof(*msList_vla(c.self.tables_strings)),
+      sizeof(*msList_vla(c.self.tags)),
+      c.self.text.len,
+  );
 }

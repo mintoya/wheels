@@ -117,7 +117,7 @@ extern inline void sList_remove(sList_header *l, usize width, usize i) {
   #define msList_len(s) (msList_header(s)->length)
   #define msList_cap(s) (msList_header(s)->capacity)
   #define msList_pop(s) ((s)[--msList_header(s)->length])
-  #define msList_vla(s) ((typeof (*s)(*)[msList_len(s)])s)
+  #define msList_vla(s) ((typeof(typeof(*s))(*)[msList_len(s)])s)
 
 #endif // SHORT_LIST_H
 // #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
