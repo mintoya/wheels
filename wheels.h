@@ -1,3 +1,7 @@
+#if defined(WHEELS_ONLY_ONCE)
+  #error "wheels should be included once"
+#endif
+#define WHEELS_ONLY_ONCE
 
 #ifdef MY_PRINTER_H
   #define MY_PRINTER_C (1)
@@ -53,3 +57,14 @@
   #define ASSERTMESSAGE_C (1)
   #include "assertMessage.h"
 #endif
+
+#undef MY_PRINTER_C
+#undef STRING_LIST_C
+#undef VASON_PARSER_C
+#undef MY_DEBUG_ALLOCATOR_C
+#undef OMAP_C
+#undef HMAP_C
+#undef MY_LIST_C
+#undef ARENA_ALLOCATOR_C
+#undef MY_ALLOCATOR_C
+#undef ASSERTMESSAGE_C
