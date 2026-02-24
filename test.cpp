@@ -1,4 +1,5 @@
 #include "debugallocator.h"
+#include "my-list.h"
 #include "vason_arr.h"
 #include "wheels.h"
 #include <stdlib.h>
@@ -18,7 +19,7 @@ int main(int nargs, char *args[]) {
     while ((c = fgetc(stdin)) != EOF)
       mList_push(chars, c);
   }
-  slice(c8) str = slice_stat(*mList_vla(chars));
+  slice(c8) str = mList_slice(chars);
   println("input:\n{fptr}\n", str);
   vason c = vason_parseString(local, str);
   defer { c.free(); };

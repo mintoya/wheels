@@ -7,11 +7,6 @@
 #include "print.h"
 #include <stdlib.h>
 
-#define quiet_override_warning(...)                                   \
-  _Pragma("clang diagnostic push")                                    \
-      _Pragma("clang diagnostic ignored \"-Winitializer-overrides\"") \
-          __VA_ARGS__                                                 \
-              _Pragma("clang diagnostic pop")
 struct dbgAlloc_config {
   AllocatorV allocator;
   bool track_total;
@@ -24,13 +19,12 @@ struct dbgAlloc_config {
  * `@return` debug allocator
  */
 My_allocator *(debugAllocatorInit)(struct dbgAlloc_config config);
-#define debugAllocatorInit(...) quiet_override_warning( \
-    debugAllocatorInit(                                 \
-        (struct dbgAlloc_config){                       \
-            .allocator = stdAlloc, __VA_ARGS__          \
-        }                                               \
-    )                                                   \
-)
+#define debugAllocatorInit(...) ({                 \
+  struct dbgAlloc_config config = {__VA_ARGS__};   \
+  config.allocator = config.allocator ?: stdAlloc; \
+  config.log = config.log ?: stderr;               \
+  debugAllocatorInit(config);                      \
+})
 
 /**
  * `@param` **allocator**  allocator
