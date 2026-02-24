@@ -6,8 +6,7 @@
   #include "mytypes.h"
   #include "print.h"
   #include "shortList.h"
-  #include <alloca.h>
-typedef u32 vason_index;
+typedef u16 vason_index;
 typedef struct {
   vason_index offset, len;
 } vason_span;
@@ -20,11 +19,11 @@ typedef enum : u8 {
   vason_INVALID /* */ = 1 << 7,
 } vason_tag;
 /**
- * string     : offset + length inside of table-stirngs
+ * string     : offset + length inside of text
  * table      : offset + length inside of table-strings
  * key_value  : offset inside of table-strings
  *                first item is string
- *                second is table/string
+ *                second is anything else
  */
 typedef struct {
   vason_index current;
@@ -54,16 +53,17 @@ struct vason_getArg {
     _Generic(                                                                                \
         arg,                                                                                 \
         i32: (struct vason_getArg){.is_unsigned_integer = 1, ._u32 = REF(typeof(arg), arg)}, \
+        u32: (struct vason_getArg){.is_unsigned_integer = 1, ._u32 = REF(typeof(arg), arg)}, \
         fptr: (struct vason_getArg){.is_fat_pointer = 1, ._fptr = REF(typeof(arg), arg)}     \
     ),
-  #define vason_get(container, ...) vason_get(                                            \
+  #define vason_get(container, ...) vason_get_func(                                       \
       container,                                                                          \
       (struct vason_getArg[]){                                                            \
           APPLY_N(MAKE_VASONS_GET_ARG, __VA_ARGS__)(struct vason_getArg){.terminator = 1} \
       }                                                                                   \
   )
 
-vason_container(vason_get)(vason_container c, struct vason_getArg *argTypes);
+vason_container vason_get_func(vason_container c, struct vason_getArg *argTypes);
 vason_container vason_get_str(vason_container c, fptr f);
 vason_container vason_get_idx(vason_container c, vason_index f);
 
@@ -147,15 +147,13 @@ static inline bool isIgnored(c8 in) { return in <= ' ' && in; }
 static inline vason_span basic_trim(slice(c8) in, vason_span span) {
   while (
       span.len &&
-      isIgnored(in.ptr[span.offset])
-  ) {
+      isIgnored(in.ptr[span.offset])) {
     span.offset++;
     span.len--;
   }
   while (
       span.len &&
-      isIgnored(in.ptr[span.offset + span.len - 1])
-  )
+      isIgnored(in.ptr[span.offset + span.len - 1]))
     span.len--;
   return span;
 }
@@ -248,33 +246,33 @@ vason_tag figureType(slice(vason_token_t) in) {
   }
   return vason_STRING;
 }
-REGISTER_PRINTER(vason_token_t, {
-  switch (in) {
-    case vason_ESCAPE:
-      PUTC('/');
-      break;
-    case vason_PAIR_DELIM:
-      PUTC(':');
-      break;
-    case vason_TABLE_DELIM:
-      PUTC(',');
-      break;
-    case vason_STR_DELIM:
-      PUTC('"');
-      break;
-    case vason_STR:
-      PUTC('_');
-      break;
-    case vason_TABLE_START:
-      PUTC('{');
-      break;
-    case vason_TABLE_END:
-      PUTC('}');
-      break;
-  }
-});
-  #include "printer/genericName.h"
-MAKE_PRINT_ARG_TYPE(vason_token_t);
+// REGISTER_PRINTER(vason_token_t, {
+//   switch (in) {
+//     case vason_ESCAPE:
+//       PUTC('/');
+//       break;
+//     case vason_PAIR_DELIM:
+//       PUTC(':');
+//       break;
+//     case vason_TABLE_DELIM:
+//       PUTC(',');
+//       break;
+//     case vason_STR_DELIM:
+//       PUTC('"');
+//       break;
+//     case vason_STR:
+//       PUTC('_');
+//       break;
+//     case vason_TABLE_START:
+//       PUTC('{');
+//       break;
+//     case vason_TABLE_END:
+//       PUTC('}');
+//       break;
+//   }
+// });
+//   #include "printer/genericName.h"
+// MAKE_PRINT_ARG_TYPE(vason_token_t);
 
 void vason_parse_level1(
     vason_span span,
@@ -344,64 +342,6 @@ void vason_parse_level1(
   });
 }
 
-void vason_print(vason_container c, usize indentLevel) {
-  fptr tabs = (fptr){
-      indentLevel * 2,
-      (c8 *)alloca(indentLevel * 2),
-  };
-  memset(tabs.ptr, ' ', tabs.width);
-
-  if (c.current >= msList_len(c.tags)) {
-    println("{}(!)", tabs);
-    return;
-  }
-  if (c.tags[c.current] & vason_UNPARSED) {
-
-    vason_span s = c.tables_strings[c.indexes[c.current]];
-    fptr fpart = {s.len, s.offset + c.text.ptr};
-    println("{}( unparsed ) /{{}/}", tabs, fpart);
-
-  } else
-
-    switch (c.tags[c.current]) {
-      case vason_UNPARSED:
-        println("{}(?)", tabs);
-        break;
-      case vason_INVALID:
-        println("{}(!)", tabs);
-        break;
-
-      case vason_PAIR: {
-
-        println("{}(:)", tabs);
-        vason_span s = c.tables_strings[c.indexes[c.current]];
-        for (auto j = s.offset; j < s.len + s.offset; j++) {
-          c.current = j;
-          vason_print(c, indentLevel + 1);
-        }
-
-      } break;
-
-      case vason_STRING: {
-
-        vason_span s = c.tables_strings[c.indexes[c.current]];
-        fptr fpart = {s.len, s.offset + c.text.ptr};
-        println("{}(') {}", tabs, fpart);
-
-      } break;
-
-      case vason_TABLE: {
-
-        println("{}(<)", tabs);
-        vason_span s = c.tables_strings[c.indexes[c.current]];
-        for (auto j = s.offset; j < s.len + s.offset; j++) {
-          c.current = j;
-          vason_print(c, indentLevel + 1);
-        }
-
-      } break;
-    }
-}
 void vason_parse_level2(
     vason_container *parent,
     slice(vason_token_t) tokens
@@ -481,6 +421,102 @@ void vason_parse_level2(
   }
 }
 
+// void vason_print(vason_container c, usize indentLevel) {
+//   fptr tabs = (fptr){
+//       indentLevel * 2,
+//       (c8 *)alloca(indentLevel * 2),
+//   };
+//   memset(tabs.ptr, ' ', tabs.width);
+//
+//   if (c.current >= msList_len(c.tags)) {
+//     println("{}(!)", tabs);
+//     return;
+//   }
+//   if (c.tags[c.current] & vason_UNPARSED) {
+//
+//     vason_span s = c.tables_strings[c.indexes[c.current]];
+//     fptr fpart = {s.len, s.offset + c.text.ptr};
+//     println("{}( unparsed ) /{{}/}", tabs, fpart);
+//
+//   } else
+//
+//     switch (c.tags[c.current]) {
+//       case vason_UNPARSED:
+//         println("{}(?)", tabs);
+//         break;
+//       case vason_INVALID:
+//         println("{}(!)", tabs);
+//         break;
+//
+//       case vason_PAIR: {
+//
+//         println("{}(:)", tabs);
+//         vason_span s = c.tables_strings[c.indexes[c.current]];
+//         for (auto j = s.offset; j < s.len + s.offset; j++) {
+//           c.current = j;
+//           vason_print(c, indentLevel + 1);
+//         }
+//
+//       } break;
+//
+//       case vason_STRING: {
+//
+//         vason_span s = c.tables_strings[c.indexes[c.current]];
+//         fptr fpart = {s.len, s.offset + c.text.ptr};
+//         println("{}(') {}", tabs, fpart);
+//
+//       } break;
+//
+//       case vason_TABLE: {
+//
+//         println("{}(<)", tabs);
+//         vason_span s = c.tables_strings[c.indexes[c.current]];
+//         for (auto j = s.offset; j < s.len + s.offset; j++) {
+//           c.current = j;
+//           vason_print(c, indentLevel + 1);
+//         }
+//
+//       } break;
+//     }
+// }
+REGISTER_PRINTER(vason_container, {
+  if (in.current >= msList_len(in.tags))
+    PUTS(U"(!)");
+  else if (in.tags[in.current] & vason_UNPARSED)
+    PUTS(U"(?)");
+  switch (in.tags[in.current]) {
+    case vason_PAIR: {
+      vason_span vs = in.tables_strings[in.indexes[in.current]];
+      PUTS(U"(:)");
+      for (auto i = vs.offset; i < vs.offset + vs.len; i++) {
+        if (i != vs.offset)
+          PUTS(U",");
+        in.current = i;
+        USETYPEPRINTER(vason_container, in);
+      }
+      PUTS(U"}");
+    } break;
+    case vason_STRING: {
+      vason_span vs = in.tables_strings[in.indexes[in.current]];
+      PUTS(U"(')");
+      USETYPEPRINTER(fptr, ((fptr){vs.len, vs.offset + in.text.ptr}));
+    } break;
+    case vason_TABLE: {
+      vason_span vs = in.tables_strings[in.indexes[in.current]];
+      PUTS(U"(<");
+      USETYPEPRINTER(usize, vs.len);
+      PUTS(U">){");
+      for (auto i = vs.offset; i < vs.offset + vs.len; i++) {
+        if (i != vs.offset)
+          PUTS(U",");
+        in.current = i;
+        USETYPEPRINTER(vason_container, in);
+      }
+      PUTS(U"}");
+    } break;
+  }
+});
+
 vason_container vason_parseString(AllocatorV allocator, slice(c8) string) {
   auto res = vason_container_create(string, allocator);
 
@@ -549,14 +585,14 @@ vason_container vason_get_idx(vason_container c, vason_index f) {
   c.current = c.tables_strings[c.indexes[c.current]].offset + f;
   return c;
 }
-vason_container(vason_get)(vason_container c, struct vason_getArg *argTypes) {
+vason_container vason_get_func(vason_container c, struct vason_getArg *argTypes) {
   while (!argTypes->terminator && c.current < msList_len(c.tags)) {
     if (argTypes->is_fat_pointer) {
       c = vason_get_str(c, *(fptr *)argTypes->_fptr);
     } else if (argTypes->is_unsigned_integer) {
       c = vason_get_idx(c, *(u32 *)argTypes->_u32);
     } else {
-      assertMessage(false, "wrong type in vason get?");
+      __builtin_unreachable();
     }
     argTypes++;
   }
