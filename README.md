@@ -1,13 +1,13 @@
 Some wheels im reinventing
 -
- # fptr.h
+# fptr.h
 a pointer + a length, used as both a generic pointer and 
 a "slice" in this library
 meant to hold on to raw data 
- # types.h
+# types.h
  - a bunch of zig style typedefs , things like u8,f64
  - slice and nullable macros for even more zig style types
- # my-List 
+# my-List 
  - my-list.h is a basic dynamic list implementation
  - very close to [the vec in CC](https://github.com/JacksonAllan/CC) 
  - example of macro usage: 
@@ -23,7 +23,21 @@ meant to hold on to raw data
     println("{}", v);
   });
 ```
- # hhmap.h
+# shortList 
+ - the other dynamic list
+ - stb-style list
+ - lower overheaed than list, doesnt remember allocator or width
+ - example of macro usage: 
+```c
+  int* list = msList_init(localArena, int);
+  msList_push(localArena,list, 4);
+  msList_push(localArena,list, 5);
+  msList_push(localArena,list, 6);
+  msList_push(localArena,list, 7);
+  // null since the list isnt that long
+  int *elem = msList_get(list, 10);
+```
+# hhmap.h
  - hash map with linked-list style collision resolution
  but linked list elements are in a normal list buffer
 
@@ -42,30 +56,32 @@ meant to hold on to raw data
   });
 ```
  # stringList.h
- **TODO** 
  - metadata array + char array for array of arbitrary size elements 
  # cSum.h
  basic checksum written for my keyboard project
- # vason.h (didnt know vson was taken lol)
+# vason.h (didnt know vson was taken lol)
  custom config language parser
- tried to make it as flexible as possible, 
  it can hypothetically parse a json file 
 ### basic syntax
 ```vason
-    object 
-        {key:value; key2:value2;}
-    list 
-        [value,value,...]
-    string
-        `string'
+{
+    object :
+        {key:value, key2:value2,},
+    list   :
+        {value,value,...},
+    both   :
+        {key:value,second element, third element},
+    string :
+        'string'
+}
 ```
 - library doesnt reallocate the actual string input 
 - both / and \ are escape characters, highest priority
-- strings start with '`' and end with ''', second highest priority
+- strings start and end with '\'' or '"'
     - they dont nescecarily have to though
     - uninterupted lines of characters are grouped
-- {} and [] are interchangeable
-- maps are triggered by the : or = characters
+- {} and [] are interchangeable for json compatibility
+- lua-style, 
  # print.h
  a *lot* of macros that make printing easier ( hopefully )
  based on u/jacksaccountonreddit's [better c generics](https://github.com/JacksonAllan/CC/blob/main/articles/Better_C_Generics_Part_1_The_Extendible_Generic.md) 
@@ -97,7 +113,7 @@ meant to hold on to raw data
     // now you can call it with
     print("${}",((point){0,0}));
  ```
- # wheels.h
+# wheels.h
  this library was supposed to contain single header libraries, however,
  some structures depend on eachother, which means the implementation macros
  need to be called in order, this would be really annoying so wheels.h 
