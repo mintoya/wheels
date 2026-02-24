@@ -5,6 +5,7 @@
   #include "mytypes.h"
   #include "print.h"
   #include "shortList.h"
+  #include <alloca.h>
 typedef u32 vason_index;
 typedef struct {
   vason_index offset, len;
@@ -78,7 +79,7 @@ typedef enum : c8 {
   vason_TABLE_END = '>',
   vason_TABLE_DELIM = ',',
   vason_STR = ' ',
-  vason_STR_DELIM = ':',
+  vason_STR_DELIM = '"',
   vason_ESCAPE = '\\',
   vason_PAIR_DELIM = ':',
 } vason_token_t;
@@ -114,21 +115,23 @@ static inline vason_token_t to_token(c8 in) {
   }
 }
 
-inline bool isIgnored(c8 in) { return in <= ' ' && in; }
-inline vason_span basic_trim(slice(c8) in, vason_span span) {
+static inline bool isIgnored(c8 in) { return in <= ' ' && in; }
+static inline vason_span basic_trim(slice(c8) in, vason_span span) {
   while (
       span.len &&
-      isIgnored(in.ptr[span.offset])) {
+      isIgnored(in.ptr[span.offset])
+  ) {
     span.offset++;
     span.len--;
   }
   while (
       span.len &&
-      isIgnored(in.ptr[span.offset + span.len - 1]))
+      isIgnored(in.ptr[span.offset + span.len - 1])
+  )
     span.len--;
   return span;
 }
-inline vason_span string_reduce(slice(c8) str, vason_span span) {
+static inline vason_span string_reduce(slice(c8) str, vason_span span) {
   span = basic_trim(str, span);
   if (to_token(str.ptr[span.offset]) == vason_token.str_delim) {
     span.offset++;
@@ -136,7 +139,7 @@ inline vason_span string_reduce(slice(c8) str, vason_span span) {
   }
   return span;
 }
-inline vason_span table_reduce(slice(c8) str, vason_span span) {
+static inline vason_span table_reduce(slice(c8) str, vason_span span) {
   while (span.len && to_token(str.ptr[span.offset]) != vason_token.table_start) {
     if (span.len && to_token(str.ptr[span.offset]) == vason_token.escape) {
       span.len--;
@@ -212,11 +215,43 @@ vason_tag figureType(slice(vason_token_t) in) {
   }
   return vason_tags.string;
 }
+REGISTER_PRINTER(vason_token_t, {
+  switch (in) {
+    case vason_token.escape:
+      PUTC('/');
+      break;
+    case vason_token.pair_delim:
+      PUTC(':');
+      break;
+    case vason_token.table_delim:
+      PUTC(',');
+      break;
+    case vason_token.str_delim:
+      PUTC('"');
+      break;
+    case vason_token.str:
+      PUTC('_');
+      break;
+    case vason_token.table_start:
+      PUTC('{');
+      break;
+    case vason_token.table_end:
+      PUTC('}');
+      break;
+  }
+});
+  #include "printer/genericName.h"
+MAKE_PRINT_ARG_TYPE(vason_token_t);
+
 void vason_parse_level1(
     vason_span span,
     slice(vason_token_t) tokens,
     vason_container *parent
 ) {
+  print("in : ");
+  for (auto i = span.offset; i < span.offset + span.len; i++)
+    print("{}", tokens.ptr[i]);
+  println(" | {}", ((fptr){span.len, span.offset + parent->text.ptr}));
   mList(vason_token_t) tstack = mList_init(parent->allocator, vason_token_t);
   defer { mList_deInit(tstack); };
   mList(vason_span) parts = mList_init(parent->allocator, vason_span);
@@ -224,6 +259,7 @@ void vason_parse_level1(
   auto i = span.offset;
   auto j = span.offset;
   for (; i < span.offset + span.len; i++) {
+
     switch (tokens.ptr[i]) {
       case vason_token.table_start: {
         mList_push(tstack, vason_token.table_start);
@@ -233,7 +269,6 @@ void vason_parse_level1(
       } break;
       case vason_token.table_delim: {
         if (!mList_len(tstack)) {
-          println("adding \n/{{}/}", ((fptr){i - j, parent->text.ptr + j}));
           mList_push(
               parts,
               ((vason_span){.offset = j, .len = (vason_index)(i - j)})
@@ -246,10 +281,16 @@ void vason_parse_level1(
         ;
     }
   }
-  if (j < span.offset + span.len) {
-    mList_push(parts, ((vason_span){.offset = j, .len = (vason_index)(span.offset + span.len - j)}));
-  }
+  if (j < span.offset + span.len)
+    mList_push(
+        parts,
+        ((vason_span){
+            .offset = j,
+            .len = (vason_index)(span.offset + span.len - j)
+        })
+    );
   mList_foreach(parts, vason_span, vs, {
+    println("element : {}", ((fptr){vs.len, parent->text.ptr + vs.offset}));
     msList_push(parent->allocator, parent->indexes, msList_len(parent->tables_strings));
     msList_push(parent->allocator, parent->tables_strings, vs);
     msList_push(
@@ -351,8 +392,14 @@ void vason_parse_level2(
         };
         vason_span val = {
             .offset = (vason_index)(s + 1),
-            .len = (vason_index)(span.len - s + span.offset + 1),
+            .len = (vason_index)(span.len - (s - span.offset) - 1),
         };
+        // println(
+        //     "total:/{{}/}\nkey :/{{}/}, val :/{{}/}",
+        //     ((fptr){span.len, span.offset + parent->text.ptr}),
+        //     ((fptr){key.len, key.offset + parent->text.ptr}),
+        //     ((fptr){val.len, val.offset + parent->text.ptr})
+        // );
 
         parent->tables_strings[parent->indexes[i]] = (vason_span){
             .offset = (vason_index)(msList_len(parent->tables_strings)),
@@ -400,6 +447,16 @@ vason_container vason_parseString(AllocatorV allocator, slice(c8) string) {
   res.current = 0;
   return res;
 }
+// will overload it with a macro to generate types
+struct vason_getArg {
+  enum { UNSIGNED_INTEGER,
+         FAT_POINTER } tag;
+  union {
+    i32 _i32; // signed values dont really make sense here
+    u32 _u32;
+    fptr ptr;
+  };
+};
 vason_container(vason_get)(vason_container c, vason_tag *argTypes, ...) {
   assertMessage(false, "unimplemented");
   return c;

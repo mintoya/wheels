@@ -1,9 +1,1 @@
-{
-  zero                                       ,
-  one                                        ,
-  two                                        ,
-  three                                      ,
-  a:b                                        ,
-  {}                                         ,
-  there will be no non-adjacent arrays
-}
+{ a:{a:b},c,d,e }
