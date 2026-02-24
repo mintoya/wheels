@@ -45,7 +45,6 @@ struct vason_getArg {
     bool terminator : 1;
   };
   union {
-    void *_i32; // signed values dont really make sense here
     void *_u32;
     void *_fptr;
   };
@@ -54,7 +53,7 @@ struct vason_getArg {
   #define MAKE_VASONS_GET_ARG(arg)                                                           \
     _Generic(                                                                                \
         arg,                                                                                 \
-        i32: (struct vason_getArg){.is_unsigned_integer = 1, ._i32 = REF(typeof(arg), arg)}, \
+        i32: (struct vason_getArg){.is_unsigned_integer = 1, ._u32 = REF(typeof(arg), arg)}, \
         fptr: (struct vason_getArg){.is_fat_pointer = 1, ._fptr = REF(typeof(arg), arg)}     \
     ),
   #define vason_get(container, ...) vason_get(                                            \
@@ -65,36 +64,45 @@ struct vason_getArg {
   )
 
 vason_container(vason_get)(vason_container c, struct vason_getArg *argTypes);
+vason_container vason_get_str(vason_container c, fptr f);
+vason_container vason_get_idx(vason_container c, vason_index f);
 
   #if defined __cplusplus
 typedef struct vason {
   vason_container self;
-  // inline vason_tag tag() const { return self.top.tag; }
-  // inline usize countChildren() const {
-  //   return self.top.span.len;
-  // }
-  // struct vason operator[](usize idx) {
-  //   auto r = *this;
-  //   r.self.top = vason_arrGet(self.top, self, (u32)idx);
-  //   return r;
-  // }
-  // struct vason operator[](fptr c) {
-  //   auto r = *this;
-  //   r.self.top = vason_mapGet(self.top, self, c);
-  //   return r;
-  // }
-  // fptr asString() {
-  //   switch (self.top.tag) {
-  //     case vason_STR:
-  //     case vason_ID:
-  //       return vason_getString(self.top, self);
-  //     default:
-  //       return nullFptr;
-  //   }
-  // }
-  // struct vason operator[](const std::string &c) { return (*this)[(fptr){c.length(), (u8 *)c.c_str()}]; }
-  // struct vason operator[](const char *c) { return (*this)[(fptr){strlen(c), (u8 *)c}]; }
-  // explicit operator bool() const { return tag() != vason_INVALID; }
+  inline constexpr vason(const vason_container c) : self(c) {}
+  inline constexpr operator vason_container() const { return self; }
+  inline void free() { vason_container_free(self); }
+  inline vason_tag tag() const {
+    return self.current < msList_len(self.tags) ? self.tags[self.current] : vason_INVALID;
+  }
+  inline usize countChildren() const {
+    return self.current < msList_len(self.tags) ? self.tables_strings[self.current].len : 0;
+  }
+  struct vason operator[](usize idx) {
+    auto r = *this;
+    r.self = vason_get_idx(self, idx);
+    return r;
+  }
+  struct vason operator[](fptr c) {
+    auto r = *this;
+    r.self = vason_get_str(self, c);
+    return r;
+  }
+  fptr asString() {
+
+    switch (this->tag()) {
+      case vason_STRING: {
+        vason_span s = self.tables_strings[self.current];
+        return ((fptr){s.len, s.offset + self.text.ptr});
+      } break;
+      default:
+        return nullFptr;
+    }
+  }
+  struct vason operator[](const std::string &c) { return (*this)[(fptr){c.length(), (u8 *)c.c_str()}]; }
+  struct vason operator[](const char *c) { return (*this)[(fptr){strlen(c), (u8 *)c}]; }
+  explicit operator bool() const { return tag() != vason_INVALID; }
 } vason;
   #endif
 vason_container vason_parseString(AllocatorV allocator, slice(c8) string);
@@ -153,7 +161,12 @@ static inline vason_span basic_trim(slice(c8) in, vason_span span) {
 }
 static inline vason_span string_reduce(slice(c8) str, vason_span span) {
   span = basic_trim(str, span);
-  if (to_token(str.ptr[span.offset]) == vason_STR_DELIM) {
+  if (
+      span.len >= 2 &&
+      to_token(str.ptr[span.offset]) == vason_STR_DELIM &&
+      to_token(str.ptr[span.offset + span.len - 1]) == vason_STR_DELIM &&
+      str.ptr[span.offset + span.len - 1] == str.ptr[span.offset]
+  ) {
     span.offset++;
     span.len -= 2;
   }
@@ -488,6 +501,9 @@ vason_container vason_parseString(AllocatorV allocator, slice(c8) string) {
 // vason_container
 // will overload it with a macro to generate types
 vason_container vason_get_str(vason_container c, fptr f) {
+  if (msList_len(c.tags) <= c.current) {
+    return c;
+  }
   if (
       c.tags[c.current] != vason_TABLE
   ) {
@@ -520,6 +536,9 @@ vason_container vason_get_str(vason_container c, fptr f) {
   }
 }
 vason_container vason_get_idx(vason_container c, vason_index f) {
+  if (msList_len(c.tags) <= c.current) {
+    return c;
+  }
   if (
       c.tags[c.current] != vason_TABLE ||
       c.tables_strings[c.indexes[c.current]].len <= f

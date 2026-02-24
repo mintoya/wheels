@@ -6,4 +6,5 @@ perf.*
 .ccls-cache
 zig-out/.*
 zig-out/bin
-
+a.out
+a.exe

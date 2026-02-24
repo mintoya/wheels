@@ -20,10 +20,6 @@ int main(void) {
   }
 
   slice(c8) srt = slice_stat(*mList_vla(chars));
-  //   c8 chars[] = {
-  // #embed "vson/experimental.vason"
-  //   };
-  //   slice(c8) srt = slice_stat(chars);
   println("input : {fptr}", srt);
   vason_container c = vason_parseString(local, srt);
   defer { vason_container_free(c); };
