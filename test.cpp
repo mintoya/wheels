@@ -31,13 +31,12 @@ int main(int nargs, char *args[]) {
       c = c[args[i]];
   }
   println(
-      "indexes :{}\n"
       "tables  :{}\n"
       "tags    :{}\n"
       "text    :{}\n",
-      sizeof(*msList_vla(c.self.indexes)),
       sizeof(*msList_vla(c.self.tables_strings)),
       sizeof(*msList_vla(c.self.tags)),
       c.self.text.len,
   );
 }
+

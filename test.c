@@ -21,7 +21,7 @@ int main(int nargs, char *args[]) {
       mList_push(chars, c);
   }
   slice(c8) str = mList_slice(chars);
-  println("input:\n{fptr}\n", str);
+  // println("input:\n{fptr}\n", str);
 
   // slice(c8) str = slice_stat(u"]");
 
