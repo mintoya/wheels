@@ -71,6 +71,7 @@ typedef struct vason {
   vason_container self;
   inline constexpr vason(const vason_container c) : self(c) {}
   inline constexpr operator vason_container() const { return self; }
+
   inline void free() { vason_container_free(self); }
   inline vason_tag tag() const {
     return self.current < msList_len(self.tags) ? self.tags[self.current] : vason_INVALID;
@@ -88,17 +89,15 @@ typedef struct vason {
     r.self = vason_get_str(self, c);
     return r;
   }
-  fptr asString() {
-
-    switch (this->tag()) {
-      case vason_STRING: {
-        vason_span s = self.tables_strings[self.current];
-        return ((fptr){s.len, s.offset + self.text.ptr});
-      } break;
-      default:
-        return nullFptr;
-    }
+  fptr asString() const {
+    return this->tag() == vason_STRING
+               ? (fptr){
+                     self.tables_strings[self.current].len,
+                     self.tables_strings[self.current].offset + self.text.ptr
+                 }
+               : nullFptr;
   }
+  inline constexpr operator fptr() const { return this->asString(); }
   struct vason operator[](const std::string &c) { return (*this)[(fptr){c.length(), (u8 *)c.c_str()}]; }
   struct vason operator[](const char *c) { return (*this)[(fptr){strlen(c), (u8 *)c}]; }
   explicit operator bool() const { return tag() != vason_INVALID; }
@@ -129,6 +128,7 @@ static inline vason_token_t to_token(c8 in) {
     case '}':
       return vason_TABLE_END;
     case ',':
+    case ';':
       return vason_TABLE_DELIM;
     case '\\':
       return vason_ESCAPE;
@@ -146,15 +146,13 @@ static inline bool isIgnored(c8 in) { return in <= ' ' && in; }
 static inline vason_span basic_trim(slice(c8) in, vason_span span) {
   while (
       span.len &&
-      isIgnored(in.ptr[span.offset])
-  ) {
+      isIgnored(in.ptr[span.offset])) {
     span.offset++;
     span.len--;
   }
   while (
       span.len &&
-      isIgnored(in.ptr[span.offset + span.len - 1])
-  )
+      isIgnored(in.ptr[span.offset + span.len - 1]))
     span.len--;
   return span;
 }
@@ -577,7 +575,8 @@ vason_container vason_get_idx(vason_container c, vason_index f) {
     return c;
   }
   if (
-      c.tags[c.current] != vason_TABLE ||
+      (c.tags[c.current] != vason_TABLE &&
+       c.tags[c.current] != vason_PAIR) ||
       c.tables_strings[c.current].len <= f
   ) {
     c.current = msList_len(c.tags);
