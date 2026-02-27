@@ -6,7 +6,7 @@
 #include "hhmap.h"
 #include "my-list.h"
 #include "mytypes.h"
-#include "printer/variadic.h"
+#include "macros.h"
 #include <locale.h>
 #include <malloc.h>
 #include <stdarg.h>

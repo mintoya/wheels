@@ -24,6 +24,8 @@ typedef enum : u8 {
  * key_value  : offset inside of table-strings
  *                first item is string
  *                second is anything else
+ * text       : origional passed in string
+ * tags and tables_strings are msList_pointers, use msList_free
  */
 typedef struct {
   vason_index current;
@@ -49,7 +51,7 @@ struct vason_getArg {
 };
 vason_container vason_get_str(vason_container c, fptr f);
 vason_container vason_get_idx(vason_container c, vason_index f);
-  #include "printer/variadic.h"
+  #include "macros.h"
   #define MAKE_VASONS_GET_ARG(arg)                                                           \
     _Generic(                                                                                \
         arg,                                                                                 \
