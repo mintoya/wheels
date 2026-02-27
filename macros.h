@@ -26,11 +26,19 @@ struct DeferHelper {
       #include <stddefer.h>
       #define defer_(...) defer{__VA_ARGS__};
     #else
-      #ifdef __clang__
+      #if defined(__clang__)
 static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
         #define _DEFER_CONCAT_IMPL(x, y) x##y
         #define _DEFER_CONCAT(x, y) _DEFER_CONCAT_IMPL(x, y)
         #define defer __attribute__((cleanup(_defer_cleanup_block))) void (^_DEFER_CONCAT(_defer_var_, __COUNTER__))(void) = ^
+      #elif defined(__GNUC__)
+        #define _DEFER_CONCAT_IMPL(x, y) x##y
+        #define _DEFER_CONCAT(x, y) _DEFER_CONCAT_IMPL(x, y)
+        #define _defer_helper(func_name, var_name)              \
+          auto void func_name(int *);                           \
+          int var_name __attribute__((cleanup(func_name))) = 0; \
+          void func_name(int *_)
+        #define defer _defer_helper(_DEFER_CONCAT(_defer_func_, __COUNTER__), _DEFER_CONCAT(_defer_var_, __COUNTER__))
       #endif
     #endif
   #endif
@@ -42,25 +50,25 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define DIAGNOSTIC_POP() \
     _Pragma("clangd diagnostic pop")
 
-#define PARENTHESIS_HELPER ()
-#define MACRO_EXPAND1(...) \
-  __VA_ARGS__
-#define MACRO_EXPAND2(...) \
-  MACRO_EXPAND1(MACRO_EXPAND1(MACRO_EXPAND1(MACRO_EXPAND1(__VA_ARGS__))))
-#define MACRO_EXPAND3(...) \
-  MACRO_EXPAND2(MACRO_EXPAND2(MACRO_EXPAND2(MACRO_EXPAND2(__VA_ARGS__))))
-#define MACRO_EXPAND4(...) \
-  MACRO_EXPAND3(MACRO_EXPAND3(MACRO_EXPAND3(MACRO_EXPAND3(__VA_ARGS__))))
-#define MACRO_EXPAND5(...) \
-  MACRO_EXPAND4(MACRO_EXPAND4(MACRO_EXPAND4(MACRO_EXPAND4(__VA_ARGS__))))
-#define MACRO_EXPAND(...) \
-  MACRO_EXPAND5(__VA_ARGS__)
+  #define PARENTHESIS_HELPER ()
+  #define MACRO_EXPAND1(...) \
+    __VA_ARGS__
+  #define MACRO_EXPAND2(...) \
+    MACRO_EXPAND1(MACRO_EXPAND1(MACRO_EXPAND1(MACRO_EXPAND1(__VA_ARGS__))))
+  #define MACRO_EXPAND3(...) \
+    MACRO_EXPAND2(MACRO_EXPAND2(MACRO_EXPAND2(MACRO_EXPAND2(__VA_ARGS__))))
+  #define MACRO_EXPAND4(...) \
+    MACRO_EXPAND3(MACRO_EXPAND3(MACRO_EXPAND3(MACRO_EXPAND3(__VA_ARGS__))))
+  #define MACRO_EXPAND5(...) \
+    MACRO_EXPAND4(MACRO_EXPAND4(MACRO_EXPAND4(MACRO_EXPAND4(__VA_ARGS__))))
+  #define MACRO_EXPAND(...) \
+    MACRO_EXPAND5(__VA_ARGS__)
 
-#define APPLY_N(macro, ...) MACRO_EXPAND(APPLY_N_HELPER(macro, __VA_ARGS__))
-#define APPLY_N_HELPER(macro, arg, ...) macro(arg) \
-    __VA_OPT__(APPLY_N_HELPER_INVOKE PARENTHESIS_HELPER(macro, __VA_ARGS__))
-#define APPLY_N_HELPER_INVOKE() APPLY_N_HELPER
+  #define APPLY_N(macro, ...) MACRO_EXPAND(APPLY_N_HELPER(macro, __VA_ARGS__))
+  #define APPLY_N_HELPER(macro, arg, ...) macro(arg) \
+      __VA_OPT__(APPLY_N_HELPER_INVOKE PARENTHESIS_HELPER(macro, __VA_ARGS__))
+  #define APPLY_N_HELPER_INVOKE() APPLY_N_HELPER
 
-#define COUNT_ONE_MACRO(x) +1
-#define COUNT_ARGS(...) (__VA_OPT__(APPLY_N(COUNT_ONE_MACRO, __VA_ARGS__)) + 0)
+  #define COUNT_ONE_MACRO(x) +1
+  #define COUNT_ARGS(...) (__VA_OPT__(APPLY_N(COUNT_ONE_MACRO, __VA_ARGS__)) + 0)
 #endif

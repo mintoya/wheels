@@ -1,7 +1,9 @@
 #include "debugallocator.h"
 #include "my-list.h"
+#include "shortList.h"
 #include "vason_arr.h"
 #include "wheels.h"
+#include <cctype>
 #include <stdlib.h>
 int main(int nargs, char *args[]) {
   My_allocator *local = debugAllocatorInit(
@@ -20,16 +22,18 @@ int main(int nargs, char *args[]) {
       mList_push(chars, c);
   }
   slice(c8) str = mList_slice(chars);
-  println("input:\n{fptr}\n", str);
-  vason c = vason_parseString(local, str);
-  defer { c.free(); };
+  // println("input:\n{fptr}\n", str);
 
-  for (auto i = 1; i < nargs; i++) {
-    if (args[i][0] >= '0' && args[i][0] <= '9')
-      c = c[atoi(args[i])];
-    else
-      c = c[args[i]];
-  }
+  // slice(c8) str = slice_stat(u"]");
+
+  vason c = vason_parseString(local, str);
+  defer { vason_container_free(c); };
+
+  for (auto i = 1; i < nargs; i++)
+    c = isdigit(args[i][0])
+            ? c[atoi(args[i])]
+            : c[args[i]];
+  println("{vason_container}", c);
   println(
       "tables  :{}\n"
       "tags    :{}\n"
@@ -39,4 +43,3 @@ int main(int nargs, char *args[]) {
       c.self.text.len,
   );
 }
-
