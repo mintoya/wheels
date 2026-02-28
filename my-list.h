@@ -24,34 +24,38 @@ typedef struct List {
 // same as list_resize but it enforces size
 void List_forceResize(List *l, List_index_t newSize);
 
-[[gnu::pure]]
+__attribute__((pure))
 /**
  * `@param` **l** list
  * `@return` size of memory used by list
  */
-extern inline size_t List_headArea(const List *l) { return (l->width * l->length); }
-[[gnu::pure]]
+extern inline size_t
+List_headArea(const List *l) { return (l->width * l->length); }
+__attribute__((pure))
 /**
  * `@param` **l** list
  * `@return` size of memory reserved by list
  */
-extern inline size_t List_fullHeadArea(const List *l) { return (l->width * l->capacity); }
-[[gnu::pure]]
+extern inline size_t
+List_fullHeadArea(const List *l) { return (l->width * l->capacity); }
+__attribute__((pure))
 /**
  * `@param` **l** list
  * `@param` **i** index
  * `@return` pointer to i`th element
  *      - even if i is out of bounds
  */
-extern inline void *List_getRefForce(const List *l, List_index_t i) { return (l->head + l->width * i); };
-[[gnu::pure]]
+extern inline void *
+List_getRefForce(const List *l, List_index_t i) { return (l->head + l->width * i); };
+__attribute__((pure))
 /**
  * `@param` **l** list
  * `@param` **i** index
  * `@return` pointer to i`th element
  *      - null if i is more than **l**.length
  */
-extern void *List_getRef(const List *l, List_index_t i) { return (i < l->length) ? (l->head + l->width * i) : (NULL); }
+extern inline void *
+List_getRef(const List *l, List_index_t i) { return (i < l->length) ? (l->head + l->width * i) : (NULL); }
 /**
  * writes list to **l**
  * `@param` **allocator** allocator
@@ -88,8 +92,7 @@ extern inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t i
   List_makeNew(allocator, l, bytes, initSize);
   return l;
 }
-[[gnu::always_inline]]
-extern inline void List_set(List *l, List_index_t i, const void *element) {
+__attribute__((always_inline)) extern inline void List_set(List *l, List_index_t i, const void *element) {
   void *place = List_getRef(l, i);
   if (place)
     element
@@ -103,8 +106,7 @@ extern inline void List_set(List *l, List_index_t i, const void *element) {
  * `@param` **element** pointer to value
  * `@return` **element** pointer to value *inside list*
  */
-[[gnu::always_inline]]
-extern inline void List_append(List *l, const void *element) {
+__attribute__((always_inline)) extern inline void List_append(List *l, const void *element) {
   if (__builtin_expect(!!((l->length) >= (l->capacity)), 0))
     List_resize(l, LIST_GROW_EQ(l->length));
   size_t width = l->width, length = l->length;
@@ -138,8 +140,7 @@ List *List_fromArr(AllocatorV, const void *source, size_t size, List_index_t len
  */
 void *List_appendFromArr(List *l, const void *source, List_index_t length);
 
-[[gnu::pure]]
-extern inline List_index_t List_length(const List *l) { return l ? l->length : 0; }
+__attribute__((pure)) extern inline List_index_t List_length(const List *l) { return l ? l->length : 0; }
 /*
  * searches for a value which has an identical value to element
  * `@param` **list**
@@ -197,7 +198,7 @@ static void List_cleanup_handler(void *ListPtrPtr) {
     List_free(*l);
   *l = NULL;
 }
-#define List_scoped [[gnu::cleanup(List_cleanup_handler)]] List
+#define List_scoped __attribute__((cleanup(List_cleanup_handler))) List
 #ifdef __cplusplus
   #include <type_traits>
 template <typename T>
@@ -207,7 +208,7 @@ using mList_t = T (**)(List *);
   #define mList(T) typeof(T(**)(List *))
 #endif
 
-#define mList_scoped(T) [[gnu::cleanup(List_cleanup_handler)]] mList(T)
+#define mList_scoped(T) __attribute__((cleanup(List_cleanup_handler))) mList(T)
 
 #define MLIST_INIT_HELPER(allocator, T, initLength, ...) ((mList(T))List_newInitL(allocator, sizeof(T), initLength))
 #define mList_init(allocator, T, ...) \

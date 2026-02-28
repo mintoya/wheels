@@ -7,7 +7,7 @@ pub fn build(b: *std.Build) void {
         .name = "wheels",
         .root_module = b.createModule(.{
             .target = target,
-            .link_libc = true,
+            .link_libcpp = true,
             .optimize = b.standardOptimizeOption(.{
                 .preferred_optimize_mode = .Debug,
             }),
@@ -20,9 +20,8 @@ pub fn build(b: *std.Build) void {
         .flags = &.{
             "-g",
             "-w",
-            "-std=c2y",
         },
-        .language = .c,
+        .language = .cpp,
     });
     if (target.result.os.tag == .windows)
         exe.root_module.linkSystemLibrary("dbghelp", .{});

@@ -4,7 +4,7 @@
   #include "allocator.h"
   #include "my-list.h"
   #include "mytypes.h"
-  #include "print.h"
+  // #include "print.h"
   #include "shortList.h"
 typedef u16 vason_index;
 typedef struct {
@@ -400,6 +400,7 @@ void vason_parse_level2(
   }
 }
 
+  #if defined(MY_PRINTER_H)
 REGISTER_PRINTER(vason_container, {
   if (in.current >= msList_len(in.tags) || in.tags[in.current] & vason_INVALID) {
     PUTS(U"(!)");
@@ -441,6 +442,7 @@ REGISTER_PRINTER(vason_container, {
     } break;
   }
 });
+  #endif
 
 vason_container vason_parseString(AllocatorV allocator, slice(c8) string) {
   auto res = vason_container_create(string, allocator);

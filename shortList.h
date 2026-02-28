@@ -14,7 +14,7 @@ typedef struct sList_header {
   usize capacity;
   alignas(max_align_t) u8 buf[];
 } sList_header;
-sList_header *sList_realloc(AllocatorV allocator, sList_header *header, usize width, usize newsize) {
+extern inline sList_header *sList_realloc(AllocatorV allocator, sList_header *header, usize width, usize newsize) {
   sList_header *res = (typeof(res))aResize(allocator, header, sizeof(sList_header) + newsize * width);
   if (allocator->size) {
     usize s = allocator->size(allocator, res);
@@ -23,7 +23,7 @@ sList_header *sList_realloc(AllocatorV allocator, sList_header *header, usize wi
     res->capacity = width;
   return res;
 }
-[[nodiscard]] extern inline sList_header *sList_new(AllocatorV allocator, usize initLen, usize width) {
+extern inline sList_header *sList_new(AllocatorV allocator, usize initLen, usize width) {
   assertMessage(initLen && width);
   sList_header *res = (typeof(res))aAlloc(allocator, sizeof(sList_header) + initLen * width);
   if (allocator->size) {
@@ -46,14 +46,14 @@ extern inline void *sList_set(sList_header *l, usize width, usize index, void *e
   return place;
 }
 
-[[nodiscard]] extern inline sList_header *sList_append(AllocatorV allocator, sList_header *l, usize width, void *element) {
+extern inline sList_header *sList_append(AllocatorV allocator, sList_header *l, usize width, void *element) {
   if (l->capacity < l->length + 1)
     l = sList_realloc(allocator, l, width, SLIST_GROW_EQ(l->length));
   l->length++;
   sList_set(l, width, l->length - 1, element);
   return l;
 }
-[[nodiscard]] extern inline sList_header *sList_appendFromArr(AllocatorV allocator, sList_header *l, usize width, void *source, usize ammount) {
+extern inline sList_header *sList_appendFromArr(AllocatorV allocator, sList_header *l, usize width, void *source, usize ammount) {
   if (!ammount)
     return NULL;
   if (l->capacity < l->length + ammount)
@@ -72,7 +72,7 @@ extern inline void sList_remove(sList_header *l, usize width, usize i) {
   memmove(l->buf + i * width, l->buf + (i + 1) * width, (l->length - i - 1) * width);
   l->length--;
 }
-[[nodiscard]] extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, usize width, usize i, void *element) {
+extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, usize width, usize i, void *element) {
   if (i == l->length)
     return sList_append(allocator, l, width, element);
   if (i > l->length)

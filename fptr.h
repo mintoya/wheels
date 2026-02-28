@@ -73,7 +73,6 @@ static bool operator!=(const slice_t<T> &a, const slice_t<T> &b) {
       )
 
   #else
-    #include <cstdint>
     #include <cstring>
     #include <string>
 template <typename T>

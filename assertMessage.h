@@ -21,7 +21,7 @@ extern int backtrace(void **__array, int __size) __attribute__((nonnull(1)));
 #ifndef NDEBUG
   #if !defined(noAssertMessage)
 
-[[noreturn, gnu::cold, gnu::format(printf, 7, 8)]]
+// [[noreturn, gnu::cold, gnu::format(printf, 7, 8)]]
 void __attribute__((noreturn)) _assertMessageFail(
     const char *expr_str,
     const char *func,
@@ -71,7 +71,7 @@ void __attribute__((noreturn)) _assertMessageFail(
 #define PRINTORANGE "\x1b[38;5;208m"
 #define PRINTRESET "\x1b[0m"
 #define PRINTRED "\x1b[31m\n\n"
-[[noreturn, gnu::cold, gnu::format(printf, 7, 8)]]
+// [[noreturn, gnu::cold, gnu::format(printf, 7, 8)]]
 void __attribute__((noreturn)) _assertMessageFail(
     const char *expr_str,
     const char *func,

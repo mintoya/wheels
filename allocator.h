@@ -5,8 +5,7 @@
 
 // #define MY_ALLOCATOR_STRICTEST
 
-[[gnu::const]]
-static inline uintptr_t lineup(uintptr_t unaligned, size_t aligneder) {
+__attribute__((const)) extern inline uintptr_t lineup(uintptr_t unaligned, size_t aligneder) {
   return (unaligned / aligneder + !!(unaligned % aligneder)) *
          aligneder;
 }
@@ -65,39 +64,10 @@ typedef struct {
 } Own_Allocator;
 
 typedef Own_Allocator OwnAllocator;
+void *aAlloc(AllocatorV allocator, size_t size);
+void *aResize(AllocatorV allocator, void *oldptr, size_t size);
+void aFree(AllocatorV allocator, void *oldptr);
 
-[[clang::ownership_returns(malloc), gnu::alloc_size(2)]]
-extern inline void *aAlloc(AllocatorV allocator, size_t size) {
-#ifdef MY_ALLOCATOR_STRICTEST
-  assertMessage(size, "allocators cant allocate nothing");
-#endif
-  void *res = (allocator)->alloc(allocator, size);
-#ifdef MY_ALLOCATOR_STRICTEST
-  assertMessage(res, "allocators cant return null");
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
-#endif
-  return res;
-}
-[[gnu::alloc_size(3), clang::ownership_holds(aAlloc, 2)]]
-extern inline void *aResize(AllocatorV allocator, void *oldptr, size_t size) {
-#ifdef MY_ALLOCATOR_STRICTEST
-  assertMessage(size, "allocators cant allocate nothing");
-  assertMessage(oldptr, "allocators cant reallocate nothing");
-#endif
-  void *res = (allocator)->resize(allocator, oldptr, size);
-#ifdef MY_ALLOCATOR_STRICTEST
-  assertMessage(res, "allocators cant return null");
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
-#endif
-  return res;
-}
-[[clang::ownership_takes(aAlloc, 2)]]
-extern inline void aFree(AllocatorV allocator, void *oldptr) {
-#ifdef MY_ALLOCATOR_STRICTEST
-  assertMessage(oldptr, "allocators dont deal with null");
-#endif
-  ((allocator)->free(allocator, oldptr));
-}
 #define aCreateHelper(allocator, type, count, ...) \
   ({type* res = ((type *)(aAlloc(allocator, sizeof(type) * count)));__builtin_memset(res,0,sizeof(type)*count);   res; })
 #define aCreate(allocator, type, ...) \
@@ -114,6 +84,39 @@ extern AllocatorV stdAlloc;
 #include "assertMessage.h"
 #include "mytypes.h"
 #include <stdio.h>
+[[clang::ownership_returns(malloc), gnu::alloc_size(2)]]
+void *aAlloc(AllocatorV allocator, size_t size) {
+#ifdef MY_ALLOCATOR_STRICTEST
+  assertMessage(size, "allocators cant allocate nothing");
+#endif
+  void *res = (allocator)->alloc(allocator, size);
+#ifdef MY_ALLOCATOR_STRICTEST
+  assertMessage(res, "allocators cant return null");
+  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
+#endif
+  return res;
+}
+[[gnu::alloc_size(3), clang::ownership_holds(aAlloc, 2)]]
+void *aResize(AllocatorV allocator, void *oldptr, size_t size) {
+#ifdef MY_ALLOCATOR_STRICTEST
+  assertMessage(size, "allocators cant allocate nothing");
+  assertMessage(oldptr, "allocators cant reallocate nothing");
+#endif
+  void *res = (allocator)->resize(allocator, oldptr, size);
+#ifdef MY_ALLOCATOR_STRICTEST
+  assertMessage(res, "allocators cant return null");
+  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
+#endif
+  return res;
+}
+[[clang::ownership_takes(aAlloc, 2)]]
+void aFree(AllocatorV allocator, void *oldptr) {
+
+#ifdef MY_ALLOCATOR_STRICTEST
+  assertMessage(oldptr, "allocators dont deal with null");
+#endif
+  ((allocator)->free(allocator, oldptr));
+}
 void *default_alloc(const My_allocator *allocator, size_t s) { return malloc(s); }
 void *default_r_alloc(const My_allocator *allocator, void *p, size_t s) { return realloc(p, s); }
 void default_free(const My_allocator *allocator, void *p) { return free(p); }

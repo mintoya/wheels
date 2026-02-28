@@ -1,13 +1,11 @@
 #include <stddef.h>
 #ifndef ARENA_ALLOCATOR_H
   #define ARENA_ALLOCATOR_H
-  #include "mytypes.h"
-  //
   #include "allocator.h"
   #include "assertMessage.h"
+  #include "mytypes.h"
   #include "print.h"
   #include <assert.h>
-  #include <errno.h>
   #include <stdint.h>
   #include <stdio.h>
   #include <stdlib.h>
@@ -35,7 +33,6 @@ void my_arena_print_allocs(My_allocator *arena);
 My_allocator *ownArenaInit(void);
 void ownArenaDeInit(My_allocator *);
 static OwnAllocator arena_owned = {ownArenaInit, ownArenaDeInit};
-extern AllocatorV pageAllocator;
 
   #define Arena_scoped [[gnu::cleanup(arena_cleanup_handler)]] My_allocator
 #endif // ARENA_ALLOCATOR_H
@@ -45,134 +42,6 @@ extern AllocatorV pageAllocator;
 #endif
 #ifdef ARENA_ALLOCATOR_C
 
-  #include "fptr.h"
-  #define PAGESIZE
-
-void *getPage(usize);
-void returnPage(void *);
-  #if defined(__linux__) || defined(__APPLE__)
-    #include <sys/mman.h>
-    #include <unistd.h>
-    #undef PAGESIZE
-    #define PAGESIZE ((usize)sysconf(_SC_PAGESIZE))
-void *getPage(usize size) {
-  usize pagesize = PAGESIZE;
-  size = lineup(size + alignof(max_align_t), pagesize);
-  void *res =
-      mmap(
-          NULL, size,
-          PROT_READ | PROT_WRITE,
-          MAP_PRIVATE | MAP_ANON,
-          -1, 0
-      );
-  assertMessage((uptr)res != (uptr)MAP_FAILED);
-  static_assert(sizeof(usize) < alignof(max_align_t));
-  *(usize *)res = size;
-  res = (u8 *)res + alignof(max_align_t);
-  return res;
-}
-void returnPage(void *page) {
-  assertMessage(page);
-  usize pagesize = PAGESIZE;
-  page = ((u8 *)page - alignof(max_align_t));
-  assertMessage(!((uintptr_t)page % pagesize), "unalgned page pointer %p ", page);
-  assertMessage(
-      munmap(page, *(usize *)page) != -1,
-      "\tpagesize:%lu\n"
-      "\tpointer :%p\n"
-      "\tsterror() -> %s",
-      pagesize,
-      page,
-      strerror(errno)
-  );
-}
-void *movePage(void *page, usize size) {
-  void *real_ptr = (uint8_t *)page - alignof(max_align_t);
-  usize old_size = *(usize *)real_ptr;
-  usize pagesize = PAGESIZE;
-  size = lineup(size, pagesize);
-
-  void *res = mremap(real_ptr, old_size, size, MREMAP_MAYMOVE);
-
-  assertMessage(res != MAP_FAILED, "mremap failed oom");
-
-  *(usize *)res = size;
-  return (uint8_t *)res + alignof(max_align_t);
-}
-  #elif defined(_WIN32)
-    // #if !defined(_WIN32_LEAN_AND_MEAN)
-    //   #define _WIN32_LEAN_AND_MEAN
-    // #endif
-    #include <windows.h>
-    #undef PAGESIZE
-    #define PAGESIZE ({ SYSTEM_INFO si; GetSystemInfo(&si); si.dwPageSize; })
-void *getPage(usize size) {
-  usize pagesize = PAGESIZE;
-  size = lineup(size + alignof(max_align_t), pagesize);
-  void *res = VirtualAlloc(0, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-  assertMessage(res);
-  *(usize *)res = size;
-  return (uint8_t *)res + alignof(max_align_t);
-}
-void returnPage(void *page) {
-  assertMessage(page);
-  page = ((uint8_t *)page - alignof(max_align_t));
-  usize pagesize = *(usize *)page;
-  assertMessage(!((uintptr_t)page % pagesize), "unalgned page pointer");
-
-  BOOL result = VirtualFree(page, 0, MEM_RELEASE);
-  if (!result) {
-    LPVOID msg;
-    FormatMessage(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER |
-            FORMAT_MESSAGE_FROM_SYSTEM |
-            FORMAT_MESSAGE_IGNORE_INSERTS,
-        0,
-        GetLastError(),
-        0,
-        (LPSTR)&msg,
-        0,
-        0
-    );
-    assertMessage(
-        false,
-        "\tpagesize:%llu\n"
-        "\tpointer :%p\n"
-        "\tgetlasterror ->() %s",
-        pagesize,
-        page,
-        (char *)msg
-    );
-  }
-}
-void *movePage(void *page, usize size) {
-  usize *realsize = (usize *)((uptr)page - alignof(max_align_t));
-  if (*realsize >= size)
-    return page;
-  void *result = getPage(size);
-  memcpy(result, page, *realsize);
-  returnPage(page);
-  return result;
-}
-
-  #else
-  // #error couldnt find page allocator
-    #define pageAllocatorNotFound (1)
-  #endif
-
-  #if !defined(pageAllocatorNotFound)
-void *allocatePage(AllocatorV _, usize size) { return getPage(size); }
-void freePage(AllocatorV _, void *page) { return returnPage(page); }
-void *reallocatePage(AllocatorV _, void *page, usize size) { return movePage(page, size); }
-usize getPageSize(AllocatorV _, void *page) {
-  assertMessage(page);
-  usize pagesize = PAGESIZE;
-  page = ((uint8_t *)page - alignof(max_align_t));
-  assertMessage(!((uintptr_t)page % pagesize), "unalgned page pointer");
-  return *(usize *)page;
-}
-AllocatorV pageAllocator = (My_allocator[]){{allocatePage, freePage, reallocatePage, getPageSize}};
-  #endif
 void my_arena_free(AllocatorV arena, void *ptr);
 void *my_arena_alloc(AllocatorV arena, usize size);
 void *my_arena_r_alloc(AllocatorV arena, void *ptr, usize size);
@@ -231,7 +100,7 @@ usize arena_footprint(My_allocator *arena) {
 }
 
 My_allocator *ownArenaInit(void) {
-  return arena_new_ext(pageAllocator, 1024);
+  return arena_new_ext(stdAlloc, 1024);
 }
 void ownArenaDeInit(My_allocator *d) {
   return arena_cleanup(d);
