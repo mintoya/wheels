@@ -507,7 +507,7 @@ vason_container vason_parseString(AllocatorV allocator, slice(c8) string) {
   vason_container res = vason_container_create(string, allocator);
   slice(vason_token_t) tokens = (typeof(tokens)){
       string.len,
-      aCreate(allocator, vason_token_t, string.len)
+      (vason_token_t *)aAlloc(allocator, sizeof(vason_token_t) * string.len)
   };
   vason_tokenize(tokens, string);
   defer { aFree(allocator, tokens.ptr); };
@@ -526,9 +526,10 @@ vason_container vason_parseString(AllocatorV allocator, slice(c8) string) {
 vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string) {
   vason_container res = vason_container_create(string, allocator);
   slice(vason_token_t) *tokens = aCreate(allocator, slice(vason_token_t));
+
   *tokens = (typeof(*tokens)){
       string.len,
-      aCreate(allocator, vason_token_t, string.len)
+      (vason_token_t *)aAlloc(allocator, sizeof(vason_token_t) * string.len),
   };
   vason_tokenize(*tokens, string);
   vason_parse_level1(
