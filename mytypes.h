@@ -77,18 +77,40 @@ typedef uintptr_t uptr;
   #ifndef thread_local
     #define thread_local _Thread_local
   #endif
-  #define nullable(type)     \
-    struct nullable_##type { \
-      bool isnull : 1;       \
-      type data;             \
-    }
+  #if __STDC_VERSION__ >= 202400L
+    #define nullable(type)     \
+      struct nullable_##type { \
+        bool isnull : 1;       \
+        type data;             \
+      }
 
-  #define slice(type)     \
-    struct slice_##type { \
-      usize len;          \
-      type *ptr;          \
-    }
+    #define slice(type)     \
+      struct slice_##type { \
+        usize len;          \
+        type *ptr;          \
+      }
+    #define sliceDef(type)
+    #define nullableDef(type)
+  #else
+    #define nullable(type) \
+      struct nullable_##type
+
+    #define slice(type) \
+      struct slice_##type
+    #define sliceDef(type)  \
+      struct slice_##type { \
+        usize len;          \
+        type *ptr;          \
+      };
+    #define nullableDef(type)  \
+      struct nullable_##type { \
+        bool isnull : 1;       \
+        type data;             \
+      };
+  #endif
 #else
+  #define sliceDef(type)
+  #define nullableDef(type)
 template <typename T>
 struct slice_t {
   usize len;
