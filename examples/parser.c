@@ -4,15 +4,32 @@
 #include <ctype.h>
 
 slice(c8) read_stdin(AllocatorV allocator) {
-  mList(c8) reading = mList_init(allocator, c8, 500);
-  defer { aFree(allocator, reading); };
-  {
-    i32 c = 0;
-    while ((c = fgetc(stdin)) != EOF)
-      mList_push(reading, (c8)c);
+  struct stat st;
+  usize size = 0;
+  c8 *data = NULL;
+  if (fstat(fileno(stdin), &st) == 0 && st.st_size > 0) {
+    size = (usize)st.st_size;
+    data = (c8 *)aAlloc(allocator, size);
+
+    usize bytes_read = fread(data, 1, size, stdin);
+    if (bytes_read < size) {
+      data = (c8 *)aResize(allocator, data, bytes_read);
+      size = bytes_read;
+    }
+  } else {
+    usize capacity = 4096;
+    size = 0;
+    data = (c8 *)aAlloc(allocator, capacity);
+    usize bytes;
+    while ((bytes = fread(data + size, 1, capacity - size, stdin)) > 0) {
+      size += bytes;
+      if (size == capacity)
+        data = (c8 *)aResize(allocator, data, (capacity += capacity));
+    }
+    data = (c8 *)aResize(allocator, data, size ?: 1);
   }
-  mList_setCap(reading, mList_len(reading) ?: 1);
-  return (slice(c8))mList_slice(reading);
+
+  return (slice(c8)){.ptr = data, .len = size};
 }
 int main(int nargs, char *args[nargs]) {
   mList(char *) argslist = mList_init(stdAlloc, char *, nargs);
@@ -37,8 +54,8 @@ int main(int nargs, char *args[nargs]) {
       argslist,
       char *, cptr,
       if (isdigit(*cptr))
-          parsed = vason_get(parsed, atoi(cptr));
-      else parsed = vason_get(parsed, fptr_CS(cptr));
+          parsed = *vason_get(&parsed, atoi(cptr));
+      else parsed = *vason_get(&parsed, fptr_CS(cptr));
   );
   println("{vason_container}", parsed);
 }

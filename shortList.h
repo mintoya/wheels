@@ -20,7 +20,7 @@ extern inline sList_header *sList_realloc(AllocatorV allocator, sList_header *he
     usize s = allocator->size(allocator, res);
     res->capacity = (s - sizeof(sList_header)) / width;
   } else
-    res->capacity = width;
+    res->capacity = newsize;
   return res;
 }
 extern inline sList_header *sList_new(AllocatorV allocator, usize initLen, usize width) {
@@ -104,11 +104,11 @@ extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
     do {                                               \
       sList_remove(msList_header(s), sizeof(*s), idx); \
     } while (0)
-  #define msList_push(allocator, s, val)                                                               \
-    do {                                                                                               \
-      if (__builtin_expect((msList_len(s) == msList_cap(s)), 0))                                       \
-        s = sList_realloc(allocator, msList_header(s), sizeof(*s), SLIST_GROW_EQ(msList_len(s)))->buf; \
-      (s)[msList_len(s)++] = (val);                                                                    \
+  #define msList_push(allocator, s, val)                                                                          \
+    do {                                                                                                          \
+      if (__builtin_expect((msList_len(s) == msList_cap(s)), 0))                                                  \
+        s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), SLIST_GROW_EQ(msList_len(s)))->buf; \
+      (s)[msList_len(s)++] = (val);                                                                               \
     } while (0)
   #define msList_pushArr(allocator, s, vla)                                                                  \
     do {                                                                                                     \
@@ -116,9 +116,13 @@ extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
     } while (0)
   #define msList_len(s) (msList_header(s)->length)
   #define msList_cap(s) (msList_header(s)->capacity)
-  #define msList_pop(s) ((s)[msList_header(s)->length--])
+  #define msList_pop(s) ((s)[--msList_header(s)->length])
   #define msList_vla(s) ((typeof(typeof(*s))(*)[msList_len(s)])s)
-
+  #define msList_reserve(allocator, s, new_cap)                                              \
+    do {                                                                                     \
+      if (msList_cap(s) < (new_cap))                                                         \
+        s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), new_cap)->buf; \
+    } while (0)
 #endif // SHORT_LIST_H
 // #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
 //   #define SHORT_LIST_C (1)
