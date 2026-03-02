@@ -25,20 +25,14 @@ int main(int nargs, char *args[nargs]) {
       mList_push(argslist, args[i]);
   }
 
-  My_allocator *local = debugAllocatorInit(
-      track_total = true,
-      log = stderr,
-  );
-  defer { debugAllocatorDeInit(local); };
-
   slice(c8) input = read_stdin(stdAlloc);
-  defer { aFree(stdAlloc, input.ptr); };
+  // defer { aFree(stdAlloc, input.ptr); };
 
   vason_container parsed =
       lazy
-          ? vason_parseString_Lazy(local, input)
-          : vason_parseString(local, input);
-  defer { vason_container_free(parsed); };
+          ? vason_parseString_Lazy(stdAlloc, input)
+          : vason_parseString(stdAlloc, input);
+  // defer { vason_container_free(parsed); };
   mList_foreach(
       argslist,
       char *, cptr,

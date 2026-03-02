@@ -92,7 +92,6 @@ extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
   #define msList_deInit(allocator, s)     \
     do {                                  \
       aFree(allocator, msList_header(s)); \
-      s = NULL;                           \
     } while (0)
   #define msList_ins(allocator, s, idx, val)                                                 \
     do {                                                                                     \
@@ -105,10 +104,11 @@ extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
     do {                                               \
       sList_remove(msList_header(s), sizeof(*s), idx); \
     } while (0)
-  #define msList_push(allocator, s, val)                                                \
-    do {                                                                                \
-      typeof(*s) _val = val;                                                            \
-      s = (typeof(s))sList_append(allocator, msList_header(s), sizeof(*s), &_val)->buf; \
+  #define msList_push(allocator, s, val)                                                               \
+    do {                                                                                               \
+      if (__builtin_expect((msList_len(s) == msList_cap(s)), 0))                                       \
+        s = sList_realloc(allocator, msList_header(s), sizeof(*s), SLIST_GROW_EQ(msList_len(s)))->buf; \
+      (s)[msList_len(s)++] = (val);                                                                    \
     } while (0)
   #define msList_pushArr(allocator, s, vla)                                                                  \
     do {                                                                                                     \
@@ -116,7 +116,7 @@ extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
     } while (0)
   #define msList_len(s) (msList_header(s)->length)
   #define msList_cap(s) (msList_header(s)->capacity)
-  #define msList_pop(s) ((s)[--msList_header(s)->length])
+  #define msList_pop(s) ((s)[msList_header(s)->length--])
   #define msList_vla(s) ((typeof(typeof(*s))(*)[msList_len(s)])s)
 
 #endif // SHORT_LIST_H

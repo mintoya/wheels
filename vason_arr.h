@@ -7,7 +7,7 @@
   // #include "print.h"
   #include "shortList.h"
 sliceDef(c8);
-typedef u32 vason_index;
+typedef usize vason_index;
 typedef struct {
   vason_index start, end;
 } vason_span;
@@ -205,8 +205,10 @@ void vason_container_free(vason_container container) {
   }
 }
 void vason_tokenize(slice(vason_token_t) res, slice(c8) cs) {
-  vason_token_t *restrict out = (vason_token_t *)__builtin_assume_aligned(res.ptr, 32);
-  const c8 *restrict in = (const c8 *)__builtin_assume_aligned(cs.ptr, 32);
+  // vason_token_t *__restrict out = (vason_token_t *)__builtin_assume_aligned(res.ptr, alignof(max_align_t));
+  // const c8 *__restrict in = (const c8 *)__builtin_assume_aligned(cs.ptr, alignof(max_align_t));
+  vason_token_t *out = res.ptr;
+  const c8 *in = cs.ptr;
 
   #pragma clang loop vectorize(enable) interleave(enable)
   for (usize i = 0; i < res.len; i++)
@@ -273,14 +275,8 @@ void vason_parse_level1(
     slice(vason_token_t) tokens,
     vason_container *parent
 ) {
-  // print("in : ");
-  // for (auto i = span.start; i < span.end; i++)
-  //   print("{}", tokens.ptr[i]);
-  // println(" | {}", ((fptr){(usize)span.end - span.start, span.start + parent->text.ptr}));
   mList(vason_token_t) tstack = mList_init(parent->allocator, vason_token_t);
   defer { mList_deInit(tstack); };
-  // mList(vason_span) parts = mList_init(parent->allocator, vason_span);
-  // defer { mList_deInit(parts); };
   vason_index i = span.start;
   vason_index j = span.start;
   for (; i < span.end; i++) {
