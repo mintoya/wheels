@@ -1,22 +1,15 @@
-#include <stddef.h>
 #ifndef ARENA_ALLOCATOR_H
-  #define ARENA_ALLOCATOR_H
-  #include "allocator.h"
-  #include "assertMessage.h"
-  #include "mytypes.h"
-  #include "print.h"
-  #include <assert.h>
-  #include <stdint.h>
-  #include <stdio.h>
-  #include <stdlib.h>
-  #include <string.h>
-// TODO
-// #if HAS_ASAN
-// #  include <sanitizer/asan_interface.h>
-// #else
-// #  define ASAN_POISON_MEMORY_REGION(addr, size)
-// #  define ASAN_UNPOISON_MEMORY_REGION(addr, size)
-// #endif
+#define ARENA_ALLOCATOR_H
+#include "allocator.h"
+#include "assertMessage.h"
+#include "mytypes.h"
+#include <string.h>
+#if HAS_ASAN
+  #include <sanitizer/asan_interface.h>
+#else
+  #define ASAN_POISON_MEMORY_REGION(addr, size)
+  #define ASAN_UNPOISON_MEMORY_REGION(addr, size)
+#endif
 
 OwnAllocator arena_owned_new(void);
 My_allocator *arena_new_ext(AllocatorV base, size_t blockSize);
@@ -34,11 +27,11 @@ My_allocator *ownArenaInit(void);
 void ownArenaDeInit(My_allocator *);
 static OwnAllocator arena_owned = {ownArenaInit, ownArenaDeInit};
 
-  #define Arena_scoped [[gnu::cleanup(arena_cleanup_handler)]] My_allocator
+#define Arena_scoped [[gnu::cleanup(arena_cleanup_handler)]] My_allocator
 #endif // ARENA_ALLOCATOR_H
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
-  #define ARENA_ALLOCATOR_C (1)
+#define ARENA_ALLOCATOR_C (1)
 #endif
 #ifdef ARENA_ALLOCATOR_C
 
@@ -147,11 +140,13 @@ void my_arena_free(AllocatorV allocator, void *ptr) {
   while (it && !inarena(it, ptr))
     it = it->next;
   assertMessage(it, "ptr %p not in arena", ptr);
-  usize *lastSize = (usize *)((uint8_t *)ptr - alignof(max_align_t));
+  isize *lastSize = (isize *)((u8 *)ptr - alignof(max_align_t));
+  usize oldsize = *lastSize;
   if (it->buffer + it->place == (u8 *)ptr + *lastSize) {
     it->place -= *lastSize + alignof(max_align_t);
   } else
     *lastSize *= -1;
+  ASAN_POISON_MEMORY_REGION(ptr, oldsize);
 }
 usize my_arena_realsize(AllocatorV arena, void *ptr) {
   usize *lastSize = (usize *)((uint8_t *)ptr - alignof(max_align_t));
@@ -210,49 +205,7 @@ void *my_arena_alloc(AllocatorV ref, usize size) {
       it = it->next;
     }
   }
+  ASAN_UNPOISON_MEMORY_REGION(res, size);
   return res;
-}
-void my_arena_print_allocs(My_allocator *arena) {
-  ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
-  int chunk_idx = 0;
-
-  print_("--- Arena Allocation Map ---\n");
-  while (it) {
-    print_("Chunk {}: ptr={ptr}, cap={}, used={}\n", chunk_idx++, (void *)it, it->size, it->place);
-
-    usize offset = 0;
-    int alloc_count = 0;
-
-    // Walk the buffer until we hit the current 'place'
-    while (offset < it->place) {
-      // Read the size header stored at the current offset
-      isize raw_size = *(isize *)(it->buffer + offset);
-
-      // Handle your *lastSize *= -1 logic from my_arena_free
-      bool is_free = (raw_size < 0);
-      usize actual_size = is_free ? (usize)(-raw_size) : (usize)raw_size;
-
-      print_(
-          "  [{}] Offset: {} | Size: {} | Status: {cstr} | Ptr: {ptr}\n",
-          alloc_count++,
-          offset + alignof(max_align_t),
-          actual_size,
-          is_free ? "FREE" : "ACTIVE",
-          (void *)(it->buffer + offset + alignof(max_align_t))
-      );
-
-      // Jump to the next allocation:
-      // current offset + header space + the size of the data
-      offset += alignof(max_align_t) + actual_size;
-
-      // Safety: if a header is 0 (uninitialized memory), break to avoid infinite loop
-      if (actual_size == 0 && offset < it->place) {
-        print_("  !! Error: Zero-size allocation detected at offset {}\n", offset);
-        break;
-      }
-    }
-    it = it->next;
-  }
-  print_("----------------------------\n");
 }
 #endif // ARENA_ALLOCATOR_C

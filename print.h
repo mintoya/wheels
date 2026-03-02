@@ -4,9 +4,9 @@
 #include "assertMessage.h"
 #include "fptr.h"
 #include "hhmap.h"
+#include "macros.h"
 #include "my-list.h"
 #include "mytypes.h"
-#include "macros.h"
 #include <locale.h>
 #include <malloc.h>
 #include <stdarg.h>
@@ -189,13 +189,13 @@ static printerFunction PrinterSingleton_get(fptr name) {
 
 #ifdef _WIN32
   #include <windows.h>
-[[gnu::constructor(201)]] static void printerInit() {
+__attribute__((constructor(201))) static void printerInit() {
   setlocale(LC_ALL, ".UTF-8");
   SetConsoleOutputCP(CP_UTF8);
   PrinterSingleton_init();
 }
 #else
-[[gnu::constructor(201)]] static void printerInit() {
+__attribute__((constructor(201))) static void printerInit() {
   setlocale(LC_ALL, "");
   PrinterSingleton_init();
 }
@@ -222,7 +222,7 @@ static printerFunction PrinterSingleton_get(fptr name) {
     T in = *(T *)_v_in_ptr;                                            \
     __VA_ARGS__                                                        \
   }                                                                    \
-  [[gnu::constructor(202)]] static void register_##T() {               \
+  __attribute__((constructor(202))) static void register_##T() {       \
     fptr key = (fptr){                                                 \
         .width = sizeof(#T) - 1,                                       \
         .ptr = (uint8_t *)#T,                                          \
@@ -235,7 +235,7 @@ static printerFunction PrinterSingleton_get(fptr name) {
     type in = *(typeof(in) *)_v_in_ptr;                                              \
     __VA_ARGS__                                                                      \
   }                                                                                  \
-  [[gnu::constructor(203)]] static void UNIQUE_PRINTER_FN2() {                       \
+  __attribute__((constructor(203))) static void UNIQUE_PRINTER_FN2() {               \
     fptr key = (fptr){                                                               \
         .width = strlen(str),                                                        \
         .ptr = (uint8_t *)str,                                                       \
@@ -263,7 +263,7 @@ static printerFunction PrinterSingleton_get(fptr name) {
   }
 
 #define REGISTER_ALIASED_PRINTER(realtype, alias)                            \
-  [[gnu::constructor(202)]] static void register__##alias() {                \
+  __attribute__((constructor(202))) static void register__##alias() {        \
     fptr key = (fptr){                                                       \
         .width = sizeof(EXPAND_AND_STRINGIFY(alias)) - 1,                    \
         .ptr = (uint8_t *)EXPAND_AND_STRINGIFY(alias),                       \
@@ -570,7 +570,7 @@ void print_f(outputFunction put, void *arb, const char *fmt, ...);
 #define println_(fmt, ...) print(fmt "\n", __VA_ARGS__)
 
 #ifdef PRINTER_LIST_TYPENAMES
-[[gnu::constructor(205)]] static void post_init() {
+__attribute__((constructor(205))) static void post_init() {
   // outputFunction put = defaultPrinter;
   print("==============================\n"
         "printer debug\n"

@@ -224,19 +224,23 @@ using mList_t = T (**)(List *);
 #define mList_len(list) (((List *)(list))->length)
 #define mList_cap(list) (((List *)(list))->capacity)
 
-#define mList_push(list, val)                                       \
-  do {                                                              \
-    if (                                                            \
-        __builtin_expect(!!(mList_len(list) >= mList_cap(list)), 0) \
-    )                                                               \
-      List_resize((List *)list, LIST_GROW_EQ(mList_len(list)));     \
-    mList_arr(list)[mList_len(list)++] = (val);                     \
+#define mList_push(list, val)                                   \
+  do {                                                          \
+    if (                                                        \
+        __builtin_expect(                                       \
+            (                                                   \
+                mList_len(list) == mList_cap(list)              \
+            ),                                                  \
+            0                                                   \
+        )                                                       \
+    )                                                           \
+      List_resize((List *)list, LIST_GROW_EQ(mList_len(list))); \
+    mList_arr(list)[mList_len(list)++] = (val);                 \
   } while (0)
 
 #define mList_pop(list) ({            \
   mList_arr(list)[--mList_len(list)]; \
 })
-// technically never null since list capacity is non-zero
 #define mList_popFront(list)                                     \
   ({                                                             \
     mList_iType(list) result =                                   \
@@ -281,9 +285,7 @@ using mList_t = T (**)(List *);
   do {                                                      \
     for (List_index_t _i = 0; _i < mList_len(list); _i++) { \
       valtype value = *mList_get(list, _i);                 \
-      {                                                     \
-        __VA_ARGS__                                         \
-      }                                                     \
+      __VA_ARGS__                                           \
     }                                                       \
   } while (0)
 #define mList_setCap(list, capacity)            \
@@ -321,7 +323,7 @@ using mList_t = T (**)(List *);
 #define mList_slice(list) {mList_len(list), mList_arr(list)}
 #endif // MY_LIST_H
 
-#if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
+#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
 #define MY_LIST_C (1)
 #endif
 #ifdef MY_LIST_C

@@ -85,7 +85,6 @@ void HMap_clear(HMap *map);
  * used by fset and fget
  * `@return` aligned memory big enough for key
  */
-[[gnu::pure, gnu::assume_aligned(alignof(max_align_t))]]
 u8 *HMap_getKeyBuffer(const HMap *map);
 extern inline void *HMap_getKey(const HMap *map, u32 n);
 extern inline void *HMap_getVal(const HMap *map, u32 n);

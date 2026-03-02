@@ -3,6 +3,7 @@
 #include "allocator.h"
 #include "assertMessage.h" // debug symbols
 #include "hhmap.h"
+#include "macros.h"
 #include "mytypes.h"
 #include "print.h"
 #include <stdlib.h>
@@ -19,11 +20,14 @@ struct dbgAlloc_config {
  * `@return` debug allocator
  */
 My_allocator *(debugAllocatorInit)(struct dbgAlloc_config config);
-#define debugAllocatorInit(...) ({                 \
-  struct dbgAlloc_config config = {__VA_ARGS__};   \
-  config.allocator = config.allocator ?: stdAlloc; \
-  config.log = config.log ?: stderr;               \
-  debugAllocatorInit(config);                      \
+#define debugAllocatorInit_PREPEND_DOT(...) __VA_OPT__(.__VA_ARGS__, )
+#define debugAllocatorInit(...) ({                         \
+  struct dbgAlloc_config config = {                        \
+      APPLY_N(debugAllocatorInit_PREPEND_DOT, __VA_ARGS__) \
+  };                                                       \
+  config.allocator = config.allocator ?: stdAlloc;         \
+  config.log = config.log ?: stderr;                       \
+  debugAllocatorInit(config);                              \
 })
 
 /**
