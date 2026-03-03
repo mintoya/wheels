@@ -4,7 +4,6 @@
   #include "fptr.h"
   #include "my-list.h"
   #include "mytypes.h"
-  // #include "print.h"
   #include "shortList.h"
 sliceDef(c8);
 typedef usize vason_index;
@@ -206,65 +205,26 @@ void vason_container_free(vason_container container) {
   }
 }
 
-void vason_tokenize2(slice(vason_token_t) res, slice(c8) cs) {
-  vason_token_t *__restrict out = res.ptr;
-  const c8 *__restrict in = cs.ptr;
-  const usize len = res.len;
-  #pragma clang loop vectorize(enable)
-  for (usize i = 0; i < len; i++) {
-    out[i] = to_token(in[i]);
-  }
-  for (usize i = 0; i < len - 1; i++) {
-    if (out[i] == vason_ESCAPE) {
-      out[i] = vason_STR;
-      out[++i] = vason_STR;
-    }
-  }
-  bool instr = 0;
-  for (usize i = 0; i < len - 1; i++) {
-    vason_token_t temp = out[i];
-    out[i] = (vason_token_t)(instr * vason_STR | (!instr) * temp);
-    instr = instr ^ (temp == vason_STR_DELIM);
-  }
-}
 void vason_tokenize(slice(vason_token_t) res, slice(c8) cs) {
   vason_token_t *__restrict out = res.ptr;
   const c8 *__restrict in = cs.ptr;
   const usize len = res.len;
 
-  for (usize i = 0; i < len; i++) {
-    vason_token_t tok = to_token(in[i]);
-
-    if (tok == vason_ESCAPE) {
+  for (usize i = 0; i < len - 1; i++) {
+    out[i] = to_token(in[i]);
+    if (__builtin_expect(out[i] == vason_ESCAPE, 0)) {
       out[i] = vason_STR;
-      if (i + 1 < len) {
-        out[i + 1] = vason_STR;
-        i++;
-      }
-      continue;
-    }
-
-    out[i] = tok;
-
-    if (tok == vason_STR_DELIM) {
-      c8 nextend = in[i];
-      i++;
-      while (i < len) {
-        vason_token_t itok = to_token(in[i]);
-        if (itok == vason_ESCAPE) {
+      out[++i] = vason_STR;
+    } else if (__builtin_expect(out[i] == vason_STR_DELIM, 0)) {
+      while (i < len - 1 && to_token(in[++i]) != vason_STR_DELIM) {
+        if (to_token(in[i]) == vason_ESCAPE) {
           out[i] = vason_STR;
-          if (i + 1 < len) {
-            out[i + 1] = vason_STR;
-            i++;
-          }
-        } else if (itok == vason_STR_DELIM && in[i] == nextend) {
-          out[i] = itok;
-          break;
+          out[++i] = vason_STR;
         } else {
           out[i] = vason_STR;
         }
-        i++;
       }
+      out[i] = vason_STR_DELIM;
     }
   }
 }
@@ -278,34 +238,6 @@ vason_tag figureType(slice(vason_token_t) in) {
   }
   return vason_STRING;
 }
-
-// REGISTER_PRINTER(vason_token_t, {
-//   switch (in) {
-//     case vason_ESCAPE:
-//       PUTC('/');
-//       break;
-//     case vason_PAIR_DELIM:
-//       PUTC(':');
-//       break;
-//     case vason_TABLE_DELIM:
-//       PUTC(',');
-//       break;
-//     case vason_STR_DELIM:
-//       PUTC('"');
-//       break;
-//     case vason_STR:
-//       PUTC('_');
-//       break;
-//     case vason_TABLE_START:
-//       PUTC('{');
-//       break;
-//     case vason_TABLE_END:
-//       PUTC('}');
-//       break;
-//   }
-// });
-//   #include "printer/genericName.h"
-// MAKE_PRINT_ARG_TYPE(vason_token_t);
 
 void vason_parse_level1(
     vason_span span,

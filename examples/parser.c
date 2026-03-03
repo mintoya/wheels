@@ -21,6 +21,7 @@ slice(c8) read_stdin(AllocatorV allocator) {
 }
 int main(int nargs, char *args[nargs]) {
   mList(char *) argslist = mList_init(stdAlloc, char *, nargs);
+  defer { mList_deInit(argslist); };
   bool lazy = false;
   for (auto i = 1; i < nargs; i++) {
     if (args[i][0] == '-') {
@@ -31,15 +32,18 @@ int main(int nargs, char *args[nargs]) {
   }
 
   slice(c8) input = read_stdin(stdAlloc);
+  defer { aFree(stdAlloc, input.ptr); };
 
-  My_allocator *local = debugAllocator(allocator = stdAlloc, track_total = 1);
-  defer { debugAllocatorDeInit(local); };
+  AllocatorV local = stdAlloc;
+  // My_allocator *local = debugAllocator(allocator = stdAlloc, track_total = 1);
+  // defer { debugAllocatorDeInit(local); };
 
   vason_container parsed =
       lazy
           ? vason_parseString_Lazy(local, input)
           : vason_parseString(local, input);
-  defer { vason_container_free(parsed); };
+  vason_container *f = &parsed; // clang defer
+  defer { vason_container_free(*f); };
   mList_foreach(
       argslist,
       char *, cptr,

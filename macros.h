@@ -45,14 +45,14 @@ struct DeferHelper {
       #include <stddefer.h>
     #else
       #if defined(__clang__)
-        #pragma GCC warning "using clang block defer"
+        #pragma GCC warning "using clang block defer (captures only work on pointers)"
 static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
         #define defer __attribute__((cleanup(_defer_cleanup_block))) void (^DEFER_CONCAT(_defer_var_, __COUNTER__))(void) = ^
       #elif defined(__GNUC__)
         #pragma GCC warning "using gnu nested function defer"
-        #define _defer_helper(func_name, var_name)              \
-          auto void func_name(int *);                           \
-          int var_name __attribute__((cleanup(func_name))) = 0; \
+        #define _defer_helper(func_name, var_name)                                 \
+          auto void func_name(int *);                                              \
+          int var_name __attribute__((cleanup(func_name), __always_inline__)) = 0; \
           void func_name(int *_)
         #define defer _defer_helper(DEFER_CONCAT(_defer_func_, __COUNTER__), DEFER_CONCAT(_defer_var_, __COUNTER__))
       #endif
