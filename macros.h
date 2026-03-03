@@ -26,6 +26,7 @@
   #define DEFER_NAME(a, b) DEFER_CONCAT(a, b)
 
   #if defined(__cplusplus)
+    #pragma GCC warning "using cpp block defer"
     #include <memory>
 template <typename F>
 struct Deferrer {
