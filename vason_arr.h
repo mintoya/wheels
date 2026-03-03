@@ -205,6 +205,28 @@ void vason_container_free(vason_container container) {
     aFree(alocator, container.tokens);
   }
 }
+
+void vason_tokenize2(slice(vason_token_t) res, slice(c8) cs) {
+  vason_token_t *__restrict out = res.ptr;
+  const c8 *__restrict in = cs.ptr;
+  const usize len = res.len;
+  #pragma clang loop vectorize(enable)
+  for (usize i = 0; i < len; i++) {
+    out[i] = to_token(in[i]);
+  }
+  for (usize i = 0; i < len - 1; i++) {
+    if (out[i] == vason_ESCAPE) {
+      out[i] = vason_STR;
+      out[++i] = vason_STR;
+    }
+  }
+  bool instr = 0;
+  for (usize i = 0; i < len - 1; i++) {
+    vason_token_t temp = out[i];
+    out[i] = (vason_token_t)(instr * vason_STR | (!instr) * temp);
+    instr = instr ^ (temp == vason_STR_DELIM);
+  }
+}
 void vason_tokenize(slice(vason_token_t) res, slice(c8) cs) {
   vason_token_t *__restrict out = res.ptr;
   const c8 *__restrict in = cs.ptr;

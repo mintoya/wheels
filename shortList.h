@@ -89,7 +89,7 @@ extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
   #define SLIST_INIT_HELPER(allocator, T, initLength, ...) ((T *)(sList_new(allocator, initLength, sizeof(T))->buf))
   #define msList_init(allocator, T, ...) \
     SLIST_INIT_HELPER(allocator, T __VA_OPT__(, __VA_ARGS__), 2)
-  #define msList_header(s) ((sList_header *)(((u8 *)s) - offsetof(sList_header, buf)))
+  #define msList_header(s) (((sList_header *)(s)) - 1)
   #define msList_deInit(allocator, s)     \
     do {                                  \
       aFree(allocator, msList_header(s)); \

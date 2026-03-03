@@ -19,7 +19,7 @@
   #define MACRO_EXPAND5(...) \
     MACRO_EXPAND4(MACRO_EXPAND4(MACRO_EXPAND4(MACRO_EXPAND4(__VA_ARGS__))))
   #define MACRO_EXPAND(...) \
-    MACRO_EXPAND2(__VA_ARGS__)
+    MACRO_EXPAND4(__VA_ARGS__)
 
   #define DEFER_CONCAT_1(a, b) a##b
   #define DEFER_CONCAT(a, b) DEFER_CONCAT_1(a, b)
