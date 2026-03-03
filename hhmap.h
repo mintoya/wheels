@@ -8,12 +8,12 @@ typedef struct HMap HMap;
   #include "my-list.h"
 /**
  * Creates a new hash map
- * `@param` **kSize** size of key type
- * `@param` **vSize** size of value type
- * `@param` **allocator** allocator
- * `@param` **metaSize** number of buckets
+ * @param kSize size of key type
+ * @param vSize size of value type
+ * @param allocator allocator
+ * @param metaSize number of buckets
  *     each bucket is a dynamic array
- * `@return` pointer to new HMap or NULL on failure
+ * @return pointer to new HMap or NULL on failure
  */
 HMap *HMap_new(
     u32 kSize,
@@ -24,66 +24,66 @@ HMap *HMap_new(
 /**
  * Creates a new hash, with same keys and vals as another hash map
  * key and val size are trimmed or padded with 0's
- * will replace **last**
- * `@param` **last** last map
- * `@param` **kSize** size of key type
- * `@param` **allocator** allocator
- * `@param` **vSize** size of value type
- * `@param` **metaSize** number of buckets
+ * will replace last
+ * `@param last last map
+ * `@param kSize size of key type
+ * `@param allocator allocator
+ * `@param vSize size of value type
+ * `@param metaSize number of buckets
  */
 void HMap_transform(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u32 metaSize);
 /**
- * free's **hm**
- * `@param` **hm** map
+ * free's hm
+ * @param hm map
  */
 void HMap_free(HMap *hm);
 /**
  * get pointer to key from pointer to val
- * `@param` **hm** map
- * `@param` **key** pointer to key
- * `@return` pointer to value, null if not found
+ * @param hm map
+ * @param key pointer to key
+ * @return pointer to value, null if not found
  */
 void *HMap_get(const HMap *hm, const void *key);
 /**
  * set pointer to key from pointer to val
- * `@param` **hm** map
- * `@param` **key** pointer to key
- * `@param` **val** pointer to value
+ * @param hm map
+ * @param key pointer to key
+ * @param val pointer to value
  */
 void HMap_set(HMap *map, const void *key, const void *val);
 /**
- * `@param` **hm** map
- * `@param` **bucket** bucket index
- * `@return` length of bucket[**bucket**]
+ * @param hm map
+ * @param bucket bucket index
+ * @return length of bucket[bucket]
  */
 u32 HMap_getBucketSize(const HMap *hm, u32 bucket);
 /**
- * `@param` **hm** map
- * `@return` bucket count
+ * @param hm map
+ * @return bucket count
  */
 u32 HMap_getMetaSize(const HMap *);
 /**
  * helper for looping through all values
- * `@param` **hm** map
- * `@param` **bucket** bucket index
- * `@param` **index** index inside bucket
- * `@return` pointer to key, get the val by adding your padding
+ * @param hm map
+ * @param bucket bucket index
+ * @param index index inside bucket
+ * @return pointer to key, get the val by adding your padding
  */
 void *HMap_getCoord(const HMap *hm, u32 bucket, u32 index);
 /**
- * `@param` **hm** map
- * `@return` total keys and vals
+ * @param hm map
+ * @return total keys and vals
  */
 u32 HMap_count(const HMap *map);
 /**
  * deletes all keys and values
  * does not free memory
- * `@param` **hm** map
+ * @param hm map
  */
 void HMap_clear(HMap *map);
 /**
  * used by fset and fget
- * `@return` aligned memory big enough for key
+ * @return aligned memory big enough for key
  */
 u8 *HMap_getKeyBuffer(const HMap *map);
 extern inline void *HMap_getKey(const HMap *map, u32 n);
@@ -101,29 +101,29 @@ typedef struct HMap_both {
 HMap_both HMap_getBoth(HMap *map, const void *key);
 
 /**
- * `@param` **hm** map
- * `@param` **key** fat pointer to key
- * `@param` **val** pointer to key
+ * @param hm map
+ * @param key fat pointer to key
+ * @param val pointer to key
  */
 void HMap_fset(HMap *map, const fptr key, void *val);
 /**
- * `@param` **hm** map
- * `@param` **key** fat pointer to key
- * `@param` **val** pointer to key
+ * @param hm map
+ * @param key fat pointer to key
+ * @param val pointer to key
  *     not set if not found
  */
 bool HMap_fget(HMap *map, const fptr key, void *val);
 /**
  * like fset but just returns the pointer
- * `@param` **hm** map
- * `@param` **key** fat pointer to key
- * `@return` **val** pointer to val
+ * @param hm map
+ * @param key fat pointer to key
+ * @return val pointer to val
  *     null
  */
 void *HMap_fget_ns(HMap *map, const fptr key);
 
 /**
- * `@param` **vv** pointer to HMap pointer
+ * @param vv pointer to HMap pointer
  */
 static inline void HMap_cleanup_handler(void *vv) {
   HMap **v = (HMap **)vv;
@@ -318,7 +318,7 @@ u8 *HMap_getKeyBuffer(const HMap *map) {
 [[gnu::pure]]
 /**
  * used by fset and fget
- * `@return` aligned memory big enough for value
+ * @return aligned memory big enough for value
  */
 u8 *HMap_getValBuffer(const HMap *map) {
   return (u8 *)lineup(
@@ -378,10 +378,10 @@ void HMap_transform(HMap **last, usize kSize, usize vSize, AllocatorV allocator,
 
   *last = newMap;
 }
-[[gnu::always_inline]] static void *LesserList_getref(usize elw, const HMap_LesserList *hll, u32 idx) {
+void *LesserList_getref(usize elw, const HMap_LesserList *hll, u32 idx) {
   return (u8 *)(hll->ptr) + idx * (elw);
 }
-[[gnu::always_inline]] static void LesserList_appendGarbage(usize elw, HMap_LesserList *hll, AllocatorV allocator) {
+void LesserList_appendGarbage(usize elw, HMap_LesserList *hll, AllocatorV allocator) {
   if (!hll->capacity) {
     hll->ptr = aAlloc(allocator, elw);
     if (allocator->size)

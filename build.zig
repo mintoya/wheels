@@ -25,7 +25,6 @@ pub fn build(b: *std.Build) void {
     });
     if (target.result.os.tag == .windows)
         exe.root_module.linkSystemLibrary("dbghelp", .{});
-    exe.linkage = .dynamic;
     exe.rdynamic = true;
 
     b.installArtifact(exe);

@@ -1,16 +1,15 @@
 #ifndef MY_LIST_H
 #define MY_LIST_H
+#include "assertMessage.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-// clang-format off
 #ifndef LIST_GROW_EQ
-#define LIST_GROW_EQ(uint) ((uint + uint))
+  #define LIST_GROW_EQ(uint) (uint + uint / 2 + 1)
 #endif
-// clang-format on
 #include "allocator.h"
 
 typedef size_t List_index_t;
@@ -26,56 +25,51 @@ void List_forceResize(List *l, List_index_t newSize);
 
 __attribute__((pure))
 /**
- * `@param` **l** list
- * `@return` size of memory used by list
+ * @param l list
+ * @return size of memory used by list
  */
 extern inline size_t
 List_headArea(const List *l) { return (l->width * l->length); }
 __attribute__((pure))
 /**
- * `@param` **l** list
- * `@return` size of memory reserved by list
+ * @param l list
+ * @return size of memory reserved by list
  */
 extern inline size_t
 List_fullHeadArea(const List *l) { return (l->width * l->capacity); }
 __attribute__((pure))
 /**
- * `@param` **l** list
- * `@param` **i** index
- * `@return` pointer to i`th element
+ * @param l list
+ * @param i index
+ * @return pointer to i`th element
  *      - even if i is out of bounds
  */
 extern inline void *
 List_getRefForce(const List *l, List_index_t i) { return (l->head + l->width * i); };
 __attribute__((pure))
 /**
- * `@param` **l** list
- * `@param` **i** index
- * `@return` pointer to i`th element
- *      - null if i is more than **l**.length
+ * @param l list
+ * @param i index
+ * @return pointer to i`th element
+ *      - null if i is more than l.length
  */
 extern inline void *
 List_getRef(const List *l, List_index_t i) { return (i < l->length) ? (l->head + l->width * i) : (NULL); }
 /**
- * writes list to **l**
- * `@param` **allocator** allocator
- * `@param` **l** size of each element
- * `@param` **bytes** size of each element
- * `@param` **init** initial capacity
+ * writes list to l
+ * @param allocator allocator
+ * @param l size of each element
+ * @param bytes size of each element
+ * @param init initial capacity
  */
 void List_makeNew(AllocatorV allocator, List *l, size_t bytes, List_index_t init);
-extern inline void List_resize(List *l, List_index_t newSize) {
-  newSize = newSize ? newSize : 1;
-  if ((newSize > l->capacity || newSize < l->capacity / 8))
-    return List_forceResize(l, newSize);
-  return;
-}
+extern inline void List_resize(List *l, List_index_t newSize);
 
 /**
  * creates new list
- * `@param` **allocator** allocator
- * `@param` **bytes** size of each element
- * `@return` new list
+ * @param allocator allocator
+ * @param bytes size of each element
+ * @return new list
  */
 extern inline List *List_new(AllocatorV allocator, size_t bytes) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
@@ -84,7 +78,7 @@ extern inline List *List_new(AllocatorV allocator, size_t bytes) {
 }
 /**
  * frees list and its array
- * `@param` **l** list
+ * @param l list
  */
 void List_free(List *l);
 extern inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t initSize) {
@@ -102,9 +96,9 @@ __attribute__((always_inline)) extern inline void List_set(List *l, List_index_t
 
 /**
  * appends element to list
- * `@param` **l** list
- * `@param` **element** pointer to value
- * `@return` **element** pointer to value *inside list*
+ * @param l list
+ * @param element pointer to value
+ * @return element pointer to value *inside list*
  */
 __attribute__((always_inline)) extern inline void List_append(List *l, const void *element) {
   if (__builtin_expect(!!((l->length) >= (l->capacity)), 0))
@@ -117,80 +111,44 @@ __attribute__((always_inline)) extern inline void List_append(List *l, const voi
 }
 /**
  * inserts element into list
- * `@param` **l** list
- * `@param` **i** index to insert
- * `@param` **element** pointer to value
+ * @param l list
+ * @param i index to insert
+ * @param element pointer to value
  */
 void List_insert(List *l, List_index_t i, void *element);
 /**
  * create list from array
- * `@param` **allocator** allocator
- * `@param` **source** pointer to value
- * `@param` **size**  element size
- * `@param` **length** element count
- * `@reutrn` new list
+ * @param allocator allocator
+ * @param source pointer to value
+ * @param size  element size
+ * @param length element count
+ * @reutrn new list
  */
 List *List_fromArr(AllocatorV, const void *source, size_t size, List_index_t length);
 /**
  * inserts elements into list
- * `@param` **l** list
- * `@param` **source** pointer to value
- * `@param` **length** element count
- * `@return` adress of first inserted element
+ * @param l list
+ * @param source pointer to value
+ * @param length element count
+ * @return adress of first inserted element
  */
 void *List_appendFromArr(List *l, const void *source, List_index_t length);
 
 __attribute__((pure)) extern inline List_index_t List_length(const List *l) { return l ? l->length : 0; }
 /*
  * searches for a value which has an identical value to element
- * `@param` **list**
- * `@param` **element** :pointer to list element searched
- * `@return` length of list if it doesnt exist
+ * @param list
+ * @param element :pointer to list element searched
+ * @return length of list if it doesnt exist
  */
 extern inline List_index_t List_locate(const List *l, const void *element);
-extern inline void List_remove(List *l, List_index_t i) {
-  if (i >= l->length)
-    return;
-  memmove(l->head + i * l->width, l->head + (i + 1) * l->width, (l->length - i - 1) * l->width);
-  l->length--;
-}
+extern inline void List_remove(List *l, List_index_t i);
 /*
  * sets all bits in space reserved to 0
- * `@param` **list**
+ * @param list
  */
 extern inline void List_zeroOut(List *l);
 List *List_deepCopy(List *l);
-
-struct List_sortArg {
-  const void *arg, *a, *b;
-};
-
-/*
- * something like in->a>in->b will sort a list of integers
- * from high to low
- */
-typedef struct List_searchFunc {
-  bool (*cmp)(struct List_sortArg *);
-  const void(*arg);
-} List_searchFunc;
-/**
- * insert into sorted list
- * `@param` **1** list     : list
- * `@param` **2** element  : pointer to element
- * `@param` **3** search fn: list search function pointer
- */
-List_index_t List_insertSorted(List *, void *, List_searchFunc);
-/**
- * binary search for sorted list
- *  element will be passed as 'a' in the sortArg
- * `@param` **1** list     : list
- * `@param` **2** element  : pointer to element
- * `@param` **3** search fn: list search function pointer
- *
- */
-List_index_t List_searchSorted(List *, void *, List_searchFunc);
-
-void List_qsort(List *, List_searchFunc);
 
 static void List_cleanup_handler(void *ListPtrPtr) {
   List **l = (List **)ListPtrPtr;
@@ -200,7 +158,6 @@ static void List_cleanup_handler(void *ListPtrPtr) {
 }
 #define List_scoped __attribute__((cleanup(List_cleanup_handler))) List
 #ifdef __cplusplus
-  #include <type_traits>
 template <typename T>
 using mList_t = T (**)(List *);
   #define mList(T) mList_t<T>
@@ -357,6 +314,12 @@ void List_free(List *l) {
   l->width = 0;
   aFree(l->allocator, l);
 }
+extern inline void List_resize(List *l, List_index_t newSize) {
+  newSize = newSize ? newSize : 1;
+  if ((newSize > l->capacity || newSize < l->capacity / 8))
+    return List_forceResize(l, newSize);
+  return;
+}
 inline List_index_t List_locate(const List *l, const void *element) {
   List_index_t i = 0;
   if (element) {
@@ -386,8 +349,12 @@ void List_insert(List *l, List_index_t i, void *element) {
   List_set(l, i, element);
   l->length++;
 }
-#include "assertMessage.h"
-#include "stdio.h"
+extern inline void List_remove(List *l, List_index_t i) {
+  if (i >= l->length)
+    return;
+  memmove(l->head + i * l->width, l->head + (i + 1) * l->width, (l->length - i - 1) * l->width);
+  l->length--;
+}
 void List_forceResize(List *l, List_index_t newSize) {
   uint8_t *newPlace =
       (uint8_t *)aResize(l->allocator, l->head, newSize * l->width);
@@ -447,57 +414,5 @@ static inline void List_swap(List *l, List_index_t a, List_index_t b) {
       pb[i] = s;
     }
   }
-}
-
-List_index_t List_searchSorted(List *l, void *element, List_searchFunc sf) {
-  List_index_t low = 0;
-  List_index_t high = List_length(l);
-
-  while (low < high) {
-    List_index_t mid = low + (high - low) / 2;
-    void *mid_val = List_getRefForce(l, mid);
-
-    struct List_sortArg sa = (struct List_sortArg){
-        .arg = sf.arg,
-        .a = element,
-        .b = mid_val,
-    };
-    if (sf.cmp(&sa))
-      high = mid;
-    else
-      low = mid + 1;
-  }
-  return low;
-}
-
-void List_qsort_bounds(List *l, List_searchFunc sorter, List_index_t start, List_index_t end) {
-  List_index_t i = start, j = start;
-  struct List_sortArg sa;
-  if (end > start) {
-    for (; j < end - 1; j++) {
-      sa = (struct List_sortArg){
-          .arg = sorter.arg,
-          .a = List_getRefForce(l, j),
-          .b = List_getRefForce(l, end - 1)
-      };
-      if (sorter.cmp(&sa)) {
-        List_swap(l, i, j);
-        i++;
-      }
-    }
-    List_swap(l, i, end - 1);
-    List_qsort_bounds(l, sorter, start, i);
-    List_qsort_bounds(l, sorter, i + 1, end);
-  }
-}
-
-void List_qsort(List *l, List_searchFunc sorterd) {
-  List_qsort_bounds(l, sorterd, 0, l->length);
-}
-
-List_index_t List_insertSorted(List *l, void *element, List_searchFunc sf) {
-  List_index_t res = List_searchSorted(l, element, sf);
-  List_insert(l, res, element);
-  return res;
 }
 #endif

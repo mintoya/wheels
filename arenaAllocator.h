@@ -11,21 +11,20 @@
   #define ASAN_UNPOISON_MEMORY_REGION(addr, size)
 #endif
 
-OwnAllocator arena_owned_new(void);
-My_allocator *arena_new_ext(AllocatorV base, size_t blockSize);
+// create arena based on another arena
+My_allocator *arena_new_ext(AllocatorV base, usize blockSize);
+// free's arena
 void arena_cleanup(My_allocator *arena);
+// reset's the arena blocks but doesnt free anything
 void arena_clear(My_allocator *arena);
-size_t arena_footprint(My_allocator *arena);
+// total bytes taken up by the arena
+usize arena_footprint(My_allocator *arena);
 static void arena_cleanup_handler(My_allocator **arenaPtr) {
   if (arenaPtr && *arenaPtr) {
     arena_cleanup(*arenaPtr);
     *arenaPtr = NULL;
   }
 }
-void my_arena_print_allocs(My_allocator *arena);
-My_allocator *ownArenaInit(void);
-void ownArenaDeInit(My_allocator *);
-static OwnAllocator arena_owned = {ownArenaInit, ownArenaDeInit};
 
 #define Arena_scoped [[gnu::cleanup(arena_cleanup_handler)]] My_allocator
 #endif // ARENA_ALLOCATOR_H

@@ -19,9 +19,9 @@ struct dbgAlloc_config {
  *      - backend allocator, it will also store itself here
  * `@return` debug allocator
  */
-My_allocator *(debugAllocatorInit)(struct dbgAlloc_config config);
+My_allocator *debugAllocatorInit(struct dbgAlloc_config config);
 #define debugAllocatorInit_PREPEND_DOT(...) __VA_OPT__(.__VA_ARGS__, )
-#define debugAllocatorInit(...) ({                         \
+#define debugAllocator(...) ({                             \
   struct dbgAlloc_config config = {                        \
       APPLY_N(debugAllocatorInit_PREPEND_DOT, __VA_ARGS__) \
   };                                                       \
@@ -66,8 +66,7 @@ void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size);
 void debugAllocator_free(AllocatorV allocator, void *ptr);
 
 usize debugAllocator_size(AllocatorV allocator, void *ptr);
-
-My_allocator *(debugAllocatorInit)(struct dbgAlloc_config config) {
+My_allocator *debugAllocatorInit(struct dbgAlloc_config config) {
   AllocatorV allocator = config.allocator;
   Debug_allocator_block *res = aCreate(allocator, Debug_allocator_block);
   res->internals[0] = (debugAllocatorInternals){
@@ -78,16 +77,12 @@ My_allocator *(debugAllocatorInit)(struct dbgAlloc_config config) {
       .current = 0,
       .total = 0,
   };
-  memcpy(
-      res->allocator,
-      (My_allocator[1]){(My_allocator){
-          .alloc = debugAllocator_alloc,
-          .free = debugAllocator_free,
-          .resize = debugAllocator_realloc,
-          .size = allocator->size,
-      }},
-      sizeof(My_allocator)
-  );
+  static const My_allocator deffaultDebugAllocator = {
+      .alloc = debugAllocator_alloc,
+      .free = debugAllocator_free,
+      .resize = debugAllocator_realloc,
+  };
+  memcpy(res->allocator, &deffaultDebugAllocator, sizeof(My_allocator));
   return res->allocator;
 }
 int debugAllocatorDeInit(My_allocator *allocator) {
@@ -170,6 +165,7 @@ void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size) {
   internals->total++;
 
   struct tracedata *i = mHmap_get(internals->map, ptr);
+  assertMessage(i, "pointer not in allocator");
 
   if (i)
     internals->current -= i->size;
@@ -198,7 +194,7 @@ void debugAllocator_free(AllocatorV allocator, void *ptr) {
   aFree(realAllocator, ptr);
 
   struct tracedata *data = mHmap_get(internals->map, ptr);
-  // internals->current -= data ? data->size : 0;
+  assertMessage(data, "pointer not in allocator");
   if (internals->config.track_total)
     internals->current -= data->size;
   mHmap_rem(internals->map, ptr);

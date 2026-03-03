@@ -1,16 +1,16 @@
 #if !defined(STRING_LIST_H)
   #define STRING_LIST_H (1)
+  #include "fptr.h"
   #include "my-list.h"
   #include "mytypes.h"
   #include "shortList.h"
   #include <stddef.h>
   #include <string.h>
-typedef struct [[gnu::packed]] vlength {
+typedef struct vlength {
   u8 hasNext : 1;
   u8 data : 7;
 } vlength;
 
-  #include "fptr.h"
 typedef struct stringList {
   ptrdiff_t *ulist; ///< use-list
                     /// not sorted,
@@ -20,10 +20,6 @@ typedef struct stringList {
   vlength *buff;
   AllocatorV allocator;
 } stringList;
-  #include "fptr.h"
-  #include "my-list.h"
-  #include <stddef.h>
-  #include <stdint.h>
 struct u64_vl_max {
   vlength _[sizeof(u64) * 8 / 7 + 1];
 };

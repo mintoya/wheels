@@ -47,23 +47,15 @@ typedef void *(*const My_allocatorResize)(AllocatorV, void *, size_t);
  */
 typedef size_t (*const My_allocatorGetUsable)(AllocatorV, void *);
 
-typedef My_allocator *(*OwnAllocatorInit)(void);
-typedef void (*OwnAllocatorDeInit)(My_allocator *);
 
 typedef struct My_allocator {
   My_allocatorAlloc /*    */ alloc;
   My_allocatorFree /*     */ free;
   My_allocatorResize /*   */ resize;
-  My_allocatorGetUsable /**/ size;   ///< optional, check every time
-  max_align_t /*          */ arb[0]; ///< userdata
+  My_allocatorGetUsable /**/ size; ///< optional
+  max_align_t /*          */ arb[];
 } My_allocator;
 
-typedef struct {
-  OwnAllocatorInit init;
-  OwnAllocatorDeInit deInit;
-} Own_Allocator;
-
-typedef Own_Allocator OwnAllocator;
 void *aAlloc(AllocatorV allocator, size_t size);
 void *aResize(AllocatorV allocator, void *oldptr, size_t size);
 void aFree(AllocatorV allocator, void *oldptr);
@@ -84,7 +76,6 @@ extern AllocatorV stdAlloc;
 #include "assertMessage.h"
 #include "mytypes.h"
 #include <stdio.h>
-[[clang::ownership_returns(malloc), gnu::alloc_size(2)]]
 void *aAlloc(AllocatorV allocator, size_t size) {
 #ifdef MY_ALLOCATOR_STRICTEST
   assertMessage(size, "allocators cant allocate nothing");
@@ -96,7 +87,6 @@ void *aAlloc(AllocatorV allocator, size_t size) {
 #endif
   return res;
 }
-[[gnu::alloc_size(3), clang::ownership_holds(aAlloc, 2)]]
 void *aResize(AllocatorV allocator, void *oldptr, size_t size) {
 #ifdef MY_ALLOCATOR_STRICTEST
   assertMessage(size, "allocators cant allocate nothing");
@@ -109,7 +99,6 @@ void *aResize(AllocatorV allocator, void *oldptr, size_t size) {
 #endif
   return res;
 }
-[[clang::ownership_takes(aAlloc, 2)]]
 void aFree(AllocatorV allocator, void *oldptr) {
 
 #ifdef MY_ALLOCATOR_STRICTEST

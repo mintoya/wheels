@@ -30,7 +30,7 @@ extern inline sList_header *sList_new(AllocatorV allocator, usize initLen, usize
     usize s = allocator->size(allocator, res);
     res->capacity = (s - sizeof(sList_header)) / width;
   } else
-    res->capacity = width;
+    res->capacity = initLen;
   res->length = 0;
   return res;
 }
@@ -38,11 +38,12 @@ extern inline void *sList_getRefForce(sList_header *l, usize width, usize i) { r
 extern inline void *sList_getRef(sList_header *l, usize width, usize i) { return i < l->length ? (l->buf + width * i) : NULL; }
 extern inline void *sList_set(sList_header *l, usize width, usize index, void *element) {
   void *place = sList_getRef(l, width, index);
-  if (place)
+  if (place) {
     if (element)
       memcpy(place, element, width);
     else
       memset(place, 0, width);
+  }
   return place;
 }
 

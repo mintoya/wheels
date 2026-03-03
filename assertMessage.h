@@ -5,13 +5,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#if defined(__cplusplus)
-  #define EXTERNCSTART extern "C" {
-  #define EXTERNCEND }
-#else
-  #define EXTERNCSTART
-  #define EXTERNCEND
-#endif
 #if defined(__linux__)
   #include <execinfo.h>
 #else
@@ -68,10 +61,9 @@ void __attribute__((noreturn)) _assertMessageFail(
 #endif
 #if defined(ASSERTMESSAGE_C) && !defined(noAssertMessage)
 #define ASSERTMESSAGE_OUTPUT(...) fprintf(stderr, __VA_ARGS__)
-#define PRINTORANGE "\x1b[38;5;208m"
-#define PRINTRESET "\x1b[0m"
-#define PRINTRED "\x1b[31m\n\n"
-// [[noreturn, gnu::cold, gnu::format(printf, 7, 8)]]
+#define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
+#define ASSERTMESSAGE_PRINTRESET "\x1b[0m"
+#define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"
 void __attribute__((noreturn)) _assertMessageFail(
     const char *expr_str,
     const char *func,
@@ -82,7 +74,7 @@ void __attribute__((noreturn)) _assertMessageFail(
     const char *fmt,
     ...
 ) {
-  fprintf(stderr, PRINTRED "\nmessage:\n");
+  fprintf(stderr, ASSERTMESSAGE_PRINTRED "\nmessage:\n");
 
   va_list args;
   va_start(args, fmt);
@@ -91,11 +83,11 @@ void __attribute__((noreturn)) _assertMessageFail(
 
   fprintf(
       stderr,
-      PRINTORANGE "\nassert:\t%s\n"
-                  "in fn :\t%s\n"
-                  "file  :\t%s\n"
-                  "line  :\t%d\n"
-                  "\nfailed\n" PRINTRESET,
+      ASSERTMESSAGE_PRINTORANGE "\nassert:\t%s\n"
+                                "in fn :\t%s\n"
+                                "file  :\t%s\n"
+                                "line  :\t%d\n"
+                                "\nfailed\n" ASSERTMESSAGE_PRINTRESET,
       expr_str, func, file, line
   );
   fflush(stderr);
@@ -103,10 +95,10 @@ void __attribute__((noreturn)) _assertMessageFail(
   char **syms = backtrace_symbols(trace, traceLen);
 
   if (syms) {
-    fprintf(stderr, PRINTRED "backtrace:\n==========================\n");
+    fprintf(stderr, ASSERTMESSAGE_PRINTRED "backtrace:\n==========================\n");
     for (size_t i = 0; i < traceLen; i++)
       fprintf(stderr, "%s\n", syms[i]);
-    fprintf(stderr, "==========================\n" PRINTRESET);
+    fprintf(stderr, "==========================\n" ASSERTMESSAGE_PRINTRESET);
   }
   __builtin_trap();
 }
@@ -179,10 +171,10 @@ char **backtrace_symbols(void *const *array, int size) {
   return result;
 }
 #else
-EXTERNCSTART
+EXTERN_C_START
 char **backtrace_symbols(void *const *array, int size) { return NULL; }
 extern int backtrace(void **__array, int __size) __attribute__((nonnull(1))) { return 0; }
 }
-EXTERNCEND
+EXTERN_C_END
 #endif
 #endif

@@ -21,8 +21,9 @@
   #define MACRO_EXPAND(...) \
     MACRO_EXPAND2(__VA_ARGS__)
 
-  #define DEFER_CONCAT(a, b) a##b
-  #define DEFER_NAME(a, b) DEFER_CONCAT(MACRO_EXPAND(a), MACRO_EXPAND(b))
+  #define DEFER_CONCAT_1(a, b) a##b
+  #define DEFER_CONCAT(a, b) DEFER_CONCAT_1(a, b)
+  #define DEFER_NAME(a, b) DEFER_CONCAT(a, b)
 
   #if defined(__cplusplus)
     #include <memory>
@@ -43,9 +44,11 @@ struct DeferHelper {
       #include <stddefer.h>
     #else
       #if defined(__clang__)
+        #pragma GCC warning "using clang block defer"
 static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
         #define defer __attribute__((cleanup(_defer_cleanup_block))) void (^DEFER_CONCAT(_defer_var_, __COUNTER__))(void) = ^
       #elif defined(__GNUC__)
+        #pragma GCC warning "using gnu nested function defer"
         #define _defer_helper(func_name, var_name)              \
           auto void func_name(int *);                           \
           int var_name __attribute__((cleanup(func_name))) = 0; \
