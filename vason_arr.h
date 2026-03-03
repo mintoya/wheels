@@ -72,41 +72,41 @@ vason_container *vason_get_func(vason_container *c, struct vason_getArg *argType
 
   #if defined __cplusplus
 typedef struct vason {
-  vason_container self[1];
-  inline constexpr operator vason_container() const { return self[0]; }
+  vason_container self;
+  inline constexpr operator vason_container() const { return self; }
+  inline constexpr vason(vason_container c) : self(c) {}
 
-  inline void free() { vason_container_free(self[0]); }
+  inline void free() { vason_container_free(self); }
   inline vason_tag tag() const {
-    return self->current < msList_len(self->tags) ? self->tags[self->current] : vason_INVALID;
+    return self.current < msList_len(self.tags) ? self.tags[self.current] : vason_INVALID;
   }
   inline usize countChildren() const {
-    return self->current < msList_len(self->tags)
-               ? self->tables_strings[self->current].end -
-                     self->tables_strings[self->current].start
+    return self.current < msList_len(self.tags)
+               ? self.tables_strings[self.current].end -
+                     self.tables_strings[self.current].start
                : 0;
   }
   inline vason operator[](usize idx) {
     auto r = *this;
-    r.self[0] = *vason_get_idx(self, idx);
+    r.self = *vason_get_idx(&self, idx);
     return r;
   }
   inline vason operator[](fptr c) {
     auto r = *this;
-    r.self[0] = *vason_get_str(self, c);
+    r.self = *vason_get_str(&self, c);
     return r;
   }
   fptr asString() const {
     return this->tag() == vason_STRING
                ? (fptr){
-                     (usize)self->tables_strings[self->current].end -
-                         self->tables_strings[self->current].start,
-                     self->tables_strings[self->current].start + self->text.ptr
+                     (usize)self.tables_strings[self.current].end -
+                         self.tables_strings[self.current].start,
+                     self.tables_strings[self.current].start + self.text.ptr
                  }
                : nullFptr;
   }
   inline constexpr operator fptr() const { return this->asString(); }
   struct vason operator[](const std::string &c) { return (*this)[(fptr){c.length(), (u8 *)c.c_str()}]; }
-  struct vason operator[](const char *c) { return (*this)[(fptr){strlen(c), (u8 *)c}]; }
   explicit operator bool() const { return tag() != vason_INVALID; }
 } vason;
   #endif
