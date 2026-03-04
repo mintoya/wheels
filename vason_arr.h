@@ -50,8 +50,69 @@ struct vason_getArg {
     void *_fptr;
   };
 };
-vason_container *vason_get_str(vason_container *c, fptr f);
-vason_container *vason_get_idx(vason_container *c, vason_index f);
+
+  #if defined(MY_PRINTER_H)
+    #include "print.h"
+REGISTER_PRINTER(vason_container, {
+  if (in.current >= msList_len(in.tags) || in.tags[in.current] & vason_INVALID) {
+    PUTS(U"(!)");
+    return;
+  } else if (in.tags[in.current] & vason_UNPARSED) {
+    PUTS(U"(?");
+    switch (in.tags[in.current] ^ vason_UNPARSED) {
+      case vason_INVALID:
+      case vason_UNPARSED:
+        break;
+      case vason_TABLE:
+        PUTS(U"<>)");
+        break;
+      case vason_PAIR:
+        PUTS(U":)");
+        break;
+      case vason_STRING:
+        PUTS(U"s)");
+        break;
+    }
+    return;
+  }
+  switch (in.tags[in.current]) {
+    case vason_INVALID:
+    case vason_UNPARSED:
+      __builtin_unreachable();
+      break;
+    case vason_PAIR: {
+      vason_span vs = in.tables_strings[in.current];
+      PUTS(U"(:)<");
+      in.current = vs.start;
+      USETYPEPRINTER(vason_container, in);
+      PUTS(U",");
+      in.current++;
+      USETYPEPRINTER(vason_container, in);
+      PUTS(U">");
+    } break;
+    case vason_STRING: {
+      vason_span vs = in.tables_strings[in.current];
+      USETYPEPRINTER(fptr, ((fptr){(usize)vs.end - vs.start, vs.start + in.text.ptr}));
+    } break;
+    case vason_TABLE: {
+      vason_span vs = in.tables_strings[in.current];
+      PUTS(U"(<");
+      USETYPEPRINTER(usize, (usize)(vs.end - vs.start));
+      PUTS(U">){");
+      for (vason_index i = vs.start; i < vs.end; i++) {
+        i != vs.start ? PUTS(U",") : (void)0;
+        in.current = i;
+        USETYPEPRINTER(vason_container, in);
+      }
+      PUTS(U"}");
+    } break;
+  }
+});
+  #endif
+
+// referance requred since lazy containers modify tehmselves
+vason_index vason_get_str(vason_container *c, vason_index entry, fptr f);
+vason_index vason_get_idx(vason_container *c, vason_index entry, vason_index f);
   #include "macros.h"
   #define MAKE_VASONS_GET_ARG(arg)                                                           \
     _Generic(                                                                                \
@@ -60,47 +121,60 @@ vason_container *vason_get_idx(vason_container *c, vason_index f);
         u32: (struct vason_getArg){.is_unsigned_integer = 1, ._u32 = REF(typeof(arg), arg)}, \
         fptr: (struct vason_getArg){.is_fat_pointer = 1, ._fptr = REF(typeof(arg), arg)}     \
     ),
-  #define vason_get(container, ...) vason_get_func(                                       \
-      container,                                                                          \
-      (struct vason_getArg[]){                                                            \
-          APPLY_N(MAKE_VASONS_GET_ARG, __VA_ARGS__)(struct vason_getArg){.terminator = 1} \
-      }                                                                                   \
-  )
+  #define vason_get(container, entry, ...)                                                    \
+    ({                                                                                        \
+      vason_get_func(                                                                         \
+          container, entry,                                                                   \
+          (struct vason_getArg[]){                                                            \
+              APPLY_N(MAKE_VASONS_GET_ARG, __VA_ARGS__)(struct vason_getArg){.terminator = 1} \
+          }                                                                                   \
+      );                                                                                      \
+    })
 
-vason_container *vason_get_func(vason_container *c, struct vason_getArg *argTypes);
+vason_index vason_get_func(vason_container *c, vason_index entry, struct vason_getArg *argTypes);
 
   #if defined __cplusplus
 typedef struct vason {
-  vason_container self;
-  inline constexpr operator vason_container() const { return self; }
-  inline constexpr vason(vason_container c) : self(c) {}
+  vason_container *origional;
+  vason_index place;
+  inline constexpr vason(vason_container &c) : origional(&c), place(c.current) {}
+  inline constexpr vason(vason_container *c, vason_index i) : origional(c), place(i) {}
+  inline operator vason_container() const {
+    return (vason_container){
+        .current = place,
+        .tags = origional->tags,
+        .tables_strings = origional->tables_strings,
+        .text = origional->text,
+    };
+  }
 
-  inline void free() { vason_container_free(self); }
   inline vason_tag tag() const {
-    return self.current < msList_len(self.tags) ? self.tags[self.current] : vason_INVALID;
+    return place < msList_len(origional->tags) ? origional->tags[place] : vason_INVALID;
   }
   inline usize countChildren() const {
-    return self.current < msList_len(self.tags)
-               ? self.tables_strings[self.current].end -
-                     self.tables_strings[self.current].start
+    return tag() == vason_TABLE
+               ? origional->tables_strings[place].end -
+                     origional->tables_strings[place].start
                : 0;
   }
   inline vason operator[](usize idx) {
-    auto r = *this;
-    r.self = *vason_get_idx(&self, idx);
-    return r;
+    return (vason){
+        origional,
+        vason_get_idx(origional, place, idx),
+    };
   }
   inline vason operator[](fptr c) {
-    auto r = *this;
-    r.self = *vason_get_str(&self, c);
-    return r;
+    return (vason){
+        origional,
+        vason_get_str(origional, place, c),
+    };
   }
   fptr asString() const {
     return this->tag() == vason_STRING
                ? (fptr){
-                     (usize)self.tables_strings[self.current].end -
-                         self.tables_strings[self.current].start,
-                     self.tables_strings[self.current].start + self.text.ptr
+                     (usize)origional->tables_strings[place].end -
+                         origional->tables_strings[place].start,
+                     origional->tables_strings[place].start + origional->text.ptr
                  }
                : nullFptr;
   }
@@ -111,7 +185,7 @@ typedef struct vason {
   #endif
 vason_container vason_parseString(AllocatorV allocator, slice(c8) string);
 vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string);
-vason_container *vason_lazy_expand(vason_container *c);
+void vason_lazy_expand(vason_container *c, vason_index current);
 
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
@@ -209,8 +283,9 @@ void vason_tokenize(slice(vason_token_t) res, slice(c8) cs) {
   vason_token_t *__restrict out = res.ptr;
   const c8 *__restrict in = cs.ptr;
   const usize len = res.len;
+  out[len - 1] = to_token(in[len - 1]);
 
-  for (usize i = 0; i < len - 1; i++) {
+  for (usize i = 0; i + 1 < len; i++) {
     out[i] = to_token(in[i]);
     if (__builtin_expect(out[i] == vason_ESCAPE, 0)) {
       out[i] = vason_STR;
@@ -373,65 +448,6 @@ void vason_parse_level2(
     vason_parse_level2_it(parent, tokens, i);
 }
 
-  #if defined(MY_PRINTER_H)
-    #include "print.h"
-REGISTER_PRINTER(vason_container, {
-  if (in.current >= msList_len(in.tags) || in.tags[in.current] & vason_INVALID) {
-    PUTS(U"(!)");
-    return;
-  } else if (in.tags[in.current] & vason_UNPARSED) {
-    PUTS(U"(?");
-    switch (in.tags[in.current] ^ vason_UNPARSED) {
-      case vason_INVALID:
-      case vason_UNPARSED:
-        break;
-      case vason_TABLE:
-        PUTS(U"<>)");
-        break;
-      case vason_PAIR:
-        PUTS(U":)");
-        break;
-      case vason_STRING:
-        PUTS(U"s)");
-        break;
-    }
-    return;
-  }
-  switch (in.tags[in.current]) {
-    case vason_INVALID:
-    case vason_UNPARSED:
-      __builtin_unreachable();
-      break;
-    case vason_PAIR: {
-      vason_span vs = in.tables_strings[in.current];
-      PUTS(U"(:)<");
-      in.current = vs.start;
-      USETYPEPRINTER(vason_container, in);
-      PUTS(U",");
-      in.current++;
-      USETYPEPRINTER(vason_container, in);
-      PUTS(U">");
-    } break;
-    case vason_STRING: {
-      vason_span vs = in.tables_strings[in.current];
-      USETYPEPRINTER(fptr, ((fptr){(usize)vs.end - vs.start, vs.start + in.text.ptr}));
-    } break;
-    case vason_TABLE: {
-      vason_span vs = in.tables_strings[in.current];
-      PUTS(U"(<");
-      USETYPEPRINTER(usize, (usize)(vs.end - vs.start));
-      PUTS(U">){");
-      for (vason_index i = vs.start; i < vs.end; i++) {
-        i != vs.start ? PUTS(U",") : (void)0;
-        in.current = i;
-        USETYPEPRINTER(vason_container, in);
-      }
-      PUTS(U"}");
-    } break;
-  }
-});
-  #endif
-
 vason_container vason_parseString(AllocatorV allocator, slice(c8) string) {
   vason_container res = vason_container_create(string, allocator);
   slice(vason_token_t) tokens = (typeof(tokens)){
@@ -477,14 +493,14 @@ vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string) {
 
 // vason_container
 // will overload it with a macro to generate types
-vason_container *vason_get_str(vason_container *c, fptr f) {
-  if (msList_len(c->tags) <= c->current) {
-    return c;
-  }
+
+vason_index vason_get_str(vason_container *c, vason_index entry, fptr f) {
+  if (msList_len(c->tags) <= entry)
+    return -1;
   if (
-      c->tags[c->current] == vason_TABLE
+      c->tags[entry] == vason_TABLE
   ) {
-    vason_span vs = c->tables_strings[c->current];
+    vason_span vs = c->tables_strings[entry];
     for (vason_index i = vs.start; i < vs.end; i++) {
       if (c->tags[i] & vason_PAIR && c->tags[i] & vason_UNPARSED) {
         assertMessage(c->tokens, "unparsed inside non-lazy object");
@@ -509,55 +525,52 @@ vason_container *vason_get_str(vason_container *c, fptr f) {
             assertMessage(c->tokens, "unparsed inside non-lazy object");
             vason_parse_level2_it(c, *(slice(vason_token_t) *)c->tokens, ival);
           }
-          c->current = ival;
-          return c;
+          return ival;
         }
       }
     }
   }
-  c->current = msList_len(c->tags);
-  return c;
+  return -1;
 }
-vason_container *vason_get_idx(vason_container *c, vason_index f) {
-  if (msList_len(c->tags) <= c->current) {
-    c->current = msList_len(c->tags);
-    return c;
-  } else if (
-      (c->tags[c->current] != vason_TABLE &&
-       c->tags[c->current] != vason_PAIR) ||
-      c->tables_strings[c->current].end <= c->tables_strings[c->current].start + f
-  ) {
-    c->current = msList_len(c->tags);
-    return c;
-  }
-  c->current = c->tables_strings[c->current].start + f;
-  if (c->tags[c->current] & vason_UNPARSED) {
+vason_index vason_get_idx(vason_container *c, vason_index entry, vason_index f);
+vason_index vason_get_idx(vason_container *c, vason_index entry, vason_index f) {
+  if (msList_len(c->tags) <= entry)
+    return -1;
+  else if (
+      !EQUAL_ANY(c->tags[entry], vason_TABLE, vason_PAIR) ||
+      c->tables_strings[entry].end <= c->tables_strings[entry].start + f
+  )
+    return -1;
+
+  vason_index res = c->tables_strings[entry].start + f;
+  if (c->tags[res] & vason_UNPARSED) {
     assertMessage(c->tokens, "unparsed inside non-lazy object");
-    vason_parse_level2_it(c, *(slice(vason_token_t) *)c->tokens, c->current);
+    vason_parse_level2_it(c, *(slice(vason_token_t) *)c->tokens, res);
   }
-  return c;
+  return res;
 }
-vason_container *vason_get_func(vason_container *c, struct vason_getArg *argTypes) {
+vason_index vason_get_func(vason_container *c, vason_index entry, struct vason_getArg *argTypes) {
   while (!argTypes->terminator && c->current < msList_len(c->tags)) {
     if (argTypes->is_fat_pointer) {
-      c = vason_get_str(c, *(fptr *)argTypes->_fptr);
+      entry = vason_get_str(c, entry, *(fptr *)argTypes->_fptr);
     } else if (argTypes->is_unsigned_integer) {
-      c = vason_get_idx(c, *(u32 *)argTypes->_u32);
+      entry = vason_get_idx(c, entry, *(u32 *)argTypes->_u32);
     } else {
       __builtin_unreachable();
     }
     argTypes++;
   }
-  return c;
+  return entry;
 }
-vason_container *vason_lazy_expand(vason_container *c) {
-  assertMessage(!(c->tags[c->current] & vason_UNPARSED));
-  switch (c->tags[c->current]) {
+
+void vason_lazy_expand(vason_container *c, vason_index current) {
+  assertMessage(!(c->tags[current] & vason_UNPARSED));
+  switch (c->tags[current]) {
     case vason_STRING:
       break;
     case vason_TABLE:
     case vason_PAIR: {
-      vason_span vs = c->tables_strings[c->current];
+      vason_span vs = c->tables_strings[current];
       usize len = msList_len(c->tables_strings);
       for (vason_index i = vs.start; i < vs.end; i++) {
         if (c->tags[i] & vason_UNPARSED) {
@@ -574,13 +587,12 @@ vason_container *vason_lazy_expand(vason_container *c) {
       break;
     }
     case vason_INVALID:
-      c->tags[c->current] = vason_INVALID;
+      c->tags[current] = vason_INVALID;
       break;
     case vason_UNPARSED:
       __builtin_unreachable();
       break;
   }
-  return c;
 }
 
 #endif

@@ -2,7 +2,6 @@
 #include "../debugallocator.h"
 #include "../print.h"
 #include "../vason_arr.h"
-#include "../wheels.h"
 #include <ctype.h>
 
 slice(c8) read_stdin(AllocatorV allocator) {
@@ -35,8 +34,6 @@ int main(int nargs, char *args[nargs]) {
   defer { aFree(stdAlloc, input.ptr); };
 
   AllocatorV local = stdAlloc;
-  // My_allocator *local = debugAllocator(allocator = stdAlloc, track_total = 1);
-  // defer { debugAllocatorDeInit(local); };
 
   vason_container parsed =
       lazy
@@ -44,17 +41,20 @@ int main(int nargs, char *args[nargs]) {
           : vason_parseString(local, input);
   vason_container *f = &parsed; // clang defer
   defer { vason_container_free(*f); };
+  vason_index current = parsed.current;
   mList_foreach(
       argslist,
       char *, cptr,
-      parsed =
-          isdigit(*cptr)
-              ? *vason_get(&parsed, atoi(cptr))
-              : *vason_get(&parsed, fptr_CS(cptr));
+      {
+        current =
+            isdigit(*cptr)
+                ? vason_get(&parsed, current, atoi(cptr))
+                : vason_get(&parsed, current, fptr_CS(cptr));
+      }
   );
-  parsed =
-      lazy
-          ? *vason_lazy_expand(&parsed)
-          : parsed;
+  if (lazy)
+    vason_lazy_expand(&parsed, current);
+  parsed.current = current;
   println("{vason_container}", parsed);
 }
+#include "../wheels.h"

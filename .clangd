@@ -1,5 +1,5 @@
 If:
-  PathMatch: .*\.(hpp|cpp)
+  PathMatch: .*\.(h|hpp|cpp)
 CompileFlags:
   Add: 
     - "-x"
@@ -8,7 +8,7 @@ CompileFlags:
 
 ---
 If:
-  PathMatch: .*\.(h|c)
+  PathMatch: .*\.(c)
 CompileFlags:
   Add: 
     - "-x"
