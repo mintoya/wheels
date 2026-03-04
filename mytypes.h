@@ -134,11 +134,9 @@ struct nullable_t {
 #endif
 #define nullable_null(type) ((nullable(type)){.isnull = true})
 #define nullable_real(type, value) ((nullable(type)){.isnull = false, .data = (value)})
-#if !defined(__cplusplus) || defined(__clang__)
-  #define slice_stat(s) \
-    {sizeof(s) / sizeof((s)[0]), (typeof(s[0]) *)(s)}
-  #define slice_vla(s) ((typeof (*(s.ptr))(*)[s.len])(s.ptr))
-#endif
+#define slice_stat(s) \
+  {sizeof(s) / sizeof((s)[0]), (typeof(s[0]) *)(s)}
+#define slice_vla(s) ((typeof (*(s.ptr))(*)[s.len])(s.ptr))
 #define each_slice(slice, e)       \
   typeof(slice.ptr) e = slice.ptr; \
   e < slice.ptr + slice.len;       \

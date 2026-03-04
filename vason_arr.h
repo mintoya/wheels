@@ -149,7 +149,9 @@ typedef struct vason {
   }
 
   inline vason_tag tag() const {
-    return place < msList_len(origional->tags) ? origional->tags[place] : vason_INVALID;
+    return origional && place < msList_len(origional->tags)
+               ? origional->tags[place]
+               : vason_INVALID;
   }
   inline usize countChildren() const {
     return tag() == vason_TABLE
@@ -178,7 +180,6 @@ typedef struct vason {
                  }
                : nullFptr;
   }
-  inline constexpr operator fptr() const { return this->asString(); }
   struct vason operator[](const std::string &c) { return (*this)[(fptr){c.length(), (u8 *)c.c_str()}]; }
   explicit operator bool() const { return tag() != vason_INVALID; }
 } vason;
@@ -202,7 +203,32 @@ typedef enum : c8 {
   vason_PAIR_DELIM,
 } vason_token_t;
 sliceDef(vason_token_t);
-// makes parsing json with this a lil easier
+  // makes parsing json with this a lil easier
+  #if defined(__cplusplus)
+
+vason_token_t to_token(c8 in) {
+  switch (in) {
+    case '[':
+      return vason_TABLE_START;
+    case '{':
+      return vason_TABLE_START;
+    case ']':
+      return vason_TABLE_END;
+    case '}':
+      return vason_TABLE_END;
+    case ',':
+      return vason_TABLE_DELIM;
+    case '\\':
+      return vason_ESCAPE;
+    case '"':
+      return vason_STR_DELIM;
+    case ':':
+      return vason_PAIR_DELIM;
+    default:
+      return vason_STR;
+  }
+}
+  #else
 DIAGNOSTIC_PUSH("-Winitializer-overrides")
 static constexpr vason_token_t vason_tokens_lut[256] = {
     [0 ... 255] = vason_STR,
@@ -218,7 +244,8 @@ static constexpr vason_token_t vason_tokens_lut[256] = {
 
 };
 DIAGNOSTIC_POP()
-  #define to_token(in) vason_tokens_lut[in]
+    #define to_token(in) vason_tokens_lut[in]
+  #endif
 // __attribute__((always_inline)) static inline vason_token_t(to_token)(c8 in) {
 //   return vason_tokens_lut[in];
 // }

@@ -274,9 +274,7 @@ using mList_t = T (**)(List *);
   do                            \
     ((List *)list)->length = 0; \
   while (0)
-#if !defined(__cplusplus) || defined(__clang__)
-  #define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
-#endif
+#define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
 #define mList_slice(list) {mList_len(list), mList_arr(list)}
 #endif // MY_LIST_H
 
