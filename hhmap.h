@@ -5,7 +5,6 @@
   #define HMAP_H (1)
 typedef struct HMap HMap;
   #include "fptr.h"
-  #include "my-list.h"
 /**
  * Creates a new hash map
  * @param kSize size of key type
@@ -138,12 +137,12 @@ static inline void HMap_cleanup_handler(void *vv) {
 template <typename Ta, typename Tb>
 using mHmap_t = Tb (**)(HMap *, Ta);
     #define mHmap(Ta, Tb) mHmap_t<Ta, Tb>
-    #define equaltypes_mHmap(T1, T2) std::is_same<T1, T2>::value
+  // #define equaltypes_mHmap(T1, T2) std::is_same<T1, T2>::value
   #else
     #define mHmap(Ta, Tb) typeof(typeof(Tb(**)(HMap *, Ta)))
-    #define equaltypes_mHmap(T1, T2) \
-      (_Generic((typeof(T2) *)nullptr, typeof(T1) *: true, default: false))
   #endif
+  #define equaltypes_mHmap(T1, T2) \
+    (_Generic((typeof(T2) *)nullptr, typeof(T1) *: true, default: false))
 
   #define mHmap_scoped(Ta, Tb) [[gnu::cleanup(HMap_cleanup_handler)]] mHmap(Ta, Tb)
 
@@ -242,6 +241,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
               fp_from(key)                                      \
           );                                                    \
     })
+  #define mHmap_clear(map) HMap_clear((HMap *)map)
   #define HMap_scoped [[gnu::cleanup(HMap_cleanup_handler)]] HMap
 
 #endif // HMap_H

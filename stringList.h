@@ -1,7 +1,7 @@
 #if !defined(STRING_LIST_H)
   #define STRING_LIST_H (1)
   #include "fptr.h"
-  #include "my-list.h"
+  #include "mylist.h"
   #include "mytypes.h"
   #include "shortList.h"
   #include <stddef.h>
@@ -80,7 +80,6 @@ struct strList {
 #endif
 
 #if defined(STRING_LIST_C)
-  #include "my-list.h"
 static_assert(sizeof(vlength) == sizeof(u8), "vlength warning");
   #define vlen_stat(stringLiteral) ({                 \
     static struct [[gnu::packed]] {                   \

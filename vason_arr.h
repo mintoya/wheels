@@ -2,7 +2,7 @@
   #define VASON_PARSER_H (1)
   #include "allocator.h"
   #include "fptr.h"
-  #include "my-list.h"
+  #include "mylist.h"
   #include "mytypes.h"
   #include "shortList.h"
 sliceDef(c8);
@@ -518,8 +518,6 @@ vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string) {
   return res;
 }
 
-// vason_container
-// will overload it with a macro to generate types
 
 vason_index vason_get_str(vason_container *c, vason_index entry, fptr f) {
   if (msList_len(c->tags) <= entry)

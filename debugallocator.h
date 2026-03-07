@@ -20,14 +20,13 @@ struct dbgAlloc_config {
  * `@return` debug allocator
  */
 My_allocator *debugAllocatorInit(struct dbgAlloc_config config);
-#define debugAllocatorInit_PREPEND_DOT(...) __VA_OPT__(.__VA_ARGS__, )
-#define debugAllocator(...) ({                             \
-  struct dbgAlloc_config config = {                        \
-      APPLY_N(debugAllocatorInit_PREPEND_DOT, __VA_ARGS__) \
-  };                                                       \
-  config.allocator = config.allocator ?: stdAlloc;         \
-  config.log = config.log ?: stderr;                       \
-  debugAllocatorInit(config);                              \
+#define PREPEND_DOT_MAC(...) .__VA_ARGS__,
+#define debugAllocator(...) ({                     \
+  struct dbgAlloc_config config = {                \
+      APPLY_N(PREPEND_DOT_MAC, __VA_ARGS__)        \
+  };                                               \
+  config.allocator = config.allocator ?: stdAlloc; \
+  debugAllocatorInit(config);                      \
 })
 
 /**
@@ -77,10 +76,11 @@ My_allocator *debugAllocatorInit(struct dbgAlloc_config config) {
       .current = 0,
       .total = 0,
   };
-  static const My_allocator deffaultDebugAllocator = {
+  My_allocator deffaultDebugAllocator = {
       .alloc = debugAllocator_alloc,
       .free = debugAllocator_free,
       .resize = debugAllocator_realloc,
+      .size = allocator->size,
   };
   memcpy(res->allocator, &deffaultDebugAllocator, sizeof(My_allocator));
   return res->allocator;

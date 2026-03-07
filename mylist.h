@@ -133,6 +133,14 @@ List *List_fromArr(AllocatorV, const void *source, size_t size, List_index_t len
  * @return adress of first inserted element
  */
 void *List_appendFromArr(List *l, const void *source, List_index_t length);
+/**
+ * inserts list into list
+ * @param l list
+ * @param source pointer to values
+ * @param length element count
+ * @return adress of first inserted element
+ */
+void *List_insertFromArr(List *l, const void *source, List_index_t length, List_index_t location);
 
 __attribute__((pure)) extern inline List_index_t List_length(const List *l) { return l ? l->length : 0; }
 /*
@@ -257,6 +265,10 @@ using mList_t = T (**)(List *);
   do {                                                                 \
     List_appendFromArr((List *)list, vla, sizeof(vla) / sizeof(*vla)); \
   } while (0)
+#define mList_insertVla(list, position, vla)                                     \
+  do {                                                                           \
+    List_insertFromArr((List *)list, vla, sizeof(vla) / sizeof(*vla), position); \
+  } while (0)
 #define mList_sortedSearch(list, sorterFunction, val) ({   \
   mList_iType(list) value = val;                           \
   List_searchSorted((List *)list, &value, sorterFunction); \
@@ -380,18 +392,22 @@ List *List_fromArr(AllocatorV allocator, const void *source, size_t width, List_
     memcpy(res->head, source, length * width);
   return res;
 }
-void *List_appendFromArr(List *l, const void *source, List_index_t ammount) {
-  if (!ammount)
+void *List_insertFromArr(List *l, const void *source, List_index_t length, List_index_t location) {
+  if (!length || location > l->length)
     return NULL;
-  if (l->capacity < l->length + ammount)
-    List_resize(l, l->length + ammount);
-  uint8_t *dest = l->head + l->length * l->width;
+  if (l->capacity < l->length + length)
+    List_resize(l, l->length + length);
+  void *res = l->head + (location)*l->width;
+  memmove(l->head + (location + length) * l->width, res, (l->length - location) * l->width);
   if (source)
-    memcpy(dest, source, ammount * l->width);
+    memcpy(res, source, length * l->width);
   else
-    memset(dest, 0, ammount * l->width);
-  l->length += ammount;
-  return dest;
+    memset(res, 0, length * l->width);
+  l->length += length;
+  return res;
+}
+void *List_appendFromArr(List *l, const void *source, List_index_t ammount) {
+  return List_insertFromArr(l, source, ammount, l->length);
 }
 
 List *List_deepCopy(List *l) { return List_fromArr(l->allocator, l->head, l->width, l->length); }

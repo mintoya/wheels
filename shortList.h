@@ -125,8 +125,3 @@ extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
         s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), new_cap)->buf; \
     } while (0)
 #endif // SHORT_LIST_H
-// #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-//   #define SHORT_LIST_C (1)
-// #endif
-// #if defined(SHORT_LIST_C)
-// #endif // SHORT_LIST_C

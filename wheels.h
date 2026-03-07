@@ -41,7 +41,7 @@
 
 #ifdef MY_LIST_H
   #define MY_LIST_C (1)
-  #include "my-list.h"
+  #include "mylist.h"
 #endif
 #undef MY_LIST_C
 

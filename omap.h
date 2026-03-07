@@ -1,5 +1,3 @@
-#include "my-list.h"
-#include "mytypes.h"
 #if !defined(OMAP_H)
   #define OMAP_H (1)
   #include "stringList.h"

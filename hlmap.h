@@ -1,20 +1,19 @@
-#include "allocator.h"
-#include "assertMessage.h"
-#include "my-list.h"
-#include <string.h>
 #if !defined(HLMAP_H)
   #define HLMAP_H (1)
+  #include "allocator.h"
+  #include "assertMessage.h"
+  #include "mylist.h"
+  #include <string.h>
 typedef struct HLMap {
   size_t metaSize;
   List klist;
   List vlist;
   List ulist;
 } HLMap;
-  #include "fptr.h"
-  #include "my-list.h"
 
+  #include "fptr.h"
 /**
- * @brief create a new HHMap
+ * @brief create a new HLMap
  *
  * if `k` and `v` dont have compatible alignment,
  * HLMap_fset can compensage if adequate padding is added
@@ -68,8 +67,7 @@ static inline void HLMap_cleanup_handler(HLMap **v) {
 
 #endif // HLMap_H
 
-#if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
-  #pragma once
+#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
   #define HLMAP_C (1)
 #endif
 #ifdef HLMAP_C
