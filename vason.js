@@ -18,9 +18,10 @@ function vasonToAST(vHandle) {
     for (let i = 0; i < count; i++) {
       items.push(vasonToAST(vHandle.getIdx(i)));
     }
-    result = {
-      _array: items,
-    };
+    result = { _array: items };
+  }
+  if (vHandle.istop()) {
+    vHandle.free();
   }
   vHandle.delete();
   return result;
@@ -52,7 +53,6 @@ class Vason {
    * @returns {VasonNode}
    */
   static parse(vasonStr) {
-    // await VASONready;
     return new Vason(vasonToAST(VASONmodule.parseString(vasonStr)));
   }
   _isValidNode(val) {

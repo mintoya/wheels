@@ -212,16 +212,6 @@ typedef struct vason {
         ),
     };
   }
-  // inline vason operator[](const char *c) {
-  //   return (vason){
-  //       origional,
-  //       vason_get_str(
-  //           origional, place,
-  //           fptr_CS((void *)c)
-  //       ),
-  //   };
-  // }
-  // inline vason operator[](char *c) { return (*this)[c]; }
   fptr asString() const {
     return this->tag() == vason_STRING
                ? (fptr){
@@ -232,6 +222,16 @@ typedef struct vason {
                : nullFptr;
   }
   explicit operator bool() const { return tag() != vason_INVALID; }
+    #if defined(__EMSCRIPTEN__)
+  bool is_top() {
+    return (origional->current == place);
+  }
+  void try_free() {
+    // horrible terrible no-good very bad
+    assertMessage(origional->current == place, "lost the plot");
+    vason_container_free(*origional);
+  }
+    #endif
 } vason;
 
     #if defined(__EMSCRIPTEN__)
@@ -265,14 +265,18 @@ EMSCRIPTEN_BINDINGS(vason_module) {
       .function("isValid", &vason::operator bool)
       .function("getIdx", &vason_get_idx_wrapper)
       .function("getStr", &vason_get_str_wrapper)
-      .function("asString", &vason_as_js_string);
+      .function("asString", &vason_as_js_string)
+      .function("istop", &vason::is_top)
+      .function("free", &vason::try_free);
 
   function("parseString", optional_override([](const std::string &input) {
-             u8 *perm_str = (u8 *)aAlloc(stdAlloc, input.length());
-             memcpy(perm_str, input.c_str(), input.length());
-             slice(c8) text = {(usize)input.length(), perm_str};
+             slice(c8) text = {
+                 (usize)input.length(),
+                 aCreate(stdAlloc, u8, input.length()),
+             };
+             memcpy(text.ptr, input.c_str(), input.length());
              vason_container *res = new vason_container(vason_parseString(stdAlloc, text));
-             return vason(res, 0);
+             return vason{res, 0};
            }));
 }
     #endif

@@ -15,7 +15,7 @@ const exampleString = `{
         {
           K:TAB,K:1,  K:2, K:3, K:4, K:5,     K:6, K:7, K:8, K:9,  K:0, K:"]",
                ,   ,     ,    ,    ,    ,        ,    ,    ,    ,     ,   K:\`,
-               ,   ,     ,    ,    ,    ,        , K:-, K:=,    , K:\\, K:BKS
+               ,   ,     ,    ,    ,    ,        , K:-, K:=,    , K:\\\\, K:BKS
         },
         {
                 , K:F1, K:F2, K:F3, K:F4, K:F5,    K:F6,   K:F7,   K:F8,    K:F9, K:F10,  K:F11,
