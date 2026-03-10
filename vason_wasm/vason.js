@@ -1,4 +1,4 @@
-const VASONmodule = require("./vason_parser.js");
+import VASONmodule from "./vason_parser.js";
 function vasonToAST(vHandle) {
   if (!vHandle || !vHandle.isValid()) {
     if (vHandle) vHandle.delete();
