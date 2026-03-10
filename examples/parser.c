@@ -56,6 +56,6 @@ int main(int nargs, char *args[nargs]) {
   if (lazy)
     vason_lazy_expand(&parsed, current);
   parsed.current = current;
-  println("{vason_container}", parsed);
+  // println("{vason_container}", parsed);
   println("{fptr}", vason_tostr(stdAlloc, parsed));
 }

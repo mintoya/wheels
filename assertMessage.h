@@ -1,5 +1,6 @@
 #ifndef ASSERTMESSAGE_H
 #define ASSERTMESSAGE_H
+#include "macros.h"
 #include "mytypes.h"
 #include <assert.h>
 #include <stdarg.h>
@@ -8,8 +9,10 @@
 #if defined(__linux__)
   #include <execinfo.h>
 #else
+EXTERN_C_START
 extern char **backtrace_symbols(void *const *__array, int __size);
 extern int backtrace(void **__array, int __size) __attribute__((nonnull(1)));
+EXTERN_C_END
 #endif
 #ifndef NDEBUG
   #if !defined(noAssertMessage)
@@ -174,7 +177,6 @@ char **backtrace_symbols(void *const *array, int size) {
 EXTERN_C_START
 char **backtrace_symbols(void *const *array, int size) { return NULL; }
 extern int backtrace(void **__array, int __size) __attribute__((nonnull(1))) { return 0; }
-}
 EXTERN_C_END
 #endif
 #endif

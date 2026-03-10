@@ -648,7 +648,6 @@ vason_index vason_get_str(vason_container *c, vason_index entry, fptr f) {
   }
   return -1;
 }
-vason_index vason_get_idx(vason_container *c, vason_index entry, vason_index f);
 vason_index vason_get_idx(vason_container *c, vason_index entry, vason_index f) {
   if (msList_len(c->tags) <= entry)
     return -1;
