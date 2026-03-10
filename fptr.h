@@ -4,9 +4,7 @@
   #include <stdalign.h>
   #include <stdbool.h>
   #include <stddef.h>
-  #include <stdlib.h>
   #include <string.h>
-  #include <wchar.h>
 
 typedef struct {
   usize width;
@@ -44,13 +42,9 @@ static bool operator!=(const slice_t<T> &a, const slice_t<T> &b) {
 }
   #endif
 
-  #define nullFptr ((fptr){0})
-
-  #define structEq(a, b) \
-    (fptr_eq(            \
-        fp_from(a),      \
-        fp_from(b)       \
-    ))
+// TODO check version
+constexpr fptr nullFptr = {};
+// #define nullFptr ((fptr){0, 0})
 
   #ifndef __cplusplus
 

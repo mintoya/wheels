@@ -4,6 +4,7 @@
 #include "../vason_arr.h"
 #include <ctype.h>
 
+#include "../wheels.h"
 slice(c8) read_stdin(AllocatorV allocator) {
   usize size = 0;
   c8 *data = NULL;
@@ -56,5 +57,5 @@ int main(int nargs, char *args[nargs]) {
     vason_lazy_expand(&parsed, current);
   parsed.current = current;
   println("{vason_container}", parsed);
+  println("{fptr}", vason_tostr(stdAlloc, parsed));
 }
-#include "../wheels.h"
