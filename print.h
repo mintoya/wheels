@@ -293,12 +293,6 @@ struct print_arg {
 // you can pass args with a printerid and a colon 
 // ex: "fptr<void>: c0 length"
 //
-// #include "printer/genericName.h"
-// MAKE_PRINT_ARG_TYPE(usize);
-// extends types assumed with ${} in c 
-// 
-// MAKE_PRINT_ARG_TYPE(usize);
-// does the same in cpp
 
   REGISTER_PRINTER(fptr, {
     if (in.ptr) {for(usize i = 0;i<in.width;i++){
@@ -497,32 +491,29 @@ struct print_arg {
   REGISTER_SPECIAL_PRINTER("i64", i64,{
     USETYPEPRINTER(isize, (isize)in);
   });
-// type assumption
-#ifndef __cplusplus
+#if !defined( __cplusplus )
 
-  #include "printer/genericName.h"
-  #define MAKE_PRINT_ARG_TYPE(type) MAKE_NEW_TYPE(type)
-  MAKE_PRINT_ARG_TYPE(fptr);
-  #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(isize);
-  #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(usize);
-  #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(f128);
-  #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(pEsc);
+  #define MAKE_PRINT_ARG_TYPE(type) type:fp_from(#type)
 #if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
-  #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(i32);
-  #include "printer/genericName.h"
-  MAKE_PRINT_ARG_TYPE(u32);
+#define MAKE_PRINTINTS MAKE_PRINT_ARG_TYPE(i32), MAKE_PRINT_ARG_TYPE(u32),
+#else
+#define MAKE_PRINTINTS
 #endif
-   
+
   #define MAKE_PRINT_ARG(a)               \
     ((struct print_arg){                  \
         .ref = REF(typeof(a), a),         \
-        .name = fp_from(GENERIC_NAME(a)), \
-    }),
+        .name = _Generic(a,\
+          MAKE_PRINT_ARG_TYPE(fptr),\
+          MAKE_PRINT_ARG_TYPE(isize),\
+          MAKE_PRINT_ARG_TYPE(usize),\
+          MAKE_PRINT_ARG_TYPE(f128),\
+          MAKE_PRINT_ARG_TYPE(pEsc),\
+          MAKE_PRINTINTS\
+          void*:fp_from("ptr"),\
+          default : nullFptr),\
+     }),
+   
   
   #else
   template <typename T>
@@ -532,8 +523,6 @@ struct print_arg {
     template <>                     \
     constexpr const char *type_name_cstr<type>(type arg) { return #type; }
   
-#if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
-#endif   
   MAKE_PRINT_ARG_TYPE(fptr);
   MAKE_PRINT_ARG_TYPE(isize);
   MAKE_PRINT_ARG_TYPE(usize);
@@ -630,15 +619,13 @@ inline fptr printer_arg_after(char delim, fptr slice) {
 inline fptr printer_arg_trim(fptr in) {
   while (
       in.width &&
-      in.ptr[0] <= ' '
-  ) {
+      in.ptr[0] <= ' ') {
     in.ptr++;
     in.width--;
   }
   while (
       in.width &&
-      in.ptr[in.width - 1] <= ' '
-  )
+      in.ptr[in.width - 1] <= ' ')
     in.width--;
   return in;
 }

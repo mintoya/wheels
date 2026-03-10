@@ -1,6 +1,5 @@
 const Vason = require("./vason.js");
-const exampleString = `
-{ 
+const exampleString = `{ 
     keyboard:{
       tapdances:{
         { taps:{ K:A }, holds:{M:la , M:ls }, }
@@ -25,6 +24,6 @@ const exampleString = `
         },
       },
     },
-} `;
+}`;
 const structure = Vason.parse(exampleString);
 console.dir(structure, { depth: 1000 });
