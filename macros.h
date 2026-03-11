@@ -76,4 +76,9 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define EQUAL_ANY_HELPER(a) a ||
   #define EQUAL_ANY(expr, ...) (APPLY_N((expr) == EQUAL_ANY_HELPER, __VA_ARGS__) 0)
 
+  #define each_VLAPTR(name, vla)                 \
+    typeof(vla[0][0]) *name = (typeof(name))vla; \
+    name < vla[1];                               \
+    name++
+
 #endif
