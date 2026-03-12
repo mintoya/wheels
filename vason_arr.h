@@ -582,6 +582,20 @@ vason_container vason_parseString(AllocatorV allocator, slice(c8) string) {
       tokens,
       &res
   );
+  if (msList_len(res.tags) > 1) { // something like a,b -> {a,b}, otherwise b will not be acessible
+    vason_span range = (vason_span){
+        .start = 1,
+        .end = msList_len(res.tags) + 1,
+    };
+    msList_ins(allocator, res.tags, 0, vason_TABLE);
+    msList_ins(allocator, res.tables_strings, 0, range);
+    for (vason_index i = range.start; i < range.end; i++) {
+      if (res.tags[i] == vason_TABLE) {
+        res.tables_strings[i].start++;
+        res.tables_strings[i].end++;
+      }
+    }
+  }
   vason_parse_level2(&res, tokens);
   res.current = 0;
   return res;
@@ -603,7 +617,22 @@ vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string) {
       *tokens,
       &res
   );
-  vason_parse_level2_it(&res, *tokens, 0);
+  if (msList_len(res.tags) > 1) { // something like a,b
+    vason_span range = (vason_span){
+        .start = 1,
+        .end = msList_len(res.tags) + 1,
+    };
+    msList_ins(allocator, res.tags, 0, vason_TABLE);
+    msList_ins(allocator, res.tables_strings, 0, range);
+    for (vason_index i = range.start; i < range.end; i++) {
+      if (res.tags[i] == vason_TABLE) {
+        res.tables_strings[i].start++;
+        res.tables_strings[i].end++;
+      }
+    }
+  } else
+    vason_parse_level2_it(&res, *tokens, 0);
+
   res.current = 0;
   res.tokens = bitcast(typeof(res.tokens), tokens);
   return res;
@@ -769,93 +798,5 @@ slice(c8) vason_tostr(AllocatorV allocator, vason_container c) {
   slice(c8) result = (slice(c8))slice_stat(*mList_vla(res));
   return result;
 }
-typedef struct vason_node vason_node;
-typedef struct vason_node {
-  vason_tag tag;
-  union {
-    struct vason_node *table;
-    struct vason_node *pair;
-    struct {
-      usize len;
-      c8 buffer[];
-    } *string;
-  };
-} vason_node;
-vason_node vason_node_newPair(AllocatorV a, vason_node string) {
-  assertMessage(string.tag == vason_STRING);
-  vason_node res = (vason_node){
-      .tag = vason_PAIR,
-      .pair = aCreate(a, vason_node, 2),
-  };
-  res.table[0] = string;
-  return res;
-}
-vason_node vason_node_newTable(AllocatorV a) {
-  return (vason_node){
-      .tag = vason_TABLE,
-      .table = msList_init(a, vason_node)
-  };
-}
-vason_node vason_node_newStr(AllocatorV a, slice(c8) str) {
-  vason_node res = (vason_node){
-      .tag = vason_STRING,
-      .string = (typeof(res.string))aAlloc(a, sizeof(res.string->len) + str.len)
-  };
-  memcpy(res.string->buffer, str.ptr, str.len);
-  res.string->len = str.len;
-  return res;
-}
-void vason_node_free(AllocatorV allocator, vason_node n) {
-  switch (n.tag) {
-    case vason_PAIR: {
-      aFree(allocator, n.pair);
-    } break;
-    case vason_TABLE: {
-      msList_deInit(allocator, n.table);
-    } break;
-    case vason_STRING: {
-      aFree(allocator, n.string);
-    } break;
-    default:
-      assertMessage(false, "no free for this node ");
-  }
-}
-void vason_node_freeRecursive(AllocatorV allocator, vason_node n) {
-  switch (n.tag) {
-    case vason_PAIR: {
-      vason_node_freeRecursive(allocator, n.pair[0]);
-      vason_node_freeRecursive(allocator, n.pair[1]);
-    } break;
-    case vason_TABLE: {
-      slice(vason_node) vs = (slice(vason_node)){
-          .len = msList_len(n.table),
-          .ptr = n.table,
-      };
-      for (each_slice(vs, item))
-        vason_node_freeRecursive(allocator, *item);
-    } break;
-    case vason_STRING:
-      break;
-    default:
-      assertMessage(false, "no free for this node ");
-  }
-  vason_node_free(allocator, n);
-}
 
-//{hello:hello}
-// int test(void) {
-//   vason_node topTable = vason_node_newTable(stdAlloc);
-//   c8 hello[] = "hello";
-//   msList_push(
-//       stdAlloc,
-//       topTable.table,
-//       vason_node_newPair(
-//           stdAlloc,
-//           vason_node_newStr(stdAlloc, slice_stat(hello))
-//       )
-//   );
-//   topTable.table[0].table[1] = vason_node_newStr(stdAlloc, slice_stat(hello));
-//   vason_node_freeRecursive(stdAlloc, topTable);
-//   return 0;
-// }
 #endif
