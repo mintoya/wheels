@@ -30,12 +30,11 @@ typedef void *(*const My_allocatorAlloc)(AllocatorV, size_t);
 typedef void (*const My_allocatorFree)(AllocatorV, void *);
 /**
  *  equivalent of realloc
- *    cannot return null
- *    cannot allocate 0
- *    allocation always aligned to max_align_t
+ *    intended to behave as if
+ *      same requirements as My_allocatorAlloc and My_allocatorFree
  *  @param 1 allocator
  *  @param 2 pointer    *non-null* pointer must've come from same allocator
- *  @param 3 size       new size of allocation
+ *  @param 3 size       new size of allocation, non-zero
  *  @return moved pointer
  */
 typedef void *(*const My_allocatorResize)(AllocatorV, void *, size_t);
@@ -46,7 +45,6 @@ typedef void *(*const My_allocatorResize)(AllocatorV, void *, size_t);
  *  @return uszble allocation size
  */
 typedef size_t (*const My_allocatorGetUsable)(AllocatorV, void *);
-
 
 typedef struct My_allocator {
   My_allocatorAlloc /*    */ alloc;

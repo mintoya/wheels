@@ -49,9 +49,9 @@ void __attribute__((noreturn)) _assertMessageFail(
     #define assertMessage(bool, ...) assert(bool)
   #endif
 #else
-  #define assertMessage(expr, ...) \
-    if (expr) {                    \
-      __builtin_trap();            \
+  #define assertMessage(expr, ...)      \
+    if (__builtin_expect(!(expr), 0)) { \
+      __builtin_trap();                 \
     }
 #endif
 #define assertOnce(...)           \
@@ -62,11 +62,14 @@ void __attribute__((noreturn)) _assertMessageFail(
     hasRun = true;                \
   } while (0)
 #endif
-#if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
+#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
 #define ASSERTMESSAGE_C (1)
 #endif
 #if defined(ASSERTMESSAGE_C) && !defined(noAssertMessage)
-#define ASSERTMESSAGE_OUTPUT(...) fprintf(stderr, __VA_ARGS__)
+
+// #if !defined(ASSERTMESSAGE_OUTPUT)
+//   #define ASSERTMESSAGE_OUTPUT(...) fprintf(stderr, __VA_ARGS__)
+// #endif
 #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
 #define ASSERTMESSAGE_PRINTRESET "\x1b[0m"
 #define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"
