@@ -1,10 +1,10 @@
 #include "../allocator.h"
 #include "../arenaAllocator.h"
 #include "../hhmap.h"
-#include "../my-list.h"
+#include "../mylist.h"
 #include "../print.h"
 int main(void) {
-  Arena_scoped *localArena = arena_new_ext(pageAllocator, 1024);
+  Arena_scoped *localArena = arena_new_ext(stdAlloc, 1024);
   mList(int) list = mList_init(localArena, int);
   // null since the list isnt that long
   // otherwise points *inside* list
@@ -27,7 +27,5 @@ int main(void) {
   mHmap_foreach(map, int, key, int, val, {
     println("{} -> {}", key, val);
   });
-  int intarr[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-  slice(int) test = slice_stat(intarr);
 }
 #include "../wheels.h"

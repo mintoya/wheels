@@ -6,7 +6,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#if defined(__linux__)
+#if __has_include(<execinfo.h>)
   #include <execinfo.h>
 #else
 EXTERN_C_START
@@ -49,7 +49,10 @@ void __attribute__((noreturn)) _assertMessageFail(
     #define assertMessage(bool, ...) assert(bool)
   #endif
 #else
-  #define assertMessage(...)
+  #define assertMessage(expr, ...)      \
+    if (__builtin_expect(!(expr), 0)) { \
+      __builtin_trap();                 \
+    }
 #endif
 #define assertOnce(...)           \
   do {                            \
@@ -59,11 +62,14 @@ void __attribute__((noreturn)) _assertMessageFail(
     hasRun = true;                \
   } while (0)
 #endif
-#if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
+#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
 #define ASSERTMESSAGE_C (1)
 #endif
 #if defined(ASSERTMESSAGE_C) && !defined(noAssertMessage)
-#define ASSERTMESSAGE_OUTPUT(...) fprintf(stderr, __VA_ARGS__)
+
+// #if !defined(ASSERTMESSAGE_OUTPUT)
+//   #define ASSERTMESSAGE_OUTPUT(...) fprintf(stderr, __VA_ARGS__)
+// #endif
 #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
 #define ASSERTMESSAGE_PRINTRESET "\x1b[0m"
 #define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"
@@ -106,10 +112,10 @@ void __attribute__((noreturn)) _assertMessageFail(
   __builtin_trap();
 }
 
-#if defined(__linux__)
+#if __has_include(<execinfo.h>)
   #include <execinfo.h>
   #include <unistd.h>
-#elif defined(_WIN32) || (_WIN64)
+#elif __has_include(<windows.h>) && __has_include ( <dbghelp.h> ) && __has_include ( <errhandlingapi.h> ) && __has_include ( <io.h> ) && __has_include ( <winbase.h> )
   //
   #include <windows.h>
   //
@@ -128,10 +134,11 @@ int __attribute__((nonnull(1))) backtrace(void **array, int size) {
 }
 
 char **backtrace_symbols(void *const *array, int size) {
-  char **result = (char **)malloc(sizeof(char *) * size + sizeof(char[512]) * size);
-  memset(result, 0, sizeof(char *) * size + sizeof(char[512]) * size);
+  thread_local static char backtraceResult[5][512];
+  thread_local static char *result[5];
+  size = size < countof(backtraceResult) ? size : countof(backtraceResult);
   for (int i = 0; i < size; i++)
-    result[i] = ((char *)result) + sizeof(char *) * size + sizeof(char[512]) * i;
+    result[i] = backtraceResult[i];
 
   HANDLE process = GetCurrentProcess();
 

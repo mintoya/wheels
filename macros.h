@@ -26,7 +26,7 @@
   #define DEFER_NAME(a, b) DEFER_CONCAT(a, b)
 
   #if defined(__cplusplus)
-    #pragma GCC warning "using cpp block defer"
+    #pragma GCC warning "using cpp closure defer"
     #include <memory>
 template <typename F>
 struct Deferrer {
@@ -75,5 +75,12 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define COUNT_ARGS(...) (__VA_OPT__(APPLY_N(COUNT_ONE_MACRO, __VA_ARGS__)) + 0)
   #define EQUAL_ANY_HELPER(a) a ||
   #define EQUAL_ANY(expr, ...) (APPLY_N((expr) == EQUAL_ANY_HELPER, __VA_ARGS__) 0)
+
+  #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
+
+  #define each_VLAPTR(name, vla)                 \
+    typeof(vla[0][0]) *name = (typeof(name))vla; \
+    name < vla[1];                               \
+    name++
 
 #endif

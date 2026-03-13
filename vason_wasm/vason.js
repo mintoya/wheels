@@ -1,4 +1,5 @@
-import VASONmodule from "./vason_parser.js";
+import VASONmoduleFactory from "./vason_wasm/vason_parser.js";
+const VASONmodule = await VASONmoduleFactory();
 function vasonToAST(vHandle) {
   if (!vHandle || !vHandle.isValid()) {
     if (vHandle) vHandle.delete();
@@ -107,7 +108,7 @@ class Vason {
     }
     if (this.data && this.data._array) {
       if (index >= this.data._array.length) {
-        for (var i = this.data._array.length - 1; i < index; i++) {
+        for (let i = this.data._array.length - 1; i < index; i++) {
           this.set(i, "");
         }
       }
@@ -143,4 +144,4 @@ class Vason {
     return astToVason(this.data);
   }
 }
-module.exports = Vason;
+export default Vason;

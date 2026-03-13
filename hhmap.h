@@ -165,21 +165,20 @@ using mHmap_t = Tb (**)(HMap *, Ta);
     mHmap_init_length(allocator, keytype, valtype __VA_OPT__(, __VA_ARGS__), 32)
   #define mHmap_deinit(map) ({ HMap_free((HMap *)map); })
 
-  #define mHmap_set(map, key, val)                       \
-    do {                                                 \
-      typeof(key) _k = (key);                            \
-      typeof((*map)(nullptr, key)) _v = (val);           \
-      static_assert(                                     \
-          equaltypes_mHmap(                              \
-              mHmap(typeof(_k), typeof(_v)), typeof(map) \
-          ),                                             \
-          ""                                             \
-      );                                                 \
-      HMap_fset(                                         \
-          (HMap *)map,                                   \
-          fp_from(_k),                                   \
-          &_v                                            \
-      );                                                 \
+  #define mHmap_set(map, key, val)                           \
+    do {                                                     \
+      typeof(key) _k = (key);                                \
+      typeof((*map)(nullptr, key)) _v = (val);               \
+      static_assert(                                         \
+          equaltypes_mHmap(                                  \
+              mHmap(typeof(_k), typeof(_v)), typeof(map)     \
+          ),                                                 \
+          ""                                                 \
+      );                                                     \
+      HMap_fset(                                             \
+          (HMap *)map,                                       \
+          (fptr){sizeof(_k), (u8 *)REF(typeof(_k), _k)} & _v \
+      );                                                     \
     } while (0)
 
   #define mHmap_foreach(map, keyType, keyDec, valType, valDec, ...)     \
@@ -210,20 +209,19 @@ using mHmap_t = Tb (**)(HMap *, Ta);
       }                                                                 \
     }
 
-  #define mHmap_rem(map, key)                                   \
-    do {                                                        \
-      static_assert(                                            \
-          equaltypes_mHmap(                                     \
-              mHmap(typeof(key), typeof((*map)(nullptr, key))), \
-              typeof(map)                                       \
-          ),                                                    \
-          ""                                                    \
-      );                                                        \
-      HMap_fset(                                                \
-          (HMap *)map,                                          \
-          fp_from(key),                                         \
-          nullptr                                               \
-      );                                                        \
+  #define mHmap_rem(map, key)                                         \
+    do {                                                              \
+      static_assert(                                                  \
+          equaltypes_mHmap(                                           \
+              mHmap(typeof(key), typeof((*map)(nullptr, key))),       \
+              typeof(map)                                             \
+          ),                                                          \
+          ""                                                          \
+      );                                                              \
+      HMap_fset(                                                      \
+          (HMap *)map,                                                \
+          (fptr) { sizeof(key), (u8 *)REF(typeof(key), key) } nullptr \
+      );                                                              \
     } while (0)
 
   #define mHmap_get(map, key)                                   \
@@ -238,7 +236,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
       (typeof((*map)(nullptr, key)) *)                          \
           HMap_fget_ns(                                         \
               (HMap *)map,                                      \
-              fp_from(key)                                      \
+              (fptr){sizeof(key), (u8 *)REF(typeof(key), key)}  \
           );                                                    \
     })
   #define mHmap_clear(map) HMap_clear((HMap *)map)

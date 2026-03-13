@@ -15,6 +15,12 @@
 #endif
 #undef STRING_LIST_C
 
+#ifdef VASON_BUILDER_H
+  #define VASON_BUILDER_C (1)
+  #include "vason_tree.h"
+#endif
+#undef VASON_BUILDER_H
+
 #ifdef VASON_PARSER_H
   #define VASON_PARSER_C (1)
   #include "vason_arr.h"

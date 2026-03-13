@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// #define MY_ALLOCATOR_STRICTEST
+#define MY_ALLOCATOR_STRICTEST
 
 __attribute__((const)) extern inline uintptr_t lineup(uintptr_t unaligned, size_t aligneder) {
   return (unaligned / aligneder + !!(unaligned % aligneder)) *
@@ -30,12 +30,11 @@ typedef void *(*const My_allocatorAlloc)(AllocatorV, size_t);
 typedef void (*const My_allocatorFree)(AllocatorV, void *);
 /**
  *  equivalent of realloc
- *    cannot return null
- *    cannot allocate 0
- *    allocation always aligned to max_align_t
+ *    intended to behave as if
+ *      same requirements as My_allocatorAlloc and My_allocatorFree
  *  @param 1 allocator
  *  @param 2 pointer    *non-null* pointer must've come from same allocator
- *  @param 3 size       new size of allocation
+ *  @param 3 size       new size of allocation, non-zero
  *  @return moved pointer
  */
 typedef void *(*const My_allocatorResize)(AllocatorV, void *, size_t);
@@ -46,7 +45,6 @@ typedef void *(*const My_allocatorResize)(AllocatorV, void *, size_t);
  *  @return uszble allocation size
  */
 typedef size_t (*const My_allocatorGetUsable)(AllocatorV, void *);
-
 
 typedef struct My_allocator {
   My_allocatorAlloc /*    */ alloc;
@@ -61,7 +59,7 @@ void *aResize(AllocatorV allocator, void *oldptr, size_t size);
 void aFree(AllocatorV allocator, void *oldptr);
 
 #define aCreateHelper(allocator, type, count, ...) \
-  ({type* res = ((type *)(aAlloc(allocator, sizeof(type) * count)));__builtin_memset(res,0,sizeof(type)*count);   res; })
+  ({type* _res = ((type *)(aAlloc(allocator, sizeof(type) * count)));__builtin_memset(_res,0,sizeof(type)*count);   _res; })
 #define aCreate(allocator, type, ...) \
   aCreateHelper(allocator, type __VA_OPT__(, __VA_ARGS__), 1)
 
@@ -83,7 +81,7 @@ void *aAlloc(AllocatorV allocator, size_t size) {
   void *res = (allocator)->alloc(allocator, size);
 #ifdef MY_ALLOCATOR_STRICTEST
   assertMessage(res, "allocators cant return null");
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
+  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "wrong alignment out of allocator");
 #endif
   return res;
 }
@@ -95,7 +93,7 @@ void *aResize(AllocatorV allocator, void *oldptr, size_t size) {
   void *res = (allocator)->resize(allocator, oldptr, size);
 #ifdef MY_ALLOCATOR_STRICTEST
   assertMessage(res, "allocators cant return null");
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
+  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "wrong alignment out of allocator");
 #endif
   return res;
 }
@@ -133,7 +131,7 @@ usize default_size(AllocatorV allocator, void *ptr) {
   return getSize(ptr);
 }
 #endif // DEFAULT_SIZE_GETTER
-AllocatorV stdAlloc = (My_allocator[1]){{
+AllocatorV stdAlloc = (typeof(stdAlloc))(My_allocator[1]){{
     default_alloc,
     default_free,
     default_r_alloc,

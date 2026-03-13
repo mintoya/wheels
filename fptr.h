@@ -42,9 +42,11 @@ static bool operator!=(const slice_t<T> &a, const slice_t<T> &b) {
 }
   #endif
 
-// TODO check version
-constexpr fptr nullFptr = {};
-// #define nullFptr ((fptr){0, 0})
+  #if defined(__cplusplus) || (defined(__STDC__VERSION__) && __STDC__VERSION__ >= 202311L)
+constexpr fptr nullFptr = {0, nullptr};
+  #else
+    #define nullFptr ((fptr){0, 0})
+  #endif
 
   #ifndef __cplusplus
 
