@@ -24,6 +24,7 @@ typedef struct vason_node {
 } vason_node;
 void vason_node_free(AllocatorV allocator, vason_node n);
 void vason_node_freeRecursive(AllocatorV allocator, vason_node n);
+usize vason_node_footprint(vason_node n);
 vason_node vason_node_newPair(AllocatorV a);
 vason_node vason_node_makePair(AllocatorV a, vason_node key, vason_node val);
 vason_node vason_node_newTable(AllocatorV a);
@@ -51,11 +52,7 @@ void vason_node_freeRecursive(AllocatorV allocator, vason_node n) {
       vason_node_freeRecursive(allocator, n.pair[1]);
     } break;
     case vason_TABLE: {
-      slice(vason_node) vs = (slice(vason_node)){
-          .len = msList_len(n.table),
-          .ptr = n.table,
-      };
-      for (each_slice(vs, item))
+      for (each_VLAPTR(item, msList_vla(n.table)))
         vason_node_freeRecursive(allocator, *item);
     } break;
     case vason_STRING:
@@ -96,7 +93,7 @@ vason_node vason_node_newTable(AllocatorV a) {
 vason_node vason_node_newStr(AllocatorV a, slice(c8) str) {
   vason_node res = (vason_node){
       .tag = vason_STRING,
-      .string = (typeof(res.string))aAlloc(a, sizeof(res.string) + str.len)
+      .string = (typeof(res.string))aAlloc(a, sizeof(res.string[0]) + str.len)
   };
   memcpy(res.string->buffer, str.ptr, str.len);
   res.string->len = str.len;
@@ -210,5 +207,26 @@ vason_node vason_container_toNode(AllocatorV allocator, vason_container c) {
   }
   assertMessage(false, "unreachable?");
   return (vason_node){};
+}
+usize vason_node_footprint(vason_node n) {
+  switch (n.tag) {
+    case vason_PAIR: {
+      return vason_node_footprint(n.pair[0]) + vason_node_footprint(n.pair[1]) + sizeof(n.pair[0]) * 2;
+    } break;
+    case vason_TABLE: {
+      usize res = 0;
+      res += sizeof(*msList_vla(n.table)) + sizeof(sList_header);
+      for (each_VLAPTR(item, msList_vla(n.table)))
+        res += vason_node_footprint(*item);
+      return res;
+    } break;
+    case vason_STRING:
+      return sizeof(n.string[0]) + n.string->len;
+      break;
+    default:
+      assertMessage(false, "no free for this node ");
+  }
+  assertMessage(false, "no free for this node ");
+  return 0;
 }
 #endif

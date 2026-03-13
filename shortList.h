@@ -2,6 +2,7 @@
   #define SHORT_LIST_H (1)
   #include "allocator.h"
   #include "assertMessage.h"
+  #include "macros.h"
   #include "mytypes.h"
   #include "stdalign.h"
   #include "string.h"
@@ -118,7 +119,7 @@ extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
   #define msList_len(s) (msList_header(s)->length)
   #define msList_cap(s) (msList_header(s)->capacity)
   #define msList_pop(s) ((s)[--msList_header(s)->length])
-  #define msList_vla(s) ((typeof(typeof(*s))(*)[msList_len(s)])s)
+  #define msList_vla(s) (VLAP(s, msList_len(s)))
   #define msList_reserve(allocator, s, new_cap)                                              \
     do {                                                                                     \
       if (msList_cap(s) < (new_cap))                                                         \

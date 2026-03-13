@@ -1,3 +1,4 @@
+#include "../mylist.h"
 #include "../print.h"
 #include "../wheels.h"
 typedef struct {
@@ -12,9 +13,6 @@ REGISTER_PRINTER(point, {
   USETYPEPRINTER(int, in.y);
   PUTS(U"}");
 })
-
-#include "../printer/genericName.h" // advances typenaems
-MAKE_PRINT_ARG_TYPE(point);
 
 int main() {
   mList(point) points = mList_init(stdAlloc, point);

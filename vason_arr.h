@@ -39,6 +39,7 @@ typedef struct {
 
 vason_container vason_container_create(slice(c8) text, AllocatorV allocator);
 void vason_container_free(vason_container container);
+usize vason_container_footprint(vason_container c);
 
 struct vason_getArg {
   struct {
@@ -737,24 +738,42 @@ void vason_lazy_expand(vason_container *c, vason_index current) {
       break;
   }
 }
-slice(c8) vason_tostr(AllocatorV allocator, vason_container c) {
-  mList(c8) res = mList_init(allocator, c8);
-  defer { aFree(allocator, res); };
-
+void vason_tostr_lesser(vason_container c, mList(c8) res) {
   switch (c.tags[c.current]) {
     case vason_STRING: {
       vason_span vs = c.tables_strings[c.current];
       bool escaped = false;
+
+      vason_index count = 0;
       for (auto i = vs.start; i < vs.end; i++) {
-        if (escaped) {
+        vason_token_t token = to_token(c.text.ptr[i]);
+        if (escaped)
           escaped = false;
-        } else if (to_token(c.text.ptr[i]) == vason_ESCAPE) {
+        else if (token == vason_ESCAPE)
           escaped = true;
-        } else if (to_token(c.text.ptr[i]) != vason_STR) {
+        else if (token != vason_STR)
+          count++;
+      }
+
+      escaped = false;
+      if (count >= 2)
+        mList_push(res, '"');
+
+      for (auto i = vs.start; i < vs.end; i++) {
+        vason_token_t token = to_token(c.text.ptr[i]);
+        if (escaped)
+          escaped = false;
+        else if (token == vason_ESCAPE)
+          escaped = true;
+        else if (count < 2 && token != vason_STR)
           mList_push(res, '\\');
-        }
+        else if (count >= 2 && token == vason_STR_DELIM)
+          mList_push(res, '\\');
         mList_push(res, c.text.ptr[i]);
       }
+
+      if (count >= 2)
+        mList_push(res, '"');
     } break;
     case vason_PAIR: {
       vason_span vs = c.tables_strings[c.current];
@@ -767,9 +786,7 @@ slice(c8) vason_tostr(AllocatorV allocator, vason_container c) {
             .tables_strings = c.tables_strings,
             .text = c.text,
         };
-        slice(c8) that = vason_tostr(allocator, temp);
-        defer { aFree(allocator, that.ptr); };
-        mList_pushVla(res, *slice_vla(that));
+        vason_tostr_lesser(temp, res);
       }
     } break;
     case vason_TABLE: {
@@ -784,9 +801,7 @@ slice(c8) vason_tostr(AllocatorV allocator, vason_container c) {
             .tables_strings = c.tables_strings,
             .text = c.text,
         };
-        slice(c8) that = vason_tostr(allocator, temp);
-        defer { aFree(allocator, that.ptr); };
-        mList_pushVla(res, *slice_vla(that));
+        vason_tostr_lesser(temp, res);
       }
       mList_push(res, '}');
     } break;
@@ -794,9 +809,25 @@ slice(c8) vason_tostr(AllocatorV allocator, vason_container c) {
     case vason_INVALID: {
     } break;
   }
+}
+slice(c8) vason_tostr(AllocatorV allocator, vason_container c) {
+  mList(c8) res = mList_init(allocator, c8);
+  defer { aFree(allocator, res); };
+
+  vason_tostr_lesser(c, res);
 
   slice(c8) result = (slice(c8))slice_stat(*mList_vla(res));
   return result;
+}
+usize vason_container_footprint(vason_container c) {
+  usize res = 0;
+  res += sizeof(*msList_vla(c.tags)) + sizeof(sList_header);
+  res += sizeof(*msList_vla(c.tables_strings)) + sizeof(sList_header);
+  if (c.tokens) {
+    res += sizeof(c.tokens);
+    res += sizeof(c.tokens->ptr[0]) * c.tokens->len;
+  }
+  return res;
 }
 
 #endif

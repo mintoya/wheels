@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// #define MY_ALLOCATOR_STRICTEST
+#define MY_ALLOCATOR_STRICTEST
 
 __attribute__((const)) extern inline uintptr_t lineup(uintptr_t unaligned, size_t aligneder) {
   return (unaligned / aligneder + !!(unaligned % aligneder)) *
@@ -81,7 +81,7 @@ void *aAlloc(AllocatorV allocator, size_t size) {
   void *res = (allocator)->alloc(allocator, size);
 #ifdef MY_ALLOCATOR_STRICTEST
   assertMessage(res, "allocators cant return null");
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
+  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "wrong alignment out of allocator");
 #endif
   return res;
 }
@@ -93,7 +93,7 @@ void *aResize(AllocatorV allocator, void *oldptr, size_t size) {
   void *res = (allocator)->resize(allocator, oldptr, size);
 #ifdef MY_ALLOCATOR_STRICTEST
   assertMessage(res, "allocators cant return null");
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "allocator: %p pointer: %p", allocator, res);
+  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "wrong alignment out of allocator");
 #endif
   return res;
 }
@@ -131,7 +131,7 @@ usize default_size(AllocatorV allocator, void *ptr) {
   return getSize(ptr);
 }
 #endif // DEFAULT_SIZE_GETTER
-AllocatorV stdAlloc = (My_allocator[1]){{
+AllocatorV stdAlloc = (typeof(stdAlloc))(My_allocator[1]){{
     default_alloc,
     default_free,
     default_r_alloc,
