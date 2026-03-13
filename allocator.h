@@ -59,7 +59,7 @@ void *aResize(AllocatorV allocator, void *oldptr, size_t size);
 void aFree(AllocatorV allocator, void *oldptr);
 
 #define aCreateHelper(allocator, type, count, ...) \
-  ({type* res = ((type *)(aAlloc(allocator, sizeof(type) * count)));__builtin_memset(res,0,sizeof(type)*count);   res; })
+  ({type* _res = ((type *)(aAlloc(allocator, sizeof(type) * count)));__builtin_memset(_res,0,sizeof(type)*count);   _res; })
 #define aCreate(allocator, type, ...) \
   aCreateHelper(allocator, type __VA_OPT__(, __VA_ARGS__), 1)
 
