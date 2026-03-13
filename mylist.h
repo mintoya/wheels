@@ -261,13 +261,14 @@ using mList_t = T (**)(List *);
   do {                                     \
     List_resize((List *)(list), capacity); \
   } while (0)
-#define mList_pushVla(list, vla)                                       \
-  do {                                                                 \
-    List_appendFromArr((List *)list, vla, sizeof(vla) / sizeof(*vla)); \
+#define mList_pushArr(list, vla)                                           \
+  do {                                                                     \
+    static_assert(_Generic(vla[0], mList_iType(list): 1, default: 0), ""); \
+    List_appendFromArr((List *)list, vla, sizeof(vla) / sizeof(vla[0]));   \
   } while (0)
-#define mList_insertVla(list, position, vla)                                     \
-  do {                                                                           \
-    List_insertFromArr((List *)list, vla, sizeof(vla) / sizeof(*vla), position); \
+#define mList_instArr(list, position, vla)                                         \
+  do {                                                                             \
+    List_insertFromArr((List *)list, vla, sizeof(vla) / sizeof(vla[0]), position); \
   } while (0)
 #define mList_sortedSearch(list, sorterFunction, val) ({   \
   mList_iType(list) value = val;                           \

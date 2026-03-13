@@ -15,7 +15,7 @@ typedef struct vason_node {
   vason_tag tag;
   union {
     struct vason_node *table;
-    struct vason_node *pair;
+    struct vason_node(*pair);
     struct {
       usize len;
       c8 buffer[];
@@ -115,8 +115,8 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
           .start = tableStart,
           .end = tableStart + msList_len(n.table)
       };
-      msList_pushArr(c->allocator, c->tables_strings, (vason_span(*)[msList_len(n.table)])NULL);
-      msList_pushArr(c->allocator, c->tags, (vason_tag(*)[msList_len(n.table)])NULL);
+      msList_pushArr(c->allocator, c->tables_strings, *VLAP((vason_span *)NULL, msList_len(n.table)));
+      msList_pushArr(c->allocator, c->tags, *VLAP((vason_tag *)NULL, msList_len(n.table)));
       for (auto j = c->tables_strings[i].start; j < c->tables_strings[i].end; j++)
         vason_node_intoContainer(c, n.table[j - c->tables_strings[i].start], j);
     } break;
@@ -126,8 +126,8 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
           .start = tableStart,
           .end = tableStart + 2,
       };
-      msList_pushArr(c->allocator, c->tables_strings, (vason_span(*)[2])NULL);
-      msList_pushArr(c->allocator, c->tags, (vason_tag(*)[2])NULL);
+      msList_pushArr(c->allocator, c->tables_strings, *((vason_span(*)[2])NULL));
+      msList_pushArr(c->allocator, c->tags, *((vason_tag(*)[2])NULL));
       vason_node_intoContainer(c, n.pair[0], tableStart);
       vason_node_intoContainer(c, n.pair[1], tableStart + 1);
     } break;
@@ -140,7 +140,7 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
       msList_pushArr(
           c->allocator,
           c->text.ptr,
-          (c8(*)[n.string->len])(n.string->buffer)
+          *VLAP(n.string->buffer, n.string->len)
       );
     } break;
     default:
@@ -169,7 +169,7 @@ vason_container vason_node_toContainer(AllocatorV allocator, vason_node n, c8 **
   return res;
 }
 vason_node vason_container_toNode(AllocatorV allocator, vason_container c) {
-  assertMessage(!c.tokens);
+  assertMessage(!c.tokens, "no lazy containers");
   switch (c.tags[c.current]) {
     case vason_STRING: {
       vason_span vs = c.tables_strings[c.current];
@@ -182,24 +182,20 @@ vason_node vason_container_toNode(AllocatorV allocator, vason_container c) {
       vason_span vs = c.tables_strings[c.current];
       res = vason_node_newTable(allocator);
       msList_reserve(allocator, res.table, vs.end - vs.start);
-      vason_index current = c.current;
       for (auto i = vs.start; i < vs.end; i++) {
         c.current = i;
         msList_push(allocator, res.table, vason_container_toNode(allocator, c));
       }
-      c.current = current;
       return res;
     } break;
     case vason_PAIR: {
       vason_node res;
       vason_span vs = c.tables_strings[c.current];
       res = vason_node_newPair(allocator);
-      vason_index current = c.current;
       c.current = vs.start;
       res.pair[0] = vason_container_toNode(allocator, c);
       c.current = vs.start + 1;
       res.pair[1] = vason_container_toNode(allocator, c);
-      c.current = current;
       return res;
     } break;
     default:
