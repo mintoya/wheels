@@ -9,13 +9,14 @@
  * the recursive free should work for all items
  *
  * mostlybecause msList needs a modifiable pointer
+ * TODO do something about vason_INVALID
  */
 typedef struct vason_node vason_node;
 typedef struct vason_node {
   vason_tag tag;
   union {
     struct vason_node *table;
-    struct vason_node(*pair);
+    struct vason_node *pair;
     struct {
       usize len;
       c8 buffer[];
@@ -115,10 +116,10 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
           .start = tableStart,
           .end = tableStart + msList_len(n.table)
       };
-      msList_pushArr(c->allocator, c->tables_strings, *VLAP((vason_span *)NULL, msList_len(n.table)));
-      msList_pushArr(c->allocator, c->tags, *VLAP((vason_tag *)NULL, msList_len(n.table)));
-      for (auto j = c->tables_strings[i].start; j < c->tables_strings[i].end; j++)
-        vason_node_intoContainer(c, n.table[j - c->tables_strings[i].start], j);
+      msList_pushVla(c->allocator, c->tables_strings, VLAP((vason_span *)NULL, msList_len(n.table)));
+      msList_pushVla(c->allocator, c->tags, VLAP((vason_tag *)NULL, msList_len(n.table)));
+      for (each_VLAPTR(item, msList_vla(n.table)))
+        vason_node_intoContainer(c, *item, tableStart++);
     } break;
     case vason_PAIR: {
       vason_index tableStart = msList_len(c->tables_strings);
@@ -126,8 +127,8 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
           .start = tableStart,
           .end = tableStart + 2,
       };
-      msList_pushArr(c->allocator, c->tables_strings, *((vason_span(*)[2])NULL));
-      msList_pushArr(c->allocator, c->tags, *((vason_tag(*)[2])NULL));
+      msList_pushVla(c->allocator, c->tables_strings, VLAP((vason_span *)NULL, 2));
+      msList_pushVla(c->allocator, c->tags, VLAP((vason_tag *)NULL, 2));
       vason_node_intoContainer(c, n.pair[0], tableStart);
       vason_node_intoContainer(c, n.pair[1], tableStart + 1);
     } break;

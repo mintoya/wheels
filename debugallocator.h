@@ -19,7 +19,11 @@ struct dbgAlloc_config {
  *      - backend allocator, it will also store itself here
  * `@return` debug allocator
  */
-My_allocator *debugAllocatorInit(struct dbgAlloc_config config);
+AllocatorV debugAllocatorInit(struct dbgAlloc_config config);
+struct debugStats {
+  isize max_memory, current_memory, total_calls;
+};
+struct debugStats debugAllocator_stats(AllocatorV allocator);
 #define PREPEND_DOT_MAC(...) .__VA_ARGS__,
 #define debugAllocator(...) ({                     \
   struct dbgAlloc_config config = {                \
@@ -36,7 +40,7 @@ My_allocator *debugAllocatorInit(struct dbgAlloc_config config);
  *      - will free itself along with any leaks it finds
  *      - will print traces to stdout
  */
-int debugAllocatorDeInit(My_allocator *allocator);
+int debugAllocatorDeInit(AllocatorV);
 
 #endif // MY_DEBUG_ALLOCATOR_H
 
@@ -64,8 +68,15 @@ void *debugAllocator_alloc(AllocatorV allocator, usize size);
 void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size);
 void debugAllocator_free(AllocatorV allocator, void *ptr);
 
-usize debugAllocator_size(AllocatorV allocator, void *ptr);
-My_allocator *debugAllocatorInit(struct dbgAlloc_config config) {
+struct debugStats debugAllocator_stats(AllocatorV allocator) {
+  debugAllocatorInternals internals = *(debugAllocatorInternals *)allocator->arb;
+  return (struct debugStats){
+      internals.config.track_total ? (isize)internals.max : -1,
+      internals.config.track_total ? (isize)internals.current : -1,
+      (isize)internals.total,
+  };
+}
+AllocatorV debugAllocatorInit(struct dbgAlloc_config config) {
   AllocatorV allocator = config.allocator;
   Debug_allocator_block *res = aCreate(allocator, Debug_allocator_block);
   res->internals[0] = (debugAllocatorInternals){
@@ -85,7 +96,8 @@ My_allocator *debugAllocatorInit(struct dbgAlloc_config config) {
   memcpy(res->allocator, &deffaultDebugAllocator, sizeof(My_allocator));
   return res->allocator;
 }
-int debugAllocatorDeInit(My_allocator *allocator) {
+
+int debugAllocatorDeInit(AllocatorV allocator) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
   usize leaks = 0;
@@ -135,7 +147,7 @@ int debugAllocatorDeInit(My_allocator *allocator) {
       }
   );
   mHmap_deinit(internals->map);
-  aFree(realAllocator, allocator);
+  aFree(realAllocator, (void *)allocator);
   return leaks;
 }
 

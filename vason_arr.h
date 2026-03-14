@@ -53,8 +53,8 @@ struct vason_getArg {
   };
 };
 
-  #if defined(MY_PRINTER_H)
-    #include "print.h"
+#if defined(MY_PRINTER_H)
+  #include "print.h"
 REGISTER_PRINTER(vason_container, {
   if (in.current >= msList_len(in.tags) || in.tags[in.current] & vason_INVALID) {
     PUTS(U"(!)");
@@ -94,7 +94,7 @@ REGISTER_PRINTER(vason_container, {
     } break;
     case vason_STRING: {
       vason_span vs = in.tables_strings[in.current];
-      USETYPEPRINTER(fptr, ((fptr){(usize)vs.end - vs.start, vs.start + in.text.ptr}));
+      USENAMEDPRINTER("slice(c8)", ((fptr){(usize)vs.end - vs.start, vs.start + in.text.ptr}));
     } break;
     case vason_TABLE: {
       vason_span vs = in.tables_strings[in.current];
@@ -110,34 +110,34 @@ REGISTER_PRINTER(vason_container, {
     } break;
   }
 });
-  #endif
+#endif
 
 // referance requred since lazy containers modify tehmselves
 vason_index vason_get_str(vason_container *c, vason_index entry, fptr f);
 vason_index vason_get_idx(vason_container *c, vason_index entry, vason_index f);
-  #include "macros.h"
-  #define MAKE_VASONS_GET_ARG(arg)                                                           \
-    _Generic(                                                                                \
-        arg,                                                                                 \
-        i32: (struct vason_getArg){.is_unsigned_integer = 1, ._u32 = REF(typeof(arg), arg)}, \
-        u32: (struct vason_getArg){.is_unsigned_integer = 1, ._u32 = REF(typeof(arg), arg)}, \
-        fptr: (struct vason_getArg){.is_fat_pointer = 1, ._fptr = REF(typeof(arg), arg)}     \
-    ),
-  #define vason_get(container, entry, ...)                                                    \
-    ({                                                                                        \
-      vason_get_func(                                                                         \
-          container, entry,                                                                   \
-          (struct vason_getArg[]){                                                            \
-              APPLY_N(MAKE_VASONS_GET_ARG, __VA_ARGS__)(struct vason_getArg){.terminator = 1} \
-          }                                                                                   \
-      );                                                                                      \
-    })
+#include "macros.h"
+#define MAKE_VASONS_GET_ARG(arg)                                                           \
+  _Generic(                                                                                \
+      arg,                                                                                 \
+      i32: (struct vason_getArg){.is_unsigned_integer = 1, ._u32 = REF(typeof(arg), arg)}, \
+      u32: (struct vason_getArg){.is_unsigned_integer = 1, ._u32 = REF(typeof(arg), arg)}, \
+      fptr: (struct vason_getArg){.is_fat_pointer = 1, ._fptr = REF(typeof(arg), arg)}     \
+  ),
+#define vason_get(container, entry, ...)                                                    \
+  ({                                                                                        \
+    vason_get_func(                                                                         \
+        container, entry,                                                                   \
+        (struct vason_getArg[]){                                                            \
+            APPLY_N(MAKE_VASONS_GET_ARG, __VA_ARGS__)(struct vason_getArg){.terminator = 1} \
+        }                                                                                   \
+    );                                                                                      \
+  })
 
 vason_index vason_get_func(vason_container *c, vason_index entry, struct vason_getArg *argTypes);
 
 vason_container vason_parseString(AllocatorV allocator, slice(c8) string);
 vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string);
-  #if defined __cplusplus
+#if defined __cplusplus
 typedef struct vason {
   vason_container *origional;
   vason_index place;
@@ -219,7 +219,7 @@ typedef struct vason {
                : nullFptr;
   }
   explicit operator bool() const { return tag() != vason_INVALID; }
-    #if defined(__EMSCRIPTEN__)
+  #if defined(__EMSCRIPTEN__)
   bool is_top() {
     return (origional->current == place);
   }
@@ -228,11 +228,11 @@ typedef struct vason {
     assertMessage(origional->current == place, "lost the plot");
     vason_container_free(*origional);
   }
-    #endif
+  #endif
 } vason;
 
-    #if defined(__EMSCRIPTEN__)
-      #include <emscripten/bind.h>
+  #if defined(__EMSCRIPTEN__)
+    #include <emscripten/bind.h>
 using namespace emscripten;
 
 vason vason_get_idx_wrapper(vason &v, usize idx) { return v[idx]; }
@@ -275,8 +275,8 @@ EMSCRIPTEN_BINDINGS(vason_module) {
              return vason{res, 0};
            }));
 }
-    #endif
   #endif
+#endif
 void vason_lazy_expand(vason_container *c, vason_index current);
 slice(c8) vason_tostr(AllocatorV allocator, vason_container c);
 

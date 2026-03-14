@@ -1,5 +1,6 @@
 #ifndef MY_TYPES
 #define MY_TYPES
+#include "macros.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -136,10 +137,8 @@ struct nullable_t {
   {sizeof(s) / sizeof((s)[0]), (typeof(s[0]) *)(s)}
 #define slice_vla(s) ((typeof(typeof(s.ptr[0]))(*)[s.len])s.ptr)
 
-#define each_slice(slice, e)       \
-  typeof(slice.ptr) e = slice.ptr; \
-  e < slice.ptr + slice.len;       \
-  e++
+#define each_slice(e, slice) \
+  each_VLAPTR(e, slice_vla(slice))
 
 #define nullable_fromPtr(T, ptr)          \
   {                                       \

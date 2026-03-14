@@ -57,7 +57,7 @@ extern inline sList_header *sList_append(AllocatorV allocator, sList_header *l, 
 }
 extern inline sList_header *sList_appendFromArr(AllocatorV allocator, sList_header *l, usize width, void *source, usize ammount) {
   if (!ammount)
-    return NULL;
+    return l;
   if (l->capacity < l->length + ammount)
     l = sList_realloc(allocator, l, width, l->length + ammount);
   uint8_t *dest = l->buf + l->length * width;
@@ -123,6 +123,18 @@ extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
               countof(vla)                                              \
       )                                                                 \
               ->buf;                                                    \
+    } while (0)
+  #define msList_pushVla(allocator, s, vla)                                \
+    do {                                                                   \
+      static_assert(_Generic(vla[0][0], typeof(s[0]): 1, default: 0), ""); \
+      s = (typeof(s))sList_appendFromArr(                                  \
+              allocator,                                                   \
+              msList_header(s),                                            \
+              sizeof(s[0]),                                                \
+              vla,                                                         \
+              countof(vla[0])                                              \
+      )                                                                    \
+              ->buf;                                                       \
     } while (0)
   #define msList_len(s) (msList_header(s)->length)
   #define msList_cap(s) (msList_header(s)->capacity)

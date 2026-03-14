@@ -179,10 +179,10 @@ static printerFunction PrinterSingleton_get(fptr name) {
 // arg utils
 // clang-format off
 
-  unsigned int printer_arg_indexOf(fptr string, char c);
-  fptr printer_arg_until(char delim, fptr string) ;
-  fptr printer_arg_after(char delim, fptr slice) ;
-  fptr printer_arg_trim(fptr in) ;
+unsigned int printer_arg_indexOf(fptr string, char c);
+fptr printer_arg_until(char delim, fptr string) ;
+fptr printer_arg_after(char delim, fptr slice) ;
+fptr printer_arg_trim(fptr in) ;
 
 // clang-format on
 
@@ -280,264 +280,275 @@ struct print_arg {
 
 // examples with builtin types
 // the behavior of PUTS is modular
-// 
+//
 // for building printers
 // USENAMEDPRINTER(printerid,value)
 // USETYPEPRINTER(type,value)
 //
 // typeprinter skips the search
 // named printer skips the string parsing
-// use print_wf with "put" as the ouputFunction 
+// use print_wf with "put" as the ouputFunction
 // to keep output consistant, but that makes it recursive
-// 
-// you can pass args with a printerid and a colon 
+//
+// you can pass args with a printerid and a colon
 // ex: "fptr<void>: c0 length"
 //
 
-  REGISTER_PRINTER(fptr, {
-    if (in.ptr) {for(usize i = 0;i<in.width;i++){
-      c32 c = (c32)in.ptr[i];
-      PUTC(c);
-    }} else { PUTS(U"__NULLFPTR__"); }
-  });
-  REGISTER_SPECIAL_PRINTER("ptr", void*,{
-    uintptr_t v = (uintptr_t)in;
-    PUTS(U"0x");
+REGISTER_SPECIAL_PRINTER_NEEDID(_void_ptr_printerfn,"ptr", void *, {
+  uintptr_t v = (uintptr_t)in;
+  PUTS(U"0x");
 
-    int shift = (sizeof(uintptr_t) * 8) - 4;
-    int leading = 1;
-    while (shift >= 0) {
-      unsigned char nibble = (v >> shift) & 0xF;
-      if (nibble || !leading || shift == 0) {
-        leading = 0;
-        char c = (nibble < 10) ? ('0' + nibble) : ('a' + nibble - 10);
-        PUTC((c32)c);
-      }
-      shift -= 4;
-    }
-
-  });
-  REGISTER_PRINTER(c8, {PUTC((c32)in);});
-  REGISTER_PRINTER(c32, {PUTC(in);});
-  REGISTER_SPECIAL_PRINTER("cstr", char*,{
-    if(!in)in = "__NULLCSTR__";
-    while(*in){ PUTC((c32)*in); in++; } 
-  });
-  REGISTER_SPECIAL_PRINTER("wcstr", c32*,{
-    if(!in)in = (c32*)U"__NULLCSTR__";
-    while(*in){ PUTC(*in); in++; } 
-  });
-
-  REGISTER_PRINTER(usize, {
-    usize l = 1;
-    while (l <= in / 10)
-      l *= 10;
-    while (l) {
-      char c = in / l + '0';
+  int shift = (sizeof(uintptr_t) * 8) - 4;
+  int leading = 1;
+  while (shift >= 0) {
+    unsigned char nibble = (v >> shift) & 0xF;
+    if (nibble || !leading || shift == 0) {
+      leading = 0;
+      char c = (nibble < 10) ? ('0' + nibble) : ('a' + nibble - 10);
       PUTC((c32)c);
-      in %= l;
-      l /= 10;
     }
-  });
-  REGISTER_PRINTER(isize, {
-    if (in < 0) {
-      PUTC(L'-');
-      in = -in;
-    }
-    USETYPEPRINTER(usize, (usize)in);
-  });
-  REGISTER_PRINTER(f128, {
-    if (in < 0) {
-      PUTC(L'-');
-      in *= -1;
-    }
-    int push = 0;
-    while (((usize)in)) {
-      in /= 10;
-      push++;
-    }
-    in *= 10;
-    if(!push)
-        PUTC(L'.');
-    for (int i = 0; i < 12; i++) {
-      c32 dig = L'0';
-      dig += ((usize)in) % 10;
-      PUTC(dig);
-      if (i + 1 == push)
-        PUTC(L'.');
-      in *= 10;
-    }
-  });
+    shift -= 4;
+  }
+});
+REGISTER_SPECIAL_PRINTER_NEEDID(_slice_c8_printerfn, "slice(c8)", slice(c8), {
+    for (each_slice(c,in )) 
+      PUTC((c32)*c);
+});
+REGISTER_PRINTER(c8, { PUTC((c32)in); });
+REGISTER_PRINTER(c32, { PUTC(in); });
+REGISTER_SPECIAL_PRINTER("cstr", char *, {
+  if (!in)
+    in = "__NULLCSTR__";
+  while (*in) {
+    PUTC((c32)*in);
+    in++;
+  }
+});
+REGISTER_SPECIAL_PRINTER("wcstr", c32 *, {
+  if (!in)
+    in = (c32 *)U"__NULLCSTR__";
+  while (*in) {
+    PUTC(*in);
+    in++;
+  }
+});
 
-  REGISTER_PRINTER(uint, {
-      USETYPEPRINTER(usize, (usize)in);
-  });
-  REGISTER_PRINTER(int, {
-    if (in < 0) { PUTC(L'-'); in = -in; }
-    USETYPEPRINTER(usize, (usize)in);
-  });
-  REGISTER_PRINTER(u32, {
-      USETYPEPRINTER(usize, (usize)in);
-  });
-  REGISTER_PRINTER(i32, {
-    if (in < 0) { PUTC(L'-'); in = -in; }
-    USETYPEPRINTER(usize, (usize)in);
-  });
-
-  REGISTER_SPECIAL_PRINTER("fptr<char>",fptr, {
-      for (usize i = 0; i<in.width; i++) {
-        PUTC(in.ptr[i]);
-      }
-  });
-  REGISTER_SPECIAL_PRINTER("fptr<void>", fptr, {
-      const c32 hex_chars[17] = U"0123456789abcdef";
-      char cut0s = 0;
-      char useLength = 0;
-      PRINTERARGSEACH({
-          if (fptr_eq(fp_from("length"), arg)) {
-            useLength = 1;
-          }
-      });
-      if(useLength){
-        PUTS(U"<");
-        USETYPEPRINTER(usize,in.width);
-      }
-      PUTS(U"<");
-      usize start = 0;
-      if(cut0s) {
-          for(usize i = 0; i < in.width; i++) {
-              if(in.ptr[i] != 0) {
-                  start = i;
-                  break;
-              }
-          }
-      }
-      
-      for(usize i = start; i < in.width; i++) {
-          u8 top = (in.ptr[i] & 0xF0) >> 4;  
-          u8 bottom = in.ptr[i] & 0x0F;
-          PUTC(hex_chars[top]);
-          PUTC(hex_chars[bottom]);
-      }
-      PUTS(U">");
-      if(useLength)
-        PUTS(U">");
-  });
-  REGISTER_PRINTER(pEsc, {
-    if (in.poset) {
-
-      PUTS(U"\033[");
-      USETYPEPRINTER(uint, in.pos.row);
-      PUTS(U";");
-      USETYPEPRINTER(uint, in.pos.col);
-      PUTS(U"H");
-    }
-    if (in.fgset) {
-      PUTS(U"\033[38;2;");
-      USETYPEPRINTER(uint, in.fg.r);
-      PUTS(U";");
-      USETYPEPRINTER(uint, in.fg.g);
-      PUTS(U";");
-      USETYPEPRINTER(uint, in.fg.b);
-      PUTS(U"m");
-    }
-
-    if (in.bgset) {
-      PUTS(U"\033[48;2;");
-      USETYPEPRINTER(uint, in.bg.r);
-      PUTS(U";");
-      USETYPEPRINTER(uint, in.bg.g);
-      PUTS(U";");
-      USETYPEPRINTER(uint, in.bg.b);
-      PUTS(U"m");
-    }
-    if (in.clear) {
-      PUTS(U"\033[2J");
-      PUTS(U"\033[H");
-    }
-    if (in.reset) {
-      PUTS(U"\033[0m");
-    }
-  });
-
-  REGISTER_SPECIAL_PRINTER("x", u8,{
-    const c32 hex_chars[17] = U"0123456789abcdef";
-    PUTC(hex_chars[in>>4&0xf]);
-    PUTC(hex_chars[in&0xf]);
-  });
-
-  REGISTER_SPECIAL_PRINTER("u8", u8,{
-    USETYPEPRINTER(usize, (usize)in);
-  });
-  REGISTER_SPECIAL_PRINTER("u16", u16,{
-    USETYPEPRINTER(usize, (usize)in);
-  });
-  REGISTER_SPECIAL_PRINTER("u32", u32,{
-    USETYPEPRINTER(usize, (usize)in);
-  });
-  REGISTER_SPECIAL_PRINTER("u64", u64,{
-    USETYPEPRINTER(usize, (usize)in);
-  });
-
-  REGISTER_SPECIAL_PRINTER("i8", i8,{
-    USETYPEPRINTER(isize, (isize)in);
-  });
-  REGISTER_SPECIAL_PRINTER("i16", i16,{
-    USETYPEPRINTER(isize, (isize)in);
-  });
-  REGISTER_SPECIAL_PRINTER("i32", i32,{
-    USETYPEPRINTER(isize, (isize)in);
-  });
-  REGISTER_SPECIAL_PRINTER("i64", i64,{
-    USETYPEPRINTER(isize, (isize)in);
-  });
-#if !defined( __cplusplus )
-
-  #define MAKE_PRINT_ARG_TYPE(type) type:fp_from(#type)
-#if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
-#define MAKE_PRINTINTS MAKE_PRINT_ARG_TYPE(i32), MAKE_PRINT_ARG_TYPE(u32),
-#else
-#define MAKE_PRINTINTS
-#endif
-
-  #define MAKE_PRINT_ARG(a)               \
-    ((struct print_arg){                  \
-        .ref = REF(typeof(a), a),         \
-        .name = _Generic(a,\
-          MAKE_PRINT_ARG_TYPE(fptr),\
-          MAKE_PRINT_ARG_TYPE(isize),\
-          MAKE_PRINT_ARG_TYPE(usize),\
-          MAKE_PRINT_ARG_TYPE(f128),\
-          MAKE_PRINT_ARG_TYPE(pEsc),\
-          MAKE_PRINTINTS\
-          void*:fp_from("ptr"),\
-          default : nullFptr),\
-     }),
-   
+REGISTER_PRINTER(usize, {
+  c32 digits[sizeof(usize)*8/3];
+  u8 digit = 0;
+  usize l = 1;
+  while (l <= in / 10) {
+    if (l * 10 < l) break;
+    else l = l * 10;
+  }
+  while (l) {
+    char c = in / l + '0';
+    digits[digit++] = c;
+    in %= l;
+    l /= 10;
+  }
+  put(digits, _arb, digit, 0);
+});
+REGISTER_PRINTER(isize, {
+  usize uin = (usize)in;
+  if (in < 0) { PUTC(L'-'); uin =0-in; }
+  USETYPEPRINTER(usize, uin);
+});
+REGISTER_PRINTER(f128, {
+  if (in < 0) {
+    PUTC(L'-');
+    in *= -1;
+  }
   
+  if (in == 0) {
+    PUTS(U"0.0E0");
+  } else {
+    isize exp = 0;
+    
+    while (in >= 10.0) {
+      in /= 10.0;
+      exp++;
+    }
+    while (in < 1.0) {
+      in *= 10.0;
+      exp--;
+    }
+    
+    usize first = (usize)in;
+    PUTC(( c32 )(U'0'+first));
+    PUTC(U'.');
+    in -= (f128)first;
+    
+    for (int i = 0; i < 6; i++) {
+      in *= 10.0;
+      usize dig = (usize)in;
+      PUTC(( c32 )(U'0'+dig));
+      in -= (f128)dig;
+    }
+    PUTC(L'E');
+    USETYPEPRINTER(isize, exp);
+  }
+});
+
+REGISTER_PRINTER(u32, {
+  USETYPEPRINTER(usize, (usize)in);
+});
+REGISTER_PRINTER(i32, {
+    USETYPEPRINTER(isize, (isize)in);
+});
+REGISTER_PRINTER(fptr ,{
+  const c32 hex_chars[17] = U"0123456789abcdef";
+  char cut0s = 0;
+  char useLength = 0;
+  PRINTERARGSEACH({
+    if (fptr_eq(fp_from("length"), arg)) 
+      useLength = 1;
+  });
+  if (useLength) {
+    PUTS(U"<");
+    USETYPEPRINTER(usize, in.width);
+  }
+  PUTS(U"<");
+  usize start = 0;
+  if (cut0s) {
+    for (usize i = 0; i < in.width; i++) {
+      if (in.ptr[i] != 0) {
+        start = i;
+        break;
+      }
+    }
+  }
+
+  for (usize i = start; i < in.width; i++) {
+    u8 top = (in.ptr[i] & 0xF0) >> 4;
+    u8 bottom = in.ptr[i] & 0x0F;
+    PUTC(hex_chars[top]);
+    PUTC(hex_chars[bottom]);
+  }
+  PUTS(U">");
+  if (useLength)
+    PUTS(U">");
+});
+REGISTER_PRINTER(pEsc, {
+  if (in.poset) {
+
+    PUTS(U"\033[");
+    USETYPEPRINTER(usize, in.pos.row);
+    PUTS(U";");
+    USETYPEPRINTER(usize, in.pos.col);
+    PUTS(U"H");
+  }
+  if (in.fgset) {
+    PUTS(U"\033[38;2;");
+    USETYPEPRINTER(usize, in.fg.r);
+    PUTS(U";");
+    USETYPEPRINTER(usize, in.fg.g);
+    PUTS(U";");
+    USETYPEPRINTER(usize, in.fg.b);
+    PUTS(U"m");
+  }
+
+  if (in.bgset) {
+    PUTS(U"\033[48;2;");
+    USETYPEPRINTER(usize, in.bg.r);
+    PUTS(U";");
+    USETYPEPRINTER(usize, in.bg.g);
+    PUTS(U";");
+    USETYPEPRINTER(usize, in.bg.b);
+    PUTS(U"m");
+  }
+  if (in.clear) {
+    PUTS(U"\033[2J");
+    PUTS(U"\033[H");
+  }
+  if (in.reset) {
+    PUTS(U"\033[0m");
+  }
+});
+
+REGISTER_SPECIAL_PRINTER("x", u8, {
+  const c32 hex_chars[17] = U"0123456789abcdef";
+  PUTC(hex_chars[in >> 4 & 0xf]);
+  PUTC(hex_chars[in & 0xf]);
+});
+
+REGISTER_SPECIAL_PRINTER("u8", u8, {
+  USETYPEPRINTER(usize, (usize)in);
+});
+REGISTER_SPECIAL_PRINTER("u16", u16, {
+  USETYPEPRINTER(usize, (usize)in);
+});
+REGISTER_SPECIAL_PRINTER("u32", u32, {
+  USETYPEPRINTER(usize, (usize)in);
+});
+REGISTER_SPECIAL_PRINTER("u64", u64, {
+  USETYPEPRINTER(usize, (usize)in);
+});
+
+REGISTER_SPECIAL_PRINTER("i8", i8, {
+  USETYPEPRINTER(isize, (isize)in);
+});
+REGISTER_SPECIAL_PRINTER("i16", i16, {
+  USETYPEPRINTER(isize, (isize)in);
+});
+REGISTER_SPECIAL_PRINTER("i32", i32, {
+  USETYPEPRINTER(isize, (isize)in);
+});
+REGISTER_SPECIAL_PRINTER("i64", i64, {
+  USETYPEPRINTER(isize, (isize)in);
+});
+#if !defined(__cplusplus)
+
+  #define MAKE_PRINT_ARG_TYPE(type) \
+  type:                             \
+    fp_from(#type)
+  #if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
+    #define MAKE_PRINTINTS MAKE_PRINT_ARG_TYPE(i32), MAKE_PRINT_ARG_TYPE(u32)
   #else
-  template <typename T>
-  constexpr const char *type_name_cstr(T arg) { return ""; }
-  
+    #define MAKE_PRINTINTS
+  #endif
+
+  #define MAKE_PRINT_ARG(a)                                                                                                                                                                                                     \
+    ((struct print_arg){                                                                                                                                                                                                        \
+        .ref = REF(typeof(a), a),                                                                                                                                                                                               \
+        .name = _Generic(\
+            a,\
+            MAKE_PRINT_ARG_TYPE(fptr),\
+            MAKE_PRINT_ARG_TYPE(isize),\
+            MAKE_PRINT_ARG_TYPE(usize),\
+            MAKE_PRINT_ARG_TYPE(f128),\
+            MAKE_PRINT_ARG_TYPE(pEsc),\
+            MAKE_PRINTINTS ,\
+            void *: fp_from("ptr"),\
+            slice(c8): fp_from("slice(c8)"),\
+            default: nullFptr\
+            ), \
+    }),
+
+#else
+template <typename T>
+constexpr const char *type_name_cstr(T arg) { return ""; }
+
   #define MAKE_PRINT_ARG_TYPE(type) \
     template <>                     \
     constexpr const char *type_name_cstr<type>(type arg) { return #type; }
-  
-  MAKE_PRINT_ARG_TYPE(fptr);
-  MAKE_PRINT_ARG_TYPE(isize);
-  MAKE_PRINT_ARG_TYPE(usize);
-  MAKE_PRINT_ARG_TYPE(f128);
-  MAKE_PRINT_ARG_TYPE(pEsc);
-#if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
-  MAKE_PRINT_ARG_TYPE(i32);
-  MAKE_PRINT_ARG_TYPE(u32);
-#endif
-  
-  #define MAKE_PRINT_ARG(a)                                          \
-    ((struct print_arg){                                             \
-       .ref = REF(typeof(a), a),                                    \
-       .name = fp_from(type_name_cstr(a)) \
-   }),
+
+MAKE_PRINT_ARG_TYPE(fptr);
+MAKE_PRINT_ARG_TYPE(slice(c8));
+MAKE_PRINT_ARG_TYPE(isize);
+MAKE_PRINT_ARG_TYPE(usize);
+MAKE_PRINT_ARG_TYPE(f128);
+MAKE_PRINT_ARG_TYPE(pEsc);
+  #if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
+MAKE_PRINT_ARG_TYPE(i32);
+MAKE_PRINT_ARG_TYPE(u32);
+  #endif
+
+  #define MAKE_PRINT_ARG(a)                \
+    ((struct print_arg){                   \
+        .ref = REF(typeof(a), a),          \
+        .name = fp_from(type_name_cstr(a)) \
+    }),
 #endif
 // clang-format on
 
@@ -619,13 +630,15 @@ inline fptr printer_arg_after(char delim, fptr slice) {
 inline fptr printer_arg_trim(fptr in) {
   while (
       in.width &&
-      in.ptr[0] <= ' ') {
+      in.ptr[0] <= ' '
+  ) {
     in.ptr++;
     in.width--;
   }
   while (
       in.width &&
-      in.ptr[in.width - 1] <= ' ')
+      in.ptr[in.width - 1] <= ' '
+  )
     in.width--;
   return in;
 }
@@ -638,9 +651,10 @@ void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr 
   printerFunction fn = PrinterSingleton_get(typeName);
   if (!fn) {
     USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = 1}));
-    USETYPEPRINTER(fptr, fp_from("__ NO_TYPE("));
-    USETYPEPRINTER(fptr, typeName);
-    USETYPEPRINTER(fptr, fp_from(") __"));
+    PUTS(U"__ NO_TYPE(");
+    for (auto i = 0; i < typeName.width; i++)
+      PUTC(typeName.ptr[i]);
+    PUTS(U") __");
     USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));
   } else {
     fn(put, ref, args, _arb);

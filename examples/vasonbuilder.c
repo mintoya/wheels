@@ -1,18 +1,31 @@
 #include "../debugallocator.h"
 #include "../vason_tree.h"
-#include <stddefer.h>
-int i = __STDC_VERSION__;
 int main(void) {
-  My_allocator *local = debugAllocator(track_total = 1, log = stderr);
+  println("{}", (f128)0.6767);
+  AllocatorV local = debugAllocator(track_total = 1, log = stderr);
   defer { debugAllocatorDeInit(local); };
-  c8 string[] = "{hello:{world : {hello : {world}}}}";
-  println("input\t:{cstr}", (c8 *)string);
-
+  c8 string[] = "{hello:{{{{}}},{},world:{hello:{world}}}}";
+  struct debugStats c_start = debugAllocator_stats(local);
   vason_container c = vason_parseString(local, (slice(c8))slice_stat(string));
+  struct debugStats c_end = debugAllocator_stats(local);
   defer { vason_container_free(c); };
-
+  println(
+      "container creation profile - memory delta: {}, calls delta: {}",
+      c_end.current_memory - c_start.current_memory,
+      c_end.total_calls - c_start.total_calls
+  );
+  slice(c8) str = vason_tostr(local, c);
+  println("input\t:{}", str);
+  aFree(local, str.ptr);
+  struct debugStats n_start = debugAllocator_stats(local);
   vason_node n = vason_container_toNode(local, c);
+  struct debugStats n_end = debugAllocator_stats(local);
   defer { vason_node_freeRecursive(local, n); };
+  println(
+      "node creation profile - memory delta: {}, calls delta: {}",
+      n_end.current_memory - n_start.current_memory,
+      n_end.total_calls - n_start.total_calls
+  );
   println(
       "container size : {}\n"
       "nodes size: {}",
@@ -20,7 +33,6 @@ int main(void) {
       vason_node_footprint(n)
   );
   assertMessage(n.tag == vason_TABLE);
-
   vason_table_push(
       local,
       &n,
@@ -30,15 +42,12 @@ int main(void) {
           vason_node_str(local, ":,[{\"\"}]")
       )
   );
-
-  c8 *strcontainer = NULL;
-  defer { aFree(local, strcontainer); };
-  vason_container newC = vason_node_toContainer(local, n, &strcontainer);
+  c8 **strcontainer = (c8 *[1]){};
+  defer { aFree(local, *strcontainer); };
+  vason_container newC = vason_node_toContainer(local, n, strcontainer);
   defer { vason_container_free(newC); };
-
   slice(c8) result = vason_tostr(local, newC);
   defer { aFree(local, result.ptr); };
-
-  println("output\t:{fptr}", result);
+  println("output\t:{}", result);
 }
 #include "../wheels.h"
