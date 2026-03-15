@@ -19,7 +19,7 @@ slice(c8) read_stdin(AllocatorV allocator) {
   }
   return (slice(c8)){.ptr = data, .len = size};
 }
-int main(int nargs, char *args[nargs]) {
+main(int nargs, char *args[nargs]) {
   mList(char *) argslist = mList_init(stdAlloc, char *, nargs);
   defer { mList_deInit(argslist); };
   bool lazy = false;

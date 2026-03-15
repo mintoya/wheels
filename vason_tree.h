@@ -114,7 +114,7 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
       vason_index tableStart = msList_len(c->tables_strings);
       c->tables_strings[i] = (vason_span){
           .start = tableStart,
-          .end = tableStart + msList_len(n.table)
+          .end = (vason_index)(tableStart + msList_len(n.table)),
       };
       msList_pushVla(c->allocator, c->tables_strings, VLAP((vason_span *)NULL, msList_len(n.table)));
       msList_pushVla(c->allocator, c->tags, VLAP((vason_tag *)NULL, msList_len(n.table)));
@@ -125,7 +125,7 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
       vason_index tableStart = msList_len(c->tables_strings);
       c->tables_strings[i] = (vason_span){
           .start = tableStart,
-          .end = tableStart + 2,
+          .end = (vason_index)(tableStart + 2),
       };
       msList_pushVla(c->allocator, c->tables_strings, VLAP((vason_span *)NULL, 2));
       msList_pushVla(c->allocator, c->tags, VLAP((vason_tag *)NULL, 2));
@@ -136,7 +136,7 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
       vason_index strStart = msList_len(c->text.ptr);
       c->tables_strings[i] = (vason_span){
           .start = strStart,
-          .end = strStart + n.string->len,
+          .end = (vason_index)(strStart + n.string->len),
       };
       msList_pushArr(
           c->allocator,
@@ -175,7 +175,7 @@ vason_node vason_container_toNode(AllocatorV allocator, vason_container c) {
     case vason_STRING: {
       vason_span vs = c.tables_strings[c.current];
       vason_node res;
-      res = vason_node_newStr(allocator, (slice(c8)){vs.end - vs.start, c.text.ptr + vs.start});
+      res = vason_node_newStr(allocator, (slice(c8)){(vason_index)(vs.end - vs.start), c.text.ptr + vs.start});
       return res;
     } break;
     case vason_TABLE: {

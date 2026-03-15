@@ -58,7 +58,6 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
       #endif
     #endif
   #endif
-
   #define PRAGMA_MAKE_STR(...) #__VA_ARGS__
   #define MAKE_PRAGMA(warning) _Pragma(PRAGMA_MAKE_STR(clang diagnostic ignored warning))
   #define DIAGNOSTIC_PUSH(...) \

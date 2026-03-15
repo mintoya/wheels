@@ -310,6 +310,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(_void_ptr_printerfn,"ptr", void *, {
     shift -= 4;
   }
 });
+sliceDef(c8);
 REGISTER_SPECIAL_PRINTER_NEEDID(_slice_c8_printerfn, "slice(c8)", slice(c8), {
     for (each_slice(c,in )) 
       PUTC((c32)*c);
