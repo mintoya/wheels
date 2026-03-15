@@ -47,7 +47,7 @@ int main(void) {
   vason_container newC = vason_node_toContainer(local, n, strcontainer);
   defer { vason_container_free(newC); };
   slice(c8) result = vason_tostr(local, newC);
-  defer { aFree(local, result.ptr); };
+  // defer { aFree(local, result.ptr); };
   println("output\t:{}", result);
 }
 #include "../wheels.h"

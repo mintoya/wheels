@@ -76,7 +76,7 @@ typedef uintptr_t uptr;
   #ifndef thread_local
     #define thread_local _Thread_local
   #endif
-  #if __STDC_VERSION__ >= 202400L
+  #if __STDC_VERSION__ >= 202411L
     #define nullable(type)     \
       struct nullable_##type { \
         bool isnull : 1;       \
@@ -138,7 +138,7 @@ struct nullable_t {
 #define slice_vla(s) ((typeof(typeof(s.ptr[0]))(*)[s.len])s.ptr)
 
 #define each_slice(e, slice) \
-  each_VLAPTR(e, slice_vla(slice))
+  each_VLAP(e, slice_vla(slice))
 
 #define nullable_fromPtr(T, ptr)          \
   {                                       \

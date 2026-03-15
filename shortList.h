@@ -35,15 +35,13 @@ extern inline sList_header *sList_new(AllocatorV allocator, usize initLen, usize
   res->length = 0;
   return res;
 }
-extern inline void *sList_getRefForce(sList_header *l, usize width, usize i) { return (l->buf + width * i); }
 extern inline void *sList_getRef(sList_header *l, usize width, usize i) { return i < l->length ? (l->buf + width * i) : NULL; }
 extern inline void *sList_set(sList_header *l, usize width, usize index, void *element) {
   void *place = sList_getRef(l, width, index);
   if (place) {
-    if (element)
-      memcpy(place, element, width);
-    else
-      memset(place, 0, width);
+    element
+        ? memcpy(place, element, width)
+        : memset(place, /* */ 0, width);
   }
   return place;
 }

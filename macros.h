@@ -63,7 +63,7 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define DIAGNOSTIC_PUSH(...) \
     APPLY_N(MAKE_PRAGMA, __VA_ARGS__)
   #define DIAGNOSTIC_POP() \
-    _Pragma("clangd diagnostic pop")
+    _Pragma("clang diagnostic pop")
 
   #define APPLY_N(macro, ...) MACRO_EXPAND(APPLY_N_HELPER(macro, __VA_ARGS__))
   #define APPLY_N_HELPER(macro, arg, ...) macro(arg) \
@@ -77,7 +77,7 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
 
-  #define each_VLAPTR(name, vla)                 \
+  #define each_VLAP(name, vla)                   \
     typeof(vla[0][0]) *name = (typeof(name))vla; \
     name < vla[1];                               \
     name++

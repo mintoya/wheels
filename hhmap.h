@@ -84,7 +84,6 @@ void HMap_clear(HMap *map);
  * used by fset and fget
  * @return aligned memory big enough for key
  */
-u8 *HMap_getKeyBuffer(const HMap *map);
 extern inline void *HMap_getKey(const HMap *map, u32 n);
 extern inline void *HMap_getVal(const HMap *map, u32 n);
 usize HMap_footprint(const HMap *map);
@@ -290,15 +289,10 @@ static inline umax HMap_hash(const fptr str) {
   }
   return hash;
 }
-HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, usize metaSize) {
+HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, const usize metaSize) {
   assertMessage(kSize && vSize && metaSize && allocator);
-
-  usize totalSize =
-      sizeof(HMap) +
-      metaSize * sizeof(*(((HMap *)nullptr)->storage)) +
-      alignof(max_align_t) * 2 +
-      (kSize + vSize);
-  HMap *hm = (HMap *)aAlloc(allocator, totalSize);
+  usize totalSize = sizeof(HMap) + metaSize * sizeof(HMap_LesserList);
+  HMap *hm = (typeof(hm))aAlloc(allocator, totalSize);
   *hm = (HMap){
       .allocator = allocator,
       .keysize = kSize,
@@ -308,26 +302,7 @@ HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, usize metaSize) {
   memset(hm->storage, 0, metaSize * sizeof(*hm->storage));
   return hm;
 }
-[[gnu::pure, gnu::assume_aligned(alignof(max_align_t))]]
-u8 *HMap_getKeyBuffer(const HMap *map) {
-  return (
-      (u8 *)lineup(
-          (uptr)((u8 *)map) + sizeof(*map) + map->metaSize * sizeof(*(map->storage)),
-          alignof(max_align_t)
-      )
-  );
-}
 
-[[gnu::pure]]
-/**
- * used by fset and fget
- * @return aligned memory big enough for value
- */
-u8 *HMap_getValBuffer(const HMap *map) {
-  return (u8 *)lineup(
-      (uptr)(u8 *)HMap_getKeyBuffer(map) + map->keysize, alignof(max_align_t)
-  );
-}
 void HMap_free(HMap *hm) {
   AllocatorV allocator = hm->allocator;
   const u32 msize = hm->metaSize;
@@ -351,16 +326,11 @@ void HMap_transform(HMap **last, usize kSize, usize vSize, AllocatorV allocator,
     metaSize = oldMap->metaSize;
   HMap *newMap = HMap_new(kSize, vSize, allocator, metaSize);
 
-  u8 *tempKey = HMap_getKeyBuffer(newMap);
-  u8 *tempVal = HMap_getValBuffer(newMap);
+  u8 *tempKey = (u8 *)alloca(newMap->keysize > oldMap->keysize ? newMap->keysize : oldMap->keysize);
+  u8 *tempVal = (u8 *)alloca(newMap->valsize > oldMap->valsize ? newMap->valsize : oldMap->valsize);
 
   usize keyCopySize = (oldMap->keysize < kSize) ? oldMap->keysize : kSize;
   usize valCopySize = (oldMap->valsize < vSize) ? oldMap->valsize : vSize;
-
-  if (newMap->keysize < oldMap->keysize)
-    tempKey = HMap_getKeyBuffer(oldMap);
-  if (newMap->valsize < oldMap->valsize)
-    tempVal = HMap_getValBuffer(oldMap);
 
   for (usize i = 0; i < HMap_getMetaSize(oldMap); i++) {
     for (usize j = 0; j < HMap_getBucketSize(oldMap, i); j++) {
@@ -522,14 +492,14 @@ bool HMap_getSet(HMap *map, const void *key, void *val) {
 }
 void HMap_fset(HMap *map, const fptr key, void *val) {
   assertMessage(key.width <= HMap_getKeySize(map));
-  u8 *nname = HMap_getKeyBuffer(map);
+  u8 nname[map->keysize];
   memcpy(nname, key.ptr, key.width);
   memset(nname + key.width, 0, HMap_getKeySize(map) - key.width);
   return HMap_set(map, nname, val);
 }
 bool HMap_fget(HMap *map, const fptr key, void *val) {
   assertMessage(key.width <= HMap_getKeySize(map));
-  u8 *nname = HMap_getKeyBuffer(map);
+  u8 nname[map->keysize];
   memcpy(nname, key.ptr, key.width);
   memset(nname + key.width, 0, HMap_getKeySize(map) - key.width);
   void *res = HMap_get(map, nname);
@@ -540,7 +510,7 @@ bool HMap_fget(HMap *map, const fptr key, void *val) {
 }
 void *HMap_fget_ns(HMap *map, const fptr key) {
   assertMessage(key.width <= HMap_getKeySize(map));
-  u8 *nname = HMap_getKeyBuffer(map);
+  u8 nname[map->keysize];
   memcpy(nname, key.ptr, key.width);
   memset(nname + key.width, 0, HMap_getKeySize(map) - key.width);
   return HMap_get(map, nname);

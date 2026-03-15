@@ -7,10 +7,10 @@ typedef struct {
 } point;
 REGISTER_PRINTER(point, {
   PUTS(U"{x:");
-  USETYPEPRINTER(int, in.x);
+  USETYPEPRINTER(isize, in.x);
   PUTS(U",");
   PUTS(U"y:");
-  USETYPEPRINTER(int, in.y);
+  USETYPEPRINTER(isize, in.y);
   PUTS(U"}");
 })
 
