@@ -7,7 +7,7 @@ meant to hold on to raw data
 # types.h
  - a bunch of zig style typedefs , things like u8,f64
  - slice and nullable macros for even more zig style types
-# my-List 
+# myList 
  - my-list.h is a basic dynamic list implementation
  - very close to [the vec in CC](https://github.com/JacksonAllan/CC) 
  - example of macro usage: 
@@ -76,15 +76,20 @@ meant to hold on to raw data
 }
 ```
 - library doesnt reallocate the actual string input 
-- both / and \ are escape characters, highest priority
-- strings start and end with '\'' or '"'
+- / is escape
+- strings start and end '\''
     - they dont nescecarily have to though
     - uninterupted lines of characters are grouped
 - {} and [] are interchangeable for json compatibility
-- lua-style, 
+- not really lua-style, everything is an array, and there are no rules around pair names
  # print.h
  a *lot* of macros that make printing easier ( hopefully )
- based on u/jacksaccountonreddit's [better c generics](https://github.com/JacksonAllan/CC/blob/main/articles/Better_C_Generics_Part_1_The_Extendible_Generic.md) 
+ generates a hashmap of slices to function pointers before main using constructor attribute
+###  types that are handled automatically
+ - fptr  : prints as hex bytes
+ - isize : wrapper around usize
+ - usize : main integer printer
+ - f128  : no f64 yet for windows reasons, prints in scientific notation
  ```c
     #include "print.h"
     #include "wheels.h"
@@ -98,20 +103,13 @@ meant to hold on to raw data
     } point;
     REGISTER_PRINTER(point, {
       PUTS(U"{x:");
-      USETYPEPRINTER(int, in.x); // use already registered printer
+      USETYPEPRINTER(usize, in.x); // use already registered printer
       PUTS(U",y:");
-      USETYPEPRINTER(int, in.y);
-      PUTS(U"}", 1);
+      USETYPEPRINTER(usize, in.y);
+      PUTC(U'}');
     })
     // now you can call this with
     print("${point}",((point){0,0}));
-
-    #include "printer/genericName.h" // advances counter
-    MAKE_PRINT_ARG_TYPE(point);
-    // will create a typedef in the generic list
-    // that matches point
-    // now you can call it with
-    print("${}",((point){0,0}));
  ```
 # wheels.h
  this library was supposed to contain single header libraries, however,
