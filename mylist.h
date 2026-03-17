@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/cdefs.h>
 
 #ifndef LIST_GROW_EQ
   #define LIST_GROW_EQ(uint) (uint + uint / 2 + 1)
@@ -158,13 +159,13 @@ extern inline void List_remove(List *l, List_index_t i);
 extern inline void List_zeroOut(List *l);
 List *List_deepCopy(List *l);
 
-static void List_cleanup_handler(void *ListPtrPtr) {
+__attribute__((unused)) static void List_cleanup_handler(void *ListPtrPtr) {
   List **l = (List **)ListPtrPtr;
-  if (l && *l)
+  if (l && *l) {
     List_free(*l);
-  *l = NULL;
+    *l = NULL;
+  }
 }
-#define List_scoped __attribute__((cleanup(List_cleanup_handler))) List
 #ifdef __cplusplus
 template <typename T>
 using mList_t = T (**)(List *);

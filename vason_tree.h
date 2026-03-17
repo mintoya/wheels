@@ -222,8 +222,7 @@ usize vason_node_footprint(vason_node n) {
       break;
     default:
       assertMessage(false, "no free for this node ");
+      return 0;
   }
-  assertMessage(false, "no free for this node ");
-  return 0;
 }
 #endif

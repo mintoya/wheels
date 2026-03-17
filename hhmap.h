@@ -326,8 +326,13 @@ void HMap_transform(HMap **last, usize kSize, usize vSize, AllocatorV allocator,
     metaSize = oldMap->metaSize;
   HMap *newMap = HMap_new(kSize, vSize, allocator, metaSize);
 
-  u8 *tempKey = (u8 *)alloca(newMap->keysize > oldMap->keysize ? newMap->keysize : oldMap->keysize);
-  u8 *tempVal = (u8 *)alloca(newMap->valsize > oldMap->valsize ? newMap->valsize : oldMap->valsize);
+  // u8 tempKey[newMap->keysize > oldMap->keysize ? newMap->keysize : oldMap->keysize];
+  // u8 tempVal[newMap->valsize > oldMap->valsize ? newMap->valsize : oldMap->valsize];
+
+  auto tempKey = aCreate(allocator, u8, newMap->keysize > oldMap->keysize ? newMap->keysize : oldMap->keysize);
+  defer { aFree(allocator, tempKey); };
+  auto tempVal = aCreate(allocator, u8, newMap->valsize > oldMap->valsize ? newMap->valsize : oldMap->valsize);
+  defer { aFree(allocator, tempVal); };
 
   usize keyCopySize = (oldMap->keysize < kSize) ? oldMap->keysize : kSize;
   usize valCopySize = (oldMap->valsize < vSize) ? oldMap->valsize : vSize;
