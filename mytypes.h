@@ -9,7 +9,7 @@
   #include <uchar.h>
 #else
   #if !defined __cplusplus
-typedef uint32_t c32;
+typedef uint32_t char32_t;
   #endif
 #endif
 
@@ -150,7 +150,10 @@ struct nullable_t {
   #define countof(array) _Countof(array)
 #else
   #include <stdcountof.h>
+#endif
 
+#if !defined(__STDC__VERSION__) || __STDC__VERSION__ <= 202411LL
+  #define auto __auto_type
 #endif
 
 #endif // MY_TYPES

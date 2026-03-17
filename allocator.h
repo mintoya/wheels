@@ -1,5 +1,6 @@
 #ifndef MY_ALLOCATOR_H
 #define MY_ALLOCATOR_H
+#include <stdalign.h>
 #include <stddef.h>
 #include <stdint.h>
 

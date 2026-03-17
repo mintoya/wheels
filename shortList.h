@@ -4,8 +4,8 @@
   #include "assertMessage.h"
   #include "macros.h"
   #include "mytypes.h"
-  #include "stdalign.h"
-  #include "string.h"
+  #include <stdalign.h>
+  #include <string.h>
   #ifndef SLIST_GROW_EQ
     #define SLIST_GROW_EQ(len) (len + len / 2 + 1)
   #endif
