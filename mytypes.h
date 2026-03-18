@@ -152,8 +152,4 @@ struct nullable_t {
   #include <stdcountof.h>
 #endif
 
-#if !defined(__STDC__VERSION__) || __STDC__VERSION__ <= 202411LL
-  #define auto __auto_type
-#endif
-
 #endif // MY_TYPES

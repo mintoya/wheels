@@ -10,7 +10,6 @@ int main(void) {
   );
   defer { debugAllocatorDeInit(local); };
   mList(int) list = mList_init(local, int);
-  __auto_type i = 1;
   mList_pushVla(
       list,
       ((int[]){5, 8, 7, 9, 5, 8, 7, 9})
