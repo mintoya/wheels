@@ -19,7 +19,7 @@ slice(c8) read_stdin(AllocatorV allocator) {
   }
   return (slice(c8)){.ptr = data, .len = size};
 }
-main(int nargs, char *args[nargs]) {
+int main(int nargs, char *args[nargs]) {
   mList(char *) argslist = mList_init(stdAlloc, char *, nargs);
   defer { mList_deInit(argslist); };
   bool lazy = false;
@@ -43,16 +43,13 @@ main(int nargs, char *args[nargs]) {
   vason_container *f = &parsed; // clang defer
   defer { vason_container_free(*f); };
   vason_index current = parsed.current;
-  mList_foreach(
-      argslist,
-      char *, cptr,
-      {
-        current =
-            isdigit(*cptr)
-                ? vason_get(&parsed, current, atoi(cptr))
-                : vason_get(&parsed, current, fptr_CS(cptr));
-      }
-  );
+  if (mList_len(argslist))
+    for (each_VLAP(cptr, mList_vla(argslist))) {
+      current =
+          isdigit(cptr[0][0])
+              ? vason_get(&parsed, current, atoi(*cptr))
+              : vason_get(&parsed, current, fptr_CS(*cptr));
+    }
   if (lazy)
     vason_lazy_expand(&parsed, current);
   parsed.current = current;
