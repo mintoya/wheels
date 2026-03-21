@@ -72,19 +72,23 @@ extern inline void sList_remove(sList_header *l, usize width, usize i) {
   memmove(l->buf + i * width, l->buf + (i + 1) * width, (l->length - i - 1) * width);
   l->length--;
 }
-extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, usize width, usize i, void *element) {
-  if (i == l->length)
-    return sList_append(allocator, l, width, element);
-  if (i > l->length)
+extern inline sList_header *sList_insertFromArr(AllocatorV allocator, sList_header *l, const void *source, usize length, usize location, size_t width) {
+  if (!length || location > l->length)
     return l;
-  if (l->capacity < l->length + 1)
-    l = sList_realloc(allocator, l, width, SLIST_GROW_EQ(l->length));
-  memmove(l->buf + (i + 1) * width, l->buf + (i)*width, (l->length - i) * width);
-  sList_set(l, width, i, element);
-  l->length++;
+  if (l->capacity < l->length + length)
+    l = sList_realloc(allocator, l, width, l->length + length);
+  void *res = l->buf + (location)*width;
+  memmove(l->buf + (location + length) * width, res, (l->length - location) * width);
+  if (source)
+    memcpy(res, source, length * width);
+  else
+    memset(res, 0, length * width);
+  l->length += length;
   return l;
 }
-
+extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, usize width, usize i, void *element) {
+  return sList_insertFromArr(allocator, l, element, 1, i, width);
+}
   #define SLIST_INIT_HELPER(allocator, T, initLength, ...) ((T *)(sList_new(allocator, initLength, sizeof(T))->buf))
   #define msList_init(allocator, T, ...) \
     SLIST_INIT_HELPER(allocator, T __VA_OPT__(, __VA_ARGS__), 2)

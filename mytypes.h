@@ -73,9 +73,6 @@ typedef ssize_t isize;
 typedef uintptr_t uptr;
 
 #if !defined(__cplusplus)
-  #ifndef thread_local
-    #define thread_local _Thread_local
-  #endif
   #if __STDC_VERSION__ >= 202411L
     #define nullable(type)     \
       struct nullable_##type { \

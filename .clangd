@@ -1,5 +1,5 @@
 If:
-  PathMatch: .*\.(h|hpp|cpp)
+  PathMatch: .*\.(hpp|cpp)
 CompileFlags:
   Add: 
     - "-x"
@@ -8,10 +8,10 @@ CompileFlags:
 
 ---
 If:
-  PathMatch: .*\.(c)
+  PathMatch: .*\.(h|c)
 CompileFlags:
   Add: 
     - "-x"
     - "c"
     - "-std=c2y"
-    - "-fblocks"
+    - "-fdefer-ts"

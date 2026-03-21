@@ -631,15 +631,13 @@ inline fptr printer_arg_after(char delim, fptr slice) {
 inline fptr printer_arg_trim(fptr in) {
   while (
       in.width &&
-      in.ptr[0] <= ' '
-  ) {
+      in.ptr[0] <= ' ') {
     in.ptr++;
     in.width--;
   }
   while (
       in.width &&
-      in.ptr[in.width - 1] <= ' '
-  )
+      in.ptr[in.width - 1] <= ' ')
     in.width--;
   return in;
 }
@@ -690,10 +688,8 @@ void print_f(outputFunction put, void *arb, const char *fmt, ...) {
 
     } else if (fmt[i] == '/') {
       toggled = !toggled;
-      if (!toggled) {
-        c32 c = (c32)(fmt[i]);
-        put(REF(c32, L'/'), arb, 1, 0);
-      }
+      if (!toggled)
+        put(REF(c32, U'/'), arb, 1, 0);
     } else {
       toggled = 0;
       c32 c = (c32)(fmt[i]);
