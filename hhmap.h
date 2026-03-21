@@ -245,8 +245,133 @@ using mHmap_t = Tb (**)(HMap *, Ta);
   #define mHmap_clear(map) HMap_clear((HMap *)map)
   #define HMap_scoped [[gnu::cleanup(HMap_cleanup_handler)]] HMap
 
+  #if defined(MAKE_TEST_FN)
+    #include "macros.h"
+MAKE_TEST_FN(HMap_basic_set_get_macro, {
+  mHmap(int, int) map = mHmap_init(allocator, int, int);
+  defer { mHmap_deinit(map); };
+
+  for (int i = 0; i < 100; i++)
+    mHmap_set(map, i, i * 2);
+
+  for (int i = 0; i < 100; i++) {
+    int *v = mHmap_get(map, i);
+    if (!v || *v != i * 2)
+      return 1;
+  }
+
+  return 0;
+});
+MAKE_TEST_FN(HMap_overwrite_macro, {
+  mHmap(int, int) map = mHmap_init(allocator, int, int);
+  defer { mHmap_deinit(map); };
+
+  mHmap_set(map, 5, 10);
+  mHmap_set(map, 5, 99);
+
+  int *v = mHmap_get(map, 5);
+  if (!v || *v != 99)
+    return 1;
+
+  return 0;
+});
+MAKE_TEST_FN(HMap_remove_macro, {
+  mHmap(int, int) map = mHmap_init(allocator, int, int);
+  defer { mHmap_deinit(map); };
+
+  mHmap_set(map, 7, 77);
+  mHmap_rem(map, 7);
+
+  if (mHmap_get(map, 7) != NULL)
+    return 1;
+
+  return 0;
+});
+MAKE_TEST_FN(HMap_count_macro, {
+  mHmap(int, int) map = mHmap_init(allocator, int, int, 8);
+  defer { mHmap_deinit(map); };
+
+  for (int i = 0; i < 200; i++) {
+    mHmap_set(map, i, i);
+  }
+
+  if (HMap_count((HMap *)map) != 200)
+    return 1;
+
+  // collisions should exist with small bucket count
+  if (HMap_countCollisions((HMap *)map) == 0)
+    return 1;
+
+  return 0;
+});
+MAKE_TEST_FN(HMap_clear_macro, {
+  mHmap(int, int) map = mHmap_init(allocator, int, int);
+  defer { mHmap_deinit(map); };
+
+  for (int i = 0; i < 100; i++) {
+    mHmap_set(map, i, i);
+  }
+
+  mHmap_clear(map);
+
+  if (HMap_count((HMap *)map) != 0)
+    return 1;
+
+  for (int i = 0; i < 100; i++) {
+    if (mHmap_get(map, i) != NULL)
+      return 1;
+  }
+
+  return 0;
+});
+MAKE_TEST_FN(HMap_transform_macro, {
+  mHmap(int, int) map = mHmap_init(allocator, int, int, 8);
+  defer { mHmap_deinit(map); };
+
+  for (int i = 0; i < 100; i++) {
+    mHmap_set(map, i, i * 3);
+  }
+
+  HMap_transform((HMap **)&map, sizeof(int), sizeof(int), allocator, 128);
+
+  for (int i = 0; i < 100; i++) {
+    int *v = mHmap_get(map, i);
+    if (!v || *v != i * 3)
+      return 1;
+  }
+
+  return 0;
+});
+MAKE_TEST_FN(HMap_stress_macro, {
+  mHmap(int, int) map = mHmap_init(allocator, int, int, 16);
+  defer { mHmap_deinit(map); };
+
+  for (int i = 0; i < 1000; i++) {
+    mHmap_set(map, i, i);
+  }
+
+  for (int i = 0; i < 500; i++) {
+    mHmap_rem(map, i);
+  }
+
+  for (int i = 0; i < 500; i++) {
+    if (mHmap_get(map, i) != NULL)
+      return 1;
+  }
+
+  for (int i = 500; i < 1000; i++) {
+    int *v = mHmap_get(map, i);
+    if (!v || *v != i)
+      return 1;
+  }
+
+  return 0;
+});
+
+  #endif
 #endif // HMap_H
 
-#ifdef HMAP_C
+#if defined(HMAP_C) && HMAP_C == (1)
+  #define HMAP_C (2)
   #include "src/hhmap.c"
 #endif // HMap_C

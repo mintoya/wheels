@@ -61,15 +61,15 @@ void *aResize(AllocatorV allocator, void *oldptr, size_t size);
 void aFree(AllocatorV allocator, void *oldptr);
 
 #include "macros.h"
-#define aCreate(allocator, type, ...)                                  \
-  /* optional count argument, defaults to 1*/                          \
-  DIAGNOSTIC_PUSH("-Weverything")                                      \
-  *(type(*)[(__VA_OPT__(1) + 0) ? __VA_ARGS__ + 0 : 1])({              \
-    size_t _count = (__VA_OPT__(1) + 0) ? __VA_ARGS__ + 0 : 1;         \
-    type *_res = ((type *)(aAlloc(allocator, sizeof(type) * _count))); \
-    __builtin_memset(_res, 0, sizeof(type) * _count);                  \
-    _res;                                                              \
-  })DIAGNOSTIC_POP()
+#define aCreate(allocator, type, ...)                                      \
+  /* optional count argument, defaults to 1*/                              \
+  DIAGNOSTIC_PUSH("-Weverything")                                          \
+  *(type(*)[(__VA_OPT__(1) + 0) ? __VA_ARGS__ + 0 : 1]) DIAGNOSTIC_POP()({ \
+    size_t _count = (__VA_OPT__(1) + 0) ? __VA_ARGS__ + 0 : 1;             \
+    type *_res = ((type *)(aAlloc(allocator, sizeof(type) * _count)));     \
+    __builtin_memset(_res, 0, sizeof(type) * _count);                      \
+    _res;                                                                  \
+  })
 
 extern AllocatorV stdAlloc;
 

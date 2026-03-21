@@ -114,6 +114,19 @@ extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
         s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), SLIST_GROW_EQ(msList_len(s)))->buf; \
       (s)[msList_len(s)++] = (val);                                                                               \
     } while (0)
+  #define msList_insArr(allocator, s, place, vla)                       \
+    do {                                                                \
+      static_assert(_Generic(vla[0], typeof(s[0]): 1, default: 0), ""); \
+      s = (typeof(s))sList_insertFromArr(                               \
+              allocator,                                                \
+              msList_header(s),                                         \
+              vla,                                                      \
+              countof(vla),                                             \
+              place,                                                    \
+              sizeof(vla[0])                                            \
+      )                                                                 \
+              ->buf;                                                    \
+    } while (0)
   #define msList_pushArr(allocator, s, vla)                             \
     do {                                                                \
       static_assert(_Generic(vla[0], typeof(s[0]): 1, default: 0), ""); \
@@ -138,13 +151,147 @@ extern inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
       )                                                                    \
               ->buf;                                                       \
     } while (0)
+  #define msList_setCap(allocator, s, capacity)                                             \
+    do {                                                                                    \
+      s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), capacity)->buf; \
+    } while (0)
   #define msList_len(s) (msList_header(s)->length)
   #define msList_cap(s) (msList_header(s)->capacity)
   #define msList_pop(s) ((s)[--msList_header(s)->length])
+  #define msList_popFront(s) ({typeof(*s) _res = *s;msList_rem(s, 0);_res; })
+extern inline sList_header *sList_insertFromArr(
+    AllocatorV allocator,
+    sList_header *l,
+    const void *source,
+    usize length,
+    usize location,
+    size_t width
+);
+  #define msList_pad(allocator, s, ammount) \
+    do {                                    \
+      s = (typeof(s))sList_insertFromArr(   \
+              allocator,                    \
+              msList_header(s),             \
+              NULL,                         \
+              ammount,                      \
+              msList_len(s),                \
+              sizeof(*s)                    \
+      )                                     \
+              ->buf;                        \
+    } while (0)
   #define msList_vla(s) (VLAP(s, msList_len(s)))
+  #define msList_clear(s) \
+    do                    \
+      msList_len(s) = 0;  \
+    while (0)
   #define msList_reserve(allocator, s, new_cap)                                              \
     do {                                                                                     \
       if (msList_cap(s) < (new_cap))                                                         \
         s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), new_cap)->buf; \
     } while (0)
+  #if defined(MAKE_TEST_FN)
+    #include "macros.h"
+
+MAKE_TEST_FN(msList_push_pop, {
+    int *list = msList_init(allocator, int);
+    defer { msList_deInit(allocator, list); };
+
+  for (each_RANGE(i, 0, 50))
+    msList_push(allocator, list, i * i);
+  for (each_RANGE(i, 0, 50))
+    if (list[i] != i * i)
+      return 1;
+
+  return 0;
+});
+
+MAKE_TEST_FN(msList_insert_remove, {
+  int *list = msList_init(allocator, int);
+    defer { msList_deInit(allocator, list); };
+
+  msList_push(allocator, list, 100);
+  msList_push(allocator, list, 300);
+    
+  msList_ins(allocator, list, 1, 200);
+  if (msList_len(list) != 3)
+    return 1;
+  if (list[1] != 200)
+    return 1;
+
+  msList_rem(list, 0);
+  if (msList_len(list) != 2)
+    return 1;
+  if (list[0] != 200)
+    return 1;
+
+  if (msList_popFront(list) != 200)
+    return 1;
+  if (msList_len(list) != 1)
+    return 1;
+  if (list[0] != 300)
+    return 1;
+
+  return 0;
+});
+
+MAKE_TEST_FN(msList_array_operations, {
+  int *list = msList_init(allocator, int);
+  defer { msList_deInit(allocator, list); };
+
+  int arr1[] = {1, 2, 3};
+  msList_pushArr(allocator, list, arr1);
+  if (msList_len(list) != 3)
+    return 1;
+  if (list[2] != 3)
+    return 1;
+
+  int arr2[] = {0};
+  msList_insArr(allocator, list, 0, arr2);
+  if (msList_len(list) != 4)
+    return 1;
+  if (list[0] != 0)
+    return 1;
+  if (list[1] != 1)
+    return 1;
+
+  return 0;
+});
+
+MAKE_TEST_FN(msList_capacity_and_padding, {
+  int *list = msList_init(allocator, int);
+  defer { msList_deInit(allocator, list); };
+
+  msList_reserve(allocator, list, 50);
+  if (msList_cap(list) < 50)
+    return 1;
+
+  msList_pad(allocator, list, 5);
+  if (msList_len(list) != 5)
+    return 1;
+
+  msList_setCap(allocator, list, 10);
+  if (msList_cap(list) < 10)
+    return 1;
+
+  msList_clear(list);
+  if (msList_len(list) != 0)
+    return 1;
+
+  return 0;
+});
+
+MAKE_TEST_FN(msList_vla_cast, {
+  int *list = msList_init(allocator, int);
+  defer { msList_deInit(allocator, list); };
+
+  msList_push(allocator, list, 7);
+  msList_push(allocator, list, 8);
+  msList_push(allocator, list, 9);
+  msList_pushArr(allocator, list, *msList_vla(list));
+  if (msList_len(list) != 6)
+    return 1;
+  return 0;
+});
+
+  #endif
 #endif // SHORT_LIST_H

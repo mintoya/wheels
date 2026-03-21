@@ -8,7 +8,7 @@ CompileFlags:
 
 ---
 If:
-  PathMatch: .*\.(h|c)
+  PathMatch: .*\.(c)
 CompileFlags:
   Add: 
     - "-x"

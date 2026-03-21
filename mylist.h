@@ -225,6 +225,111 @@ using mList_t = T (**)(List *);
     ((List *)list)->length = 0; \
   while (0)
 #define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
+#if defined(MAKE_TEST_FN)
+  #include "macros.h"
+
+MAKE_TEST_FN(mlist_push_pop, {
+    mList(int) list = mList_init(allocator, int);
+    defer { mList_deInit(list); };
+
+  for (each_RANGE(i, 0, 50))
+    mList_push(list, i * i);
+  for (each_RANGE(i, 0, 50))
+    if (mList_arr(list)[i] != i * i)
+      return 1;
+
+  return 0;
+});
+
+MAKE_TEST_FN(mlist_insert_remove, {
+  mList(int) list = mList_init(allocator, int);
+  defer { mList_deInit(list); };
+
+  mList_push(list, 100);
+  mList_push(list, 300);
+    
+  mList_ins(list, 1, 200);
+  if (mList_len(list) != 3)
+    return 1;
+  if (mList_arr(list)[1] != 200)
+    return 1;
+
+  mList_rem(list, 0);
+  if (mList_len(list) != 2)
+    return 1;
+  if (mList_arr(list)[0] != 200)
+    return 1;
+
+  if (mList_popFront(list) != 200)
+    return 1;
+  if (mList_len(list) != 1)
+    return 1;
+  if (mList_arr(list)[0] != 300)
+    return 1;
+
+  return 0;
+});
+
+MAKE_TEST_FN(mlist_array_operations, {
+  mList(int) list = mList_init(allocator, int);
+  defer { mList_deInit(list); };
+
+  int arr1[] = {1, 2, 3};
+  mList_pushArr(list, arr1);
+  if (mList_len(list) != 3)
+    return 1;
+  if (mList_arr(list)[2] != 3)
+    return 1;
+
+  int arr2[] = {0};
+  mList_insArr(list, 0, arr2);
+  if (mList_len(list) != 4)
+    return 1;
+  if (mList_arr(list)[0] != 0)
+    return 1;
+  if (mList_arr(list)[1] != 1)
+    return 1;
+
+  return 0;
+});
+
+MAKE_TEST_FN(mlist_capacity_and_padding, {
+  mList(int) list = mList_init(allocator, int);
+  defer { mList_deInit(list); };
+
+  mList_reserve(list, 50);
+  if (mList_cap(list) < 50)
+    return 1;
+
+  mList_pad(list, 5);
+  if (mList_len(list) != 5)
+    return 1;
+
+  mList_setCap(list, 10);
+  if (mList_cap(list) < 10)
+    return 1;
+
+  mList_clear(list);
+  if (mList_len(list) != 0)
+    return 1;
+
+  return 0;
+});
+
+MAKE_TEST_FN(mlist_vla_cast, {
+  mList(int) list = mList_init(allocator, int);
+  defer { mList_deInit(list); };
+
+  mList_push(list, 7);
+  mList_push(list, 8);
+  mList_push(list, 9);
+  mList_pushArr(list, *mList_vla(list));
+  if (mList_len(list) != 6)
+    return 1;
+  return 0;
+});
+
+#endif
 #endif // MY_LIST_H
 
 #if defined(MY_LIST_C) && MY_LIST_C == (1)

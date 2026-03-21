@@ -1,11 +1,7 @@
+#include "../hhmap.h"
 #include "../allocator.h"
 #include "../assertMessage.h"
 #include "../fptr.h"
-
-typedef struct HMap_both {
-  void *key;
-  void *val;
-} HMap_both;
 
 typedef struct HMap {
   AllocatorV allocator;

@@ -81,5 +81,20 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     typeof(vla[0][0]) *name = (typeof(name))vla; \
     name < vla[1];                               \
     name++
+  #define VA_SWITCH_FIRST(first, ...) first
+
+  #define VA_SWITCH_EMPTY(...) VA_SWITCH_FIRST(__VA_OPT__(0, ) 1, ~)
+  #define VA_SWITCH_CAT_(a, b) a##b
+  #define VA_SWITCH_CAT(a, b) VA_SWITCH_CAT_(a, b)
+  #define VA_SWITCH_IMPL_0(default_val, ...) __VA_ARGS__
+  #define VA_SWITCH_IMPL_1(default_val) default_val
+  #define VA_SWITCH(default_val, ...) \
+    VA_SWITCH_CAT(VA_SWITCH_IMPL_, VA_SWITCH_EMPTY(__VA_ARGS__))(default_val __VA_OPT__(, ) __VA_ARGS__)
+
+  #define each_RANGE(name, start, end, ...) \
+    usize name = start;                     \
+    (start > end && name < end) ||          \
+        (start < end && name > end);        \
+    name += VA_SWITCH(start > end ? -1 : 1, __VA_ARGS__)
 
 #endif

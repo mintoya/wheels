@@ -35,7 +35,7 @@ ArenaBuf *arenablock_new(AllocatorV allocator, usize blockSize) {
   };
   return res;
 }
-usize arena_totalMem(My_allocator *arena) {
+usize arena_totalMem(AllocatorV arena) {
   usize res = 0;
   ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
   while (it) {
@@ -56,13 +56,10 @@ usize arena_footprint(My_allocator *arena) {
   return res;
 }
 
-My_allocator *ownArenaInit(void) {
-  return arena_new_ext(stdAlloc, 1024);
-}
 void ownArenaDeInit(My_allocator *d) {
   return arena_cleanup(d);
 }
-My_allocator *arena_new_ext(AllocatorV base, usize blockSize) {
+AllocatorV arena_new_ext(AllocatorV base, usize blockSize) {
   My_arena_includeBlock *res = aCreate(base, My_arena_includeBlock);
   static constexpr auto defaultArena =
       (My_allocator){
@@ -78,7 +75,7 @@ My_allocator *arena_new_ext(AllocatorV base, usize blockSize) {
   };
   return res->allocator;
 }
-void arena_cleanup(My_allocator *arena) {
+void arena_cleanup(AllocatorV arena) {
   ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
   AllocatorV allocator = ((ArenaHead *)(arena->arb))->allocator;
   while (it) {
@@ -86,9 +83,9 @@ void arena_cleanup(My_allocator *arena) {
     aFree(allocator, it);
     it = next;
   }
-  aFree(allocator, arena);
+  aFree(allocator, (void *)arena);
 }
-void arena_clear(My_allocator *arena) {
+void arena_clear(AllocatorV arena) {
   ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
   while (it) {
     ArenaBuf *next = it->next;
@@ -106,7 +103,7 @@ void my_arena_free(AllocatorV allocator, void *ptr) {
     it = it->next;
   assertMessage(it, "ptr %p not in arena", ptr);
   isize *lastSize = (isize *)((u8 *)ptr - alignof(max_align_t));
-  assertMessage(lastSize > 0, "double free in arena");
+  assertMessage(lastSize > (typeof(lastSize))0, "double free in arena");
   usize oldsize = *lastSize;
   if (it->buffer + it->place == (u8 *)ptr + *lastSize) {
     it->place -= *lastSize + alignof(max_align_t);
