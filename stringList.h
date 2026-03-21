@@ -2,7 +2,7 @@
   #define STRING_LIST_H (1)
   #include "fptr.h"
   #include "mytypes.h"
-  #include "shortList.h"
+  #include "sList.h"
   #include <string.h>
 typedef struct vlength {
   u8 hasNext : 1;

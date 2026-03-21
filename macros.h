@@ -27,7 +27,7 @@
 
   #if defined(__cplusplus)
     #pragma GCC warning "using cpp closure defer"
-    #include <memory>
+    #include <utility>
 template <typename F>
 struct Deferrer {
   F fn;

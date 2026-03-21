@@ -45,7 +45,7 @@ MAKE_TEST_FN(allocator_test, {
 
 int main(void) {
 
-  AllocatorV allocator = FBA_static(1 << 15);
+  AllocatorV allocator = FBA_static(1000000);
   usize failCount = 0;
   for (each_VLAP(test, VLAP(testList, testCount))) {
     printf("test %s\n", test->name);
@@ -53,12 +53,12 @@ int main(void) {
     int res = test->function(allocator);
     bool failed = false;
     if (res) {
-      printf("test %s failed\n", test->name);
+      printf(ASSERTMESSAGE_PRINTRED "test %s failed\n" ASSERTMESSAGE_PRINTRESET, test->name);
       fflush(stdout);
       failed = 1;
     }
     if (FBA_current(allocator)) {
-      printf("test %s leaked\n", test->name);
+      printf(ASSERTMESSAGE_PRINTORANGE "test %s leaked\n" ASSERTMESSAGE_PRINTRESET, test->name);
       fflush(stdout);
       failed = 1;
     }

@@ -97,11 +97,12 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
           .start = strStart,
           .end = (vason_index)(strStart + n.string->len),
       };
-      msList_pushArr(
-          c->allocator,
-          c->text.ptr,
-          *VLAP(n.string->buffer, n.string->len)
-      );
+      if (n.string->len)
+        msList_pushArr(
+            c->allocator,
+            c->text.ptr,
+            *VLAP(n.string->buffer, n.string->len)
+        );
     } break;
     default:
       assertMessage(false, "unreachable?");
@@ -183,4 +184,38 @@ usize vason_node_footprint(vason_node n) {
       assertMessage(false, "no free for this node ");
       return 0;
   }
+}
+vason_node vason_node_deepCopy(AllocatorV allocator, vason_node n) {
+  vason_node res;
+  res.tag = n.tag;
+  switch (n.tag) {
+    case vason_TABLE: {
+      res.table = msList_init(allocator, typeof(*n.table), msList_len(n.table));
+      for (each_VLAP(node, msList_vla(n.table))) {
+        msList_push(
+            allocator,
+            res.table,
+            vason_node_deepCopy(allocator, *node)
+        );
+      }
+    } break;
+    case vason_PAIR: {
+      res.pair = aCreate(allocator, vason_node, 2);
+      res.pair[0] = vason_node_deepCopy(allocator, n.pair[0]);
+      res.pair[1] = vason_node_deepCopy(allocator, n.pair[1]);
+    } break;
+    case vason_STRING: {
+      res.string = (typeof(res.string))aAlloc(allocator, sizeof(*n.string) + n.string->len);
+      res.string->len = n.string->len;
+      __builtin_memcpy(res.string->buffer, n.string->buffer, n.string->len);
+    } break;
+  }
+  return res;
+}
+slice(c8) vason_node_toStr(AllocatorV allocator, vason_node n) {
+  c8 *strp = NULL;
+  defer { aFree(allocator, strp); };
+  vason_container c = vason_node_toContainer(allocator, n, &strp);
+  defer { vason_container_free(c); };
+  return vason_tostr(allocator, c);
 }

@@ -6,6 +6,9 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
+#define ASSERTMESSAGE_PRINTRESET "\x1b[0m"
+#define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"
 
 #ifndef assertMessage_no_backtrace
   #if __has_include(<execinfo.h>)
@@ -85,9 +88,6 @@ __builtin_trap();
 // #if !defined(ASSERTMESSAGE_OUTPUT)
 //    #define ASSERTMESSAGE_OUTPUT(...) fprintf(stderr, __VA_ARGS__)
 // #endif
-#define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
-#define ASSERTMESSAGE_PRINTRESET "\x1b[0m"
-#define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"
 void __attribute__((noreturn)) _assertMessageFail(
     const char *expr_str,
     const char *func,

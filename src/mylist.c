@@ -1,5 +1,5 @@
 #include "../mylist.h"
-static inline _Bool memzeroed(void *mem, size_t len) {
+static inline int memzeroed(void *mem, size_t len) {
   for (; len > 0; len--) {
     if (((uint8_t *)mem)[len - 1])
       return false;

@@ -6,7 +6,7 @@
   #include "macros.h"
   #include "mylist.h"
   #include "mytypes.h"
-  #include "shortList.h"
+  #include "sList.h"
 sliceDef(c8);
 typedef usize vason_index;
 typedef struct {
