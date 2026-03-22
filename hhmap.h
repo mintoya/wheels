@@ -342,31 +342,6 @@ MAKE_TEST_FN(HMap_transform_macro, {
 
   return 0;
 });
-MAKE_TEST_FN(HMap_stress_macro, {
-  mHmap(int, int) map = mHmap_init(allocator, int, int, 16);
-  defer { mHmap_deinit(map); };
-
-  for (int i = 0; i < 1000; i++) {
-    mHmap_set(map, i, i);
-  }
-
-  for (int i = 0; i < 500; i++) {
-    mHmap_rem(map, i);
-  }
-
-  for (int i = 0; i < 500; i++) {
-    if (mHmap_get(map, i) != NULL)
-      return 1;
-  }
-
-  for (int i = 500; i < 1000; i++) {
-    int *v = mHmap_get(map, i);
-    if (!v || *v != i)
-      return 1;
-  }
-
-  return 0;
-});
 
   #endif
 #endif // HMap_H

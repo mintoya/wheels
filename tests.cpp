@@ -48,7 +48,7 @@ MAKE_TEST_FN(allocator_test, {
 });
 
 int main(void) {
-  AllocatorV allocator = FBA_static(1 << 15);
+  AllocatorV allocator = FBA_static(1 << 20);
   usize failCount = 0;
   for (each_VLAP(test, VLAP(testList, testCount))) {
     printf("test %s: {\n", test->name);

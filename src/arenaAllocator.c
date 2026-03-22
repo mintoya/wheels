@@ -1,8 +1,14 @@
 #include "../arenaAllocator.h"
-void my_arena_free(AllocatorV arena, void *ptr);
-void *my_arena_alloc(AllocatorV arena, usize size);
-void *my_arena_r_alloc(AllocatorV arena, void *ptr, usize size);
-usize my_arena_realsize(AllocatorV arena, void *ptr);
+#include "../fbaAllocator.h"
+#include "../mytypes.h"
+#include <stdalign.h>
+#include <stddef.h>
+#include <string.h>
+
+void my_arena_free(AllocatorV arena, voidptr ptr);
+voidptr my_arena_alloc(AllocatorV arena, usize size);
+voidptr my_arena_r_alloc(AllocatorV arena, voidptr ptr, usize size);
+usize my_arena_realsize(AllocatorV arena, voidptr ptr);
 
 typedef struct ArenaHead ArenaHead;
 typedef struct ArenaBuf ArenaBuf;
@@ -12,8 +18,7 @@ typedef struct ArenaHead {
 } ArenaHead;
 typedef struct ArenaBuf {
   ArenaBuf *next;
-  usize place;
-  usize size;
+  usize capacity, offset;
   alignas(alignof(max_align_t)) u8 buffer[/*size*/];
 } ArenaBuf;
 typedef struct {
@@ -30,8 +35,8 @@ ArenaBuf *arenablock_new(AllocatorV allocator, usize blockSize) {
 
   *res = (ArenaBuf){
       .next = nullptr,
-      .place = 0,
-      .size = trueSize,
+      .offset = 0,
+      .capacity = trueSize,
   };
   return res;
 }
@@ -40,7 +45,7 @@ usize arena_totalMem(AllocatorV arena) {
   ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
   while (it) {
     ArenaBuf *next = it->next;
-    res += it->place;
+    res += it->offset;
     it = next;
   }
   return res;
@@ -50,7 +55,7 @@ usize arena_footprint(My_allocator *arena) {
   ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
   while (it) {
     ArenaBuf *next = it->next;
-    res += it->size;
+    res += it->capacity;
     it = next;
   }
   return res;
@@ -89,87 +94,79 @@ void arena_clear(AllocatorV arena) {
   ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
   while (it) {
     ArenaBuf *next = it->next;
-    it->place = 0;
-    ASAN_POISON_MEMORY_REGION(it->buffer, it->size);
+    it->offset = 0;
+    ASAN_POISON_MEMORY_REGION(it->buffer, it->capacity);
     it = next;
   }
 }
 bool inarena(ArenaBuf *it, const void *ptr) {
-  return (uintptr_t)ptr >= (uintptr_t)it->buffer && (uintptr_t)ptr < (uintptr_t)it->buffer + (uintptr_t)it->size;
+  return (uintptr_t)ptr >= (uintptr_t)it->buffer && (uintptr_t)ptr < (uintptr_t)it->buffer + (uintptr_t)it->capacity;
 }
-void my_arena_free(AllocatorV allocator, void *ptr) {
-  ArenaBuf *it = ((ArenaHead *)(allocator->arb))->next;
-  while (it && !inarena(it, ptr))
-    it = it->next;
-  assertMessage(it, "ptr %p not in arena", ptr);
-  isize *lastSize = (isize *)((u8 *)ptr - alignof(max_align_t));
-  assertMessage(lastSize > (typeof(lastSize))0, "double free in arena");
-  usize oldsize = *lastSize;
-  if (it->buffer + it->place == (u8 *)ptr + *lastSize) {
-    it->place -= *lastSize + alignof(max_align_t);
-  } else
-    *lastSize *= -1;
-  ASAN_POISON_MEMORY_REGION(ptr, oldsize);
+FBA_State arena_toFBA(ArenaBuf *ab) {
+  return (FBA_State){
+      .capacity = ab->capacity,
+      .offset = ab->offset,
+      .allocator = {},
+      .buffer = ab->buffer,
+  };
+}
+void sync_fba(ArenaBuf *ab, FBA_State fba) {
+  ab->capacity = fba.capacity;
+  ab->offset = fba.offset;
+}
+void my_arena_free(AllocatorV arena, void *ptr) {
+  My_arena_includeBlock *maib = (typeof(maib))arena;
+  ArenaBuf *b = maib->block->next;
+  while (b && !inarena(b, ptr))
+    b = b->next;
+  assertMessage(b, "ptr not in any arena block");
+  FBA_State fbs = arena_toFBA(b);
+  defer { sync_fba(b, fbs); };
+  _fba_free(fbs.allocator, ptr);
 }
 usize my_arena_realsize(AllocatorV arena, void *ptr) {
-  usize *lastSize = (usize *)((uint8_t *)ptr - alignof(max_align_t));
-  return *lastSize;
+  My_arena_includeBlock *maib = (typeof(maib))arena;
+  ArenaBuf *b = maib->block->next;
+  while (b && !inarena(b, ptr))
+    b = b->next;
+  assertMessage(b, "ptr not in any arena block");
+  FBA_State fbs = arena_toFBA(b);
+  defer { sync_fba(b, fbs); };
+  return _fba_size(fbs.allocator, ptr);
 }
 void *my_arena_r_alloc(AllocatorV arena, void *ptr, usize size) {
-  if (!ptr)
-    return my_arena_alloc(arena, size);
-
-  size = lineup(size, alignof(max_align_t));
-  usize *lastSize = (usize *)((uint8_t *)ptr - alignof(max_align_t));
-
-  if (*lastSize >= size) {
-    usize diff = *lastSize - size;
-    ASAN_POISON_MEMORY_REGION((u8 *)ptr + size, diff);
-    *lastSize = size;
-    return ptr;
-  }
-
-  ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
-  while (it && !inarena(it, ptr))
-    it = it->next;
-  assertMessage(it, "ptr %p not in arena", ptr);
-
-  if (it->buffer + it->place == (u8 *)ptr + *lastSize) {
-    usize additional = size - *lastSize;
-    if (additional <= it->size - it->place) {
-      it->place += additional;
-      *lastSize = size;
-      return ptr;
-    }
-  }
-
+  My_arena_includeBlock *maib = (typeof(maib))arena;
+  ArenaBuf *b = maib->block->next;
+  while (b && !inarena(b, ptr))
+    b = b->next;
+  assertMessage(b, "ptr not in any arena block");
+  FBA_State fbs = arena_toFBA(b);
+  defer { sync_fba(b, fbs); };
+  void *inplace =
+      _fba_resize_nullable(fbs.allocator, ptr, size);
+  if (inplace)
+    return inplace;
   void *res = my_arena_alloc(arena, size);
-  memmove(res, ptr, *lastSize);
+  usize oldsize = my_arena_realsize(arena, ptr);
+  memcpy(res, ptr, oldsize);
   my_arena_free(arena, ptr);
   return res;
 }
-void *my_arena_alloc(AllocatorV ref, usize size) {
-  size = lineup(size, alignof(max_align_t));
-  ArenaBuf *it = ((ArenaHead *)(ref->arb))->next;
-  void *res = NULL;
-  while (it->next)
-    it = it->next;
-  while (!res) {
-    if (it->size - it->place >= size + alignof(max_align_t)) {
-      *(usize *)(it->buffer + it->place) = size;
-      it->place += alignof(max_align_t);
-
-      res = it->buffer + it->place;
-      it->place += size;
+void *my_arena_alloc(AllocatorV arena, usize size) {
+  My_arena_includeBlock *maib = (typeof(maib))arena;
+  ArenaBuf *b = maib->block->next;
+  void *res = nullptr;
+  do {
+    FBA_State fbs = arena_toFBA(b);
+    res = _fba_alloc_nullable(fbs.allocator, size);
+    if (res) {
+      sync_fba(b, fbs);
     } else {
-      if (!it->next) {
-        usize minsize = size + alignof(max_align_t) * 2 + sizeof(ArenaBuf);
-        minsize = (minsize < it->size ? it->size : minsize);
-        it->next = arenablock_new(((ArenaHead *)(ref->arb))->allocator, minsize);
-      }
-      it = it->next;
+      usize nextsize =
+          b->capacity < size ? size : b->capacity;
+      b->next = b->next ?: arenablock_new(arena, nextsize);
+      b = b->next;
     }
-  }
-  ASAN_UNPOISON_MEMORY_REGION(res, size);
+  } while (!res);
   return res;
 }

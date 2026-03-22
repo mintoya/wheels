@@ -9,6 +9,8 @@ void *_fba_alloc(AllocatorV allocator, usize size);
 void _fba_free(AllocatorV allocator, void *ptr);
 void *_fba_resize(AllocatorV allocator, void *oldptr, usize size);
 usize _fba_size(AllocatorV allocator, void *ptr);
+void *_fba_alloc_nullable(AllocatorV allocator, usize size);
+void *_fba_resize_nullable(AllocatorV allocator, void *oldptr, usize size);
 void _fba_print(AllocatorV allocator);
 My_allocator FBA_prototype[1] = {
     (My_allocator){
@@ -115,45 +117,71 @@ void _fba_free(AllocatorV allocator, void *ptr) {
   FBA_State *f = (typeof(f))allocator;
   assert("ptr is outside buffer" && ptr > (u8 *)f->buffer);
   assert("ptr is outside buffer" && ptr < (u8 *)f->buffer + f->offset);
-  FBA_Header *h = (typeof(h))((u8 *)ptr - offsetof(FBA_Header, mem));
+  FBA_Header *h = ((FBA_Header *)ptr) - 1;
   h->size |= ((usize)1 << (sizeof(usize) * 8 - 1));
   _fba_coallese(allocator);
   // printf("%zu%%\n", f->offset * 100 / f->capacity);
 }
-void *_fba_alloc(AllocatorV allocator, usize size) {
+void *_fba_alloc_nullable(AllocatorV allocator, usize size) {
   assert(!(size & ((usize)1 << (sizeof(usize) * 8 - 1))));
   FBA_State *f = (typeof(f))allocator;
   usize innersize = sizeof(FBA_Header) + lineup(size, sizeof(max_align_t));
+
+  if (f->offset + innersize > f->capacity)
+    return nullptr;
+
   FBA_Header *res = (typeof(res))(f->buffer + f->offset);
   res->size = lineup(size, sizeof(max_align_t));
-  // f->count++;
   f->offset += innersize;
-  assert("fba ran out of memory" && f->offset < f->capacity);
-  // printf("%zu%%\n", f->offset * 100 / f->capacity);
   return res->mem;
 }
-void *_fba_resize(AllocatorV allocator, void *oldptr, usize size) {
+
+void *_fba_resize_nullable(AllocatorV allocator, void *oldptr, usize size) {
+  size = lineup(size, alignof(max_align_t));
   FBA_State *f = (typeof(f))allocator;
   assert("ptr is outside buffer" && oldptr > (u8 *)f->buffer);
   assert("ptr is outside buffer" && oldptr < (u8 *)f->buffer + f->offset);
-  FBA_Header *h = (typeof(h))((u8 *)oldptr - offsetof(FBA_Header, mem));
+  FBA_Header *h = ((FBA_Header *)oldptr) - 1;
+
   if (h->mem + h->size == f->offset + f->buffer) {
-    usize aligned_size = lineup(size, sizeof(max_align_t));
-    f->offset += (aligned_size - h->size);
-    h->size = aligned_size;
-    assert(f->offset < f->capacity);
+    if (size > h->size) {
+      if (f->offset + (size - h->size) > f->capacity)
+        return nullptr;
+      f->offset += (size - h->size);
+    } else {
+      f->offset -= (h->size - size);
+    }
+    h->size = size;
     return oldptr;
   }
-  void *res = _fba_alloc(allocator, size);
-  __builtin_memcpy(res, oldptr, h->size);
+
+  void *res = _fba_alloc_nullable(allocator, size);
+  if (!res)
+    return res;
+
+  usize copy_size = size < h->size ? size : h->size;
+  __builtin_memcpy(res, oldptr, copy_size);
   _fba_free(allocator, oldptr);
   return res;
 }
+
+void *_fba_alloc(AllocatorV allocator, usize size) {
+  void *res = _fba_alloc_nullable(allocator, size);
+  assert(res);
+  return res;
+}
+
+void *_fba_resize(AllocatorV allocator, void *oldptr, usize size) {
+  void *res = _fba_resize_nullable(allocator, oldptr, size);
+  assert(res);
+  return res;
+}
+
 usize _fba_size(AllocatorV allocator, void *ptr) {
   FBA_State *f = (typeof(f))allocator;
   assert("ptr is outside buffer" && ptr > (u8 *)f->buffer);
   assert("ptr is outside buffer" && ptr < (u8 *)f->buffer + f->offset);
-  FBA_Header *h = (typeof(h))((u8 *)ptr - offsetof(FBA_Header, mem));
+  FBA_Header *h = ((FBA_Header *)ptr) - 1;
   return h->size;
 }
 #endif // FBA_ALLOCATOR_C
