@@ -9,6 +9,7 @@ void *_fba_alloc(AllocatorV allocator, usize size);
 void _fba_free(AllocatorV allocator, void *ptr);
 void *_fba_resize(AllocatorV allocator, void *oldptr, usize size);
 usize _fba_size(AllocatorV allocator, void *ptr);
+void _fba_print(AllocatorV allocator);
 My_allocator FBA_prototype[1] = {
     (My_allocator){
         .alloc = _fba_alloc,
@@ -62,61 +63,62 @@ extern inline void FBA_init(max_align_t *buffer, usize size, FBA_State res[1]) {
   #define FBA_FREE_BIT ((usize)1 << (sizeof(usize) * 8 - 1))
   #define FBA_SIZE_MASK (~FBA_FREE_BIT)
 
-static inline int _fba_is_free(FBA_Header *h) { return (h->size & FBA_FREE_BIT) != 0; }
+  #include <stdio.h>
+void _fba_print(AllocatorV allocator) {
+  FBA_State *f = (typeof(f))allocator;
+  constexpr usize mask = ((usize)1 << (sizeof(usize) * 8 - 1));
 
-static inline usize _fba_get_size(FBA_Header *h) { return h->size & FBA_SIZE_MASK; }
+  FBA_Header *first = (typeof(first))f->buffer;
+  FBA_Header *end = (typeof(end))((u8 *)f->buffer + f->offset);
 
-static inline void _fba_set_free(FBA_Header *h) { h->size |= FBA_FREE_BIT; }
-
-static inline void _fba_set_size(FBA_Header *h, usize size) {
-  h->size = size; // clears free bit
+  while (first < end) {
+    bool free = first->size & mask;
+    usize size = first->size & ~mask;
+    printf(
+        "%zub\t:%s,\n",
+        size, free ? "free" : "active"
+    );
+    first = (typeof(first))((u8 *)first->mem + (first->size & ~mask));
+  }
 }
 void _fba_coallese(AllocatorV allocator) {
   FBA_State *f = (typeof(f))allocator;
+  constexpr usize mask = ((usize)1 << (sizeof(usize) * 8 - 1));
 
-  u8 *ptr = f->buffer;
-  u8 *end = f->buffer + f->offset;
+  FBA_Header *first = (typeof(first))f->buffer;
+  FBA_Header *end = (typeof(end))((u8 *)f->buffer + f->offset);
 
-  FBA_Header *prev = NULL;
+  while (first < end) {
+    while (first < end && !(first->size & mask))
+      first = (typeof(first))((u8 *)&first->mem + first->size);
 
-  while (ptr < end) {
-    FBA_Header *curr = (FBA_Header *)ptr;
-    usize curr_size = _fba_get_size(curr);
+    FBA_Header *last = first;
+    while (last < end && last->size & mask)
+      last = (typeof(last))((u8 *)&last->mem + ((last->size) ^ mask));
 
-    u8 *next_ptr = ptr + sizeof(FBA_Header) + curr_size;
+    if (first == end)
+      return;
+    else {
+      usize size = (u8 *)last - (u8 *)&first->mem;
 
-    if (prev && _fba_is_free(prev) && _fba_is_free(curr)) {
-      usize new_size =
-          _fba_get_size(prev) +
-          sizeof(FBA_Header) +
-          curr_size;
-
-      _fba_set_size(prev, new_size);
-      _fba_set_free(prev);
-
-      ptr = (u8 *)prev;
-      continue;
+      if ((u8 *)&first->mem + size == (u8 *)f->buffer + f->offset) {
+        f->offset = ((u8 *)first) - (u8 *)f->buffer;
+        return;
+      } else {
+        first->size = size | mask;
+        first = last;
+      }
     }
-
-    prev = curr;
-    ptr = next_ptr;
   }
-
-  while (f->offset > 0) {
-    u8 *scan = f->buffer;
-    FBA_Header *last = NULL;
-
-    while (scan < f->buffer + f->offset) {
-      FBA_Header *h = (FBA_Header *)scan;
-      last = h;
-      scan += sizeof(FBA_Header) + _fba_get_size(h);
-    }
-
-    if (!last || !_fba_is_free(last))
-      break;
-
-    f->offset -= sizeof(FBA_Header) + _fba_get_size(last);
-  }
+}
+void _fba_free(AllocatorV allocator, void *ptr) {
+  FBA_State *f = (typeof(f))allocator;
+  assert("ptr is outside buffer" && ptr > (u8 *)f->buffer);
+  assert("ptr is outside buffer" && ptr < (u8 *)f->buffer + f->offset);
+  FBA_Header *h = (typeof(h))((u8 *)ptr - offsetof(FBA_Header, mem));
+  h->size |= ((usize)1 << (sizeof(usize) * 8 - 1));
+  _fba_coallese(allocator);
+  // printf("%zu%%\n", f->offset * 100 / f->capacity);
 }
 void *_fba_alloc(AllocatorV allocator, usize size) {
   assert(!(size & ((usize)1 << (sizeof(usize) * 8 - 1))));
@@ -127,22 +129,8 @@ void *_fba_alloc(AllocatorV allocator, usize size) {
   // f->count++;
   f->offset += innersize;
   assert("fba ran out of memory" && f->offset < f->capacity);
+  // printf("%zu%%\n", f->offset * 100 / f->capacity);
   return res->mem;
-}
-void _fba_free(AllocatorV allocator, void *ptr) {
-  FBA_State *f = (typeof(f))allocator;
-  assert("ptr is outside buffer" && ptr > (u8 *)f->buffer);
-  assert("ptr is outside buffer" && ptr < (u8 *)f->buffer + f->offset);
-  FBA_Header *h = (typeof(h))((u8 *)ptr - offsetof(FBA_Header, mem));
-  if (h->mem + h->size == f->offset + f->buffer)
-    f->offset -= sizeof(*h) + h->size;
-  else {
-    h->size |= ((usize)1 << (sizeof(usize) * 8 - 1));
-    _fba_coallese(allocator);
-  }
-  // f->count--;
-  // if (f->count == 0)
-  //   f->offset = 0;
 }
 void *_fba_resize(AllocatorV allocator, void *oldptr, usize size) {
   FBA_State *f = (typeof(f))allocator;

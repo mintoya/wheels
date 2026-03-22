@@ -36,6 +36,9 @@ MAKE_TEST_FN(hello, { printf("hello test\n");return 0; });
 MAKE_TEST_FN(allocator_test, {
   int *i = aCreate(allocator, int, 5);
   defer { aFree(allocator, i); };
+  int *i2 = aCreate(allocator, int, 8);
+  defer { aFree(allocator, i2); };
+  _fba_print(allocator);
   for (int ii = 0; ii < 5; ii++)
     i[ii] = ii * ii;
   for (int ii = 0; ii < 5; ii++)
@@ -45,12 +48,13 @@ MAKE_TEST_FN(allocator_test, {
 });
 
 int main(void) {
-  AllocatorV allocator = FBA_static(1 << 20);
+  AllocatorV allocator = FBA_static(1 << 15);
   usize failCount = 0;
   for (each_VLAP(test, VLAP(testList, testCount))) {
-    printf("test %s\n", test->name);
+    printf("test %s: {\n", test->name);
     fflush(stdout);
     int res = test->function(allocator);
+    printf("}\n");
     bool failed = false;
     if (res) {
       printf(ASSERTMESSAGE_PRINTRED "test %s failed\n" ASSERTMESSAGE_PRINTRESET, test->name);
@@ -58,7 +62,10 @@ int main(void) {
       failed = 1;
     }
     if (FBA_current(allocator)) {
-      printf(ASSERTMESSAGE_PRINTORANGE "test %s leaked\n" ASSERTMESSAGE_PRINTRESET, test->name);
+      printf(ASSERTMESSAGE_PRINTORANGE "test %s leaked\n", test->name);
+      printf("memory layout : {\n");
+      _fba_print(allocator);
+      printf("}\n" ASSERTMESSAGE_PRINTRESET);
       fflush(stdout);
       failed = 1;
     }
