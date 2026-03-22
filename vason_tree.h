@@ -1,7 +1,7 @@
-#include "mylist.h"
 #if !defined(VASON_BUILDER_H)
   #define VASON_BUILDER_H
   #include "macros.h"
+  #include "mylist.h"
   #include "mytypes.h"
   #include "sList.h"
   #include "vason_arr.h"
@@ -61,14 +61,12 @@ MAKE_TEST_FN(vason_exact_memcmp_match, {
   const char expected[] = "{hello:world,hello,world,{hello:world,hello,world}}";
   usize expected_len = strlen(expected);
 
-  if (!fptr_eq(fp(expected), (fptr){result.len, result.ptr})) {
-    printf(
-        "%s \n != \n %.*s\n",
-        expected, result.len, result.ptr
-    );
-
+  printf(
+      "input\t: %s \noutput\t: %.*s\n",
+      expected, result.len, result.ptr
+  );
+  if (!fptr_eq(fp(expected), (fptr){result.len, result.ptr}))
     return 1;
-  }
 
   return 0;
 });

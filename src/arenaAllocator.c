@@ -50,7 +50,7 @@ usize arena_totalMem(AllocatorV arena) {
   }
   return res;
 }
-usize arena_footprint(My_allocator *arena) {
+usize arena_footprint(AllocatorV arena) {
   usize res = 0;
   ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
   while (it) {
@@ -162,11 +162,23 @@ void *my_arena_alloc(AllocatorV arena, usize size) {
     if (res) {
       sync_fba(b, fbs);
     } else {
-      usize nextsize =
-          b->capacity < size ? size : b->capacity;
-      b->next = b->next ?: arenablock_new(arena, nextsize);
+      usize nextsize = b->capacity * 2;
+      if (nextsize < size + alignof(max_align_t) + sizeof(FBA_Header))
+        nextsize = size + alignof(max_align_t) + sizeof(FBA_Header);
+
+      b->next = b->next ?: arenablock_new(maib->block[0].allocator, nextsize);
       b = b->next;
     }
   } while (!res);
+  return res;
+}
+usize arena_countBlocks(AllocatorV arena) {
+  My_arena_includeBlock *maib = (typeof(maib))arena;
+  ArenaBuf *b = maib->block->next;
+  usize res = 1;
+  while (b->next) {
+    b = b->next;
+    res++;
+  }
   return res;
 }

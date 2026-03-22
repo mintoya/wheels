@@ -280,7 +280,80 @@ EMSCRIPTEN_BINDINGS(vason_module) {
   #endif
 void vason_lazy_expand(vason_container *c, vason_index current);
 slice(c8) vason_tostr(AllocatorV allocator, vason_container c);
+  #if defined(MAKE_TEST_FN)
+MAKE_TEST_FN(vason_parser_immediate, {
+  const char text[] = "{ foo : bar, numbers : [1, 2] }";
+  slice(c8) input = (slice(c8)){(usize)strlen(text), (u8 *)text};
 
+  vason_container c = vason_parseString(allocator, input);
+  defer { vason_container_free(c); };
+
+  if (!c.tags || c.tags[c.current] != vason_TABLE)
+    return 1;
+
+  vason_index bar_idx = vason_get_str(&c, c.current, (fptr){3, (u8 *)"foo"});
+  if (c.tags[bar_idx] != vason_STRING)
+    return 2;
+
+  vason_span bar_span = c.tables_strings[bar_idx];
+  if ((bar_span.end - bar_span.start) != 3)
+    return 3;
+  if (memcmp(c.text.ptr + bar_span.start, "bar", 3) != 0)
+    return 4;
+
+  vason_index num_idx = vason_get_str(&c, c.current, (fptr){7, (u8 *)"numbers"});
+  if (c.tags[num_idx] != vason_TABLE)
+    return 5;
+
+  vason_index first_num_idx = vason_get_idx(&c, num_idx, 0);
+  if (c.tags[first_num_idx] != vason_STRING)
+    return 6;
+
+  vason_span num_span = c.tables_strings[first_num_idx];
+  if ((num_span.end - num_span.start) != 1)
+    return 7;
+  if (memcmp(c.text.ptr + num_span.start, "1", 1) != 0)
+    return 8;
+
+  return 0;
+});
+MAKE_TEST_FN(vason_parser_lazy, {
+  const char text[] = "{ foo : bar, numbers : [1, 2] }";
+  slice(c8) input = (slice(c8)){(usize)strlen(text), (u8 *)text};
+
+  vason_container c = vason_parseString_Lazy(allocator, input);
+  defer { vason_container_free(c); };
+
+  if (!c.tags || c.tags[c.current] != vason_TABLE)
+    return 1;
+
+  vason_index bar_idx = vason_get_str(&c, c.current, (fptr){3, (u8 *)"foo"});
+  if (c.tags[bar_idx] != vason_STRING)
+    return 2;
+
+  vason_span bar_span = c.tables_strings[bar_idx];
+  if ((bar_span.end - bar_span.start) != 3)
+    return 3;
+  if (memcmp(c.text.ptr + bar_span.start, "bar", 3) != 0)
+    return 4;
+
+  vason_index num_idx = vason_get_str(&c, c.current, (fptr){7, (u8 *)"numbers"});
+  if (c.tags[num_idx] != vason_TABLE)
+    return 5;
+
+  vason_index first_num_idx = vason_get_idx(&c, num_idx, 0);
+  if (c.tags[first_num_idx] != vason_STRING)
+    return 6;
+
+  vason_span num_span = c.tables_strings[first_num_idx];
+  if ((num_span.end - num_span.start) != 1)
+    return 7;
+  if (memcmp(c.text.ptr + num_span.start, "1", 1) != 0)
+    return 8;
+
+  return 0;
+});
+  #endif // tests
 #endif
 #if defined(VASON_PARSER_C) && VASON_PARSER_C == (1)
   #define VASON_PARSER_C (2)

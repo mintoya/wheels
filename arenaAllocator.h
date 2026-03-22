@@ -18,7 +18,8 @@ void arena_cleanup(AllocatorV arena);
 // reset's the arena blocks but doesnt free anything
 void arena_clear(AllocatorV arena);
 // total bytes taken up by the arena
-usize arena_footprint(My_allocator *arena);
+usize arena_footprint(AllocatorV);
+usize arena_countBlocks(AllocatorV arena);
 static void arena_cleanup_handler [[maybe_unused]] (My_allocator **arenaPtr) {
   if (arenaPtr && *arenaPtr) {
     arena_cleanup(*arenaPtr);
@@ -46,6 +47,9 @@ MAKE_TEST_FN(arena_test, {
   r = arena_totalMem(arena);
   if (r)
     return 1;
+  printf("total data :  %zu\n", sizeof(int) * (67 + 5));
+  printf("total blocks : %zu\n",arena_countBlocks(arena));
+  printf("total footprint : %zu\n", arena_footprint(arena));
   return 0;
 });
 
