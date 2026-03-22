@@ -41,6 +41,28 @@ struct debugStats debugAllocator_stats(AllocatorV allocator);
  *      - will print traces to stdout
  */
 int debugAllocatorDeInit(AllocatorV);
+// #include "tests.cpp"
+
+#if defined(MAKE_TEST_FN)
+MAKE_TEST_FN(debug_allocator_test, {
+  usize allocations = 5;
+  usize total = 0;
+  AllocatorV debug = debugAllocator(
+      allocator = allocator, track_total = 1
+  );
+  for (each_RANGE(i, 0, allocations)) {
+    usize size = (i * i) + 1;
+    aCreate(debug, int, size);
+    total += size;
+  }
+  auto stats = debugAllocator_stats(debug);
+  if (!EQUAL_ALL(stats.max_memory, stats.current_memory, total))
+    return 1;
+  if (debugAllocatorDeInit(debug) != total)
+    return 1;
+  return 0;
+});
+#endif
 
 #endif // MY_DEBUG_ALLOCATOR_H
 

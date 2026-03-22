@@ -1,8 +1,11 @@
 #ifndef MY_ALLOCATOR_H
 #define MY_ALLOCATOR_H
 #include <stdalign.h>
-
-#include <stddef.h>
+#if defined(__cplusplus)
+  #include <cstddef>
+#else
+  #include <stddef.h>
+#endif
 #include <stdint.h>
 
 #define MY_ALLOCATOR_STRICTEST
@@ -13,7 +16,6 @@ __attribute__((const)) extern inline uintptr_t lineup(uintptr_t unaligned, size_
 }
 
 typedef struct My_allocator My_allocator;
-
 typedef const My_allocator *AllocatorV;
 /**
  *  equivalent of malloc

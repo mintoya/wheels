@@ -1,3 +1,4 @@
+// #pragma once
 #include "allocator.h"
 #include "fbaAllocator.h"
 #include "macros.h"
@@ -44,8 +45,7 @@ MAKE_TEST_FN(allocator_test, {
 });
 
 int main(void) {
-
-  AllocatorV allocator = FBA_static(1000000);
+  AllocatorV allocator = FBA_static(1 << 20);
   usize failCount = 0;
   for (each_VLAP(test, VLAP(testList, testCount))) {
     printf("test %s\n", test->name);
@@ -67,5 +67,5 @@ int main(void) {
   }
   printf("%lu tests failed out of %lu", failCount, testCount);
 }
-#define WHEELS_INCLUDE_ALL
+#define WHEELS_INCLUDE_ALL (1)
 #include "wheels.h"

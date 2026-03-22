@@ -74,6 +74,8 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define COUNT_ARGS(...) (__VA_OPT__(APPLY_N(COUNT_ONE_MACRO, __VA_ARGS__)) + 0)
   #define EQUAL_ANY_HELPER(a) a ||
   #define EQUAL_ANY(expr, ...) (APPLY_N((expr) == EQUAL_ANY_HELPER, __VA_ARGS__) 0)
+  #define EQUAL_ALL_HELPER(a) a &&
+  #define EQUAL_ALL(expr, ...) (APPLY_N((expr) == EQUAL_ALL_HELPER, __VA_ARGS__) 1)
 
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
 

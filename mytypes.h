@@ -3,7 +3,11 @@
 #include "macros.h"
 #include <assert.h>
 #include <stdbool.h>
-#include <stddef.h>
+#if defined(__cplusplus)
+  #include <cstddef>
+#else
+  #include <stddef.h>
+#endif
 #include <stdint.h>
 #if __has_include("uchar.h") && !defined(NOUCHAR_TYPES)
   #include <uchar.h>
