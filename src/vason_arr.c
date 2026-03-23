@@ -1,4 +1,5 @@
 #include "../vason_arr.h"
+#include "../fptr.h"
 typedef enum : c8 {
   vason_STR,
   vason_STR_DELIM,
@@ -109,7 +110,70 @@ void vason_container_free(vason_container container) {
     aFree(alocator, container.tokens);
   }
 }
+slice(c8) vason_container_asString(vason_container c) {
+  vason_span vs = c.tables_strings[c.current];
+  slice(c8) res = (slice(c8)){
+      (usize)(vs.end - vs.start),
+      c.text.ptr + vs.start,
+  };
+  if (res.ptr + res.len > c.text.ptr + c.text.len)
+    return nullslice(c8);
+  return res;
+}
+bool vason_container_eq(vason_container a, vason_container b) {
+  bool validA = a.current < msList_len(a.tables_strings);
+  bool validB = b.current < msList_len(b.tables_strings);
 
+  if (!validA || !validB) {
+    return validA == validB;
+  }
+
+  if (a.tags[a.current] != b.tags[b.current]) {
+    return false;
+  }
+
+  switch (a.tags[a.current]) {
+    case vason_STRING: {
+      slice(c8) as = vason_container_asString(a);
+      slice(c8) bs = vason_container_asString(b);
+      return fptr_eq((fptr){as.len, (u8 *)as.ptr}, (fptr){bs.len, (u8 *)bs.ptr});
+    }
+
+    case vason_INVALID:
+      return true;
+
+    case vason_PAIR:
+    case vason_TABLE: {
+      vason_span as = a.tables_strings[a.current];
+      vason_span bs = b.tables_strings[b.current];
+
+      usize la = as.end - as.start;
+      usize lb = bs.end - bs.start;
+
+      if (la != lb)
+        return false;
+
+      if ((u8 *)(a.tables_strings + as.end) > (u8 *)(msList_vla(a.tables_strings)[1]))
+        return false;
+      if ((u8 *)(b.tables_strings + bs.end) > (u8 *)(msList_vla(b.tables_strings)[1]))
+        return false;
+
+      for (each_RANGE(i, 0, la)) {
+        vason_container ia = a;
+        vason_container ib = b;
+        ia.current = as.start + i;
+        ib.current = bs.start + i;
+        if (!vason_container_eq(ia, ib))
+          return false;
+      }
+      return true;
+    }
+
+    case vason_UNPARSED:
+      assertMessage(false, "equality check for unparsed");
+      return false;
+  }
+}
 void vason_tokenize(slice(vason_token_t) res, slice(c8) cs) {
   vason_token_t *__restrict out = res.ptr;
   const c8 *__restrict in = cs.ptr;
@@ -379,7 +443,7 @@ vason_index vason_get_str(vason_container *c, vason_index entry, fptr f) {
         }
         assertMessage(c->tags[ikey] == vason_STRING);
         vason_span key_text = c->tables_strings[ikey];
-        fptr cs = (fptr){(usize)key_text.end - key_text.start, c->text.ptr + key_text.start};
+        fptr cs = (fptr){(usize)key_text.end - key_text.start, (u8 *)(c->text.ptr + key_text.start)};
 
         if (fptr_eq(cs, f)) {
           if (c->tags[ival] & vason_UNPARSED) {

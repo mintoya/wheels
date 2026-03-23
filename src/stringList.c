@@ -61,8 +61,8 @@ fptr stringList_get(stringList *sl, usize i) {
   return i < msList_len(sl->ulist) ? vlqbuf_toFptr(sl->buff + sl->ulist[i]) : nullFptr;
 }
 fptr stringList_append(stringList *sl, fptr ptr) {
-  struct flsr insert = stringListFreeList_search(sl, ptr.width);
-  typeof(u64_toVlen(0)) vlq_struct = u64_toVlen(ptr.width);
+  struct flsr insert = stringListFreeList_search(sl, ptr.len);
+  typeof(u64_toVlen(0)) vlq_struct = u64_toVlen(ptr.len);
 
   ptrdiff_t offset = -1;
   usize vlq_len = countof(vlq_struct._);
@@ -82,20 +82,20 @@ fptr stringList_append(stringList *sl, fptr ptr) {
     }
   } else {
     offset = sl->len;
-    if (offset + ptr.width + vlq_len > sl->len) {
-      sl->buff = (vlength *)aResize(sl->allocator, sl->buff, offset + ptr.width + vlq_len + 10);
+    if (offset + ptr.len + vlq_len > sl->len) {
+      sl->buff = (vlength *)aResize(sl->allocator, sl->buff, offset + ptr.len + vlq_len + 10);
       if (sl->allocator->size)
         sl->cap = sl->allocator->size(sl->allocator, sl->buff);
       else
-        sl->cap = offset + ptr.width + vlq_len + 10;
+        sl->cap = offset + ptr.len + vlq_len + 10;
     }
-    sl->len = offset + ptr.width + vlq_len;
+    sl->len = offset + ptr.len + vlq_len;
   }
   msList_push(sl->allocator, sl->ulist, offset);
   memcpy(sl->buff + offset, vlq_ptr, vlq_len);
-  memcpy(sl->buff + offset + vlq_len, ptr.ptr, ptr.width);
+  memcpy(sl->buff + offset + vlq_len, ptr.ptr, ptr.len);
   return (fptr){
-      .width = ptr.width,
+      .len = ptr.len,
       .ptr = (u8 *)(sl->buff + offset + vlq_len),
   };
 }

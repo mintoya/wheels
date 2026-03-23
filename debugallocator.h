@@ -52,7 +52,7 @@ MAKE_TEST_FN(debug_allocator_test, {
   );
   for (each_RANGE(i, 0, allocations)) {
     usize size = (i * i) + 1;
-    aCreate(debug, int, size);
+    aResize(debug, aCreate(debug, int, 1), size);
     total += size;
   }
   auto stats = debugAllocator_stats(debug);

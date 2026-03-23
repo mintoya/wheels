@@ -95,7 +95,7 @@ REGISTER_PRINTER(vason_container, {
     } break;
     case vason_STRING: {
       vason_span vs = in.tables_strings[in.current];
-      USENAMEDPRINTER("slice(c8)", ((fptr){(usize)vs.end - vs.start, vs.start + in.text.ptr}));
+      USENAMEDPRINTER("slice(c8)", ((fptr){(usize)vs.end - vs.start, (u8 *)(vs.start + in.text.ptr)}));
     } break;
     case vason_TABLE: {
       vason_span vs = in.tables_strings[in.current];
@@ -135,7 +135,7 @@ vason_index vason_get_idx(vason_container *c, vason_index entry, vason_index f);
     })
 
 vason_index vason_get_func(vason_container *c, vason_index entry, struct vason_getArg *argTypes);
-
+bool vason_container_eq(vason_container a, vason_container b);
 vason_container vason_parseString(AllocatorV allocator, slice(c8) string);
 vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string);
   #if defined __cplusplus
@@ -215,7 +215,7 @@ typedef struct vason {
                ? (fptr){
                      (usize)origional->tables_strings[place].end -
                          origional->tables_strings[place].start,
-                     origional->tables_strings[place].start + origional->text.ptr
+                     (u8 *)(origional->tables_strings[place].start + origional->text.ptr)
                  }
                : nullFptr;
   }
@@ -241,9 +241,9 @@ vason vason_get_str_wrapper(vason &v, const std::string &key) { return v[key]; }
 
 std::string vason_as_js_string(const vason &v) {
   fptr f = v.asString();
-  if (!f.width && f.ptr)
+  if (!f.len && f.ptr)
     return "";
-  return std::string((char *)f.ptr, f.width);
+  return std::string((char *)f.ptr, f.len);
 }
 
 EMSCRIPTEN_BINDINGS(vason_module) {
@@ -283,7 +283,7 @@ slice(c8) vason_tostr(AllocatorV allocator, vason_container c);
   #if defined(MAKE_TEST_FN)
 MAKE_TEST_FN(vason_parser_immediate, {
   const char text[] = "{ foo : bar, numbers : [1, 2] }";
-  slice(c8) input = (slice(c8)){(usize)strlen(text), (u8 *)text};
+  slice(c8) input = (slice(c8)){(usize)strlen(text), (c8 *)text};
 
   vason_container c = vason_parseString(allocator, input);
   defer { vason_container_free(c); };
@@ -319,7 +319,7 @@ MAKE_TEST_FN(vason_parser_immediate, {
 });
 MAKE_TEST_FN(vason_parser_lazy, {
   const char text[] = "{ foo : bar, numbers : [1, 2] }";
-  slice(c8) input = (slice(c8)){(usize)strlen(text), (u8 *)text};
+  slice(c8) input = (slice(c8)){(usize)strlen(text), (c8 *)text};
 
   vason_container c = vason_parseString_Lazy(allocator, input);
   defer { vason_container_free(c); };

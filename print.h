@@ -3,9 +3,9 @@
 #include "allocator.h"
 #include "assertMessage.h"
 #include "fptr.h"
-#include "hhmap.h"
 #include "macros.h"
 #include "mytypes.h"
+#include "shmap.h"
 #include <locale.h>
 #include <malloc.h>
 #include <stdarg.h>
@@ -123,30 +123,14 @@ static void fileprint(
 #endif
 
 static struct {
-  HMap *data;
-  // usize termWidth, termHeight;
+  msHmap(printerFunction) data;
 } PrinterSingleton;
 
 static void PrinterSingleton_init() {
-  PrinterSingleton.data = HMap_new(
-      sizeof(printerFunction),
-      sizeof(printerFunction),
-      stdAlloc, 1
-  );
+  PrinterSingleton.data = msHmap_init(stdAlloc, printerFunction);
 }
 static void PrinterSingleton_append(fptr name, printerFunction function) {
-  if (name.width > HMap_getKeySize(PrinterSingleton.data))
-    HMap_transform(
-        &PrinterSingleton.data,
-        lineup(name.width, sizeof(printerFunction)),
-        sizeof(printerFunction),
-        NULL, 0
-    );
-  HMap_fset(
-      PrinterSingleton.data,
-      name,
-      REF(printerFunction, function)
-  );
+  msHmap_set(PrinterSingleton.data, name, function);
 }
 
 static printerFunction PrinterSingleton_get(fptr name) {
@@ -161,17 +145,17 @@ static printerFunction PrinterSingleton_get(fptr name) {
   }
   lasttick = !lasttick;
 
-  printerFunction *p = (typeof(p))HMap_fget_ns(
-      PrinterSingleton.data, name
-  );
-
-  if (p) {
-    lastprinters[lasttick] = *p;
-    lastnames[lasttick] = ((fptr){
-        name.width,
-        ((u8 *)p - HMap_getKeySize(PrinterSingleton.data)),
-    });
-    return *p;
+  auto map = ((sHmap *)PrinterSingleton.data)->map;
+  auto val = mHmap_get(map, fptr_hash(name));
+  if (val) {
+    auto list = (printerFunction *)(((sHmap *)PrinterSingleton.data)->values)->buf;
+    lastprinters[lasttick] = list[val[0]->vidx];
+    lastnames[lasttick] =
+        stringList_get(
+            ((sHmap *)PrinterSingleton.data)->strings,
+            val[0]->kidx
+        );
+    return list[val[0]->vidx];
   }
   return NULL;
 }
@@ -223,7 +207,7 @@ __attribute__((constructor(201))) static void printerInit() {
   }                                                                    \
   __attribute__((constructor(202))) static void register_##T() {       \
     fptr key = (fptr){                                                 \
-        .width = sizeof(#T) - 1,                                       \
+        .len = sizeof(#T) - 1,                                         \
         .ptr = (uint8_t *)#T,                                          \
     };                                                                 \
     PrinterSingleton_append(key, GETTYPEPRINTERFN(T));                 \
@@ -236,7 +220,7 @@ __attribute__((constructor(201))) static void printerInit() {
   }                                                                                  \
   __attribute__((constructor(203))) static void UNIQUE_PRINTER_FN2() {               \
     fptr key = (fptr){                                                               \
-        .width = strlen(str),                                                        \
+        .len = strlen(str),                                                          \
         .ptr = (uint8_t *)str,                                                       \
     };                                                                               \
     PrinterSingleton_append(key, id);                                                \
@@ -254,7 +238,7 @@ __attribute__((constructor(201))) static void printerInit() {
   );
 #define PRINTERARGSEACH(...)                     \
   fptr tempargs = printer_arg_trim(args);        \
-  while (tempargs.width) {                       \
+  while (tempargs.len) {                         \
     fptr arg = printer_arg_until(' ', tempargs); \
     __VA_ARGS__                                  \
     tempargs = printer_arg_after(' ', tempargs); \
@@ -264,7 +248,7 @@ __attribute__((constructor(201))) static void printerInit() {
 #define REGISTER_ALIASED_PRINTER(realtype, alias)                            \
   __attribute__((constructor(202))) static void register__##alias() {        \
     fptr key = (fptr){                                                       \
-        .width = sizeof(EXPAND_AND_STRINGIFY(alias)) - 1,                    \
+        .len = sizeof(EXPAND_AND_STRINGIFY(alias)) - 1,                      \
         .ptr = (uint8_t *)EXPAND_AND_STRINGIFY(alias),                       \
     };                                                                       \
     uint8_t *refFn =                                                         \
@@ -407,12 +391,12 @@ REGISTER_PRINTER(fptr ,{
   });
   if (useLength) {
     PUTS(U"<");
-    USETYPEPRINTER(usize, in.width);
+    USETYPEPRINTER(usize, in.len);
   }
   PUTS(U"<");
   usize start = 0;
   if (cut0s) {
-    for (usize i = 0; i < in.width; i++) {
+    for (usize i = 0; i < in.len; i++) {
       if (in.ptr[i] != 0) {
         start = i;
         break;
@@ -420,7 +404,7 @@ REGISTER_PRINTER(fptr ,{
     }
   }
 
-  for (usize i = start; i < in.width; i++) {
+  for (usize i = start; i < in.len; i++) {
     u8 top = (in.ptr[i] & 0xF0) >> 4;
     u8 bottom = in.ptr[i] & 0x0F;
     PUTC(hex_chars[top]);
@@ -571,6 +555,7 @@ void print_f(outputFunction put, void *arb, const char *fmt, ...);
 
 #ifdef PRINTER_LIST_TYPENAMES
 __attribute__((constructor(205))) static void post_init() {
+  assert(false & "rerite");
   // outputFunction put = defaultPrinter;
   print("==============================\n"
         "printer debug\n"
@@ -612,46 +597,46 @@ __attribute__((constructor(205))) static void post_init() {
 inline fptr printer_arg_until(char delim, fptr string) {
   usize i = 0;
   u8 *ptr = (u8 *)string.ptr;
-  while (i < string.width && ptr[i] != delim)
+  while (i < string.len && ptr[i] != delim)
     i++;
-  string.width = i;
+  string.len = i;
   return string;
 }
 
 inline fptr printer_arg_after(char delim, fptr slice) {
   usize i = 0;
   uint8_t *ptr = slice.ptr;
-  while (i < slice.width && ptr[i] != delim)
+  while (i < slice.len && ptr[i] != delim)
     i++;
-  i = (i < slice.width) ? (i + 1) : (i);
+  i = (i < slice.len) ? (i + 1) : (i);
   slice.ptr += i;
-  slice.width -= i;
+  slice.len -= i;
   return slice;
 }
 inline fptr printer_arg_trim(fptr in) {
   while (
-      in.width &&
+      in.len &&
       in.ptr[0] <= ' ') {
     in.ptr++;
-    in.width--;
+    in.len--;
   }
   while (
-      in.width &&
-      in.ptr[in.width - 1] <= ' ')
-    in.width--;
+      in.len &&
+      in.ptr[in.len - 1] <= ' ')
+    in.len--;
   return in;
 }
 
 void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr args, void *_arb) {
   void *ref = p.ref;
-  if (!typeName.width) {
+  if (!typeName.len) {
     typeName = p.name;
   }
   printerFunction fn = PrinterSingleton_get(typeName);
   if (!fn) {
     USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = 1}));
     PUTS(U"__ NO_TYPE(");
-    for (auto i = 0; i < typeName.width; i++)
+    for (auto i = 0; i < typeName.len; i++)
       PUTC(typeName.ptr[i]);
     PUTS(U") __");
     USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));
@@ -670,7 +655,7 @@ void print_f(outputFunction put, void *arb, const char *fmt, ...) {
       while (fmt[j] && fmt[j] != '}')
         j++;
       fptr typeName = {
-          .width = j - i - 1,
+          .len = j - i - 1,
           .ptr = ((u8 *)fmt) + i + 1,
       };
       struct print_arg assumedName = va_arg(l, struct print_arg);

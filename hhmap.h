@@ -135,12 +135,9 @@ static inline void HMap_cleanup_handler(void *vv) {
 template <typename Ta, typename Tb>
 using mHmap_t = Tb (**)(HMap *, Ta);
     #define mHmap(Ta, Tb) mHmap_t<Ta, Tb>
-  // #define equaltypes_mHmap(T1, T2) std::is_same<T1, T2>::value
   #else
     #define mHmap(Ta, Tb) typeof(typeof(Tb(**)(HMap *, Ta)))
   #endif
-  #define equaltypes_mHmap(T1, T2) \
-    (_Generic((typeof(T2) *)nullptr, typeof(T1) *: true, default: false))
 
   #define mHmap_scoped(Ta, Tb) [[gnu::cleanup(HMap_cleanup_handler)]] mHmap(Ta, Tb)
 
@@ -168,7 +165,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
       typeof(key) _k = (key);                            \
       typeof((*map)(nullptr, key)) _v = (val);           \
       static_assert(                                     \
-          equaltypes_mHmap(                              \
+          types_eq(                                      \
               mHmap(typeof(_k), typeof(_v)), typeof(map) \
           ),                                             \
           ""                                             \
@@ -181,7 +178,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
 
   #define mHmap_foreach(map, keyType, keyDec, valType, valDec, ...)     \
     static_assert(                                                      \
-        equaltypes_mHmap(                                               \
+        types_eq(                                                       \
             mHmap(typeof(keyType), typeof(valType)), typeof(map)        \
         ),                                                              \
         ""                                                              \
@@ -211,7 +208,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
     do {                                                       \
       typeof(key) _k = (key);                                  \
       static_assert(                                           \
-          equaltypes_mHmap(                                    \
+          types_eq(                                            \
               mHmap(typeof(_k), typeof((*map)(nullptr, key))), \
               typeof(map)                                      \
           ),                                                   \
@@ -230,7 +227,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
   #define mHmap_get(map, key)                                   \
     ({                                                          \
       static_assert(                                            \
-          equaltypes_mHmap(                                     \
+          types_eq(                                             \
               mHmap(typeof(key), typeof((*map)(nullptr, key))), \
               typeof(map)                                       \
           ),                                                    \

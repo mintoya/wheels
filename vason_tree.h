@@ -59,15 +59,24 @@ MAKE_TEST_FN(vason_exact_memcmp_match, {
   defer { aFree(allocator, result.ptr); };
 
   const char expected[] = "{hello:world,hello,world,{hello:world,hello,world}}";
-  usize expected_len = strlen(expected);
 
   printf(
       "input\t: %s \noutput\t: %.*s\n",
       expected, result.len, result.ptr
   );
-  if (!fptr_eq(fp(expected), (fptr){result.len, result.ptr}))
+  slice(c8) fromExpected = (slice(c8)){strlen(expected), (c8 *)expected};
+  vason_container a = vason_parseString(
+      allocator,
+      fromExpected
+  );
+  defer { vason_container_free(a); };
+  vason_container b = vason_parseString(
+      allocator,
+      result
+  );
+  defer { vason_container_free(b); };
+  if (!vason_container_eq(a, b))
     return 1;
-
   return 0;
 });
 

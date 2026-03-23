@@ -33,8 +33,8 @@ inline void *HMap_getCoord(const HMap *map, u32 bucket, u32 index) {
 
 static inline umax HMap_hash(const fptr str) {
   umax hash = 5381;
-  if (str.width % sizeof(u64)) {
-    for (usize i = 0; i < str.width; i++) {
+  if (str.len % sizeof(u64)) {
+    for (usize i = 0; i < str.len; i++) {
       hash ^= hash >> 3;
       hash = hash * 65;
       hash ^= (str.ptr[i]);
@@ -45,7 +45,7 @@ static inline umax HMap_hash(const fptr str) {
         "change hash for unaligned pointers\n"
         "or use hmap"
     );
-    for (usize i = 0; i < str.width; i += sizeof(u64)) {
+    for (usize i = 0; i < str.len; i += sizeof(u64)) {
       hash ^= hash >> 33;
       hash *= 0xff51afd7ed558ccd;
       hash ^= *(u64 *)(str.ptr + i);
@@ -255,17 +255,21 @@ bool HMap_getSet(HMap *map, const void *key, void *val) {
   return false;
 }
 void HMap_fset(HMap *map, const fptr key, void *val) {
-  assertMessage(key.width <= HMap_getKeySize(map));
+  assertMessage(key.len <= HMap_getKeySize(map));
+  if (key.len == map->keysize)
+    return HMap_set(map, key.ptr, val);
   u8 nname[map->keysize];
-  memcpy(nname, key.ptr, key.width);
-  memset(nname + key.width, 0, HMap_getKeySize(map) - key.width);
+  memcpy(nname, key.ptr, key.len);
+  memset(nname + key.len, 0, HMap_getKeySize(map) - key.len);
   return HMap_set(map, nname, val);
 }
 bool HMap_fget(HMap *map, const fptr key, void *val) {
-  assertMessage(key.width <= HMap_getKeySize(map));
+  assertMessage(key.len <= HMap_getKeySize(map));
+  if (key.len == map->keysize)
+    return HMap_get(map, key.ptr);
   u8 nname[map->keysize];
-  memcpy(nname, key.ptr, key.width);
-  memset(nname + key.width, 0, HMap_getKeySize(map) - key.width);
+  memcpy(nname, key.ptr, key.len);
+  memset(nname + key.len, 0, HMap_getKeySize(map) - key.len);
   void *res = HMap_get(map, nname);
   if (!res)
     return false;
@@ -273,10 +277,10 @@ bool HMap_fget(HMap *map, const fptr key, void *val) {
   return true;
 }
 void *HMap_fget_ns(HMap *map, const fptr key) {
-  assertMessage(key.width <= HMap_getKeySize(map));
+  assertMessage(key.len <= HMap_getKeySize(map));
   u8 nname[map->keysize];
-  memcpy(nname, key.ptr, key.width);
-  memset(nname + key.width, 0, HMap_getKeySize(map) - key.width);
+  memcpy(nname, key.ptr, key.len);
+  memset(nname + key.len, 0, HMap_getKeySize(map) - key.len);
   return HMap_get(map, nname);
 }
 HMap_both HMap_getBoth(HMap *map, const void *key) {

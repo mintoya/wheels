@@ -29,7 +29,7 @@ fptr OMap_set(OMap *map, fptr key, fptr val) {
   struct OSearch_T place = OMap_search(map, key);
   fptr res = nullFptr;
   if (place.found) {
-    if (!val.width) {
+    if (!val.len) {
       stringList_remove(map->data, place.i);
       stringList_remove(map->data, place.i);
     } else

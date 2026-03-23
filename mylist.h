@@ -140,6 +140,7 @@ using mList_t = T (**)(List *);
   #define mList(T) typeof(T(**)(List *))
 #endif
 
+#include "macros.h"
 #define mList_scoped(T) __attribute__((cleanup(List_cleanup_handler))) mList(T)
 
 #define MLIST_INIT_HELPER(allocator, T, initLength, ...) ((mList(T))List_newInitL(allocator, sizeof(T), initLength))
@@ -197,19 +198,19 @@ using mList_t = T (**)(List *);
   do {                                                                \
     List_resize((List *)(list), capacity, sizeof(mList_iType(list))); \
   } while (0)
-#define mList_pushArr(list, vla)                                           \
-  do {                                                                     \
-    static_assert(_Generic(vla[0], mList_iType(list): 1, default: 0), ""); \
-    List_appendFromArr(                                                    \
-        (List *)list,                                                      \
-        vla,                                                               \
-        sizeof(vla) / sizeof(vla[0]),                                      \
-        sizeof(vla[0])                                                     \
-    );                                                                     \
+#define mList_pushArr(list, vla)                                    \
+  do {                                                              \
+    static_assert(types_eq(typeof(vla[0]), mList_iType(list)), ""); \
+    List_appendFromArr(                                             \
+        (List *)list,                                               \
+        vla,                                                        \
+        sizeof(vla) / sizeof(vla[0]),                               \
+        sizeof(vla[0])                                              \
+    );                                                              \
   } while (0)
 #define mList_insArr(list, position, vla)                                                          \
   do {                                                                                             \
-    static_assert(_Generic(vla[0], mList_iType(list): 1, default: 0), "");                         \
+    static_assert(types_eq(typeof(vla[0]), mList_iType(list)), "");                                \
     List_insertFromArr((List *)list, vla, sizeof(vla) / sizeof(vla[0]), position, sizeof(vla[0])); \
   } while (0)
 #define mList_pad(list, ammount)  \
@@ -225,8 +226,8 @@ using mList_t = T (**)(List *);
     ((List *)list)->length = 0; \
   while (0)
 #define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
+// #include "tests.c"
 #if defined(MAKE_TEST_FN)
-  #include "macros.h"
 
 MAKE_TEST_FN(mlist_push_pop, {
     mList(int) list = mList_init(allocator, int);

@@ -98,5 +98,6 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     (start > end && name < end) ||          \
         (start < end && name > end);        \
     name += VA_SWITCH(start > end ? -1 : 1, __VA_ARGS__)
-
+  #define types_eq(T1, T2) \
+    _Generic((T1){0}, T2: true, default: false)
 #endif

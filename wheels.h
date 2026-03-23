@@ -9,6 +9,12 @@
 #endif
 #undef MY_PRINTER_C
 
+#if defined(SHMAP_H) || defined(WHEELS_INCLUDE_ALL)
+  #define SHMAP_C (1)
+  #include "shmap.h"
+#endif
+#undef SHMAP_C
+
 #if defined(STRING_LIST_H) || defined(WHEELS_INCLUDE_ALL)
   #define STRING_LIST_C (1)
   #include "stringList.h"

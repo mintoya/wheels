@@ -24,7 +24,7 @@ typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
-typedef uchar c8;
+typedef char c8;
 typedef char32_t c32;
 typedef int8_t i8;
 typedef int16_t i16;
@@ -104,12 +104,12 @@ typedef uintptr_t uptr;
       struct slice_##type { \
         usize len;          \
         type *ptr;          \
-      };
+      }
     #define nullableDef(type)  \
       struct nullable_##type { \
         bool isnull : 1;       \
         type data;             \
-      };
+      }
   #endif
 #else
   #define sliceDef(type)
@@ -140,6 +140,7 @@ struct nullable_t {
 #define slice_stat(s) \
   {sizeof(s) / sizeof((s)[0]), (typeof(s[0]) *)(s)}
 #define slice_vla(s) ((typeof(typeof(s.ptr[0]))(*)[s.len])s.ptr)
+#define nullslice(T) ((slice(T)){})
 
 #define each_slice(e, slice) \
   each_VLAP(e, slice_vla(slice))
