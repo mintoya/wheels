@@ -1,7 +1,11 @@
 #ifndef MY_ALLOCATOR_H
 #define MY_ALLOCATOR_H
 #include <stdalign.h>
-#include <stddef.h>
+#if defined(__cplusplus)
+  #include <cstddef>
+#else
+  #include <stddef.h>
+#endif
 #include <stdint.h>
 
 #define MY_ALLOCATOR_STRICTEST
@@ -12,7 +16,6 @@ __attribute__((const)) extern inline uintptr_t lineup(uintptr_t unaligned, size_
 }
 
 typedef struct My_allocator My_allocator;
-
 typedef const My_allocator *AllocatorV;
 /**
  *  equivalent of malloc
@@ -60,15 +63,15 @@ void *aResize(AllocatorV allocator, void *oldptr, size_t size);
 void aFree(AllocatorV allocator, void *oldptr);
 
 #include "macros.h"
-#define aCreate(allocator, type, ...)                                  \
-  /* optional count argument, defaults to 1*/                          \
-  DIAGNOSTIC_PUSH("-Weverything")                                      \
-  *(type(*)[(__VA_OPT__(1) + 0) ? __VA_ARGS__ + 0 : 1])({              \
-    size_t _count = (__VA_OPT__(1) + 0) ? __VA_ARGS__ + 0 : 1;         \
-    type *_res = ((type *)(aAlloc(allocator, sizeof(type) * _count))); \
-    __builtin_memset(_res, 0, sizeof(type) * _count);                  \
-    _res;                                                              \
-  })DIAGNOSTIC_POP()
+#define aCreate(allocator, type, ...)                                      \
+  /* optional count argument, defaults to 1*/                              \
+  DIAGNOSTIC_PUSH("-Weverything")                                          \
+  *(type(*)[(__VA_OPT__(1) + 0) ? __VA_ARGS__ + 0 : 1]) DIAGNOSTIC_POP()({ \
+    size_t _count = (__VA_OPT__(1) + 0) ? __VA_ARGS__ + 0 : 1;             \
+    type *_res = ((type *)(aAlloc(allocator, sizeof(type) * _count)));     \
+    __builtin_memset(_res, 0, sizeof(type) * _count);                      \
+    _res;                                                                  \
+  })
 
 extern AllocatorV stdAlloc;
 
@@ -99,8 +102,8 @@ void *aResize(AllocatorV allocator, void *oldptr, size_t size) {
 #endif
   void *res = (allocator)->resize(allocator, oldptr, size);
 #ifdef MY_ALLOCATOR_STRICTEST
-  assertMessage(res, "allocators cant return null");
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "wrong alignment out of allocator");
+  assertMessage(res, "allocators cant return null, r");
+  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "wrong alignment out of allocator, r");
 #endif
   return res;
 }

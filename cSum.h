@@ -2,9 +2,9 @@
 #define MY_CSUM_H
 #include "allocator.h"
 #include "fptr.h"
+#include "macros.h"
 #include "mylist.h"
 #include <stdint.h>
-#include <stdio.h>
 constexpr u8 CSUM_START_BIT = 0x67;
 constexpr u8 CSUM_END_BIT = 0x41;
 // clang-format off
@@ -57,9 +57,8 @@ static checkData cSum_toSum(dataChecker d, fptr data) {
 
   mList_push(d.checkSumScratch, *tmp);
   for (unsigned int i = 0; i < cSum_REDUNDANCY_AMMOUNT; i++)
-    List_appendFromArr((List *)d.checkSumScratch, data.ptr, data.width);
-
-  List_appendFromArr((List *)d.checkSumScratch, &sum, sizeof(CHECK_TYPE));
+    mList_pushArr(d.checkSumScratch, *VLAP(data.ptr, data.width));
+  mList_pushArr(d.checkSumScratch, *VLAP((u8 *)&sum, sizeof(CHECK_TYPE)));
 
   tmp[0] = (u8)CSUM_END_BIT;
   mList_push(d.checkSumScratch, *tmp);

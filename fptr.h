@@ -6,19 +6,38 @@
   #include <stddef.h>
   #include <string.h>
 
-typedef struct {
-  usize width;
-  u8 *ptr;
-} fptr;
+  #if defined(__cplusplus)
+typedef slice(u8) fptr;
+  #else
+    #if __STDC_VERSION__ >= 202411L
+typedef slice(u8) fptr;
+    #endif
+typedef sliceDef(u8) fptr;
+  #endif
 
 static inline fptr fptr_CS(void *cstr) { return ((fptr){(usize)strlen((char *)cstr), (u8 *)cstr}); }
 static inline fptr fptr_fromPL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
 
 static inline int fptr_cmp(const fptr a, const fptr b) {
-  return a.width - b.width ?: memcmp(a.ptr, b.ptr, a.width);
+  return a.len - b.len ?: memcmp(a.ptr, b.ptr, a.len);
 }
+  #if defined(__cplusplus)
+template <typename T, typename T2>
+static inline int fptr_cmp(const slice(T) a, const slice(T2) b) {
+  return fptr_cmp(toFptr(a), toFptr(b));
+}
+  #endif
 static inline char fptr_eq(fptr a, fptr b) {
   return !fptr_cmp(a, b);
+}
+static inline umax fptr_hash(fptr f) {
+  umax hash = 5381;
+  for (usize i = 0; i < f.len; i++) {
+    hash ^= hash >> 3;
+    hash = hash * 65;
+    hash ^= (f.ptr[i]);
+  }
+  return hash;
 }
 
   #ifdef __cplusplus
@@ -32,6 +51,7 @@ fptr toFptr(const slice_t<T> &a) {
       a.ptr,
   };
 }
+fptr toFptr(const fptr &a) { return a; }
 template <typename T>
 static bool operator==(const slice_t<T> &a, const slice_t<T> &b) {
   return fptr_eq(toFptr(a), toFptr(b));
@@ -50,10 +70,10 @@ constexpr fptr nullFptr = {0, nullptr};
 
   #ifndef __cplusplus
 
-    #define fp_fromT(struct)       \
-      ((fptr){                     \
-          .ptr = (u8 *)&(struct),  \
-          .width = sizeof(struct), \
+    #define fp_fromT(struct)      \
+      ((fptr){                    \
+          .ptr = (u8 *)&(struct), \
+          .len = sizeof(struct),  \
       })
     #define is_comparr(x) \
       (!__builtin_types_compatible_p(__typeof__(x), __typeof__(&(x)[0])))
@@ -74,33 +94,33 @@ constexpr fptr nullFptr = {0, nullptr};
 template <typename T>
 inline fptr fp_from(T &val) {
   return {
-      .width = sizeof(T),
+      .len = sizeof(T),
       .ptr = reinterpret_cast<u8 *>(&val),
   };
 }
 inline fptr fp_from(fptr u) { return u; }
 inline fptr fp_from(const std::string &s) {
   return {
-      .width = s.size(),
+      .len = s.size(),
       .ptr = const_cast<u8 *>(reinterpret_cast<const u8 *>(s.data())),
   };
 }
 inline fptr fp_from(const char *s) {
   return {
-      .width = std::strlen(s),
+      .len = std::strlen(s),
       .ptr = (u8 *)s,
   };
 }
 inline fptr fp_from(char *s) {
   return {
-      .width = std::strlen(s),
+      .len = std::strlen(s),
       .ptr = (u8 *)s,
   };
 }
 template <usize N>
 inline fptr fp_from(const char (&s)[N]) {
   return {
-      .width = N - 1,
+      .len = N - 1,
       .ptr = const_cast<u8 *>(reinterpret_cast<const u8 *>(s)),
   };
 }

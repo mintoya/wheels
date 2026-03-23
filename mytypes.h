@@ -3,7 +3,11 @@
 #include "macros.h"
 #include <assert.h>
 #include <stdbool.h>
-#include <stddef.h>
+#if defined(__cplusplus)
+  #include <cstddef>
+#else
+  #include <stddef.h>
+#endif
 #include <stdint.h>
 #if __has_include("uchar.h") && !defined(NOUCHAR_TYPES)
   #include <uchar.h>
@@ -20,7 +24,7 @@ typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
-typedef uchar c8;
+typedef char c8;
 typedef char32_t c32;
 typedef int8_t i8;
 typedef int16_t i16;
@@ -29,8 +33,9 @@ typedef int64_t i64;
 
 typedef float f32;
 typedef double f64;
+typedef long double long_double;
 // long double is a double on windows -_-
-typedef long double f128;
+typedef long_double f128;
 typedef void *voidptr;
 
 typedef uintmax_t umax;
@@ -100,12 +105,12 @@ typedef uintptr_t uptr;
       struct slice_##type { \
         usize len;          \
         type *ptr;          \
-      };
+      }
     #define nullableDef(type)  \
       struct nullable_##type { \
         bool isnull : 1;       \
         type data;             \
-      };
+      }
   #endif
 #else
   #define sliceDef(type)
@@ -136,6 +141,7 @@ struct nullable_t {
 #define slice_stat(s) \
   {sizeof(s) / sizeof((s)[0]), (typeof(s[0]) *)(s)}
 #define slice_vla(s) ((typeof(typeof(s.ptr[0]))(*)[s.len])s.ptr)
+#define nullslice(T) ((slice(T)){})
 
 #define each_slice(e, slice) \
   each_VLAP(e, slice_vla(slice))
