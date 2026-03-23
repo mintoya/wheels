@@ -46,10 +46,17 @@ static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
 
   for (each_VLAP(entry, msList_vla(*list_ptr))) {
     fptr c = stringList_get(sh->strings, entry->kidx);
-    if (fptr_eq(key, c))
-      return (void)memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr, sh->vwidth);
+    if (fptr_eq(key, c)) {
+      if (val_ptr)
+        memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr, sh->vwidth);
+      else
+        stringList_set(sh->strings, entry->kidx, nullFptr);
+      return;
+    }
   }
 
+  if (!val_ptr)
+    return;
   usize s_idx = stringList_len(sh->strings);
   stringList_append(sh->strings, key);
 
@@ -127,6 +134,15 @@ using msHmap_t = T (**)(sHmap *);
           const char *: sHmap_set_cs \
       )((sHmap *)sh, key, &_v);      \
     } while (0)
+  #define msHmap_rem(sh, key)        \
+    do {                             \
+      _Generic(                      \
+          (key),                     \
+          fptr: sHmap_set,           \
+          char *: sHmap_set_cs,      \
+          const char *: sHmap_set_cs \
+      )((sHmap *)sh, key, NULL);     \
+    } while (0)
 
   #define msHmap_get(sh, key) (typeof(msHmap_iType(sh) *))({                               \
     isize _idx = _Generic(                                                                 \
@@ -153,6 +169,9 @@ MAKE_TEST_FN(test_shmap_generic_values, {
   msHmap_set(sm, "age", 26);
 
   if (*msHmap_get(sm, "age") != 26)
+    return 1;
+  msHmap_rem(sm, "age");
+  if (msHmap_get(sm, "age"))
     return 1;
   if (((sHmap *)sm)->values->length != 2)
     return 1;

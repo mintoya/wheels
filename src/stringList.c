@@ -1,4 +1,7 @@
 #include "../stringList.h"
+#include <stdcountof.h>
+#include <stddef.h>
+#include <string.h>
 static_assert(sizeof(vlength) == sizeof(u8), "vlength warning");
 #define vlen_stat(stringLiteral) ({                 \
   static struct [[gnu::packed]] {                   \
@@ -79,15 +82,37 @@ fptr stringList_append(stringList *sl, fptr ptr) {
     } else {
       offset = sl->flist[insert.i - 1];
       msList_rem(sl->flist, insert.i - 1);
+      { // split buffer
+        fptr op = vlqbuf_toFptr((vlength *)sl->buff + offset);
+        usize newlen =
+            op.len - ptr.len - countof(u64_toVlen(0)._);
+        auto b = u64_toVlen(newlen);
+        auto bp = b._;
+        usize bpl = countof(b._);
+        while (bitcast(u8, *bp) == bitcast(u8, ((vlength){.hasNext = 1, .data = 0}))) {
+          bp++;
+          bpl--;
+        }
+        if (op.len > ptr.len * 2 - bpl - 1) { // TODO adjust?
+          ptrdiff_t newplace = op.ptr - (u8 *)sl->buff + op.len - newlen - bpl;
+
+          memcpy((u8 *)sl->buff + newplace, bp, bpl);
+          msList_ins(
+              sl->allocator,
+              sl->flist,
+              stringListFreeList_search(sl, vlen_toU64(sl->buff + newplace)).i,
+              newplace
+          );
+        }
+      }
     }
   } else {
     offset = sl->len;
     if (offset + ptr.len + vlq_len > sl->len) {
-      sl->buff = (vlength *)aResize(sl->allocator, sl->buff, offset + ptr.len + vlq_len + 10);
-      if (sl->allocator->size)
-        sl->cap = sl->allocator->size(sl->allocator, sl->buff);
-      else
-        sl->cap = offset + ptr.len + vlq_len + 10;
+      sl->buff = (vlength *)aResize(sl->allocator, sl->buff, offset + offset / 2 + ptr.len + vlq_len + 10);
+      sl->cap = sl->allocator->size
+                    ? sl->allocator->size(sl->allocator, sl->buff)
+                    : offset + offset / 2 + ptr.len + vlq_len + 10;
     }
     sl->len = offset + ptr.len + vlq_len;
   }
@@ -110,7 +135,12 @@ void stringList_remove(stringList *sl, usize i) {
   msList_rem(sl->ulist, i);
 }
 usize stringList_footprint(stringList *sl) {
-  return sizeof(*sl->ulist) * msList_len(sl->ulist) + sizeof(*sl->flist) * msList_len(sl->flist) + sl->len;
+  // clang-format off
+  return
+      + sizeof(*msList_vla(sl->ulist))
+      + sizeof(*msList_vla(msList_vla(sl->flist)))
+      +sl->len;
+  // clang-format on
 };
 
 fptr stringList_insert(stringList *sl, usize i, fptr ptr) {

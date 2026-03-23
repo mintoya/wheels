@@ -1,3 +1,4 @@
+#include "macros.h"
 #if !defined(STRING_LIST_H)
   #define STRING_LIST_H (1)
   #include "fptr.h"
@@ -56,6 +57,12 @@ usize stringList_len(stringList *);
 usize stringList_footprint(stringList *);
 fptr stringList_insert(stringList *, usize, fptr);
 fptr stringList_set(stringList *, usize, fptr);
+inline stringList *stringList_copy(AllocatorV allocator, stringList *sl) {
+  stringList *res = stringList_new(allocator, sl->len > 10 ? sl->len : 10);
+  for (each_RANGE(usize, i, 0, stringList_len(sl)))
+    stringList_append(res, stringList_get(sl, i));
+  return res;
+}
   #if defined __cplusplus
 struct strList {
   stringList *ptr;
@@ -131,6 +138,41 @@ MAKE_TEST_FN(test_stringList_manipulation, {
   fptr shifted = stringList_get(sl, 0);
   if (shifted.ptr[0] != 'n')
     return 1;
+
+  return 0;
+})
+MAKE_TEST_FN(test_stringList_churn_stats, {
+  usize ITERS = 100;
+  stringList *sl = stringList_new(allocator, 1024);
+  defer { stringList_free(sl); };
+  if (!sl)
+    return 1;
+
+  printf("=== StringList Churn Statistics (%zu iterations) ===\n", (size_t)ITERS);
+
+  for (usize i = 0; i < ITERS; i++)
+    stringList_append(sl, fp("medium_length_string"));
+
+  printf("Phase 1 (Bulk Append):\n"
+         "  Footprint: %zu bytes\n"
+         "  Free list: %zu blocks\n\n",
+         (size_t)stringList_footprint(sl), (size_t)msList_len(sl->flist));
+
+  for (ptrdiff_t i = ITERS - 1; i >= 0; i -= 2)
+    stringList_remove(sl, (usize)i);
+
+  printf("Phase 2 (Interleaved Remove):\n"
+         "  Footprint: %zu bytes\n"
+         "  Free list: %zu blocks\n\n",
+         (size_t)stringList_footprint(sl), (size_t)msList_len(sl->flist));
+
+  for (usize i = 0; i < ITERS / 2; i++)
+    stringList_append(sl, fp("short"));
+
+  printf("Phase 3 (Re-insertion w/ Splitting):\n"
+         "  Footprint: %zu bytes\n"
+         "  Free list: %zu blocks\n\n",
+         (size_t)stringList_footprint(sl), (size_t)msList_len(sl->flist));
 
   return 0;
 })

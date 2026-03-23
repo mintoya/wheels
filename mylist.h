@@ -233,9 +233,9 @@ MAKE_TEST_FN(mlist_push_pop, {
     mList(int) list = mList_init(allocator, int);
     defer { mList_deInit(list); };
 
-  for (each_RANGE(i, 0, 50))
+  for (each_RANGE(usize, i, 0, 50))
     mList_push(list, i * i);
-  for (each_RANGE(i, 0, 50))
+  for (each_RANGE(usize, i, 0, 50))
     if (mList_arr(list)[i] != i * i)
       return 1;
 

@@ -158,7 +158,7 @@ bool vason_container_eq(vason_container a, vason_container b) {
       if ((u8 *)(b.tables_strings + bs.end) > (u8 *)(msList_vla(b.tables_strings)[1]))
         return false;
 
-      for (each_RANGE(i, 0, la)) {
+      for (each_RANGE(usize, i, 0, la)) {
         vason_container ia = a;
         vason_container ib = b;
         ia.current = as.start + i;

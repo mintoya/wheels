@@ -1,4 +1,7 @@
 #if !defined(MY_MACROS_H)
+  #define ID_CONCAT_IM(a, b) a##b
+  #define ID_CONCAT(a, b) ID_CONCAT_IM(a, b)
+
   #define MY_MACROS_H
   #ifdef __cplusplus
     #define EXTERN_C_START extern "C" {
@@ -21,9 +24,7 @@
   #define MACRO_EXPAND(...) \
     MACRO_EXPAND4(__VA_ARGS__)
 
-  #define DEFER_CONCAT_1(a, b) a##b
-  #define DEFER_CONCAT(a, b) DEFER_CONCAT_1(a, b)
-  #define DEFER_NAME(a, b) DEFER_CONCAT(a, b)
+  #define DEFER_NAME(a, b) ID_CONCAT(a, b)
 
   #if defined(__cplusplus)
     #pragma GCC warning "using cpp closure defer"
@@ -47,14 +48,14 @@ struct DeferHelper {
       #if defined(__clang__)
         #pragma GCC warning "using clang block defer (captures only work on pointers)"
 static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
-        #define defer __attribute__((cleanup(_defer_cleanup_block))) void (^DEFER_CONCAT(_defer_var_, __COUNTER__))(void) = ^
+        #define defer __attribute__((cleanup(_defer_cleanup_block))) void (^ID_CONCAT(_defer_var_, __COUNTER__))(void) = ^
       #elif defined(__GNUC__)
         #pragma GCC warning "using gnu nested function defer"
         #define _defer_helper(func_name, var_name)              \
           auto void func_name(int *);                           \
           int var_name __attribute__((cleanup(func_name))) = 0; \
           void func_name(int *_)
-        #define defer _defer_helper(DEFER_CONCAT(_defer_func_, __COUNTER__), DEFER_CONCAT(_defer_var_, __COUNTER__))
+        #define defer _defer_helper(ID_CONCAT(_defer_func_, __COUNTER__), ID_CONCAT(_defer_var_, __COUNTER__))
       #endif
     #endif
   #endif
@@ -86,18 +87,18 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define VA_SWITCH_FIRST(first, ...) first
 
   #define VA_SWITCH_EMPTY(...) VA_SWITCH_FIRST(__VA_OPT__(0, ) 1, ~)
-  #define VA_SWITCH_CAT_(a, b) a##b
-  #define VA_SWITCH_CAT(a, b) VA_SWITCH_CAT_(a, b)
   #define VA_SWITCH_IMPL_0(default_val, ...) __VA_ARGS__
   #define VA_SWITCH_IMPL_1(default_val) default_val
   #define VA_SWITCH(default_val, ...) \
-    VA_SWITCH_CAT(VA_SWITCH_IMPL_, VA_SWITCH_EMPTY(__VA_ARGS__))(default_val __VA_OPT__(, ) __VA_ARGS__)
+    ID_CONCAT(VA_SWITCH_IMPL_, VA_SWITCH_EMPTY(__VA_ARGS__))(default_val __VA_OPT__(, ) __VA_ARGS__)
 
-  #define each_RANGE(name, start, end, ...) \
-    usize name = start;                     \
-    (start > end && name < end) ||          \
-        (start < end && name > end);        \
-    name += VA_SWITCH(start > end ? -1 : 1, __VA_ARGS__)
+  #define _RANGE_NAME(prefix) ID_CONCAT(_range_val_, ID_CONCAT(prefix, __LINE__))
+  #define each_RANGE(type, name, start, end, ...)                                       \
+    type name = (start), _RANGE_NAME(s) = (start), _RANGE_NAME(e) = (end);              \
+    (_RANGE_NAME(s) <= _RANGE_NAME(e) ? name < _RANGE_NAME(e) : name > _RANGE_NAME(e)); \
+    name += VA_SWITCH(_RANGE_NAME(s) > _RANGE_NAME(e) ? -1 : 1, __VA_ARGS__)
+
   #define types_eq(T1, T2) \
     _Generic((T1){0}, T2: true, default: false)
 #endif
+

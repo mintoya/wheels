@@ -50,7 +50,8 @@ MAKE_TEST_FN(debug_allocator_test, {
   AllocatorV debug = debugAllocator(
       allocator = allocator, track_total = 1
   );
-  for (each_RANGE(i, 0, allocations)) {
+  // defer { debugAllocatorDeInit(debug); };
+  for (each_RANGE(usize, i, 0, allocations)) {
     usize size = (i * i) + 1;
     aResize(debug, aCreate(debug, int, 1), size);
     total += size;
@@ -58,7 +59,7 @@ MAKE_TEST_FN(debug_allocator_test, {
   auto stats = debugAllocator_stats(debug);
   if (!EQUAL_ALL(stats.max_memory, stats.current_memory, total))
     return 1;
-  if (debugAllocatorDeInit(debug) != total)
+  if (debugAllocatorDeInit(debug) != allocations)
     return 1;
   return 0;
 });

@@ -12,9 +12,12 @@
 #include <stdlib.h>
 char *current_test = 0;
 void segv_handler(int signum) {
-  fwrite(ASSERTMESSAGE_PRINTRED "test: ", 1, 13, stdout);
+  fflush(stdout);
+
+  fwrite(ASSERTMESSAGE_PRINTRED "\ntest: ", 1, 14, stdout);
   fwrite(current_test, fp(current_test).len, 4, stdout);
   fwrite(" raised seg-fault", 1, 18, stdout);
+  fflush(stdout);
   abort();
 }
 

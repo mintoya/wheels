@@ -196,9 +196,9 @@ MAKE_TEST_FN(msList_push_pop, {
     int *list = msList_init(allocator, int);
     defer { msList_deInit(allocator, list); };
 
-  for (each_RANGE(i, 0, 50))
+  for (each_RANGE(usize, i, 0, 50))
     msList_push(allocator, list, i * i);
-  for (each_RANGE(i, 0, 50))
+  for (each_RANGE(usize, i, 0, 50))
     if (list[i] != i * i)
       return 1;
 
