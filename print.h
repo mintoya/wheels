@@ -260,6 +260,7 @@ struct print_arg {
   void *ref;
   fptr name;
 };
+void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr args, void *arb);
 // clang-format off
 
 // examples with builtin types
@@ -341,109 +342,63 @@ REGISTER_PRINTER(isize, {
 });
 
 REGISTER_PRINTER(f128, {
-  if (in < 0) {
-    PUTC(L'-');
-    in *= -1;
+  usize digits = 0;
+  if (( args = printer_arg_trim(args) ).len)  
+    for(auto i = 0;i<args.len && (args.ptr[i]<= '9' && args.ptr[i]>= '0');i++){
+      digits*=10;
+      digits+=args.ptr[i]-'0';
+    }
+   
+  digits = digits?:3;
+  in = in<0?(PUTC(L'-'),-in):in;
+  f128 u = in;
+
+  f128 round = 0.5;
+  for(usize i = 0; i < digits; i++){
+    round /= 10.0;
   }
-  
-  if (in == 0) {
-    PUTS(U"0.0E0");
-  } else {
-    isize exp = 0;
-    
-    while (in >= 10.0) {
-      in /= 10.0;
-      exp++;
-    }
-    while (in < 1.0) {
-      in *= 10.0;
-      exp--;
-    }
-    
-    usize first = (usize)in;
-    PUTC(( c32 )(U'0'+first));
-    PUTC(U'.');
-    in -= (f128)first;
-    
-    for (int i = 0; i < 6; i++) {
-      in *= 10.0;
-      usize dig = (usize)in;
-      PUTC(( c32 )(U'0'+dig));
-      in -= (f128)dig;
-    }
-    PUTC(L'E');
-    USETYPEPRINTER(isize, exp);
+  u += round;
+
+  f128 tens = 1;
+  while(u / tens >= 10){
+    tens*=10;
   }
+
+  while(tens >= 1){
+    int d = (int)(u / tens);
+    PUTC(d + '0');
+    u -= (f128)d * tens;
+    tens /= 10;
+  }
+
+  if(digits > 0){
+    PUTC('.');
+    for(usize i = 0;i<digits;i++){
+      u *= 10;
+      int d = (int)u;
+      PUTC(d + '0');
+      u -= (f128)d;
+    }
+  }
+});
+REGISTER_PRINTER(float, {
+  f128 r = (f128)in;
+  print_f_helper((struct print_arg) {.ref = (void*)&r},
+    fp("f128"), put, args, _arb
+  );
 });
 REGISTER_PRINTER(double, {
-  if (in < 0) {
-    PUTC(L'-');
-    in *= -1;
-  }
-  if (in == 0) {
-    PUTS(U"0.0E0");
-  } else {
-    isize exp = 0;
-    
-    while (in >= 10.0) {
-      in /= 10.0;
-      exp++;
-    }
-    while (in < 1.0) {
-      in *= 10.0;
-      exp--;
-    }
-    
-    usize first = (usize)in;
-    PUTC(( c32 )(U'0'+first));
-    PUTC(U'.');
-    in -= (f128)first;
-    
-    for (int i = 0; i < 6; i++) {
-      in *= 10.0;
-      usize dig = (usize)in;
-      PUTC(( c32 )(U'0'+dig));
-      in -= (f128)dig;
-    }
-    PUTC(L'E');
-    USETYPEPRINTER(isize, exp);
-  }
+  f128 r = (f128)in;
+  print_f_helper((struct print_arg) {.ref = (void*)&r},
+    fp("f128"), put, args, _arb
+  );
 });
-REGISTER_SPECIAL_PRINTER("long double", long double,{
-  if (in < 0) {
-    PUTC(L'-');
-    in *= -1;
-  }
-  if (in == 0) {
-    PUTS(U"0.0E0");
-  } else {
-    isize exp = 0;
-    
-    while (in >= 10.0) {
-      in /= 10.0;
-      exp++;
-    }
-    while (in < 1.0) {
-      in *= 10.0;
-      exp--;
-    }
-    
-    usize first = (usize)in;
-    PUTC(( c32 )(U'0'+first));
-    PUTC(U'.');
-    in -= (f128)first;
-    
-    for (int i = 0; i < 6; i++) {
-      in *= 10.0;
-      usize dig = (usize)in;
-      PUTC(( c32 )(U'0'+dig));
-      in -= (f128)dig;
-    }
-    PUTC(L'E');
-    USETYPEPRINTER(isize, exp);
-  }
+REGISTER_PRINTER(long_double, {
+  f128 r = (f128)in;
+  print_f_helper((struct print_arg) {.ref = (void*)&r},
+    fp("f128"), put, args, _arb
+  );
 });
-
 REGISTER_PRINTER(u32, {
   USETYPEPRINTER(usize, (usize)in);
 });
@@ -570,7 +525,9 @@ REGISTER_SPECIAL_PRINTER("i64", i64, {
             MAKE_PRINT_ARG_TYPE(fptr),\
             MAKE_PRINT_ARG_TYPE(isize),\
             MAKE_PRINT_ARG_TYPE(usize),\
-            MAKE_PRINT_ARG_TYPE(f128),\
+            MAKE_PRINT_ARG_TYPE(float),\
+            MAKE_PRINT_ARG_TYPE(double),\
+            MAKE_PRINT_ARG_TYPE(long_double),\
             MAKE_PRINT_ARG_TYPE(pEsc),\
             MAKE_PRINTINTS ,\
             void *: fp_from("ptr"),\
@@ -591,7 +548,9 @@ MAKE_PRINT_ARG_TYPE(fptr);
 MAKE_PRINT_ARG_TYPE(slice(c8));
 MAKE_PRINT_ARG_TYPE(isize);
 MAKE_PRINT_ARG_TYPE(usize);
-MAKE_PRINT_ARG_TYPE(f128);
+MAKE_PRINT_ARG_TYPE(float);
+MAKE_PRINT_ARG_TYPE(double);
+MAKE_PRINT_ARG_TYPE(long_double);
 MAKE_PRINT_ARG_TYPE(pEsc);
   #if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
 MAKE_PRINT_ARG_TYPE(i32);
@@ -605,8 +564,6 @@ MAKE_PRINT_ARG_TYPE(u32);
     }),
 #endif
 // clang-format on
-
-void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr args, void *arb);
 
 static thread_local bool print_f_shouldFlush = 1;
 void print_f(outputFunction put, void *arb, const char *fmt, ...);

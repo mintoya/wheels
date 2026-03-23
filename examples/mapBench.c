@@ -4,12 +4,12 @@
 #include <stdio.h>
 #include <time.h>
 
-#define N_ITERS 1000000
-#define N_KEYS 8
+#define N_ITERS 100000
 
-constexpr char keys[N_KEYS][8] = {
+constexpr char keys[][8] = {
     "one", "two", "three", "four",
-    "five", "six", "seven", "eight"
+    "five", "six", "seven", "eight",
+    "ten", "eleven", "twelve", "thirten"
 };
 
 typedef struct {
@@ -28,7 +28,7 @@ BenchResult bench_sHmap(AllocatorV allocator) {
   double t0 = now_sec();
 
   for (int it = 0; it < N_ITERS; ++it) {
-    for (int i = 0; i < N_KEYS; ++i) {
+    for (int i = 0; i < countof(keys); ++i) {
       msHmap_set(sm, keys[i], i);
     }
   }
@@ -36,7 +36,7 @@ BenchResult bench_sHmap(AllocatorV allocator) {
   double t1 = now_sec();
 
   for (int it = 0; it < N_ITERS; ++it) {
-    for (int i = 0; i < N_KEYS; ++i) {
+    for (int i = 0; i < countof(keys); ++i) {
       int *v = msHmap_get(sm, keys[i]);
       if (!v)
         abort();
@@ -69,7 +69,7 @@ BenchResult bench_mHmap(AllocatorV allocator) {
   double t0 = now_sec();
 
   for (int it = 0; it < N_ITERS; ++it) {
-    for (int i = 0; i < N_KEYS; ++i) {
+    for (int i = 0; i < countof(keys); ++i) {
       mHmap_set(hm, convert(keys[i]), i);
     }
   }
@@ -77,7 +77,7 @@ BenchResult bench_mHmap(AllocatorV allocator) {
   double t1 = now_sec();
 
   for (int it = 0; it < N_ITERS; ++it) {
-    for (int i = 0; i < N_KEYS; ++i) {
+    for (int i = 0; i < countof(keys); ++i) {
       int *v = mHmap_get(hm, convert(keys[i]));
       if (!v)
         abort();
@@ -97,22 +97,22 @@ int main() {
   BenchResult s = bench_sHmap(allocator);
   BenchResult m = bench_mHmap(allocator);
 
-  println("=== Results (8 keys, %d iterations) ===", (usize)N_ITERS);
+  println("=== Results (8 keys, {} iterations) ===", (usize)N_ITERS);
 
   print(
-      "sHmap  SET: {double} sec\n"
-      "mHmap  SET: {double} sec\n",
+      "sHmap  SET: {:3} sec\n"
+      "mHmap  SET: {:3} sec\n",
       s.set_time, m.set_time
   );
   print(
-      "sHmap  GET: {double} sec\n"
-      "mHmap  GET: {double} sec\n",
+      "sHmap  GET: {:3} sec\n"
+      "mHmap  GET: {:3} sec\n",
       s.get_time, m.get_time
   );
   print(
       "Ratios\n"
-      "SET  s/m: {double}x\n"
-      "GET  s/m: {double}x\n",
+      "SET  s/m: {:2}X\n"
+      "GET  s/m: {:2}X\n",
       s.set_time / m.set_time,
       s.get_time / m.get_time
   );
