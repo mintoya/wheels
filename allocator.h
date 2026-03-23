@@ -80,7 +80,7 @@ extern AllocatorV stdAlloc;
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
 #define MY_ALLOCATOR_C (1)
 #endif
-#ifdef MY_ALLOCATOR_C
+#if defined(MY_ALLOCATOR_C)
 #include "assertMessage.h"
 #include "mytypes.h"
 #include <stdio.h>
