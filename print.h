@@ -506,7 +506,7 @@ REGISTER_SPECIAL_PRINTER("i64", i64, {
 #if !defined(__cplusplus)
 
   #define MAKE_PRINT_ARG_TYPE(type) \
-  type: ((fptr){sizeof(#type)-1,#type})
+  type: ((fptr){sizeof(#type)-1,(u8*)#type})
   #if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
     #define MAKE_PRINTINTS MAKE_PRINT_ARG_TYPE(i32), MAKE_PRINT_ARG_TYPE(u32),
   #else
@@ -526,8 +526,8 @@ REGISTER_SPECIAL_PRINTER("i64", i64, {
             MAKE_PRINT_ARG_TYPE(long_double),\
             MAKE_PRINT_ARG_TYPE(pEsc),\
             MAKE_PRINTINTS\
-            void *: ((fptr){sizeof("ptr")-1,"ptr"}),\
-            slice(c8): ((fptr){sizeof("slice(c8)")-1,"slice(c8)"}),\
+            void *: ((fptr){sizeof("ptr")-1,(u8*)"ptr"}),\
+            slice(c8): ((fptr){sizeof("slice(c8)")-1,(u8*)"slice(c8)"}),\
             default: nullFptr\
             ),\
     }),

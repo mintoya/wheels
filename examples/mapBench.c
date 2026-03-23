@@ -1,7 +1,6 @@
 #include "../print.h"
 #include "../shmap.h"
 #include <stdcountof.h>
-#include <stdio.h>
 #include <time.h>
 
 #define N_ITERS 100000
@@ -52,7 +51,7 @@ BenchResult bench_sHmap(AllocatorV allocator) {
   return r;
 }
 typedef struct {
-  char str[countof(keys[0])]
+  char str[countof(keys[0])];
 } key;
 static inline key convert(const char src[8]) {
   union {
