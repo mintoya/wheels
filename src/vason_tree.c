@@ -12,8 +12,8 @@ void vason_node_freeRecursive(AllocatorV allocator, vason_node n) {
       vason_node_freeRecursive(allocator, n.pair[1]);
     } break;
     case vason_TABLE: {
-      for (each_VLAP(item, msList_vla(n.table)))
-        vason_node_freeRecursive(allocator, *item);
+      foreach (auto item, msList_vla(n.table))
+        vason_node_freeRecursive(allocator, item);
     } break;
     case vason_STRING:
       break;
@@ -77,8 +77,8 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
       };
       msList_pushVla(c->allocator, c->tables_strings, VLAP((vason_span *)NULL, msList_len(n.table)));
       msList_pushVla(c->allocator, c->tags, VLAP((vason_tag *)NULL, msList_len(n.table)));
-      for (each_VLAP(item, msList_vla(n.table)))
-        vason_node_intoContainer(c, *item, tableStart++);
+      foreach (auto item, msList_vla(n.table))
+        vason_node_intoContainer(c, item, tableStart++);
     } break;
     case vason_PAIR: {
       vason_index tableStart = msList_len(c->tables_strings);
@@ -173,8 +173,8 @@ usize vason_node_footprint(vason_node n) {
     case vason_TABLE: {
       usize res = 0;
       res += sizeof(*msList_vla(n.table)) + sizeof(sList_header);
-      for (each_VLAP(item, msList_vla(n.table)))
-        res += vason_node_footprint(*item);
+      foreach (auto item, msList_vla(n.table))
+        res += vason_node_footprint(item);
       return res;
     } break;
     case vason_STRING:
@@ -191,13 +191,12 @@ vason_node vason_node_deepCopy(AllocatorV allocator, vason_node n) {
   switch (n.tag) {
     case vason_TABLE: {
       res.table = msList_init(allocator, typeof(*n.table), msList_len(n.table));
-      for (each_VLAP(node, msList_vla(n.table))) {
+      foreach (auto node, msList_vla(n.table))
         msList_push(
             allocator,
             res.table,
-            vason_node_deepCopy(allocator, *node)
+            vason_node_deepCopy(allocator, node)
         );
-      }
     } break;
     case vason_PAIR: {
       res.pair = aCreate(allocator, vason_node, 2);

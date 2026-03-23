@@ -4,6 +4,7 @@
 #include "mytypes.h"
 #include <assert.h>
 #include <stdarg.h>
+#include <stdcountof.h>
 #include <stdio.h>
 #include <stdlib.h>
 #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
@@ -59,7 +60,7 @@ void __attribute__((noreturn)) _assertMessageFail(
         }                                      \
       } while (0)
   #else
-    #include < assert.h>
+    #include <assert.h>
     #define assertMessage(bool, ...) assert(bool)
   #endif
 #else
@@ -201,10 +202,32 @@ char **backtrace_symbols(void *const *array, int size) {
   SymCleanup(process);
   return result;
 }
+  #elif __has_include(<stm32u5xx.h>)
+EXTERN_C_START
+
+static char trace_buf[4][12];
+static char *trace_ptrs[countof(trace_buf)];
+
+char **backtrace_symbols(void *const *array, int size) {
+  int count = (size < countof(trace_buf)) ? size : countof(trace_buf);
+  for (int i = 0; i < count; i++) {
+    snprintf(trace_buf[i], countof(trace_buf[0]), "0x%p", array[i]);
+    trace_ptrs[i] = trace_buf[i];
+  }
+  return trace_ptrs;
+}
+int backtrace(void **__array, int __size) {
+  if (__size > 0) {
+    __array[0] = __builtin_return_address(0);
+    return 1;
+  }
+  return 0;
+}
+EXTERN_C_END
   #else
 EXTERN_C_START
 char **backtrace_symbols(void *const *array, int size) { return NULL; }
-extern int backtrace(void **__array, int __size) __attribute__((nonnull(1))) { return 0; }
+extern int backtrace(void **__array, int __size) { return 0; }
 EXTERN_C_END
   #endif
 #endif

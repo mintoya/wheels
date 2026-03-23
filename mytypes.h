@@ -17,9 +17,14 @@ typedef uint32_t char32_t;
   #endif
 #endif
 
+// just for macros
 typedef unsigned int uint;
 typedef unsigned char uchar;
 typedef unsigned long ulong;
+typedef long long longlong;
+typedef unsigned long long ulonglong;
+typedef long double longdouble;
+//
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
@@ -33,9 +38,8 @@ typedef int64_t i64;
 
 typedef float f32;
 typedef double f64;
-typedef long double long_double;
 // long double is a double on windows -_-
-typedef long_double f128;
+typedef longdouble f128;
 typedef void *voidptr;
 
 typedef uintmax_t umax;
@@ -43,27 +47,6 @@ typedef intmax_t imax;
 typedef size_t usize;
 // #define ntype_max_u(T) ((T)(~((T)0)))
 // #define ntype_max_i(T) ((T)(ntype_max_u(T) ^ (((T)1) << (sizeof(T) * 8 - 1))))
-
-#if !defined(__cplusplus)
-  #define REF(type, value) ((type[1]){value})
-  #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
-  #else
-    #define nullptr ((void *)0)
-  #endif
-  #define bitcast(to, from) ((typeof(union {typeof(to)a;typeof(from)b; })){.b = from}.a)
-#else
-template <typename T>
-static inline T *TEMPORARY_REF_UB(T &&v) { return &v; }
-  #define REF(type, value) TEMPORARY_REF_UB((type){value})
-template <class To, class From>
-inline To bit_cast_func(const From &src) noexcept {
-  To dst;
-  memcpy(&dst, &src, sizeof(To));
-  return dst;
-}
-  #define bitcast(to, from) (bit_cast_func<to>(from))
-  #define typeof(...) __typeof__(__VA_ARGS__)
-#endif
 
 #if __has_include(<BaseTsd.h>)
   #include <BaseTsd.h>
@@ -142,9 +125,6 @@ struct nullable_t {
   {sizeof(s) / sizeof((s)[0]), (typeof(s[0]) *)(s)}
 #define slice_vla(s) ((typeof(typeof(s.ptr[0]))(*)[s.len])s.ptr)
 #define nullslice(T) ((slice(T)){})
-
-#define each_slice(e, slice) \
-  each_VLAP(e, slice_vla(slice))
 
 #define nullable_fromPtr(T, ptr)          \
   {                                       \

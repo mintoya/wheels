@@ -86,8 +86,8 @@ fptr stringList_append(stringList *sl, fptr ptr) {
         fptr op = vlqbuf_toFptr((vlength *)sl->buff + offset);
         usize newlen =
             op.len - ptr.len - countof(u64_toVlen(0)._);
-        auto b = u64_toVlen(newlen);
-        auto bp = b._;
+        __auto_type b = u64_toVlen(newlen);
+        __auto_type bp = b._;
         usize bpl = countof(b._);
         while (bitcast(u8, *bp) == bitcast(u8, ((vlength){.hasNext = 1, .data = 0}))) {
           bp++;

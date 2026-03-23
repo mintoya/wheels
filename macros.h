@@ -1,4 +1,25 @@
 #if !defined(MY_MACROS_H)
+
+  #if !defined(__cplusplus)
+    #define REF(type, value) ((type[1]){value})
+    #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+    #else
+      #define nullptr ((void *)0)
+    #endif
+    #define bitcast(to, from) ((typeof(union {typeof(to)a;typeof(from)b; })){.b = from}.a)
+  #else
+template <typename T>
+static inline T *TEMPORARY_REF_UB(T &&v) { return &v; }
+    #define REF(type, value) TEMPORARY_REF_UB((type){value})
+template <class To, class From>
+inline To bit_cast_func(const From &src) noexcept {
+  To dst;
+  memcpy(&dst, &src, sizeof(To));
+  return dst;
+}
+    #define bitcast(to, from) (bit_cast_func<to>(from))
+    #define typeof(...) __typeof__(__VA_ARGS__)
+  #endif
   #define ID_CONCAT_IM(a, b) a##b
   #define ID_CONCAT(a, b) ID_CONCAT_IM(a, b)
 
@@ -78,15 +99,12 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define EQUAL_ALL_HELPER(a) a &&
   #define EQUAL_ALL(expr, ...) (APPLY_N((expr) == EQUAL_ALL_HELPER, __VA_ARGS__) 1)
 
-  #define ASSERT_EXPR(...) (0 * sizeof(struct { _Static_assert(__VA_ARGS__); }))
+  #define ASSERT_EXPR(cond, msg) \
+    (0 * (int)sizeof(char[1 - 2 * !(cond)]))
 
   #define STR_H(...) #__VA_ARGS__
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
 
-  #define each_VLAP(name, vla)                   \
-    typeof(vla[0][0]) *name = (typeof(name))vla; \
-    name < vla[1];                               \
-    name++
   #define VA_SWITCH_FIRST(first, ...) first
 
   #define VA_SWITCH_EMPTY(...) VA_SWITCH_FIRST(__VA_OPT__(0, ) 1, ~)
@@ -96,11 +114,32 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     ID_CONCAT(VA_SWITCH_IMPL_, VA_SWITCH_EMPTY(__VA_ARGS__))(default_val __VA_OPT__(, ) __VA_ARGS__)
 
   #define _RANGE_NAME(prefix) ID_CONCAT(_range_val_, ID_CONCAT(prefix, __LINE__))
-  #define each_RANGE(type, name, start, end, ...)                                       \
-    type name = (start), _RANGE_NAME(s) = (start), _RANGE_NAME(e) = (end);              \
-    (_RANGE_NAME(s) <= _RANGE_NAME(e) ? name < _RANGE_NAME(e) : name > _RANGE_NAME(e)); \
-    name += VA_SWITCH(_RANGE_NAME(s) > _RANGE_NAME(e) ? -1 : 1, __VA_ARGS__)
+
+  #define each_RANGE(type, name, start, end, ...)                            \
+    type name = (start),                                                     \
+         *const _RANGE_NAME(s) = (typeof(_RANGE_NAME(s)))REF(type, (start)), \
+         *const _RANGE_NAME(e) = (typeof(_RANGE_NAME(e)))REF(type, (end));   \
+    (*(type const *)_RANGE_NAME(s) <= *(type const *)_RANGE_NAME(e)          \
+         ? name < *(type *)_RANGE_NAME(e)                                    \
+         : name > *(type *)_RANGE_NAME(e));                                  \
+    name += VA_SWITCH(*_RANGE_NAME(s) > *_RANGE_NAME(e) ? -1 : 1, __VA_ARGS__)
 
   #define types_eq(T1, T2) \
     _Generic((T1){0}, T2: true, default: false)
+  #define each_VLAP(type, name, vla)                                    \
+    each_RANGE(                                                         \
+        type,                                                           \
+        name,                                                           \
+        (vla)[0] + ASSERT_EXPR(types_eq(type, typeof(&vla[0][0])), ""), \
+        (vla)[1],                                                       \
+        1                                                               \
+    )
+  #define foreach(decl, vla)                                                         \
+    for (each_VLAP(typeof(&(vla)[0][0]), _RANGE_NAME(item), vla))                    \
+      for (char _RANGE_NAME(once) = 1; _RANGE_NAME(once); _RANGE_NAME(once) = false) \
+        for (decl = *_RANGE_NAME(item); _RANGE_NAME(once); _RANGE_NAME(once) = false)
+  #define foreach_ptr(decl, vla)                                                     \
+    for (each_VLAP(typeof(&(vla)[0][0]), _RANGE_NAME(item), vla))                    \
+      for (char _RANGE_NAME(once) = 1; _RANGE_NAME(once); _RANGE_NAME(once) = false) \
+        for (decl = (typeof(typeof((vla)[0][0]))(*)[1])_RANGE_NAME(item); _RANGE_NAME(once); _RANGE_NAME(once) = false)
 #endif

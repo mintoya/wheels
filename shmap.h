@@ -27,10 +27,10 @@ static inline struct double_idx *sHmap_find(sHmap *sh, fptr f) {
   if (!*list_ptr)
     *list_ptr = msList_init(allocator, struct double_idx);
 
-  for (each_VLAP(entry, msList_vla(*list_ptr))) {
-    fptr c = stringList_get(sh->strings, entry->kidx);
+  foreach_ptr(auto entry, msList_vla(*list_ptr)) {
+    fptr c = stringList_get(sh->strings, entry[0]->kidx);
     if (fptr_eq(f, c))
-      return entry;
+      return *entry;
   }
   return NULL;
 }
@@ -44,15 +44,11 @@ static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
   if (!*list_ptr)
     *list_ptr = msList_init(allocator, struct double_idx);
 
-  for (each_VLAP(entry, msList_vla(*list_ptr))) {
-    fptr c = stringList_get(sh->strings, entry->kidx);
-    if (fptr_eq(key, c)) {
-      if (val_ptr)
-        memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr, sh->vwidth);
-      else
-        stringList_set(sh->strings, entry->kidx, nullFptr);
-      return;
-    }
+  foreach_ptr(auto entry, msList_vla(*list_ptr)) {
+    if (fptr_eq(key, stringList_get(sh->strings, entry[0]->kidx)))
+      return val_ptr
+                 ? (void)memcpy(sh->values->buf + (entry[0]->vidx * sh->vwidth), val_ptr, sh->vwidth)
+                 : (void)stringList_set(sh->strings, entry[0]->kidx, nullFptr);
   }
 
   if (!val_ptr)
@@ -75,11 +71,10 @@ static inline isize sHmap_get(sHmap *sh, const fptr k, usize v_width) {
   if (!*list_ptr)
     return -1;
 
-  for (each_VLAP(entry, msList_vla(*list_ptr))) {
-    fptr e = stringList_get(sh->strings, entry->kidx);
-    if (fptr_eq(e, k))
-      return entry->vidx;
-  }
+  foreach (auto entry, msList_vla(*list_ptr))
+    if (fptr_eq(stringList_get(sh->strings, entry.kidx), k))
+      return entry.vidx;
+
   return -1;
 }
 static inline isize sHmap_get_cs(sHmap *sh, const char *key, usize v_width) {

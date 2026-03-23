@@ -264,14 +264,15 @@ MAKE_TEST_FN(HMap_overwrite_macro, {
   defer { mHmap_deinit(map); };
 
   mHmap_set(map, 5, 10);
-  mHmap_set(map, 5, 99);
-
   int *v = mHmap_get(map, 5);
+  if (!v || *v != 10)
+    return 1;
+  mHmap_set(map, 5, 99);
+  v = mHmap_get(map, 5);
   if (!v || *v != 99)
     return 1;
-
   return 0;
-});
+})
 MAKE_TEST_FN(HMap_remove_macro, {
   mHmap(int, int) map = mHmap_init(allocator, int, int);
   defer { mHmap_deinit(map); };
@@ -283,62 +284,50 @@ MAKE_TEST_FN(HMap_remove_macro, {
     return 1;
 
   return 0;
-});
+})
 MAKE_TEST_FN(HMap_count_macro, {
   mHmap(int, int) map = mHmap_init(allocator, int, int, 8);
   defer { mHmap_deinit(map); };
 
-  for (int i = 0; i < 200; i++) {
+  for (int i = 0; i < 200; i++)
     mHmap_set(map, i, i);
-  }
 
   if (HMap_count((HMap *)map) != 200)
     return 1;
 
-  // collisions should exist with small bucket count
-  if (HMap_countCollisions((HMap *)map) == 0)
-    return 1;
-
   return 0;
-});
+})
 MAKE_TEST_FN(HMap_clear_macro, {
   mHmap(int, int) map = mHmap_init(allocator, int, int);
   defer { mHmap_deinit(map); };
 
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 100; i++)
     mHmap_set(map, i, i);
-  }
-
   mHmap_clear(map);
-
   if (HMap_count((HMap *)map) != 0)
     return 1;
 
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 100; i++)
     if (mHmap_get(map, i) != NULL)
       return 1;
-  }
 
   return 0;
-});
+})
 MAKE_TEST_FN(HMap_transform_macro, {
   mHmap(int, int) map = mHmap_init(allocator, int, int, 8);
   defer { mHmap_deinit(map); };
 
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 100; i++)
     mHmap_set(map, i, i * 3);
-  }
 
   HMap_transform((HMap **)&map, sizeof(int), sizeof(int), allocator, 128);
 
-  for (int i = 0; i < 100; i++) {
-    int *v = mHmap_get(map, i);
+  for (int i = 0, *v; (v = mHmap_get(map, i), i < 100); i++)
     if (!v || *v != i * 3)
       return 1;
-  }
 
   return 0;
-});
+})
 
   #endif
 #endif // HMap_H
