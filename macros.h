@@ -104,4 +104,3 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define types_eq(T1, T2) \
     _Generic((T1){0}, T2: true, default: false)
 #endif
-

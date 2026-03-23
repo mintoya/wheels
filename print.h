@@ -11,14 +11,11 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
+#include <wchar.h>
 
-#if defined(PRINTER_NOC32TOMB)
+#if defined(PRINTER_NOC32TOMB) || !__has_include(<uchar.h>)
 static inline usize c32rtomb(char *s, c32 chars, mbstate_t *_) {
-  if (s)
-    *s = (char)chars;
-  else
-    return 0;
-  return 1;
+  return s ? (*s = (char)chars, 0) : 1;
 }
 #else
   #include <uchar.h>
@@ -509,10 +506,9 @@ REGISTER_SPECIAL_PRINTER("i64", i64, {
 #if !defined(__cplusplus)
 
   #define MAKE_PRINT_ARG_TYPE(type) \
-  type:                             \
-    fp_from(#type)
+  type: ((fptr){sizeof(#type)-1,#type})
   #if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
-    #define MAKE_PRINTINTS MAKE_PRINT_ARG_TYPE(i32), MAKE_PRINT_ARG_TYPE(u32)
+    #define MAKE_PRINTINTS MAKE_PRINT_ARG_TYPE(i32), MAKE_PRINT_ARG_TYPE(u32),
   #else
     #define MAKE_PRINTINTS
   #endif
@@ -529,11 +525,11 @@ REGISTER_SPECIAL_PRINTER("i64", i64, {
             MAKE_PRINT_ARG_TYPE(double),\
             MAKE_PRINT_ARG_TYPE(long_double),\
             MAKE_PRINT_ARG_TYPE(pEsc),\
-            MAKE_PRINTINTS ,\
-            void *: fp_from("ptr"),\
-            slice(c8): fp_from("slice(c8)"),\
+            MAKE_PRINTINTS\
+            void *: ((fptr){sizeof("ptr")-1,"ptr"}),\
+            slice(c8): ((fptr){sizeof("slice(c8)")-1,"slice(c8)"}),\
             default: nullFptr\
-            ), \
+            ),\
     }),
 
 #else
