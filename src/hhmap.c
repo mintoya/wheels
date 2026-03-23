@@ -2,6 +2,7 @@
 #include "../allocator.h"
 #include "../assertMessage.h"
 #include "../fptr.h"
+#include <string.h>
 
 typedef struct HMap {
   AllocatorV allocator;
@@ -33,26 +34,33 @@ inline void *HMap_getCoord(const HMap *map, u32 bucket, u32 index) {
 
 static inline umax HMap_hash(const fptr str) {
   umax hash = 5381;
-  if (str.len % sizeof(u64)) {
-    for (usize i = 0; i < str.len; i++) {
-      hash ^= hash >> 3;
-      hash = hash * 65;
-      hash ^= (str.ptr[i]);
-    }
+
+  if (str.len == sizeof(umax)) {
+    memcpy(&hash, str.ptr, sizeof(hash));
   } else {
-    assertMessage(
-        !((uintptr_t)str.ptr % alignof(u64)),
-        "change hash for unaligned pointers\n"
-        "or use hmap"
-    );
-    for (usize i = 0; i < str.len; i += sizeof(u64)) {
+    usize i = 0;
+    for (; i + sizeof(umax) <= str.len; i += sizeof(umax)) {
+      u64 part;
+      memcpy(&part, str.ptr + i, sizeof(part));
+
+      hash ^= part;
+      hash *= 0xff51afd7ed558ccdULL;
       hash ^= hash >> 33;
-      hash *= 0xff51afd7ed558ccd;
-      hash ^= *(u64 *)(str.ptr + i);
+    }
+
+    for (; i < str.len; i++) {
+      hash ^= str.ptr[i];
+      hash *= 0x100000001b3ULL;
     }
   }
+
+  hash ^= hash >> 33;
+  hash *= 0xff51afd7ed558ccdULL;
+  hash ^= hash >> 33;
+
   return hash;
 }
+
 HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, const usize metaSize) {
   assertMessage(kSize && vSize && metaSize && allocator);
   usize totalSize = sizeof(HMap) + metaSize * sizeof(HMap_LesserList);

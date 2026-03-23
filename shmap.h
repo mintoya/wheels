@@ -2,6 +2,7 @@
   #define SHMAP_H (1)
   #include "fptr.h"
   #include "hhmap.h"
+  #include "macros.h"
   #include "mylist.h"
   #include "mytypes.h"
   #include "sList.h"
@@ -11,7 +12,7 @@ struct double_idx {
   usize kidx, vidx;
 };
 typedef struct string_HMap {
-  stringList *strings;
+  stringList strings[1];
   sList_header *values;
   usize vwidth;
   mHmap(umax, struct double_idx *) map;
@@ -45,7 +46,6 @@ static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
   struct double_idx entry = {.kidx = s_idx, .vidx = v_idx};
   msList_push(allocator, *list_ptr, entry);
 }
-
 static inline void sHmap_set_cs(sHmap *sh, const char *key, void *val_ptr) { sHmap_set(sh, fptr_CS((void *)key), val_ptr); }
 static inline isize sHmap_get(sHmap *sh, const fptr k, usize v_width) {
   umax hash = fptr_hash(k);
@@ -64,13 +64,15 @@ static inline isize sHmap_get(sHmap *sh, const fptr k, usize v_width) {
 static inline isize sHmap_get_cs(sHmap *sh, const char *key, usize v_width) {
   return sHmap_get(sh, fptr_CS((void *)key), v_width);
 }
-static inline sHmap *shMap_new(AllocatorV allocator, usize size) {
+static inline sHmap *shMap_new(AllocatorV allocator, usize size, usize buckets) {
   sHmap *res = aCreate(allocator, sHmap);
+  stringList *sl = stringList_new(allocator, 1024);
+  defer { aFree(allocator, sl); };
   *res = (sHmap){
-      .strings = stringList_new(allocator, 1024),
+      .strings = {*sl},
       .values = sList_new(allocator, 8, size),
       .vwidth = size,
-      .map = mHmap_init(allocator, umax, struct double_idx *),
+      .map = mHmap_init(allocator, umax, struct double_idx *, buckets),
   };
   return res;
 }
@@ -80,9 +82,9 @@ static inline void shMap_free(sHmap *map) {
     msList_deInit(allocator, list);
   });
   aFree(allocator, map->values);
-  stringList_free(map->strings);
   mHmap_deinit(map->map);
-  aFree(allocator, map);
+  // aFree(allocator, map);
+  stringList_free(map->strings);
 }
 
   #ifdef __cplusplus
@@ -93,8 +95,8 @@ using msHmap_t = T (**)(sHmap *);
     #define msHmap(T) typeof(T(**)(sHmap *))
   #endif
   #define msHmap_iType(sh) typeof((*sh)(NULL))
-  #define msHmap_init(allocator, T) \
-    (msHmap(T)) shMap_new(allocator, sizeof(T))
+  #define msHmap_init(allocator, T, ...) \
+    (msHmap(T)) shMap_new(allocator, sizeof(T), VA_SWITCH(8, __VA_ARGS__))
 
   #define msHmap_deinit(allocator, sh) \
     shMap_free((sHmap *)sh)
