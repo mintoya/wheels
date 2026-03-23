@@ -75,6 +75,9 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define EQUAL_ANY_HELPER(a) a ||
   #define EQUAL_ANY(expr, ...) (APPLY_N((expr) == EQUAL_ANY_HELPER, __VA_ARGS__) 0)
 
+  #define ASSERT_EXPR(...) (0 * sizeof(struct { _Static_assert(__VA_ARGS__); }))
+
+  #define STR_H(...) #__VA_ARGS__
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
 
   #define each_VLAP(name, vla)                   \
