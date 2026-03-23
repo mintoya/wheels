@@ -1,3 +1,4 @@
+#include "../print.h"
 #include "../shmap.h"
 #include <stdcountof.h>
 #include <stdio.h>
@@ -96,16 +97,24 @@ int main() {
   BenchResult s = bench_sHmap(allocator);
   BenchResult m = bench_mHmap(allocator);
 
-  printf("=== Results (8 keys, %d iterations) ===\n", N_ITERS);
+  println("=== Results (8 keys, %d iterations) ===", (usize)N_ITERS);
 
-  printf("sHmap  SET: %.3f sec\n", s.set_time);
-  printf("mHmap  SET: %.3f sec\n", m.set_time);
-
-  printf("sHmap  GET: %.3f sec\n", s.get_time);
-  printf("mHmap  GET: %.3f sec\n", m.get_time);
-
-  printf("\nRatios:\n");
-  printf("SET  s/m: %.2fx\n", s.set_time / m.set_time);
-  printf("GET  s/m: %.2fx\n", s.get_time / m.get_time);
+  print(
+      "sHmap  SET: {double} sec\n"
+      "mHmap  SET: {double} sec\n",
+      s.set_time, m.set_time
+  );
+  print(
+      "sHmap  GET: {double} sec\n"
+      "mHmap  GET: {double} sec\n",
+      s.get_time, m.get_time
+  );
+  print(
+      "Ratios\n"
+      "SET  s/m: {double}x\n"
+      "GET  s/m: {double}x\n",
+      s.set_time / m.set_time,
+      s.get_time / m.get_time
+  );
 }
 #include "../wheels.h"

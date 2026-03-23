@@ -145,17 +145,17 @@ static printerFunction PrinterSingleton_get(fptr name) {
   }
   lasttick = !lasttick;
 
-  auto map = ((sHmap *)PrinterSingleton.data)->map;
-  auto val = mHmap_get(map, fptr_hash(name));
+  // auto map = ((sHmap *)PrinterSingleton.data)->map;
+  auto val = sHmap_find((sHmap *)PrinterSingleton.data, name);
   if (val) {
     auto list = (printerFunction *)(((sHmap *)PrinterSingleton.data)->values)->buf;
-    lastprinters[lasttick] = list[val[0]->vidx];
+    lastprinters[lasttick] = list[val[0].vidx];
     lastnames[lasttick] =
         stringList_get(
             ((sHmap *)PrinterSingleton.data)->strings,
-            val[0]->kidx
+            val[0].kidx
         );
-    return list[val[0]->vidx];
+    return list[val[0].vidx];
   }
   return NULL;
 }
@@ -339,12 +339,81 @@ REGISTER_PRINTER(isize, {
   if (in < 0) { PUTC(L'-'); uin =0-in; }
   USETYPEPRINTER(usize, uin);
 });
+
 REGISTER_PRINTER(f128, {
   if (in < 0) {
     PUTC(L'-');
     in *= -1;
   }
   
+  if (in == 0) {
+    PUTS(U"0.0E0");
+  } else {
+    isize exp = 0;
+    
+    while (in >= 10.0) {
+      in /= 10.0;
+      exp++;
+    }
+    while (in < 1.0) {
+      in *= 10.0;
+      exp--;
+    }
+    
+    usize first = (usize)in;
+    PUTC(( c32 )(U'0'+first));
+    PUTC(U'.');
+    in -= (f128)first;
+    
+    for (int i = 0; i < 6; i++) {
+      in *= 10.0;
+      usize dig = (usize)in;
+      PUTC(( c32 )(U'0'+dig));
+      in -= (f128)dig;
+    }
+    PUTC(L'E');
+    USETYPEPRINTER(isize, exp);
+  }
+});
+REGISTER_PRINTER(double, {
+  if (in < 0) {
+    PUTC(L'-');
+    in *= -1;
+  }
+  if (in == 0) {
+    PUTS(U"0.0E0");
+  } else {
+    isize exp = 0;
+    
+    while (in >= 10.0) {
+      in /= 10.0;
+      exp++;
+    }
+    while (in < 1.0) {
+      in *= 10.0;
+      exp--;
+    }
+    
+    usize first = (usize)in;
+    PUTC(( c32 )(U'0'+first));
+    PUTC(U'.');
+    in -= (f128)first;
+    
+    for (int i = 0; i < 6; i++) {
+      in *= 10.0;
+      usize dig = (usize)in;
+      PUTC(( c32 )(U'0'+dig));
+      in -= (f128)dig;
+    }
+    PUTC(L'E');
+    USETYPEPRINTER(isize, exp);
+  }
+});
+REGISTER_SPECIAL_PRINTER("long double", long double,{
+  if (in < 0) {
+    PUTC(L'-');
+    in *= -1;
+  }
   if (in == 0) {
     PUTS(U"0.0E0");
   } else {

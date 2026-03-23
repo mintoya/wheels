@@ -6,6 +6,17 @@
 #include "stdio.h"
 // #define assertMessage_no_backtrace
 #include "assertMessage.h"
+#include "fptr.h"
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+char *current_test = 0;
+void segv_handler(int signum) {
+  fwrite(ASSERTMESSAGE_PRINTRED "test: ", 1, 13, stdout);
+  fwrite(current_test, fp(current_test).len, 4, stdout);
+  fwrite(" raised seg-fault", 1, 18, stdout);
+  abort();
+}
 
 typedef int (*testerFunction)(AllocatorV); // required to clean up after itself
 struct testItem {
@@ -48,9 +59,11 @@ MAKE_TEST_FN(allocator_test, {
 });
 
 int main(void) {
+  signal(SIGSEGV, segv_handler);
   AllocatorV allocator = FBA_static(1 << 20);
   usize failCount = 0;
   for (each_VLAP(test, VLAP(testList, testCount))) {
+    current_test = test->name;
     printf("test %s: {\n", test->name);
     fflush(stdout);
     int res = test->function(allocator);

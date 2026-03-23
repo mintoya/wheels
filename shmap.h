@@ -15,26 +15,39 @@ typedef struct string_HMap {
   stringList strings[1];
   sList_header *values;
   usize vwidth;
-  mHmap(umax, struct double_idx *) map;
+  usize num_buckets;
+  struct double_idx *buckets[];
 } sHmap;
-
-static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
-  umax hash = fptr_hash(key);
+static inline struct double_idx *sHmap_find(sHmap *sh, fptr f) {
+  umax hash = fptr_hash(f);
+  usize b_idx = hash % sh->num_buckets;
   AllocatorV allocator = sh->strings->allocator;
 
-  struct double_idx **list_ptr = mHmap_get(sh->map, hash);
-  if (!list_ptr) {
-    struct double_idx *new_list = msList_init(allocator, struct double_idx);
-    mHmap_set(sh->map, hash, new_list);
-    list_ptr = mHmap_get(sh->map, hash);
-  }
+  struct double_idx **list_ptr = &sh->buckets[b_idx];
+  if (!*list_ptr)
+    *list_ptr = msList_init(allocator, struct double_idx);
 
   for (each_VLAP(entry, msList_vla(*list_ptr))) {
     fptr c = stringList_get(sh->strings, entry->kidx);
-    if (fptr_eq(key, c)) {
-      memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr, sh->vwidth);
-      return;
-    }
+    if (fptr_eq(f, c))
+      return entry;
+  }
+  return NULL;
+}
+
+static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
+  umax hash = fptr_hash(key);
+  usize b_idx = hash % sh->num_buckets;
+  AllocatorV allocator = sh->strings->allocator;
+
+  struct double_idx **list_ptr = &sh->buckets[b_idx];
+  if (!*list_ptr)
+    *list_ptr = msList_init(allocator, struct double_idx);
+
+  for (each_VLAP(entry, msList_vla(*list_ptr))) {
+    fptr c = stringList_get(sh->strings, entry->kidx);
+    if (fptr_eq(key, c))
+      return (void)memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr, sh->vwidth);
   }
 
   usize s_idx = stringList_len(sh->strings);
@@ -49,9 +62,10 @@ static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
 static inline void sHmap_set_cs(sHmap *sh, const char *key, void *val_ptr) { sHmap_set(sh, fptr_CS((void *)key), val_ptr); }
 static inline isize sHmap_get(sHmap *sh, const fptr k, usize v_width) {
   umax hash = fptr_hash(k);
+  usize b_idx = hash % sh->num_buckets;
 
-  struct double_idx **list_ptr = mHmap_get(sh->map, hash);
-  if (!list_ptr || !*list_ptr)
+  struct double_idx **list_ptr = &sh->buckets[b_idx];
+  if (!*list_ptr)
     return -1;
 
   for (each_VLAP(entry, msList_vla(*list_ptr))) {
@@ -65,25 +79,28 @@ static inline isize sHmap_get_cs(sHmap *sh, const char *key, usize v_width) {
   return sHmap_get(sh, fptr_CS((void *)key), v_width);
 }
 static inline sHmap *shMap_new(AllocatorV allocator, usize size, usize buckets) {
-  sHmap *res = aCreate(allocator, sHmap);
+  sHmap *res = (typeof(res))aAlloc(allocator, sizeof(sHmap) + (buckets * sizeof(struct double_idx *)));
   stringList *sl = stringList_new(allocator, 1024);
   defer { aFree(allocator, sl); };
   *res = (sHmap){
       .strings = {*sl},
       .values = sList_new(allocator, 8, size),
       .vwidth = size,
-      .map = mHmap_init(allocator, umax, struct double_idx *, buckets),
+      .num_buckets = buckets,
   };
+  for (usize i = 0; i < buckets; i++) {
+    res->buckets[i] = NULL;
+  }
   return res;
 }
 static inline void shMap_free(sHmap *map) {
   AllocatorV allocator = map->strings->allocator;
-  mHmap_foreach(map->map, umax, hashes, struct double_idx *, list, {
-    msList_deInit(allocator, list);
-  });
+  for (usize i = 0; i < map->num_buckets; i++) {
+    if (map->buckets[i]) {
+      msList_deInit(allocator, map->buckets[i]);
+    }
+  }
   aFree(allocator, map->values);
-  mHmap_deinit(map->map);
-  // aFree(allocator, map);
   stringList_free(map->strings);
 }
 
@@ -100,25 +117,21 @@ using msHmap_t = T (**)(sHmap *);
 
   #define msHmap_deinit(allocator, sh) \
     shMap_free((sHmap *)sh)
-  // Internal dispatch for SET
   #define msHmap_set(sh, key, val)   \
     do {                             \
       msHmap_iType(sh) _v = (val);   \
       _Generic(                      \
           (key),                     \
           fptr: sHmap_set,           \
-          const fptr: sHmap_set,     \
           char *: sHmap_set_cs,      \
           const char *: sHmap_set_cs \
       )((sHmap *)sh, key, &_v);      \
     } while (0)
 
-  // Internal dispatch for GET
   #define msHmap_get(sh, key) (typeof(msHmap_iType(sh) *))({                               \
     isize _idx = _Generic(                                                                 \
         (key),                                                                             \
         fptr: sHmap_get,                                                                   \
-        const fptr: sHmap_get,                                                             \
         char *: sHmap_get_cs,                                                              \
         const char *: sHmap_get_cs                                                         \
     )((sHmap *)sh, key, sizeof(msHmap_iType(sh)));                                         \

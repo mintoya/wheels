@@ -102,8 +102,8 @@ void *aResize(AllocatorV allocator, void *oldptr, size_t size) {
 #endif
   void *res = (allocator)->resize(allocator, oldptr, size);
 #ifdef MY_ALLOCATOR_STRICTEST
-  assertMessage(res, "allocators cant return null");
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "wrong alignment out of allocator");
+  assertMessage(res, "allocators cant return null, r");
+  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "wrong alignment out of allocator, r");
 #endif
   return res;
 }
