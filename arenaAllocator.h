@@ -2,6 +2,7 @@
 #define ARENA_ALLOCATOR_H
 #include "allocator.h"
 #include "assertMessage.h"
+#include "macros.h"
 #include "mytypes.h"
 #include <string.h>
 #if HAS_ASAN
@@ -62,6 +63,7 @@ MAKE_TEST_FN(arena_test, {
 #endif
 
 #if defined(ARENA_ALLOCATOR_C)
+#include "fbaAllocator.h"
 
 void my_arena_free(AllocatorV arena, voidptr ptr);
 voidptr my_arena_alloc(AllocatorV arena, usize size);
@@ -124,7 +126,7 @@ void ownArenaDeInit(My_allocator *d) {
 }
 AllocatorV arena_new_ext(AllocatorV base, usize blockSize) {
   My_arena_includeBlock *res = aCreate(base, My_arena_includeBlock);
-  static constexpr auto defaultArena =
+  static const var defaultArena =
       (My_allocator){
           .alloc = my_arena_alloc,
           .free = my_arena_free,

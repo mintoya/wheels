@@ -9,10 +9,10 @@
   #if defined(__cplusplus)
 typedef slice(u8) fptr;
   #else
-    #if __STDC_VERSION__ >= 202411L
-typedef slice(u8) fptr;
-    #endif
-typedef sliceDef(u8) fptr;
+typedef struct slice_u8 {
+  usize len;
+  u8 *ptr;
+} fptr;
   #endif
 
 static inline fptr fptr_CS(void *cstr) { return ((fptr){(usize)strlen((char *)cstr), (u8 *)cstr}); }

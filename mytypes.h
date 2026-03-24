@@ -23,7 +23,7 @@ typedef unsigned char uchar;
 typedef unsigned long ulong;
 typedef long long longlong;
 typedef unsigned long long ulonglong;
-typedef long double longdouble;
+typedef long double ldouble;
 //
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -39,7 +39,7 @@ typedef int64_t i64;
 typedef float f32;
 typedef double f64;
 // long double is a double on windows -_-
-typedef longdouble f128;
+typedef ldouble f128;
 typedef void *voidptr;
 
 typedef uintmax_t umax;
@@ -137,5 +137,6 @@ struct nullable_t {
 #else
   #include <stdcountof.h>
 #endif
+sliceDef(c8);
 
 #endif // MY_TYPES

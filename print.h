@@ -142,9 +142,9 @@ static printerFunction PrinterSingleton_get(fptr name) {
   }
   lasttick = !lasttick;
 
-  __auto_type val = sHmap_find((sHmap *)PrinterSingleton.data, name);
+  var val = sHmap_find((sHmap *)PrinterSingleton.data, name);
   if (val) {
-    __auto_type list = (printerFunction *)(((sHmap *)PrinterSingleton.data)->values)->buf;
+    var list = (printerFunction *)(((sHmap *)PrinterSingleton.data)->values)->buf;
     lastprinters[lasttick] = list[val[0].vidx];
     lastnames[lasttick] =
         stringList_get(
@@ -291,11 +291,11 @@ REGISTER_SPECIAL_PRINTER_NEEDID(_void_ptr_printerfn,"ptr", void *, {
     shift -= 4;
   }
 });
-sliceDef(c8);
 REGISTER_SPECIAL_PRINTER_NEEDID(_slice_c8_printerfn, "slice(c8)", slice(c8), {
     foreach(c32 c, slice_vla(in))
       PUTC(c);
 });
+
 REGISTER_PRINTER(c8, { PUTC((c32)in); });
 REGISTER_PRINTER(c32, { PUTC(in); });
 REGISTER_SPECIAL_PRINTER("cstr", char *, {
@@ -340,7 +340,7 @@ REGISTER_PRINTER(isize, {
 REGISTER_PRINTER(f128, {
   usize digits = 0;
   if (( args = printer_arg_trim(args) ).len)  
-    for(auto i = 0;i<args.len && (args.ptr[i]<= '9' && args.ptr[i]>= '0');i++){
+    for(var i = 0;i<args.len && (args.ptr[i]<= '9' && args.ptr[i]>= '0');i++){
       digits*=10;
       digits+=args.ptr[i]-'0';
     }
@@ -389,7 +389,7 @@ REGISTER_PRINTER(double, {
     fp("f128"), put, args, _arb
   );
 });
-REGISTER_PRINTER(longdouble, {
+REGISTER_PRINTER(ldouble, {
   f128 r = (f128)in;
   print_f_helper((struct print_arg) {.ref = (void*)&r},
     fp("f128"), put, args, _arb
@@ -522,7 +522,7 @@ REGISTER_SPECIAL_PRINTER("i64", i64, {
             MAKE_PRINT_ARG_TYPE(usize),\
             MAKE_PRINT_ARG_TYPE(float),\
             MAKE_PRINT_ARG_TYPE(double),\
-            MAKE_PRINT_ARG_TYPE(longdouble),\
+            MAKE_PRINT_ARG_TYPE(ldouble),\
             MAKE_PRINT_ARG_TYPE(pEsc),\
             MAKE_PRINTINTS\
             void *: ((fptr){sizeof("ptr")-1,(u8*)"ptr"}),\
@@ -545,7 +545,7 @@ MAKE_PRINT_ARG_TYPE(isize);
 MAKE_PRINT_ARG_TYPE(usize);
 MAKE_PRINT_ARG_TYPE(float);
 MAKE_PRINT_ARG_TYPE(double);
-MAKE_PRINT_ARG_TYPE(longdouble);
+MAKE_PRINT_ARG_TYPE(ldouble);
 MAKE_PRINT_ARG_TYPE(pEsc);
   #if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
 MAKE_PRINT_ARG_TYPE(i32);
@@ -657,7 +657,7 @@ void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr 
   if (!fn) {
     USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = 1}));
     PUTS(U"__ NO_TYPE(");
-    for (__auto_type i = 0; i < typeName.len; i++)
+    for (var i = 0; i < typeName.len; i++)
       PUTC(typeName.ptr[i]);
     PUTS(U") __");
     USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));

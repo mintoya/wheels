@@ -28,7 +28,7 @@ __attribute__((pure))
  * @return pointer to i`th element
  *      - even if i is out of bounds
  */
-extern inline void *
+static inline void *
 List_getRefForce(const List *l, List_index_t i, size_t width) { return (l->head + width * i); };
 __attribute__((pure))
 /**
@@ -37,7 +37,7 @@ __attribute__((pure))
  * @return pointer to i`th element
  *      - null if i is more than l.length
  */
-extern inline void *
+static inline void *
 List_getRef(const List *l, List_index_t i, size_t width) { return (i < l->length) ? (l->head + width * i) : (NULL); }
 /**
  * writes list to l
@@ -55,7 +55,7 @@ extern inline void List_resize(List *l, List_index_t newSize, size_t width);
  * @param bytes size of each element
  * @return new list
  */
-extern inline List *List_new(AllocatorV allocator, size_t width) {
+static inline List *List_new(AllocatorV allocator, size_t width) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
   List_makeNew(allocator, l, width, 2);
   return l;
@@ -65,12 +65,12 @@ extern inline List *List_new(AllocatorV allocator, size_t width) {
  * @param l list
  */
 void List_free(List *l);
-extern inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t initSize) {
+static inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t initSize) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
   List_makeNew(allocator, l, bytes, initSize);
   return l;
 }
-__attribute__((always_inline)) extern inline void List_set(List *l, List_index_t i, const void *element, size_t width) {
+__attribute__((always_inline)) static inline void List_set(List *l, List_index_t i, const void *element, size_t width) {
   void *place = List_getRef(l, i, width);
   if (place)
     element
@@ -109,7 +109,7 @@ void *List_appendFromArr(List *l, const void *source, List_index_t length, size_
  */
 void *List_insertFromArr(List *l, const void *source, List_index_t length, List_index_t location, size_t width);
 
-__attribute__((pure)) extern inline List_index_t List_length(const List *l) { return l ? l->length : 0; }
+__attribute__((pure)) static inline List_index_t List_length(const List *l) { return l ? l->length : 0; }
 /*
  * searches for a value which has an identical value to element
  * @param list
@@ -198,19 +198,19 @@ using mList_t = T (**)(List *);
   do {                                                                \
     List_resize((List *)(list), capacity, sizeof(mList_iType(list))); \
   } while (0)
-#define mList_pushArr(list, vla)                                    \
-  do {                                                              \
-    static_assert(types_eq(typeof(vla[0]), mList_iType(list)), ""); \
-    List_appendFromArr(                                             \
-        (List *)list,                                               \
-        vla,                                                        \
-        sizeof(vla) / sizeof(vla[0]),                               \
-        sizeof(vla[0])                                              \
-    );                                                              \
+#define mList_pushArr(list, vla)                                      \
+  do {                                                                \
+    0 + ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), ""); \
+    List_appendFromArr(                                               \
+        (List *)list,                                                 \
+        vla,                                                          \
+        sizeof(vla) / sizeof(vla[0]),                                 \
+        sizeof(vla[0])                                                \
+    );                                                                \
   } while (0)
 #define mList_insArr(list, position, vla)                                                          \
   do {                                                                                             \
-    static_assert(types_eq(typeof(vla[0]), mList_iType(list)), "");                                \
+    0 + ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), "");                              \
     List_insertFromArr((List *)list, vla, sizeof(vla) / sizeof(vla[0]), position, sizeof(vla[0])); \
   } while (0)
 #define mList_pad(list, ammount)  \
@@ -228,10 +228,9 @@ using mList_t = T (**)(List *);
 #define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
 // #include "tests.c"
 #if defined(MAKE_TEST_FN)
-
 MAKE_TEST_FN(mlist_push_pop, {
-    mList(int) list = mList_init(allocator, int);
-    defer { mList_deInit(list); };
+  mList(int) list = mList_init(allocator, int);
+  defer { mList_deInit(list); };
 
   for (each_RANGE(usize, i, 0, 50))
     mList_push(list, i * i);
@@ -241,36 +240,29 @@ MAKE_TEST_FN(mlist_push_pop, {
 
   return 0;
 });
-
 MAKE_TEST_FN(mlist_insert_remove, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
-
   mList_push(list, 100);
   mList_push(list, 300);
-    
-  mList_ins(list, 1, 200);
+  mList_ins(list, 1, 200);
   if (mList_len(list) != 3)
     return 1;
   if (mList_arr(list)[1] != 200)
     return 1;
-
   mList_rem(list, 0);
   if (mList_len(list) != 2)
     return 1;
   if (mList_arr(list)[0] != 200)
     return 1;
-
   if (mList_popFront(list) != 200)
     return 1;
   if (mList_len(list) != 1)
     return 1;
   if (mList_arr(list)[0] != 300)
     return 1;
-
   return 0;
 });
-
 MAKE_TEST_FN(mlist_array_operations, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
@@ -293,7 +285,6 @@ MAKE_TEST_FN(mlist_array_operations, {
 
   return 0;
 });
-
 MAKE_TEST_FN(mlist_capacity_and_padding, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
@@ -316,11 +307,9 @@ MAKE_TEST_FN(mlist_capacity_and_padding, {
 
   return 0;
 });
-
 MAKE_TEST_FN(mlist_vla_cast, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
-
   mList_push(list, 7);
   mList_push(list, 8);
   mList_push(list, 9);
@@ -329,7 +318,6 @@ MAKE_TEST_FN(mlist_vla_cast, {
     return 1;
   return 0;
 });
-
 #endif
 #endif // MY_LIST_H
 

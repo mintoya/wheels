@@ -7,7 +7,6 @@
   #include "mylist.h"
   #include "mytypes.h"
   #include "sList.h"
-sliceDef(c8);
 typedef usize vason_index;
 typedef struct {
   vason_index start, end;
@@ -167,7 +166,7 @@ typedef struct vason {
   bool simpleArray() {
     if (tag() != vason_TABLE)
       return false;
-    for (auto i = origional->tables_strings[place].start;
+    for (var i = origional->tables_strings[place].start;
          i < origional->tables_strings[place].end;
          i++) {
       if (origional->tags[i] == vason_PAIR)
@@ -178,7 +177,7 @@ typedef struct vason {
   bool simpleMap() {
     if (tag() != vason_TABLE)
       return false;
-    for (auto i = origional->tables_strings[place].start;
+    for (var i = origional->tables_strings[place].start;
          i < origional->tables_strings[place].end;
          i++) {
       if (origional->tags[i] != vason_PAIR)
@@ -397,7 +396,7 @@ vason_token_t to_token(c8 in) {
   }
 }
   #else
-static constexpr vason_token_t vason_tokens_lut[256] = {
+static const vason_token_t vason_tokens_lut[256] = {
 
     ['"'] = vason_STR_DELIM,
     [','] = vason_TABLE_DELIM,
@@ -409,7 +408,6 @@ static constexpr vason_token_t vason_tokens_lut[256] = {
     ['}'] = vason_TABLE_END,
 
 };
-static_assert(vason_tokens_lut[0] == vason_STR);
     #define to_token(in) vason_tokens_lut[in]
   #endif
 // __attribute__((always_inline)) static inline vason_token_t(to_token)(c8 in) {
@@ -729,7 +727,7 @@ vason_container vason_parseString(AllocatorV allocator, slice(c8) string) {
     msList_ins(allocator, res.tags, 0, vason_TABLE);
     msList_ins(allocator, res.tables_strings, 0, range);
     for (vason_index i = range.start; i < range.end; i++) {
-      if (res.tags[i] == vason_TABLE) {
+      if (EQUAL_ANY(res.tags[i], vason_TABLE, vason_PAIR)) {
         res.tables_strings[i].start++;
         res.tables_strings[i].end++;
       }
@@ -766,7 +764,7 @@ vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string) {
     msList_ins(allocator, res.tags, 0, vason_TABLE);
     msList_ins(allocator, res.tables_strings, 0, range);
     for (vason_index i = range.start; i < range.end; i++) {
-      if (res.tags[i] == vason_TABLE) {
+      if (EQUAL_ANY(res.tags[i], vason_TABLE, vason_PAIR)) {
         res.tables_strings[i].start++;
         res.tables_strings[i].end++;
       }
@@ -776,7 +774,11 @@ vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string) {
 
   res.current = 0;
   res.tokens = bitcast(typeof(res.tokens), tokens);
-  assertMessage(msList_len(res.tables_strings) == msList_len(res.tags));
+  assertMessage(
+      msList_len(res.tables_strings) == msList_len(res.tags),
+      "legths %zu != %zu",
+      msList_len(res.tables_strings), msList_len(res.tags)
+  );
   return res;
 }
 
@@ -886,7 +888,7 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
       bool escaped = false;
 
       vason_index count = 0;
-      for (auto i = vs.start; i < vs.end; i++) {
+      for (var i = vs.start; i < vs.end; i++) {
         vason_token_t token = to_token(c.text.ptr[i]);
         if (escaped)
           escaped = false;
@@ -900,7 +902,7 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
       if (count >= 2)
         mList_push(res, '"');
 
-      for (auto i = vs.start; i < vs.end; i++) {
+      for (var i = vs.start; i < vs.end; i++) {
         vason_token_t token = to_token(c.text.ptr[i]);
         if (escaped)
           escaped = false;
@@ -918,10 +920,10 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
     } break;
     case vason_PAIR: {
       vason_span vs = c.tables_strings[c.current];
-      for (auto i = 0; i < 2; i++) {
+      for (var i = 0; i < 2; i++) {
         if (i)
           mList_push(res, ':');
-        auto temp = (vason_container){
+        var temp = (vason_container){
             .current = (vason_index)(i + vs.start),
             .tags = c.tags,
             .tables_strings = c.tables_strings,
@@ -933,10 +935,10 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
     case vason_TABLE: {
       vason_span vs = c.tables_strings[c.current];
       mList_push(res, '{');
-      for (auto i = vs.start; i < vs.end; i++) {
+      for (var i = vs.start; i < vs.end; i++) {
         if (i - vs.start)
           mList_push(res, ',');
-        auto temp = (vason_container){
+        var temp = (vason_container){
             .current = i,
             .tags = c.tags,
             .tables_strings = c.tables_strings,

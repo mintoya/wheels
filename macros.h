@@ -63,7 +63,7 @@ struct DeferHelper {
 
     #define defer auto DEFER_NAME(_defer_, __LINE__) = DeferHelper() + [&]()
   #else
-    #if __has_include(<stddefer.h>)
+    #if __has_include(<stddefer.h>) && __STDC_VERSION__ >= 202311L
       #include <stddefer.h>
     #else
       #if defined(__clang__)
@@ -126,6 +126,11 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define types_eq(T1, T2) \
     _Generic((T1){0}, T2: true, default: false)
+
+  #define declare_scoped(decl)                                                 \
+    for (char _RANGE_NAME(once) = 1; _RANGE_NAME(once); _RANGE_NAME(once) = 0) \
+      for (decl; _RANGE_NAME(once); _RANGE_NAME(once) = false)
+
   #define each_VLAP(type, name, vla)                                    \
     each_RANGE(                                                         \
         type,                                                           \
@@ -134,12 +139,30 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
         (vla)[1],                                                       \
         1                                                               \
     )
-  #define foreach(decl, vla)                                                         \
-    for (each_VLAP(typeof(&(vla)[0][0]), _RANGE_NAME(item), vla))                    \
-      for (char _RANGE_NAME(once) = 1; _RANGE_NAME(once); _RANGE_NAME(once) = false) \
-        for (decl = *_RANGE_NAME(item); _RANGE_NAME(once); _RANGE_NAME(once) = false)
-  #define foreach_ptr(decl, vla)                                                     \
-    for (each_VLAP(typeof(&(vla)[0][0]), _RANGE_NAME(item), vla))                    \
-      for (char _RANGE_NAME(once) = 1; _RANGE_NAME(once); _RANGE_NAME(once) = false) \
-        for (decl = (typeof(typeof((vla)[0][0]))(*)[1])_RANGE_NAME(item); _RANGE_NAME(once); _RANGE_NAME(once) = false)
+
+  #define FOREACH_SPLIT_LABEL(label, ...) label
+  #define FOREACH_SPLIT_ARGS(label, ...) __VA_ARGS__
+
+  #define foreach_ptr(decl, vla, ...)                                 \
+    /* as long as VA_ARGS must starts with a label(: not included )*/ \
+    for (each_VLAP(typeof(&(vla)[0][0]), _RANGE_NAME(item), vla))     \
+      if (false) {                                                    \
+        FOREACH_SPLIT_LABEL(__VA_ARGS__)                              \
+        decl = (typeof(typeof((vla)[0][0]))(*)[1])_RANGE_NAME(item);  \
+        FOREACH_SPLIT_ARGS(__VA_ARGS__)                               \
+      } else                                                          \
+        declare_scoped(decl = (typeof(typeof((vla)[0][0]))(*)[1])_RANGE_NAME(item))
+
+  #define foreach(decl, vla, ...)                                     \
+    /* as long as VA_ARGS must starts with a label(: not included )*/ \
+    for (each_VLAP(typeof(&(vla)[0][0]), _RANGE_NAME(item), vla))     \
+      if (false) {                                                    \
+        FOREACH_SPLIT_LABEL(__VA_ARGS__)                              \
+        decl = *_RANGE_NAME(item);                                    \
+        FOREACH_SPLIT_ARGS(__VA_ARGS__)                               \
+        break;                                                        \
+      } else                                                          \
+        declare_scoped(decl = *_RANGE_NAME(item))
+
+  #define var __auto_type
 #endif

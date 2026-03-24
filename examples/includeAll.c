@@ -1,7 +1,2 @@
-#include "../allocator.h"
-#include "../hhmap.h"
-#include "../mylist.h"
-#include "../sList.h"
-#include "../vason_arr.h"
-#include "../vason_tree.h"
+#define WHEELS_INCLUDE_ALL (1)
 #include "../wheels.h"
