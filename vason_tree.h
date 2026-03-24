@@ -101,7 +101,7 @@ void vason_node_freeRecursive(AllocatorV allocator, vason_node n) {
       vason_node_freeRecursive(allocator, n.pair[1]);
     } break;
     case vason_TABLE: {
-      foreach (__auto_type item, msList_vla(n.table))
+      foreach (var item, msList_vla(n.table))
         vason_node_freeRecursive(allocator, item);
     } break;
     case vason_STRING:
@@ -166,7 +166,7 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
       };
       msList_pushVla(c->allocator, c->tables_strings, VLAP((vason_span *)NULL, msList_len(n.table)));
       msList_pushVla(c->allocator, c->tags, VLAP((vason_tag *)NULL, msList_len(n.table)));
-      foreach (__auto_type item, msList_vla(n.table))
+      foreach (var item, msList_vla(n.table))
         vason_node_intoContainer(c, item, tableStart++);
     } break;
     case vason_PAIR: {
@@ -232,7 +232,7 @@ vason_node vason_container_toNode(AllocatorV allocator, vason_container c) {
       vason_span vs = c.tables_strings[c.current];
       res = vason_node_newTable(allocator);
       msList_reserve(allocator, res.table, vs.end - vs.start);
-      for (__auto_type i = vs.start; i < vs.end; i++) {
+      for (var i = vs.start; i < vs.end; i++) {
         c.current = i;
         msList_push(allocator, res.table, vason_container_toNode(allocator, c));
       }
@@ -262,7 +262,7 @@ usize vason_node_footprint(vason_node n) {
     case vason_TABLE: {
       usize res = 0;
       res += sizeof(*msList_vla(n.table)) + sizeof(sList_header);
-      foreach (__auto_type item, msList_vla(n.table))
+      foreach (var item, msList_vla(n.table))
         res += vason_node_footprint(item);
       return res;
     } break;
@@ -280,7 +280,7 @@ vason_node vason_node_deepCopy(AllocatorV allocator, vason_node n) {
   switch (n.tag) {
     case vason_TABLE: {
       res.table = msList_init(allocator, typeof(*n.table), msList_len(n.table));
-      foreach (__auto_type node, msList_vla(n.table))
+      foreach (var node, msList_vla(n.table))
         msList_push(
             allocator,
             res.table,

@@ -166,7 +166,7 @@ typedef struct vason {
   bool simpleArray() {
     if (tag() != vason_TABLE)
       return false;
-    for (__auto_type i = origional->tables_strings[place].start;
+    for (var i = origional->tables_strings[place].start;
          i < origional->tables_strings[place].end;
          i++) {
       if (origional->tags[i] == vason_PAIR)
@@ -177,7 +177,7 @@ typedef struct vason {
   bool simpleMap() {
     if (tag() != vason_TABLE)
       return false;
-    for (__auto_type i = origional->tables_strings[place].start;
+    for (var i = origional->tables_strings[place].start;
          i < origional->tables_strings[place].end;
          i++) {
       if (origional->tags[i] != vason_PAIR)
@@ -884,7 +884,7 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
       bool escaped = false;
 
       vason_index count = 0;
-      for (__auto_type i = vs.start; i < vs.end; i++) {
+      for (var i = vs.start; i < vs.end; i++) {
         vason_token_t token = to_token(c.text.ptr[i]);
         if (escaped)
           escaped = false;
@@ -898,7 +898,7 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
       if (count >= 2)
         mList_push(res, '"');
 
-      for (__auto_type i = vs.start; i < vs.end; i++) {
+      for (var i = vs.start; i < vs.end; i++) {
         vason_token_t token = to_token(c.text.ptr[i]);
         if (escaped)
           escaped = false;
@@ -916,10 +916,10 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
     } break;
     case vason_PAIR: {
       vason_span vs = c.tables_strings[c.current];
-      for (__auto_type i = 0; i < 2; i++) {
+      for (var i = 0; i < 2; i++) {
         if (i)
           mList_push(res, ':');
-        __auto_type temp = (vason_container){
+        var temp = (vason_container){
             .current = (vason_index)(i + vs.start),
             .tags = c.tags,
             .tables_strings = c.tables_strings,
@@ -931,10 +931,10 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
     case vason_TABLE: {
       vason_span vs = c.tables_strings[c.current];
       mList_push(res, '{');
-      for (__auto_type i = vs.start; i < vs.end; i++) {
+      for (var i = vs.start; i < vs.end; i++) {
         if (i - vs.start)
           mList_push(res, ',');
-        __auto_type temp = (vason_container){
+        var temp = (vason_container){
             .current = i,
             .tags = c.tags,
             .tables_strings = c.tables_strings,

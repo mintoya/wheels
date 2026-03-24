@@ -186,7 +186,9 @@ MAKE_TEST_FN(test_stringList_churn_stats, {
 #if defined(STRING_LIST_C)
   #include <stddef.h>
   #include <string.h>
-int i = ASSERT_EXPR(sizeof(struct vlength) == sizeof(char), "");
+
+int STRINGLIST_INTS_EQUAL = ASSERT_EXPR(sizeof(struct vlength) == sizeof(char), "");
+
   #define vlen_stat(stringLiteral) ({                 \
     static struct [[gnu::packed]] {                   \
       typeof(u64_toVLen(0)) len;                      \
@@ -198,7 +200,8 @@ int i = ASSERT_EXPR(sizeof(struct vlength) == sizeof(char), "");
     };                                                \
     (vlqbuf) & res;                                   \
   })
-stringList *stringList_new(AllocatorV allocator, usize initSize) {
+stringList *
+stringList_new(AllocatorV allocator, usize initSize) {
   stringList *res = aCreate(allocator, stringList);
   *res = (typeof(*res)){
       .ulist = msList_init(allocator, ptrdiff_t),
@@ -270,8 +273,8 @@ fptr stringList_append(stringList *sl, fptr ptr) {
         fptr op = vlqbuf_toFptr((vlength *)sl->buff + offset);
         usize newlen =
             op.len - ptr.len - countof(u64_toVlen(0)._);
-        __auto_type b = u64_toVlen(newlen);
-        __auto_type bp = b._;
+        var b = u64_toVlen(newlen);
+        var bp = b._;
         usize bpl = countof(b._);
         while (bitcast(u8, *bp) == bitcast(u8, ((vlength){.hasNext = 1, .data = 0}))) {
           bp++;

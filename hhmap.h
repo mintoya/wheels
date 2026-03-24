@@ -481,9 +481,9 @@ void HMap_transform(HMap **last, usize kSize, usize vSize, AllocatorV allocator,
   // u8 tempKey[newMap->keysize > oldMap->keysize ? newMap->keysize : oldMap->keysize];
   // u8 tempVal[newMap->valsize > oldMap->valsize ? newMap->valsize : oldMap->valsize];
 
-  __auto_type tempKey = aCreate(allocator, u8, newMap->keysize > oldMap->keysize ? newMap->keysize : oldMap->keysize);
+  var tempKey = aCreate(allocator, u8, newMap->keysize > oldMap->keysize ? newMap->keysize : oldMap->keysize);
   defer { aFree(allocator, tempKey); };
-  __auto_type tempVal = aCreate(allocator, u8, newMap->valsize > oldMap->valsize ? newMap->valsize : oldMap->valsize);
+  var tempVal = aCreate(allocator, u8, newMap->valsize > oldMap->valsize ? newMap->valsize : oldMap->valsize);
   defer { aFree(allocator, tempVal); };
 
   usize keyCopySize = (oldMap->keysize < kSize) ? oldMap->keysize : kSize;

@@ -142,9 +142,9 @@ static printerFunction PrinterSingleton_get(fptr name) {
   }
   lasttick = !lasttick;
 
-  __auto_type val = sHmap_find((sHmap *)PrinterSingleton.data, name);
+  var val = sHmap_find((sHmap *)PrinterSingleton.data, name);
   if (val) {
-    __auto_type list = (printerFunction *)(((sHmap *)PrinterSingleton.data)->values)->buf;
+    var list = (printerFunction *)(((sHmap *)PrinterSingleton.data)->values)->buf;
     lastprinters[lasttick] = list[val[0].vidx];
     lastnames[lasttick] =
         stringList_get(
@@ -340,7 +340,7 @@ REGISTER_PRINTER(isize, {
 REGISTER_PRINTER(f128, {
   usize digits = 0;
   if (( args = printer_arg_trim(args) ).len)  
-    for(__auto_type i = 0;i<args.len && (args.ptr[i]<= '9' && args.ptr[i]>= '0');i++){
+    for(var i = 0;i<args.len && (args.ptr[i]<= '9' && args.ptr[i]>= '0');i++){
       digits*=10;
       digits+=args.ptr[i]-'0';
     }
@@ -657,7 +657,7 @@ void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr 
   if (!fn) {
     USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = 1}));
     PUTS(U"__ NO_TYPE(");
-    for (__auto_type i = 0; i < typeName.len; i++)
+    for (var i = 0; i < typeName.len; i++)
       PUTC(typeName.ptr[i]);
     PUTS(U") __");
     USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));
