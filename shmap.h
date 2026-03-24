@@ -151,7 +151,7 @@ using msHmap_t = T (**)(sHmap *);
   #if defined(MAKE_TEST_FN)
 MAKE_TEST_FN(test_shmap_generic_values, {
   msHmap(int) sm = msHmap_init(allocator, int);
-  defer { msHmap_deinit(allocator, sm); };
+  defer { msHmap_deinit(sm); };
 
   msHmap_set(sm, "age", 25);
   msHmap_set(sm, "score", 100);
@@ -177,7 +177,7 @@ MAKE_TEST_FN(test_shmap_struct_values, {
     float x, y;
   } Pos;
   msHmap(Pos) sm = msHmap_init(allocator, Pos);
-  defer { msHmap_deinit(allocator, sm); };
+  defer { msHmap_deinit(sm); };
 
   msHmap_set(sm, "player", ((Pos){1.0f, 2.0f}));
 

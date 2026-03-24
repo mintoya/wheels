@@ -49,7 +49,7 @@ void segv_handler(int sig) {
   );
   fflush(stdout);
   signal(sig, segv_handler);
-  longjmp(test_jump_env, 1);
+  siglongjmp(test_jump_env, 1);
 }
 
 MAKE_TEST_FN(hello, { printf("hello test\n");return 0; });
@@ -66,9 +66,9 @@ MAKE_TEST_FN(allocator_test, {
       return 1;
   return 0;
 });
-MAKE_TEST_FN(segFault, {
-  int i = *(int *)NULL;
-});
+// MAKE_TEST_FN(segFault, {
+//   int i = *(int *)NULL;
+// });
 
 int main(void) {
   signal(SIGSEGV, segv_handler);
@@ -80,7 +80,7 @@ int main(void) {
     current_test = test.name;
     printf("test %s: {\n", test.name);
     fflush(stdout);
-    if (!setjmp(test_jump_env)) {
+    if (!sigsetjmp(test_jump_env, 1)) {
       int res = test.function(allocator);
       printf("}\n");
       bool failed = false;

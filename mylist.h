@@ -229,8 +229,8 @@ using mList_t = T (**)(List *);
 // #include "tests.c"
 #if defined(MAKE_TEST_FN)
 MAKE_TEST_FN(mlist_push_pop, {
-    mList(int) list = mList_init(allocator, int);
-    defer { mList_deInit(list); };
+  mList(int) list = mList_init(allocator, int);
+  defer { mList_deInit(list); };
 
   for (each_RANGE(usize, i, 0, 50))
     mList_push(list, i * i);
@@ -243,29 +243,24 @@ MAKE_TEST_FN(mlist_push_pop, {
 MAKE_TEST_FN(mlist_insert_remove, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
-
   mList_push(list, 100);
   mList_push(list, 300);
-    
-  mList_ins(list, 1, 200);
+  mList_ins(list, 1, 200);
   if (mList_len(list) != 3)
     return 1;
   if (mList_arr(list)[1] != 200)
     return 1;
-
   mList_rem(list, 0);
   if (mList_len(list) != 2)
     return 1;
   if (mList_arr(list)[0] != 200)
     return 1;
-
   if (mList_popFront(list) != 200)
     return 1;
   if (mList_len(list) != 1)
     return 1;
   if (mList_arr(list)[0] != 300)
     return 1;
-
   return 0;
 });
 MAKE_TEST_FN(mlist_array_operations, {
@@ -315,7 +310,6 @@ MAKE_TEST_FN(mlist_capacity_and_padding, {
 MAKE_TEST_FN(mlist_vla_cast, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
-
   mList_push(list, 7);
   mList_push(list, 8);
   mList_push(list, 9);

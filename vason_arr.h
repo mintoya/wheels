@@ -727,7 +727,7 @@ vason_container vason_parseString(AllocatorV allocator, slice(c8) string) {
     msList_ins(allocator, res.tags, 0, vason_TABLE);
     msList_ins(allocator, res.tables_strings, 0, range);
     for (vason_index i = range.start; i < range.end; i++) {
-      if (res.tags[i] == vason_TABLE) {
+      if (EQUAL_ANY(res.tags[i], vason_TABLE, vason_PAIR)) {
         res.tables_strings[i].start++;
         res.tables_strings[i].end++;
       }
@@ -764,7 +764,7 @@ vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string) {
     msList_ins(allocator, res.tags, 0, vason_TABLE);
     msList_ins(allocator, res.tables_strings, 0, range);
     for (vason_index i = range.start; i < range.end; i++) {
-      if (res.tags[i] == vason_TABLE) {
+      if (EQUAL_ANY(res.tags[i], vason_TABLE, vason_PAIR)) {
         res.tables_strings[i].start++;
         res.tables_strings[i].end++;
       }
@@ -774,7 +774,11 @@ vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string) {
 
   res.current = 0;
   res.tokens = bitcast(typeof(res.tokens), tokens);
-  assertMessage(msList_len(res.tables_strings) == msList_len(res.tags));
+  assertMessage(
+      msList_len(res.tables_strings) == msList_len(res.tags),
+      "legths %zu != %zu",
+      msList_len(res.tables_strings), msList_len(res.tags)
+  );
   return res;
 }
 

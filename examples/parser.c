@@ -23,7 +23,7 @@ int main(int nargs, char *args[nargs]) {
   mList(char *) argslist = mList_init(stdAlloc, char *, nargs);
   defer { mList_deInit(argslist); };
   bool lazy = false;
-  for (auto i = 1; i < nargs; i++) {
+  for (var i = 1; i < nargs; i++) {
     if (args[i][0] == '-') {
       if (fptr_eq(fptr_CS(args[i] + 1), fp("-lazy")))
         lazy = true;
@@ -44,12 +44,11 @@ int main(int nargs, char *args[nargs]) {
   defer { vason_container_free(*f); };
   vason_index current = parsed.current;
   if (mList_len(argslist))
-    for (each_VLAP(cptr, mList_vla(argslist))) {
+    foreach (char *cptr, mList_vla(argslist))
       current =
-          isdigit(cptr[0][0])
-              ? vason_get(&parsed, current, atoi(*cptr))
-              : vason_get(&parsed, current, fptr_CS(*cptr));
-    }
+          isdigit(cptr[0])
+              ? vason_get(&parsed, current, atoi(cptr))
+              : vason_get(&parsed, current, fptr_CS(cptr));
   if (lazy)
     vason_lazy_expand(&parsed, current);
   parsed.current = current;

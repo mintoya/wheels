@@ -44,8 +44,7 @@ void __attribute__((noreturn)) _assertMessageFail(
 
     #define assertMessage(expr, ...)           \
       do {                                     \
-        char result = (!!expr);                  \
-        if (__builtin_expect(!result, 0)) {    \
+        if (!(expr)) [[unlikely]] {            \
           void *array[5];                      \
           size_t size = _ASSERT_GET_BT(array); \
           _assertMessageFail(                  \

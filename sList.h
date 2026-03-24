@@ -193,26 +193,23 @@ static inline sList_header *sList_insertFromArr(
     #include "macros.h"
 
 MAKE_TEST_FN(msList_push_pop, {
-    int *list = msList_init(allocator, int);
-    defer { msList_deInit(allocator, list); };
-
+  int *list = msList_init(allocator, int);
+  defer { msList_deInit(allocator, list); };
   for (each_RANGE(usize, i, 0, 50))
     msList_push(allocator, list, i * i);
   for (each_RANGE(usize, i, 0, 50))
     if (list[i] != i * i)
       return 1;
-
   return 0;
 });
 
 MAKE_TEST_FN(msList_insert_remove, {
   int *list = msList_init(allocator, int);
-    defer { msList_deInit(allocator, list); };
+  defer { msList_deInit(allocator, list); };
 
   msList_push(allocator, list, 100);
   msList_push(allocator, list, 300);
-    
-  msList_ins(allocator, list, 1, 200);
+  msList_ins(allocator, list, 1, 200);
   if (msList_len(list) != 3)
     return 1;
   if (list[1] != 200)
