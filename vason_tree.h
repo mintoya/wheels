@@ -83,6 +83,10 @@ MAKE_TEST_FN(vason_exact_memcmp_match, {
   #endif
 #endif
 
+#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
+  #define VASON_BUILDER_C (1)
+#endif
+
 #if defined(VASON_BUILDER_C)
 vason_node vason_node_newPair(AllocatorV a) {
   return (vason_node){

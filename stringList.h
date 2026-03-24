@@ -179,22 +179,26 @@ MAKE_TEST_FN(test_stringList_churn_stats, {
   #endif
 #endif
 
+#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
+  #define STRING_LIST_C (1)
+#endif
+
 #if defined(STRING_LIST_C)
-#include <stdcountof.h>
-#include <stddef.h>
-#include <string.h>
+  #include <stdcountof.h>
+  #include <stddef.h>
+  #include <string.h>
 static_assert(sizeof(vlength) == sizeof(u8), "vlength warning");
-#define vlen_stat(stringLiteral) ({                 \
-  static struct [[gnu::packed]] {                   \
-    typeof(u64_toVLen(0)) len;                      \
-    typeof(stringLiteral) str;                      \
-  } res;                                            \
-  res = (typeof(res)){                              \
-      .len = u64_toVLen(sizeof(stringLiteral) - 1), \
-      .str = stringLiteral,                         \
-  };                                                \
-  (vlqbuf) & res;                                   \
-})
+  #define vlen_stat(stringLiteral) ({                 \
+    static struct [[gnu::packed]] {                   \
+      typeof(u64_toVLen(0)) len;                      \
+      typeof(stringLiteral) str;                      \
+    } res;                                            \
+    res = (typeof(res)){                              \
+        .len = u64_toVLen(sizeof(stringLiteral) - 1), \
+        .str = stringLiteral,                         \
+    };                                                \
+    (vlqbuf) & res;                                   \
+  })
 stringList *stringList_new(AllocatorV allocator, usize initSize) {
   stringList *res = aCreate(allocator, stringList);
   *res = (typeof(*res)){

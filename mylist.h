@@ -333,6 +333,10 @@ MAKE_TEST_FN(mlist_vla_cast, {
 #endif
 #endif // MY_LIST_H
 
+#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
+#define MY_LIST_C (1)
+#endif
+
 #if defined(MY_LIST_C)
 static inline int memzeroed(void *mem, size_t len) {
   for (; len > 0; len--) {
