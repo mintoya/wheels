@@ -7,11 +7,12 @@
 #include "mytypes.h"
 #include "shmap.h"
 #include <locale.h>
-#include <malloc.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
+#if __has_include(<wchar.h>)
 #include <wchar.h>
+#endif
 
 #if defined(PRINTER_NOC32TOMB) || !__has_include(<uchar.h>)
 static inline usize c32rtomb(char *s, c32 chars, mbstate_t *_) {

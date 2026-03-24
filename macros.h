@@ -127,9 +127,9 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define types_eq(T1, T2) \
     _Generic((T1){0}, T2: true, default: false)
 
-  #define declare_scoped(decl)                                                 \
+  #define SCOPED_DECLARATION_LOOPS(decl)                                       \
     for (char _RANGE_NAME(once) = 1; _RANGE_NAME(once); _RANGE_NAME(once) = 0) \
-      for (decl; _RANGE_NAME(once); _RANGE_NAME(once) = false)
+      for (decl; _RANGE_NAME(once); _RANGE_NAME(once) = 0)
 
   #define each_VLAP(type, name, vla)                                    \
     each_RANGE(                                                         \
@@ -149,20 +149,22 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
       if (false) {                                                    \
         FOREACH_SPLIT_LABEL(__VA_ARGS__)                              \
         decl = (typeof(typeof((vla)[0][0]))(*)[1])_RANGE_NAME(item);  \
-        FOREACH_SPLIT_ARGS(__VA_ARGS__)                               \
+        {                                                             \
+          FOREACH_SPLIT_ARGS(__VA_ARGS__)                             \
+        }                                                             \
       } else                                                          \
-        declare_scoped(decl = (typeof(typeof((vla)[0][0]))(*)[1])_RANGE_NAME(item))
+        SCOPED_DECLARATION_LOOPS(decl = (typeof(typeof((vla)[0][0]))(*)[1])_RANGE_NAME(item))
 
-  #define foreach(decl, vla, ...)                                     \
-    /* as long as VA_ARGS must starts with a label(: not included )*/ \
-    for (each_VLAP(typeof(&(vla)[0][0]), _RANGE_NAME(item), vla))     \
-      if (false) {                                                    \
-        FOREACH_SPLIT_LABEL(__VA_ARGS__)                              \
-        decl = *_RANGE_NAME(item);                                    \
-        FOREACH_SPLIT_ARGS(__VA_ARGS__)                               \
-        break;                                                        \
-      } else                                                          \
-        declare_scoped(decl = *_RANGE_NAME(item))
+  #define foreach(decl, vla, ...)                                 \
+    /* assuming VA_ARGS starts with a label*/                     \
+    for (each_VLAP(typeof(&(vla)[0][0]), _RANGE_NAME(item), vla)) \
+      if (false) {                                                \
+        FOREACH_SPLIT_LABEL(__VA_ARGS__)                          \
+        decl = *_RANGE_NAME(item);                                \
+        FOREACH_SPLIT_ARGS(__VA_ARGS__)                           \
+        break;                                                    \
+      } else                                                      \
+        SCOPED_DECLARATION_LOOPS(decl = *_RANGE_NAME(item))
 
   #define var __auto_type
 #endif
