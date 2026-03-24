@@ -340,7 +340,7 @@ REGISTER_PRINTER(isize, {
 REGISTER_PRINTER(f128, {
   usize digits = 0;
   if (( args = printer_arg_trim(args) ).len)  
-    for(auto i = 0;i<args.len && (args.ptr[i]<= '9' && args.ptr[i]>= '0');i++){
+    for(__auto_type i = 0;i<args.len && (args.ptr[i]<= '9' && args.ptr[i]>= '0');i++){
       digits*=10;
       digits+=args.ptr[i]-'0';
     }

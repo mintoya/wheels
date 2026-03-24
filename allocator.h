@@ -10,7 +10,7 @@
 
 #define MY_ALLOCATOR_STRICTEST
 
-__attribute__((const)) extern inline uintptr_t lineup(uintptr_t unaligned, size_t aligneder) {
+__attribute__((const)) static inline uintptr_t lineup(uintptr_t unaligned, size_t aligneder) {
   return (unaligned / aligneder + !!(unaligned % aligneder)) *
          aligneder;
 }

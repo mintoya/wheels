@@ -22,7 +22,7 @@ typedef struct stringList {
 struct u64_vl_max {
   vlength _[sizeof(u64) * 8 / 7 + 1];
 };
-extern inline struct u64_vl_max u64_toVlen(u64 len) {
+static inline struct u64_vl_max u64_toVlen(u64 len) {
   typeof(u64_toVlen(0)) res = {0};
   for (int i = countof(res._); i > 0; i--)
     res._[countof(res._) - i] = (typeof(*res._)){
@@ -31,14 +31,14 @@ extern inline struct u64_vl_max u64_toVlen(u64 len) {
     };
   return res;
 }
-extern inline u64 vlen_toU64(struct vlength *vlen) {
+static inline u64 vlen_toU64(struct vlength *vlen) {
   u64 res = 0;
   do
     res = (res << 7) | (vlen->data);
   while (vlen++->hasNext);
   return res;
 }
-extern inline fptr vlqbuf_toFptr(vlength *b) {
+static inline fptr vlqbuf_toFptr(vlength *b) {
   return (fptr){
       .len = (usize)vlen_toU64(b),
       .ptr = ({
@@ -184,7 +184,6 @@ MAKE_TEST_FN(test_stringList_churn_stats, {
 #endif
 
 #if defined(STRING_LIST_C)
-  #include <stdcountof.h>
   #include <stddef.h>
   #include <string.h>
 static_assert(sizeof(vlength) == sizeof(u8), "vlength warning");

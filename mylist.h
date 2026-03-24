@@ -28,7 +28,7 @@ __attribute__((pure))
  * @return pointer to i`th element
  *      - even if i is out of bounds
  */
-extern inline void *
+static inline void *
 List_getRefForce(const List *l, List_index_t i, size_t width) { return (l->head + width * i); };
 __attribute__((pure))
 /**
@@ -37,7 +37,7 @@ __attribute__((pure))
  * @return pointer to i`th element
  *      - null if i is more than l.length
  */
-extern inline void *
+static inline void *
 List_getRef(const List *l, List_index_t i, size_t width) { return (i < l->length) ? (l->head + width * i) : (NULL); }
 /**
  * writes list to l
@@ -55,7 +55,7 @@ extern inline void List_resize(List *l, List_index_t newSize, size_t width);
  * @param bytes size of each element
  * @return new list
  */
-extern inline List *List_new(AllocatorV allocator, size_t width) {
+static inline List *List_new(AllocatorV allocator, size_t width) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
   List_makeNew(allocator, l, width, 2);
   return l;
@@ -65,12 +65,12 @@ extern inline List *List_new(AllocatorV allocator, size_t width) {
  * @param l list
  */
 void List_free(List *l);
-extern inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t initSize) {
+static inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t initSize) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
   List_makeNew(allocator, l, bytes, initSize);
   return l;
 }
-__attribute__((always_inline)) extern inline void List_set(List *l, List_index_t i, const void *element, size_t width) {
+__attribute__((always_inline)) static inline void List_set(List *l, List_index_t i, const void *element, size_t width) {
   void *place = List_getRef(l, i, width);
   if (place)
     element
@@ -109,7 +109,7 @@ void *List_appendFromArr(List *l, const void *source, List_index_t length, size_
  */
 void *List_insertFromArr(List *l, const void *source, List_index_t length, List_index_t location, size_t width);
 
-__attribute__((pure)) extern inline List_index_t List_length(const List *l) { return l ? l->length : 0; }
+__attribute__((pure)) static inline List_index_t List_length(const List *l) { return l ? l->length : 0; }
 /*
  * searches for a value which has an identical value to element
  * @param list

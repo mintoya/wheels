@@ -4,7 +4,6 @@
 #include "mytypes.h"
 #include <assert.h>
 #include <stdarg.h>
-#include <stdcountof.h>
 #include <stdio.h>
 #include <stdlib.h>
 #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
@@ -45,7 +44,7 @@ void __attribute__((noreturn)) _assertMessageFail(
 
     #define assertMessage(expr, ...)           \
       do {                                     \
-        bool result = (expr);                  \
+        char result = (!!expr);                  \
         if (__builtin_expect(!result, 0)) {    \
           void *array[5];                      \
           size_t size = _ASSERT_GET_BT(array); \
@@ -73,7 +72,7 @@ __builtin_trap();
                                   \
   do {                            \
                                   \
-    static bool hasRun = false;   \
+    static char hasRun = false;   \
                                   \
     if (!hasRun)                  \
       assertMessage(__VA_ARGS__); \

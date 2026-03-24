@@ -409,7 +409,6 @@ static constexpr vason_token_t vason_tokens_lut[256] = {
     ['}'] = vason_TABLE_END,
 
 };
-static_assert(vason_tokens_lut[0] == vason_STR);
     #define to_token(in) vason_tokens_lut[in]
   #endif
 // __attribute__((always_inline)) static inline vason_token_t(to_token)(c8 in) {

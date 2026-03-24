@@ -62,6 +62,7 @@ MAKE_TEST_FN(arena_test, {
 #endif
 
 #if defined(ARENA_ALLOCATOR_C)
+#include "fbaAllocator.h"
 
 void my_arena_free(AllocatorV arena, voidptr ptr);
 voidptr my_arena_alloc(AllocatorV arena, usize size);
