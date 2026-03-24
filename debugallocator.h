@@ -67,6 +67,10 @@ MAKE_TEST_FN(debug_allocator_test, {
 
 #endif // MY_DEBUG_ALLOCATOR_H
 
+#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
+#define MY_DEBUG_ALLOCATOR_C (1)
+#endif
+
 #if defined(MY_DEBUG_ALLOCATOR_C)
 struct tracedata {
   void *trace[7];

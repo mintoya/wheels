@@ -332,6 +332,10 @@ MAKE_TEST_FN(HMap_transform_macro, {
   #endif
 #endif // HMap_H
 
+#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
+  #define HMAP_C (1)
+#endif
+
 #if defined(HMAP_C)
   #include <string.h>
 

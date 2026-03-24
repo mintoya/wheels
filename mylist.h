@@ -228,7 +228,6 @@ using mList_t = T (**)(List *);
 #define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
 // #include "tests.c"
 #if defined(MAKE_TEST_FN)
-
 MAKE_TEST_FN(mlist_push_pop, {
     mList(int) list = mList_init(allocator, int);
     defer { mList_deInit(list); };
@@ -241,7 +240,6 @@ MAKE_TEST_FN(mlist_push_pop, {
 
   return 0;
 });
-
 MAKE_TEST_FN(mlist_insert_remove, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
@@ -270,7 +268,6 @@ MAKE_TEST_FN(mlist_insert_remove, {
 
   return 0;
 });
-
 MAKE_TEST_FN(mlist_array_operations, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
@@ -293,7 +290,6 @@ MAKE_TEST_FN(mlist_array_operations, {
 
   return 0;
 });
-
 MAKE_TEST_FN(mlist_capacity_and_padding, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
@@ -316,7 +312,6 @@ MAKE_TEST_FN(mlist_capacity_and_padding, {
 
   return 0;
 });
-
 MAKE_TEST_FN(mlist_vla_cast, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
@@ -329,9 +324,12 @@ MAKE_TEST_FN(mlist_vla_cast, {
     return 1;
   return 0;
 });
-
 #endif
 #endif // MY_LIST_H
+
+#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
+#define MY_LIST_C (1)
+#endif
 
 #if defined(MY_LIST_C)
 static inline int memzeroed(void *mem, size_t len) {

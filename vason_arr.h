@@ -356,6 +356,10 @@ MAKE_TEST_FN(vason_parser_lazy, {
   #endif // tests
 #endif
 
+#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
+  #define VASON_PARSER_C (1)
+#endif
+
 #if defined(VASON_PARSER_C)
 typedef enum : c8 {
   vason_STR,

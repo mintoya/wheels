@@ -57,6 +57,10 @@ MAKE_TEST_FN(arena_test, {
 
 #endif // ARENA_ALLOCATOR_H
 
+#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
+#define ARENA_ALLOCATOR_C (1)
+#endif
+
 #if defined(ARENA_ALLOCATOR_C)
 
 void my_arena_free(AllocatorV arena, voidptr ptr);
