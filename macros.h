@@ -63,7 +63,7 @@ struct DeferHelper {
 
     #define defer auto DEFER_NAME(_defer_, __LINE__) = DeferHelper() + [&]()
   #else
-    #if __has_include(<stddefer.h>)
+    #if __has_include(<stddefer.h>) && __STDC_VERSION__ >= 202311L
       #include <stddefer.h>
     #else
       #if defined(__clang__)
@@ -142,4 +142,13 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     for (each_VLAP(typeof(&(vla)[0][0]), _RANGE_NAME(item), vla))                    \
       for (char _RANGE_NAME(once) = 1; _RANGE_NAME(once); _RANGE_NAME(once) = false) \
         for (decl = (typeof(typeof((vla)[0][0]))(*)[1])_RANGE_NAME(item); _RANGE_NAME(once); _RANGE_NAME(once) = false)
+// break?
+// #define foreach(decl, vla)                                             \
+//   for (each_VLAP(typeof(&(vla)[0][0]), _RANGE_NAME(item), vla))        \
+//     for (int _RANGE_NAME(state) = 1;                                   \
+//          _RANGE_NAME(state);                                           \
+//          _RANGE_NAME(state) = 0, _RANGE_NAME(item) = _RANGE_NAME(end)) \
+//       for (decl = *_RANGE_NAME(item);                                  \
+//            _RANGE_NAME(state);                                         \
+//            _RANGE_NAME(state) = 0)
 #endif

@@ -186,7 +186,7 @@ MAKE_TEST_FN(test_stringList_churn_stats, {
 #if defined(STRING_LIST_C)
   #include <stddef.h>
   #include <string.h>
-static_assert(sizeof(vlength) == sizeof(u8), "vlength warning");
+int i = ASSERT_EXPR(sizeof(struct vlength) == sizeof(char), "");
   #define vlen_stat(stringLiteral) ({                 \
     static struct [[gnu::packed]] {                   \
       typeof(u64_toVLen(0)) len;                      \

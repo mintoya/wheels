@@ -1,5 +1,6 @@
 #ifndef MY_ALLOCATOR_H
 #define MY_ALLOCATOR_H
+#include "mytypes.h"
 #include <stdalign.h>
 #if defined(__cplusplus)
   #include <cstddef>

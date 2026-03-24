@@ -198,19 +198,19 @@ using mList_t = T (**)(List *);
   do {                                                                \
     List_resize((List *)(list), capacity, sizeof(mList_iType(list))); \
   } while (0)
-#define mList_pushArr(list, vla)                                    \
-  do {                                                              \
-    static_assert(types_eq(typeof(vla[0]), mList_iType(list)), ""); \
-    List_appendFromArr(                                             \
-        (List *)list,                                               \
-        vla,                                                        \
-        sizeof(vla) / sizeof(vla[0]),                               \
-        sizeof(vla[0])                                              \
-    );                                                              \
+#define mList_pushArr(list, vla)                                      \
+  do {                                                                \
+    0 + ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), ""); \
+    List_appendFromArr(                                               \
+        (List *)list,                                                 \
+        vla,                                                          \
+        sizeof(vla) / sizeof(vla[0]),                                 \
+        sizeof(vla[0])                                                \
+    );                                                                \
   } while (0)
 #define mList_insArr(list, position, vla)                                                          \
   do {                                                                                             \
-    static_assert(types_eq(typeof(vla[0]), mList_iType(list)), "");                                \
+    0 + ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), "");                              \
     List_insertFromArr((List *)list, vla, sizeof(vla) / sizeof(vla[0]), position, sizeof(vla[0])); \
   } while (0)
 #define mList_pad(list, ammount)  \

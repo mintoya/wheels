@@ -9,7 +9,7 @@
   #include "stringList.h"
   #include <stddef.h>
 struct double_idx {
-  usize kidx, vidx;
+  usize kidx, vidx; // kidx in stringlist, vidx in buckets[fptr_hash(f)]
 };
 typedef struct string_HMap {
   stringList strings[1];
@@ -19,13 +19,12 @@ typedef struct string_HMap {
   struct double_idx *buckets[];
 } sHmap;
 static inline struct double_idx *sHmap_find(sHmap *sh, fptr f) {
-  umax hash = fptr_hash(f);
-  usize b_idx = hash % sh->num_buckets;
+  umax hash = fptr_hash(f) % sh->num_buckets;
   AllocatorV allocator = sh->strings->allocator;
 
-  struct double_idx **list_ptr = &sh->buckets[b_idx];
+  struct double_idx **list_ptr = &sh->buckets[hash];
   if (!*list_ptr)
-    *list_ptr = msList_init(allocator, struct double_idx);
+    return NULL;
 
   foreach_ptr(struct double_idx(*entry)[1], msList_vla(*list_ptr)) {
     fptr c = stringList_get(sh->strings, entry[0]->kidx);
@@ -36,11 +35,10 @@ static inline struct double_idx *sHmap_find(sHmap *sh, fptr f) {
 }
 
 static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
-  umax hash = fptr_hash(key);
-  usize b_idx = hash % sh->num_buckets;
+  umax hash = fptr_hash(key) % sh->num_buckets;
   AllocatorV allocator = sh->strings->allocator;
 
-  struct double_idx **list_ptr = &sh->buckets[b_idx];
+  struct double_idx **list_ptr = &sh->buckets[hash];
   if (!*list_ptr)
     *list_ptr = msList_init(allocator, struct double_idx);
 
@@ -83,7 +81,6 @@ static inline isize sHmap_get_cs(sHmap *sh, const char *key, usize v_width) {
 static inline sHmap *shMap_new(AllocatorV allocator, usize size, usize buckets) {
   sHmap *res = (typeof(res))aAlloc(allocator, sizeof(sHmap) + (buckets * sizeof(struct double_idx *)));
   stringList *sl = stringList_new(allocator, 1024);
-  defer { aFree(allocator, sl); };
   *res = (sHmap){
       .strings = {*sl},
       .values = sList_new(allocator, 8, size),
@@ -93,6 +90,7 @@ static inline sHmap *shMap_new(AllocatorV allocator, usize size, usize buckets) 
   for (usize i = 0; i < buckets; i++) {
     res->buckets[i] = NULL;
   }
+  aFree(allocator, sl);
   return res;
 }
 static inline void shMap_free(sHmap *map) {
@@ -117,7 +115,7 @@ using msHmap_t = T (**)(sHmap *);
   #define msHmap_init(allocator, T, ...) \
     (msHmap(T)) shMap_new(allocator, sizeof(T), VA_SWITCH(8, __VA_ARGS__))
 
-  #define msHmap_deinit(allocator, sh) \
+  #define msHmap_deinit(sh) \
     shMap_free((sHmap *)sh)
   #define msHmap_set(sh, key, val)   \
     do {                             \

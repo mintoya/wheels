@@ -114,42 +114,42 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
         s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), SLIST_GROW_EQ(msList_len(s)))->buf; \
       (s)[msList_len(s)++] = (val);                                                                               \
     } while (0)
-  #define msList_insArr(allocator, s, place, vla)                       \
-    do {                                                                \
-      static_assert(_Generic(vla[0], typeof(s[0]): 1, default: 0), ""); \
-      s = (typeof(s))sList_insertFromArr(                               \
-              allocator,                                                \
-              msList_header(s),                                         \
-              vla,                                                      \
-              countof(vla),                                             \
-              place,                                                    \
-              sizeof(vla[0])                                            \
-      )                                                                 \
-              ->buf;                                                    \
+  #define msList_insArr(allocator, s, place, vla)                         \
+    do {                                                                  \
+      0 + ASSERT_EXPR(_Generic(vla[0], typeof(s[0]): 1, default: 0), ""); \
+      s = (typeof(s))sList_insertFromArr(                                 \
+              allocator,                                                  \
+              msList_header(s),                                           \
+              vla,                                                        \
+              countof(vla),                                               \
+              place,                                                      \
+              sizeof(vla[0])                                              \
+      )                                                                   \
+              ->buf;                                                      \
     } while (0)
-  #define msList_pushArr(allocator, s, vla)                             \
-    do {                                                                \
-      static_assert(_Generic(vla[0], typeof(s[0]): 1, default: 0), ""); \
-      s = (typeof(s))sList_appendFromArr(                               \
-              allocator,                                                \
-              msList_header(s),                                         \
-              sizeof(s[0]),                                             \
-              vla,                                                      \
-              countof(vla)                                              \
-      )                                                                 \
-              ->buf;                                                    \
+  #define msList_pushArr(allocator, s, vla)                               \
+    do {                                                                  \
+      0 + ASSERT_EXPR(_Generic(vla[0], typeof(s[0]): 1, default: 0), ""); \
+      s = (typeof(s))sList_appendFromArr(                                 \
+              allocator,                                                  \
+              msList_header(s),                                           \
+              sizeof(s[0]),                                               \
+              vla,                                                        \
+              countof(vla)                                                \
+      )                                                                   \
+              ->buf;                                                      \
     } while (0)
-  #define msList_pushVla(allocator, s, vla)                                \
-    do {                                                                   \
-      static_assert(_Generic(vla[0][0], typeof(s[0]): 1, default: 0), ""); \
-      s = (typeof(s))sList_appendFromArr(                                  \
-              allocator,                                                   \
-              msList_header(s),                                            \
-              sizeof(s[0]),                                                \
-              vla,                                                         \
-              countof(vla[0])                                              \
-      )                                                                    \
-              ->buf;                                                       \
+  #define msList_pushVla(allocator, s, vla)                                  \
+    do {                                                                     \
+      0 + ASSERT_EXPR(_Generic(vla[0][0], typeof(s[0]): 1, default: 0), ""); \
+      s = (typeof(s))sList_appendFromArr(                                    \
+              allocator,                                                     \
+              msList_header(s),                                              \
+              sizeof(s[0]),                                                  \
+              vla,                                                           \
+              countof(vla[0])                                                \
+      )                                                                      \
+              ->buf;                                                         \
     } while (0)
   #define msList_setCap(allocator, s, capacity)                                             \
     do {                                                                                    \
