@@ -4,7 +4,6 @@
 #include "mytypes.h"
 #include <assert.h>
 #include <stdarg.h>
-#include <stdcountof.h>
 #include <stdio.h>
 #include <stdlib.h>
 #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
