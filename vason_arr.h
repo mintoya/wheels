@@ -57,22 +57,22 @@ struct vason_getArg {
     #include "print.h"
 REGISTER_PRINTER(vason_container, {
   if (in.current >= msList_len(in.tags) || in.tags[in.current] & vason_INVALID) {
-    PUTS(U"(!)");
+    PUTS("(!)");
     return;
   } else if (in.tags[in.current] & vason_UNPARSED) {
-    PUTS(U"(?");
+    PUTS("(?");
     switch (in.tags[in.current] ^ vason_UNPARSED) {
       case vason_INVALID:
       case vason_UNPARSED:
         break;
       case vason_TABLE:
-        PUTS(U"<>)");
+        PUTS("<>)");
         break;
       case vason_PAIR:
-        PUTS(U":)");
+        PUTS(":)");
         break;
       case vason_STRING:
-        PUTS(U"s)");
+        PUTS("s)");
         break;
     }
     return;
@@ -84,13 +84,13 @@ REGISTER_PRINTER(vason_container, {
       break;
     case vason_PAIR: {
       vason_span vs = in.tables_strings[in.current];
-      PUTS(U"(:)<");
+      PUTS("(:)<");
       in.current = vs.start;
       USETYPEPRINTER(vason_container, in);
-      PUTS(U",");
+      PUTS(",");
       in.current++;
       USETYPEPRINTER(vason_container, in);
-      PUTS(U">");
+      PUTS(">");
     } break;
     case vason_STRING: {
       vason_span vs = in.tables_strings[in.current];
@@ -98,15 +98,15 @@ REGISTER_PRINTER(vason_container, {
     } break;
     case vason_TABLE: {
       vason_span vs = in.tables_strings[in.current];
-      PUTS(U"(<");
+      PUTS("(<");
       USETYPEPRINTER(usize, (usize)(vs.end - vs.start));
-      PUTS(U">){");
+      PUTS(">){");
       for (vason_index i = vs.start; i < vs.end; i++) {
-        i != vs.start ? PUTS(U",") : (void)0;
+        i != vs.start ? PUTS(",") : (void)0;
         in.current = i;
         USETYPEPRINTER(vason_container, in);
       }
-      PUTS(U"}");
+      PUTS("}");
     } break;
   }
 });
