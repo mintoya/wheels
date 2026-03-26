@@ -267,7 +267,7 @@ fptr stringList_append(stringList *sl, fptr ptr) {
     } else {
       offset = sl->flist[insert.i - 1];
       msList_rem(sl->flist, insert.i - 1);
-      { // split buffer
+      if (false) { // split buffer
         fptr op = vlqbuf_toFptr((vlength *)sl->buff + offset);
         usize newlen =
             op.len - ptr.len - countof(u64_toVlen(0)._);

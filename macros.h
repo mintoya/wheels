@@ -63,7 +63,7 @@ struct DeferHelper {
 
     #define defer auto DEFER_NAME(_defer_, __LINE__) = DeferHelper() + [&]()
   #else
-    #if __has_include(<stddefer.h>) && __STDC_VERSION__ >= 202311L
+    #if __has_include(<stddefer.h>) && ( __STDC_VERSION__ >= 202311L  || defined(__slimcc__))
       #include <stddefer.h>
     #else
       #if defined(__clang__)
@@ -159,7 +159,7 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     /* assuming VA_ARGS starts with a label*/                     \
     for (each_VLAP(typeof(&(vla)[0][0]), _RANGE_NAME(item), vla)) \
       if (false) {                                                \
-        FOREACH_SPLIT_LABEL(__VA_ARGS__)                          \
+        FOREACH_SPLIT_LABEL(__VA_ARGS__);                         \
         decl = *_RANGE_NAME(item);                                \
         FOREACH_SPLIT_ARGS(__VA_ARGS__)                           \
         break;                                                    \
@@ -167,4 +167,8 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
         SCOPED_DECLARATION_LOOPS(decl = *_RANGE_NAME(item))
 
   #define var __auto_type
+
+// contains multiple types but can only result in one type
+// #define _generic_container(for_, first, ...) typeof(T(**)(for_ *, __VA_ARGS__))
+// #define _generic_container_get_first(container, ...) typeof((*container)(NULL, __VA_ARGS__))
 #endif

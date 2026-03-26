@@ -137,8 +137,9 @@ template <typename T>
 using mList_t = T (**)(List *);
   #define mList(T) mList_t<T>
 #else
-  #define mList(T) typeof(T(**)(List *))
+  #define mList(T, ...) typeof(T(*__VA_ARGS__ *)(List *))
 #endif
+#define is_const_ptr(p) _Generic((p), const typeof(*p) *: 1, default: 0)
 
 #include "macros.h"
 #define mList_scoped(T) __attribute__((cleanup(List_cleanup_handler))) mList(T)
@@ -156,9 +157,10 @@ using mList_t = T (**)(List *);
 #define mList_arr(list) (((mList_iType(list) *)(((List *)(list))->head)))
 #define mList_len(list) (((List *)(list))->length)
 #define mList_cap(list) (((List *)(list))->capacity)
-
+#define mList_no_modify_test(list) int MLIST_CONST_INT_TEST = ASSERT_EXPR(!is_const_ptr(list), "")
 #define mList_push(list, val)                            \
   do {                                                   \
+    mList_no_modify_test(list);                          \
     if (mList_len(list) >= mList_cap(list)) [[unlikely]] \
       List_resize(                                       \
           (List *)list,                                  \
@@ -169,25 +171,30 @@ using mList_t = T (**)(List *);
   } while (0)
 
 #define mList_pop(list) ({            \
+  mList_no_modify_test(list);         \
   mList_arr(list)[--mList_len(list)]; \
 })
 #define mList_popFront(list)                       \
   ({                                               \
+    mList_no_modify_test(list);                    \
     mList_iType(list) result = mList_arr(list)[0]; \
     mList_rem(list, 0);                            \
     result;                                        \
   })
 #define mList_ins(list, index, val)                          \
   do {                                                       \
+    mList_no_modify_test(list);                              \
     mList_iType(list) value = val;                           \
     List_insert((List *)list, index, &value, sizeof(value)); \
   } while (0)
 #define mList_rem(list, index)                                   \
   do {                                                           \
+    mList_no_modify_test(list);                                  \
     List_remove((List *)list, index, sizeof(mList_iType(list))); \
   } while (0)
 #define mList_setCap(list, capacity) \
   do {                               \
+    mList_no_modify_test(list);      \
     List_forceResize(                \
         (List *)(list),              \
         capacity,                    \
@@ -196,10 +203,12 @@ using mList_t = T (**)(List *);
   } while (0)
 #define mList_reserve(list, capacity)                                 \
   do {                                                                \
+    mList_no_modify_test(list);                                       \
     List_resize((List *)(list), capacity, sizeof(mList_iType(list))); \
   } while (0)
 #define mList_pushArr(list, vla)                                      \
   do {                                                                \
+    mList_no_modify_test(list);                                       \
     0 + ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), ""); \
     List_appendFromArr(                                               \
         (List *)list,                                                 \
@@ -209,11 +218,13 @@ using mList_t = T (**)(List *);
     );                                                                \
   } while (0)
 #define mList_insArr(list, position, vla)                                                          \
+  mList_no_modify_test(list);                                                                      \
   do {                                                                                             \
     0 + ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), "");                              \
     List_insertFromArr((List *)list, vla, sizeof(vla) / sizeof(vla[0]), position, sizeof(vla[0])); \
   } while (0)
 #define mList_pad(list, ammount)  \
+  mList_no_modify_test(list);     \
   do {                            \
     List_appendFromArr(           \
         (List *)list,             \
@@ -222,9 +233,24 @@ using mList_t = T (**)(List *);
     );                            \
   } while (0)
 #define mList_clear(list)       \
-  do                            \
+  do {                          \
+    mList_no_modify_test(list); \
     ((List *)list)->length = 0; \
-  while (0)
+  } while (0)
+#define mList_map(list, allocator, variable, expr)                                                            \
+  ({                                                                                                          \
+    __auto_type list_type = list;                                                                             \
+    mList(mList_iType(list_type), const) list = list_type;                                                    \
+    typeof(({mList_iType(list) variable;expr; })) unused_type_infer;                                                                          \
+    mList(typeof(unused_type_infer)) res = mList_init(allocator, typeof(unused_type_infer), mList_len(list)); \
+    for (typeof(mList_iType(list)) variable,                                                                  \
+         *mList_foreach_curr = (typeof(mList_iType(list) *))mList_vla(list),                                  \
+         *const end___mList_foreach = (typeof(mList_iType(list) *))mList_vla(list)[1];                        \
+         (mList_foreach_curr < end___mList_foreach && (variable = *mList_foreach_curr, true));                \
+         mList_foreach_curr++)                                                                                \
+      mList_push(res, (expr));                                                                                \
+    res;                                                                                                      \
+  })
 #define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
 // #include "tests.c"
 #if defined(MAKE_TEST_FN)

@@ -13,7 +13,6 @@ CompileFlags:
   Add: 
     - "-x"
     - "c"
-    - "-std=gnu11"
-    - "-Dmax_align_t=ldouble"
-    - "-fblocks"
+    - "-std=c2y"
+    - "-fdefer-ts"
 

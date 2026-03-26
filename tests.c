@@ -2,14 +2,12 @@
 #include "allocator.h"
 #include "assertMessage.h"
 #include "fbaAllocator.h"
-#include "fptr.h"
 #include "macros.h"
 #include "mytypes.h"
 #include "stdio.h"
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 typedef int (*testerFunction)(AllocatorV); // required to clean up after itself
 struct testItem {
@@ -49,7 +47,7 @@ void segv_handler(int sig) {
   );
   fflush(stdout);
   signal(sig, segv_handler);
-  siglongjmp(test_jump_env, 1);
+  longjmp(test_jump_env, 1);
 }
 
 MAKE_TEST_FN(hello, { printf("hello test\n");return 0; });
@@ -66,21 +64,23 @@ MAKE_TEST_FN(allocator_test, {
       return 1;
   return 0;
 });
-// MAKE_TEST_FN(segFault, {
-//   int i = *(int *)NULL;
-// });
+MAKE_TEST_FN(segFault, {
+  int i = *(int *)NULL;
+});
+
 
 int main(void) {
   signal(SIGSEGV, segv_handler);
-  signal(SIGABRT, segv_handler);
-  signal(SIGILL, segv_handler);
+  signal(SIGABRT, segv_handler); // sent by my assert depending on #defines
+  signal(SIGILL, segv_handler);  // sent by my assert depending on #defines
   AllocatorV allocator = FBA_static(1 << 20);
   usize failCount = 0;
+
   foreach (struct testItem test, VLAP(testList, testCount)) {
     current_test = test.name;
     printf("test %s: {\n", test.name);
     fflush(stdout);
-    if (!sigsetjmp(test_jump_env, 1)) {
+    if (!setjmp(test_jump_env)) {
       int res = test.function(allocator);
       printf("}\n");
       bool failed = false;
