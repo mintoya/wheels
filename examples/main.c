@@ -3,8 +3,11 @@
 #include "../mylist.h"
 #include "../print.h"
 #include "../wheels.h"
+#include <stddefer.h>
 int main(void) {
-  Arena_scoped *s = arena_new_ext(stdAlloc, 1024);
+  AllocatorV *s = arena_new_ext(stdAlloc, 1024);
+  defer { arena_cleanup(s); };
+
   AllocatorV local = debugAllocator(
       log = stderr,
       allocator = stdAlloc,
@@ -13,12 +16,13 @@ int main(void) {
 
   mList(int) ints = mList_init(local, int, 1000);
   defer { mList_deInit(ints); };
+
   for (each_RANGE(int, i, 0, 100))
     mList_push(ints, i);
 
   var ints2 = mList_map(
       ints, local, i, ({
-        typedef struct intbuf {
+        struct intbuf {
           char buf[12];
         };
         struct intbuf bufa;

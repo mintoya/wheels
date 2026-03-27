@@ -37,6 +37,25 @@ vason_container vason_node_toContainer(AllocatorV allocator, vason_node n, c8 **
 vason_node vason_node_str(AllocatorV a, const char *c);
 vason_node vason_node_deepCopy(AllocatorV allocator, vason_node n);
 slice(c8) vason_node_toStr(AllocatorV allocator, vason_node n);
+
+NAMESPACE_STRUCT(
+    vasonTree_newItem,
+    (pair,  &vason_node_newPair),
+    (table, &vason_node_newTable),
+    (string,&vason_node_newStr),
+);
+NAMESPACE_STRUCT(
+    vasonTree_makeItem,
+    (pair, &vason_node_makePair),
+);
+NAMESPACE_STRUCT(
+    vasonTree,
+    (make, vasonTree_makeItem),
+    (new, vasonTree_newItem),
+    (free,       &vason_node_freeRecursive),
+    (stringify,  &vason_node_toStr),
+    (asContainer,&vason_node_toContainer),
+);
   #if defined(MAKE_TEST_FN)
 
 MAKE_TEST_FN(vason_exact_memcmp_match, {
