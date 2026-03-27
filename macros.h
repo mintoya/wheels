@@ -92,6 +92,23 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
       __VA_OPT__(APPLY_N_HELPER_INVOKE PARENTHESIS_HELPER(macro, __VA_ARGS__))
   #define APPLY_N_HELPER_INVOKE() APPLY_N_HELPER
 
+  #define NAMESPACEN_H_INVOKE(...) NAMESPACEN_H
+  #define NAMESPACEN_H(name, func, ...) \
+    const typeof(&func) name;           \
+    __VA_OPT__(NAMESPACEN_H_INVOKE PARENTHESIS_HELPER(__VA_ARGS__))
+  #define NAMESPACEN(name, func, ...) MACRO_EXPAND(NAMESPACEN_H(name, func, __VA_ARGS__))
+
+  #define NAMESPACEF_H_INVOKE(...) NAMESPACEF_H
+  #define NAMESPACEF_H(name, func, ...) func, __VA_OPT__(NAMESPACEF_H_INVOKE PARENTHESIS_HELPER(__VA_ARGS__))
+  #define NAMESPACEF(name, func, ...) MACRO_EXPAND(NAMESPACEF_H(name, func, __VA_ARGS__))
+
+  #define NAMESPACE_STRUCT(name, ...) \
+    static const struct {             \
+      NAMESPACEN(__VA_ARGS__)         \
+    } name = (typeof(name)){          \
+        NAMESPACEF(__VA_ARGS__)       \
+    };
+
   #define COUNT_ONE_MACRO(x) +1
   #define COUNT_ARGS(...) (__VA_OPT__(APPLY_N(COUNT_ONE_MACRO, __VA_ARGS__)) + 0)
   #define EQUAL_ANY_HELPER(a) a ||
