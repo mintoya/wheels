@@ -146,6 +146,10 @@ using msHmap_t = T (**)(sHmap *);
     )((sHmap *)sh, key, sizeof(msHmap_iType(sh)));                                         \
     _idx < 0 ? NULL : sList_getRef(((sHmap *)sh)->values, sizeof(msHmap_iType(sh)), _idx); \
   })
+  #define msHmapGetOrSet(sh, key, val) ({                          \
+    var_ *temp_ = msHmap_get(sh, key);                             \
+    temp ? temp : (msHmap_set(sh, key, val), msHmap_get(sh, key)); \
+  })
 
   // #include "tests.c"
   #if defined(MAKE_TEST_FN)

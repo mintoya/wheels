@@ -236,6 +236,11 @@ using mHmap_t = Tb (**)(HMap *, Ta);
               (fptr){sizeof(key), (u8 *)REF(typeof(key), key)}      \
           );                                                        \
     })
+
+  #define mHmapGetOrSet(sh, key, val) ({                         \
+    var_ *temp_ = mHmap_get(sh, key);                            \
+    temp ? temp : (mHmap_set(sh, key, val), mHmap_get(sh, key)); \
+  })
   #define mHmap_clear(map) HMap_clear((HMap *)map)
   #define HMap_scoped [[gnu::cleanup(HMap_cleanup_handler)]] HMap
 
