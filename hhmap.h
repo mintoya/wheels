@@ -350,7 +350,7 @@ inline u32 HMap_getBucketSize(const HMap *map, u32 idx) { return map->storage[id
 inline void *HMap_getCoord(const HMap *map, u32 bucket, u32 index) {
   if (bucket > map->metaSize)
     return nullptr;
-  var ll = map->storage[bucket];
+  var_ ll = map->storage[bucket];
   if (index > ll->length)
     return nullptr;
   return (
@@ -457,9 +457,9 @@ void HMap_transform(HMap **last, usize kSize, usize vSize, AllocatorV allocator,
   // u8 tempKey[newMap->keysize > oldMap->keysize ? newMap->keysize : oldMap->keysize];
   // u8 tempVal[newMap->valsize > oldMap->valsize ? newMap->valsize : oldMap->valsize];
 
-  var tempKey = aCreate(allocator, u8, newMap->keysize > oldMap->keysize ? newMap->keysize : oldMap->keysize);
+  var_ tempKey = aCreate(allocator, u8, newMap->keysize > oldMap->keysize ? newMap->keysize : oldMap->keysize);
   defer { aFree(allocator, tempKey); };
-  var tempVal = aCreate(allocator, u8, newMap->valsize > oldMap->valsize ? newMap->valsize : oldMap->valsize);
+  var_ tempVal = aCreate(allocator, u8, newMap->valsize > oldMap->valsize ? newMap->valsize : oldMap->valsize);
   defer { aFree(allocator, tempVal); };
 
   usize keyCopySize = (oldMap->keysize < kSize) ? oldMap->keysize : kSize;
@@ -508,14 +508,14 @@ void *HMap_get(const HMap *map, const void *key) {
 
 u32 HMap_count(const HMap *map) {
   u32 i = 0;
-  foreach (var v, VLAP(map->storage, map->metaSize))
+  foreach (var_ v, VLAP(map->storage, map->metaSize))
     i += v->length;
   return i;
 }
 
 u32 HMap_countCollisions(const HMap *map) {
   u32 collisions = 0;
-  foreach (var v, VLAP(map->storage, map->metaSize))
+  foreach (var_ v, VLAP(map->storage, map->metaSize))
     collisions += v->length ? v->length - 1 : 0;
   return collisions;
 }
@@ -527,7 +527,7 @@ usize HMap_footprint(const HMap *map) {
   res += sizeof(HMap);
   res += sizeof(*(map->storage)) * map->metaSize;
   res += elementSize;
-  foreach (var v, VLAP(map->storage, map->metaSize))
+  foreach (var_ v, VLAP(map->storage, map->metaSize))
     res += (elementSize)*v->length;
   return res;
 }
@@ -578,7 +578,7 @@ HMap_both HMap_getBoth(HMap *map, const void *key) {
 }
 
 void HMap_clear(HMap *map) {
-  foreach (var v, VLAP(map->storage, map->metaSize))
+  foreach (var_ v, VLAP(map->storage, map->metaSize))
     v->length = 0;
 }
 #endif // HMap_C

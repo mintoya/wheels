@@ -56,7 +56,7 @@ MAKE_TEST_FN(debug_allocator_test, {
     aResize(debug, aCreate(debug, int, 1), size);
     total += size;
   }
-  var stats = debugAllocator_stats(debug);
+  var_ stats = debugAllocator_stats(debug);
   if (!EQUAL_ALL(stats.max_memory, stats.current_memory, total))
     return 1;
   if (debugAllocatorDeInit(debug) != allocations)

@@ -237,16 +237,16 @@ using mList_t = T (**)(List *);
     mList_no_modify_test(list); \
     ((List *)list)->length = 0; \
   } while (0)
-#define mList_map(list, allocator, variable, expr)                                                            \
+#define mList_map(list, allocator, var_iable, expr)                                                            \
   ({                                                                                                          \
     __auto_type list_type = list;                                                                             \
     mList(mList_iType(list_type), const) list = list_type;                                                    \
-    typeof(({mList_iType(list) variable;expr; })) unused_type_infer;                                                                          \
+    typeof(({mList_iType(list) var_iable;expr; })) unused_type_infer;                                                                          \
     mList(typeof(unused_type_infer)) res = mList_init(allocator, typeof(unused_type_infer), mList_len(list)); \
-    for (typeof(mList_iType(list)) variable,                                                                  \
+    for (typeof(mList_iType(list)) var_iable,                                                                  \
          *mList_foreach_curr = (typeof(mList_iType(list) *))mList_vla(list),                                  \
          *const end___mList_foreach = (typeof(mList_iType(list) *))mList_vla(list)[1];                        \
-         (mList_foreach_curr < end___mList_foreach && (variable = *mList_foreach_curr, true));                \
+         (mList_foreach_curr < end___mList_foreach && (var_iable = *mList_foreach_curr, true));                \
          mList_foreach_curr++)                                                                                \
       mList_push(res, (expr));                                                                                \
     res;                                                                                                      \

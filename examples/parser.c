@@ -23,7 +23,7 @@ int main(int nargs, char *args[nargs]) {
   mList(char *) argslist = mList_init(stdAlloc, char *, nargs);
   defer { mList_deInit(argslist); };
   bool lazy = false;
-  for (var i = 1; i < nargs; i++) {
+  for (var_ i = 1; i < nargs; i++) {
     if (args[i][0] == '-') {
       if (fptr_eq(fptr_CS(args[i] + 1), fp("-lazy")))
         lazy = true;

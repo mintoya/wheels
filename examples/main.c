@@ -20,7 +20,7 @@ int main(void) {
   for (each_RANGE(int, i, 0, 100))
     mList_push(ints, i);
 
-  var ints2 = mList_map(
+  var_ ints2 = mList_map(
       ints, local, i, ({
         struct intbuf {
           char buf[12];
@@ -32,7 +32,7 @@ int main(void) {
   );
 
   defer { mList_deInit(ints2); };
-  foreach (var i, mList_vla(ints2))
+  foreach (var_ i, mList_vla(ints2))
     println("{cstr}", (c8 *)i.buf);
   return 0;
 }

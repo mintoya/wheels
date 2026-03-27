@@ -69,14 +69,14 @@ struct DeferHelper {
       #if defined(__clang__)
         #pragma GCC warning "using clang block defer (captures only work on pointers)"
 static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
-        #define defer __attribute__((cleanup(_defer_cleanup_block))) void (^ID_CONCAT(_defer_var_, __COUNTER__))(void) = ^
+        #define defer __attribute__((cleanup(_defer_cleanup_block))) void (^ID_CONCAT(_defer_var__, __COUNTER__))(void) = ^
       #elif defined(__GNUC__)
         #pragma GCC warning "using gnu nested function defer"
-        #define _defer_helper(func_name, var_name)              \
+        #define _defer_helper(func_name, var__name)              \
           auto void func_name(int *);                           \
-          int var_name __attribute__((cleanup(func_name))) = 0; \
+          int var__name __attribute__((cleanup(func_name))) = 0; \
           void func_name(int *_)
-        #define defer _defer_helper(ID_CONCAT(_defer_func_, __COUNTER__), ID_CONCAT(_defer_var_, __COUNTER__))
+        #define defer _defer_helper(ID_CONCAT(_defer_func_, __COUNTER__), ID_CONCAT(_defer_var__, __COUNTER__))
       #endif
     #endif
   #endif
@@ -182,7 +182,7 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
       } else                                                      \
         SCOPED_DECLARATION_LOOPS(decl = *_RANGE_NAME(item))
 
-  #define var __auto_type
+  #define var_ __auto_type
 
 // contains multiple types but can only result in one type
 // #define _generic_container(for_, first, ...) typeof(T(**)(for_ *, __VA_ARGS__))

@@ -126,7 +126,7 @@ void ownArenaDeInit(My_allocator *d) {
 }
 AllocatorV arena_new_ext(AllocatorV base, usize blockSize) {
   My_arena_includeBlock *res = aCreate(base, My_arena_includeBlock);
-  static const var defaultArena =
+  static const var_ defaultArena =
       (My_allocator){
           .alloc = my_arena_alloc,
           .free = my_arena_free,
