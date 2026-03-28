@@ -1,4 +1,5 @@
 #if !defined(MY_TAGGED_UNIONS_H)
+  #define MY_TAGGED_UNIONS_H (1)
 
   #include "macros.h"
 // Part of macros but got too long
@@ -24,7 +25,7 @@
   #define TU_MAKE_CASE_UNWRAP(a, b, c, d)                   \
     case (TU_MK_TAG(a, c)): {                               \
       __auto_type ID_CONCAT(temp, TU_NAM(c)) = b.TU_NAM(c); \
-      __auto_type b = (c)ID_CONCAT(temp, TU_NAM(c));        \
+      __auto_type b = (c *)&ID_CONCAT(temp, TU_NAM(c));     \
       d                                                     \
     } break; // :( no fallthrough
 
@@ -51,9 +52,9 @@
 
   #define TU_MATCH(type_val_tuple, ... /* type and statement tuples */)           \
     /* The first tuple contains the type name of the variable and the variable */ \
-    /* The first arg of every tuple is the type, the second is the statement*/    \
-    /* The word 'default' will place the statement in a default statement */      \
-    /* Automatically casts input into correct type output   */                    \
+    /* The first arg of every tuple is the type, the second is the statement   */ \
+    /* The word 'default' will place the statement in a default statement      */ \
+    /* Automatically casts input into correct type output as a pointer         */ \
     do {                                                                          \
       var_ local_item = TUPLE_EXPAND_B(type_val_tuple);                           \
       var_ tmp = ASSERT_EXPR(                                                     \
@@ -67,11 +68,5 @@
     (enum) { .tag = TU_MK_TAG(enum, t), .TU_NAM(t) = value }
   #define TU_OF(enumt, value) \
     TU_OF_IM(TUPLE_EXPAND_A(enumt), TUPLE_EXPAND_B(enumt), value)
-// it doesn't have to be a tuple but might as well
-  #define TU_ACCESS(type_val_tuple, variant_val_tuple)                                    \
-    (TUPLE_EXPAND_B(type_val_tuple).tag ==                                                \
-             TU_MK_TAG(TUPLE_EXPAND_A(type_val_tuple), TUPLE_EXPAND_A(variant_val_tuple)) \
-         ? TUPLE_EXPAND_B(type_val_tuple).TU_NAM(TUPLE_EXPAND_A(variant_val_tuple))       \
-         : TUPLE_EXPAND_B(variant_val_tuple))
 
 #endif // MY_TAGGED_UNIONS_H
