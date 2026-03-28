@@ -9,10 +9,10 @@
     #define bitcast(to, from) ((typeof(union {typeof(to)a;typeof(from)b; })){.b = from}.a)
   #else
 template <typename T>
-static inline T *TEMPORARY_REF_UB(T &&v) { return &v; }
+static T *TEMPORARY_REF_UB(T &&v) { return &v; }
     #define REF(type, value) TEMPORARY_REF_UB((type){value})
 template <class To, class From>
-inline To bit_cast_func(const From &src) noexcept {
+To bit_cast_func(const From &src) noexcept {
   To dst;
   memcpy(&dst, &src, sizeof(To));
   return dst;
@@ -70,7 +70,7 @@ struct DeferHelper {
     #else
       #if defined(__clang__)
         #pragma GCC warning "using clang block defer (captures only work on pointers)"
-static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
+static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
         #define defer __attribute__((cleanup(_defer_cleanup_block))) void (^ID_CONCAT(_defer_var__, __COUNTER__))(void) = ^
       #elif defined(__GNUC__)
         #pragma GCC warning "using gnu nested function defer"
@@ -115,7 +115,6 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     } name = (typeof(name)){          \
         NAMESPACEF(__VA_ARGS__)       \
     };
-  #include "unions.h"
   #define COUNT_ONE_MACRO(x) +1
   #define COUNT_ARGS(...) (__VA_OPT__(APPLY_N(COUNT_ONE_MACRO, __VA_ARGS__)) + 0)
   #define EQUAL_ANY_HELPER(a) a ||
