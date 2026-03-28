@@ -35,15 +35,17 @@ inline To bit_cast_func(const From &src) noexcept {
   #define MACRO_EXPAND1(...) \
     __VA_ARGS__
   #define MACRO_EXPAND2(...) \
-    MACRO_EXPAND1(MACRO_EXPAND1(MACRO_EXPAND1(MACRO_EXPAND1(__VA_ARGS__))))
+    __VA_OPT__(MACRO_EXPAND1(MACRO_EXPAND1(MACRO_EXPAND1(MACRO_EXPAND1(__VA_ARGS__)))))
   #define MACRO_EXPAND3(...) \
     MACRO_EXPAND2(MACRO_EXPAND2(MACRO_EXPAND2(MACRO_EXPAND2(__VA_ARGS__))))
   #define MACRO_EXPAND4(...) \
     MACRO_EXPAND3(MACRO_EXPAND3(MACRO_EXPAND3(MACRO_EXPAND3(__VA_ARGS__))))
   #define MACRO_EXPAND5(...) \
     MACRO_EXPAND4(MACRO_EXPAND4(MACRO_EXPAND4(MACRO_EXPAND4(__VA_ARGS__))))
+  #define MACRO_EXPAND6(...) \
+    MACRO_EXPAND5(MACRO_EXPAND5(MACRO_EXPAND5(MACRO_EXPAND5(__VA_ARGS__))))
   #define MACRO_EXPAND(...) \
-    MACRO_EXPAND4(__VA_ARGS__)
+    MACRO_EXPAND3(__VA_ARGS__)
 
   #define DEFER_NAME(a, b) ID_CONCAT(a, b)
 
@@ -73,7 +75,7 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
       #elif defined(__GNUC__)
         #pragma GCC warning "using gnu nested function defer"
         #define _defer_helper(func_name, var__name)              \
-          auto void func_name(int *);                           \
+          auto void func_name(int *);                            \
           int var__name __attribute__((cleanup(func_name))) = 0; \
           void func_name(int *_)
         #define defer _defer_helper(ID_CONCAT(_defer_func_, __COUNTER__), ID_CONCAT(_defer_var__, __COUNTER__))
@@ -91,11 +93,17 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define APPLY_N_HELPER(macro, arg, ...) macro(arg) \
       __VA_OPT__(APPLY_N_HELPER_INVOKE PARENTHESIS_HELPER(macro, __VA_ARGS__))
   #define APPLY_N_HELPER_INVOKE() APPLY_N_HELPER
+  #define APPLY_N_WITH(macro, captured, ...) \
+    MACRO_EXPAND(APPLY_N_WITH_HELPER(macro, captured, __VA_ARGS__))
+  #define APPLY_N_WITH_HELPER(macro, captured, arg, ...) macro(captured, arg) \
+      __VA_OPT__(APPLY_N_WITH_HELPER_INVOKE PARENTHESIS_HELPER(macro, captured, __VA_ARGS__))
+  #define APPLY_N_WITH_HELPER_INVOKE() APPLY_N_WITH_HELPER
 
   #define TUPLE_A(name, func) name
   #define TUPLE_B(name, func) func
   #define TUPLE_EXPAND_A(tuple) TUPLE_A tuple
   #define TUPLE_EXPAND_B(tuple) TUPLE_B tuple
+// #define TUPLE_EXPAND_B(tuple) TUPLE_B tuple
 
   #define NAMESPACEN_H(tuple) const typeof(TUPLE_EXPAND_B(tuple)) TUPLE_EXPAND_A(tuple);
   #define NAMESPACEN(...) APPLY_N(NAMESPACEN_H, __VA_ARGS__)
@@ -107,7 +115,7 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     } name = (typeof(name)){          \
         NAMESPACEF(__VA_ARGS__)       \
     };
-
+  #include "unions.h"
   #define COUNT_ONE_MACRO(x) +1
   #define COUNT_ARGS(...) (__VA_OPT__(APPLY_N(COUNT_ONE_MACRO, __VA_ARGS__)) + 0)
   #define EQUAL_ANY_HELPER(a) a ||
@@ -183,6 +191,7 @@ static inline void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
         SCOPED_DECLARATION_LOOPS(decl = *_RANGE_NAME(item))
 
   #define var_ __auto_type
+  #define intersperse()
 
 // contains multiple types but can only result in one type
 // #define _generic_container(for_, first, ...) typeof(T(**)(for_ *, __VA_ARGS__))
