@@ -6,12 +6,9 @@
 #include "macros.h"
 #include "mytypes.h"
 #include "print.h"
-#include <stdlib.h>
 
 struct dbgAlloc_config {
   AllocatorV allocator;
-  bool track_total;
-  bool track_trace;
   FILE *log;
 };
 /**
@@ -21,7 +18,7 @@ struct dbgAlloc_config {
  */
 AllocatorV debugAllocatorInit(struct dbgAlloc_config config);
 struct debugStats {
-  isize max_memory, current_memory, total_calls;
+  usize max_memory, current_memory, total_calls;
 };
 struct debugStats debugAllocator_stats(AllocatorV allocator);
 #define PREPEND_DOT_MAC(...) .__VA_ARGS__,
@@ -48,7 +45,7 @@ MAKE_TEST_FN(debug_allocator_test, {
   usize allocations = 5;
   usize total = 0;
   AllocatorV debug = debugAllocator(
-      allocator = allocator, track_total = 1
+      allocator = allocator,
   );
   // defer { debugAllocatorDeInit(debug); };
   for (each_RANGE(usize, i, 0, allocations)) {
@@ -73,7 +70,8 @@ MAKE_TEST_FN(debug_allocator_test, {
 
 #if defined(MY_DEBUG_ALLOCATOR_C)
 struct tracedata {
-  void *trace[7];
+  char *fn;
+  usize ln;
   usize size;
 };
 typedef struct {
@@ -88,16 +86,16 @@ typedef struct {
   alignas(alignof(max_align_t)) debugAllocatorInternals internals[1];
 } Debug_allocator_block;
 
-void *debugAllocator_alloc(AllocatorV allocator, usize size);
-void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size);
-void debugAllocator_free(AllocatorV allocator, void *ptr);
+void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln);
+void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size, char *fn, usize ln);
+void debugAllocator_free(AllocatorV allocator, void *ptr, char *fn, usize ln);
 
 struct debugStats debugAllocator_stats(AllocatorV allocator) {
   debugAllocatorInternals internals = *(debugAllocatorInternals *)allocator->arb;
   return (struct debugStats){
-      internals.config.track_total ? (isize)internals.max : -1,
-      internals.config.track_total ? (isize)internals.current : -1,
-      (isize)internals.total,
+      (usize)internals.max,
+      (usize)internals.current,
+      (usize)internals.total,
   };
 }
 AllocatorV debugAllocatorInit(struct dbgAlloc_config config) {
@@ -131,16 +129,12 @@ int debugAllocatorDeInit(AllocatorV allocator) {
   pEsc b = (pEsc){.fg = {0, 0, 255}, .fgset = 1};
   pEsc rst = (pEsc){.reset = 1};
 
-  const bool track_trace = internals->config.track_trace;
-  const bool track_total = internals->config.track_total;
   FILE *out = internals->config.log;
 
   if (out) {
-    if (track_total) {
-      print_wfO(fileprint, out, "maximum of {}{}{} bytes used at once\n", g, internals->max, rst);
-      print_wfO(fileprint, out, "{}{}{} allocs / reallocs\n", r, internals->total, rst);
-      print_wfO(fileprint, out, "leaked {} bytes\n", internals->current);
-    }
+    print_wfO(fileprint, out, "maximum of {}{}{} bytes used at once\n", g, internals->max, rst);
+    print_wfO(fileprint, out, "{}{}{} allocs / reallocs\n", r, internals->total, rst);
+    print_wfO(fileprint, out, "leaked {} bytes\n", internals->current);
   }
 
   mHmap_foreach(
@@ -149,25 +143,21 @@ int debugAllocatorDeInit(AllocatorV allocator) {
       struct tracedata, val,
       {
         leaks++;
-        if (track_trace && out) {
+        if (out) {
           print_wfO(
               fileprint, out,
-              "leaked {}{usize}{} bytes at {}{ptr}{}\n"
+              "leaked {}{usize}{} bytes at {}{ptr}{} in {cstr} at {}\n"
               "=========================================================\n",
-              g, val.size, rst, b, ptr, r
+              g, val.size, rst, b, ptr, r, val.fn, val.ln
           );
 
-          char **names = backtrace_symbols(val.trace + 2, 5);
-          for (usize i = 0; i < 5; i++)
-            print_wfO(fileprint, out, "{cstr}\n", names[i]);
           print_wfO(
               fileprint, out,
               "=========================================================\n",
           );
           print_wfO(fileprint, out, "{}", rst);
-          free(names);
         }
-        aFree(realAllocator, (void *)ptr);
+        (aFree)(realAllocator, (void *)ptr, val.fn, val.ln);
       }
   );
   mHmap_deinit(internals->map);
@@ -175,19 +165,18 @@ int debugAllocatorDeInit(AllocatorV allocator) {
   return leaks;
 }
 
-void *debugAllocator_alloc(AllocatorV allocator, usize size) {
+void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
-  void *res = aAlloc(realAllocator, size);
+  void *res = ((aAlloc)(realAllocator, size, fn, ln));
   internals->total++;
 
   struct tracedata data;
-  if (internals->config.track_trace)
-    backtrace(data.trace, 7);
   data.size = size;
+  data.fn = fn;
+  data.ln = ln;
   mHmap_set(internals->map, res, data);
-  if (internals->config.track_total)
-    internals->current += size;
+  internals->current += size;
 
   if (internals->current > internals->max)
     internals->max = internals->current;
@@ -195,7 +184,7 @@ void *debugAllocator_alloc(AllocatorV allocator, usize size) {
   return res;
 }
 
-void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size) {
+void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size, char *fn, usize ln) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
   internals->total++;
@@ -205,34 +194,33 @@ void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size) {
 
   if (i)
     internals->current -= i->size;
+  assertMessage(mHmap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
   mHmap_rem(internals->map, ptr);
 
-  void *res = aResize(realAllocator, ptr, size);
+  void *res = (aResize)(realAllocator, ptr, size, fn, ln);
 
-  struct tracedata data = {.size = size};
-  if (internals->config.track_trace)
-    backtrace(data.trace, 7);
+  var_ data = (struct tracedata){
+      .size = size,
+      .fn = fn,
+      .ln = ln,
+  };
   mHmap_set(internals->map, res, data);
 
-  if (internals->config.track_total)
-    internals->current += size;
+  internals->current += size;
 
   if (internals->current > internals->max)
     internals->max = internals->current;
-
   return res;
 }
 
-void debugAllocator_free(AllocatorV allocator, void *ptr) {
+void debugAllocator_free(AllocatorV allocator, void *ptr, char *fn, usize ln) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
-
-  aFree(realAllocator, ptr);
-
+  (aFree)(realAllocator, ptr, fn, ln);
   struct tracedata *data = mHmap_get(internals->map, ptr);
   assertMessage(data, "pointer not in allocator");
-  if (internals->config.track_total)
-    internals->current -= data->size;
+  internals->current -= data->size;
+  assertMessage(mHmap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
   mHmap_rem(internals->map, ptr);
 }
 #endif // MY_DEBUG_ALLOCATOR_C

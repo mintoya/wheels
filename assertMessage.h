@@ -42,20 +42,22 @@ void __attribute__((noreturn)) _assertMessageFail(
       #define _ASSERT_GET_BT(arr) 0
     #endif
 
-    #define assertMessage(expr, ...)           \
-      do {                                     \
-        if (!(expr)) [[unlikely]] {            \
-          void *array[5];                      \
-          size_t size = _ASSERT_GET_BT(array); \
-          _assertMessageFail(                  \
-              #expr,                           \
-              __PRETTY_FUNCTION__,             \
-              __FILE__,                        \
-              __LINE__,                        \
-              array,                           \
-              size, "" __VA_ARGS__             \
-          );                                   \
-        }                                      \
+    #define assertMessage(expr, ...)            \
+      do {                                      \
+        DIAGNOSTIC_PUSH("-Wunknown-attributes") \
+        if (!(expr)) [[unlikely]] {             \
+          DIAGNOSTIC_POP()                      \
+          void *array[5];                       \
+          size_t size = _ASSERT_GET_BT(array);  \
+          _assertMessageFail(                   \
+              #expr,                            \
+              __PRETTY_FUNCTION__,              \
+              __FILE__,                         \
+              __LINE__,                         \
+              array,                            \
+              size, "" __VA_ARGS__              \
+          );                                    \
+        }                                       \
       } while (0)
   #else
     #include <assert.h>

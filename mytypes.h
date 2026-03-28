@@ -137,6 +137,12 @@ struct nullable_t {
 #else
   #include <stdcountof.h>
 #endif
+#define sliceCast(to_elem, from)                             \
+  ({                                                         \
+    ASSERT_EXPR(sizeof(to_elem) == sizeof(from.ptr[0]), );   \
+    var_ from_tmp = from;                                    \
+    (slice(to_elem)){from_tmp.len, (to_elem *)from_tmp.ptr}; \
+  })
 sliceDef(c8);
 
 #endif // MY_TYPES

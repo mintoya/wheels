@@ -83,11 +83,11 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     #endif
   #endif
   #define PRAGMA_MAKE_STR(...) #__VA_ARGS__
-  #define MAKE_PRAGMA(warning) _Pragma(PRAGMA_MAKE_STR(clang diagnostic ignored warning))
+  #define MAKE_PRAGMA(warning) _Pragma(PRAGMA_MAKE_STR(GCC diagnostic ignored warning))
   #define DIAGNOSTIC_PUSH(...) \
     APPLY_N(MAKE_PRAGMA, __VA_ARGS__)
   #define DIAGNOSTIC_POP() \
-    _Pragma("clang diagnostic pop")
+    _Pragma("GCC diagnostic pop")
 
   #define APPLY_N(macro, ...) MACRO_EXPAND(APPLY_N_HELPER(macro, __VA_ARGS__))
   #define APPLY_N_HELPER(macro, arg, ...) macro(arg) \
@@ -189,10 +189,11 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
       } else                                                      \
         SCOPED_DECLARATION_LOOPS(decl = *_RANGE_NAME(item))
 
-  #define var_ __auto_type
-  #define intersperse()
+  #define TU_ACESS(tut, type) \
+    ({type* result_ = NULL ; TU_MATCH(tut, (type,result_ = TUPLE_EXPAND_B(tut);), (default,));result_; })
+  #define TU_GET(tut, type, otherwise) \
+    ({var_ *result_ = TU_ACESS(tut,type);result_?*result_:otherwise; })
 
-// contains multiple types but can only result in one type
-// #define _generic_container(for_, first, ...) typeof(T(**)(for_ *, __VA_ARGS__))
-// #define _generic_container_get_first(container, ...) typeof((*container)(NULL, __VA_ARGS__))
+  #define var_ __auto_type
+
 #endif

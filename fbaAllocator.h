@@ -5,9 +5,9 @@
   #include "stdalign.h"
   #include <assert.h>
   #include <stddef.h>
-void *_fba_alloc(AllocatorV allocator, usize size);
-void _fba_free(AllocatorV allocator, void *ptr);
-void *_fba_resize(AllocatorV allocator, void *oldptr, usize size);
+void *_fba_alloc(AllocatorV allocator, usize size, char *, usize);
+void _fba_free(AllocatorV allocator, void *ptr, char *, usize);
+void *_fba_resize(AllocatorV allocator, void *oldptr, usize size, char *, usize);
 usize _fba_size(AllocatorV allocator, void *ptr);
 void *_fba_alloc_nullable(AllocatorV allocator, usize size);
 void *_fba_resize_nullable(AllocatorV allocator, void *oldptr, usize size);
@@ -62,9 +62,6 @@ extern inline void FBA_init(max_align_t *buffer, usize size, FBA_State res[1]) {
 #endif
 
 #ifdef FBA_ALLOCATOR_C
-  #define FBA_FREE_BIT ((usize)1 << (sizeof(usize) * 8 - 1))
-  #define FBA_SIZE_MASK (~FBA_FREE_BIT)
-
   #include <stdio.h>
 void _fba_print(AllocatorV allocator) {
   FBA_State *f = (typeof(f))allocator;
@@ -113,7 +110,7 @@ void _fba_coallese(AllocatorV allocator) {
     }
   }
 }
-void _fba_free(AllocatorV allocator, void *ptr) {
+void _fba_free(AllocatorV allocator, void *ptr, char *, usize) {
   FBA_State *f = (typeof(f))allocator;
   assert("ptr is outside buffer" && (u8 *)ptr > (u8 *)f->buffer);
   assert("ptr is outside buffer" && (u8 *)ptr < (u8 *)f->buffer + f->offset);
@@ -161,17 +158,17 @@ void *_fba_resize_nullable(AllocatorV allocator, void *oldptr, usize size) {
 
   usize copy_size = size < h->size ? size : h->size;
   __builtin_memcpy(res, oldptr, copy_size);
-  _fba_free(allocator, oldptr);
+  _fba_free(allocator, oldptr, NULL, 0);
   return res;
 }
 
-void *_fba_alloc(AllocatorV allocator, usize size) {
+void *_fba_alloc(AllocatorV allocator, usize size, char *, usize) {
   void *res = _fba_alloc_nullable(allocator, size);
   assert(res);
   return res;
 }
 
-void *_fba_resize(AllocatorV allocator, void *oldptr, usize size) {
+void *_fba_resize(AllocatorV allocator, void *oldptr, usize size, char *, usize) {
   void *res = _fba_resize_nullable(allocator, oldptr, size);
   assert(res);
   return res;

@@ -61,18 +61,3 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the application");
     run_step.dependOn(&run_cmd.step);
 }
-// const std = @import("std");
-//
-// pub fn build(b: *std.Build) void {
-//     // Create a system command step that calls emcc
-//     const emcc = b.addSystemCommand(&.{
-//         "emcc",
-//         "your_code.cpp",
-//         "--bind",
-//         "-s", "WASM_ASYNC_COMPILATION=0",
-//         "-o", "vason.js",
-//     });
-//
-//     // Make this the default build step
-//     b.getInstallStep().dependOn(&emcc.step);
-// }

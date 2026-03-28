@@ -64,10 +64,12 @@ MAKE_TEST_FN(allocator_test, {
       return 1;
   return 0;
 });
-MAKE_TEST_FN(segFault, {
+MAKE_TEST_FN(shouldFail, {
   int i = *(int *)NULL;
 });
-
+MAKE_TEST_FN(allocator_file_test, {
+  aAlloc(allocator, 0);
+});
 
 int main(void) {
   signal(SIGSEGV, segv_handler);
