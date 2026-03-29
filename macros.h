@@ -82,12 +82,6 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
       #endif
     #endif
   #endif
-  #define PRAGMA_MAKE_STR(...) #__VA_ARGS__
-  #define MAKE_PRAGMA(warning) _Pragma(PRAGMA_MAKE_STR(GCC diagnostic ignored warning))
-  #define DIAGNOSTIC_PUSH(...) \
-    APPLY_N(MAKE_PRAGMA, __VA_ARGS__)
-  #define DIAGNOSTIC_POP() \
-    _Pragma("GCC diagnostic pop")
 
   #define APPLY_N(macro, ...) MACRO_EXPAND(APPLY_N_HELPER(macro, __VA_ARGS__))
   #define APPLY_N_HELPER(macro, arg, ...) macro(arg) \
@@ -99,11 +93,29 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
       __VA_OPT__(APPLY_N_WITH_HELPER_INVOKE PARENTHESIS_HELPER(macro, captured, __VA_ARGS__))
   #define APPLY_N_WITH_HELPER_INVOKE() APPLY_N_WITH_HELPER
 
+//
+// pragmas
+//
+
+  #define PRAGMA_MAKE_STR(...) #__VA_ARGS__
+  #define MAKE_PRAGMA(warning) _Pragma(PRAGMA_MAKE_STR(GCC diagnostic ignored warning))
+  #define DIAGNOSTIC_PUSH(...)     \
+    _Pragma("GCC diagnostic push") \
+        APPLY_N(MAKE_PRAGMA, __VA_ARGS__)
+  #define DIAGNOSTIC_POP() \
+    _Pragma("GCC diagnostic pop")
+
+//
+// (,) stuff
+//
   #define TUPLE_A(name, func) name
   #define TUPLE_B(name, func) func
   #define TUPLE_EXPAND_A(tuple) TUPLE_A tuple
   #define TUPLE_EXPAND_B(tuple) TUPLE_B tuple
-// #define TUPLE_EXPAND_B(tuple) TUPLE_B tuple
+
+//
+// static constant struct based namesapce
+//
 
   #define NAMESPACEN_H(tuple) const typeof(TUPLE_EXPAND_B(tuple)) TUPLE_EXPAND_A(tuple);
   #define NAMESPACEN(...) APPLY_N(NAMESPACEN_H, __VA_ARGS__)
@@ -115,29 +127,34 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     } name = (typeof(name)){          \
         NAMESPACEF(__VA_ARGS__)       \
     };
+
+//
+// utility
+//
+
   #define COUNT_ONE_MACRO(x) +1
   #define COUNT_ARGS(...) (__VA_OPT__(APPLY_N(COUNT_ONE_MACRO, __VA_ARGS__)) + 0)
   #define EQUAL_ANY_HELPER(a) a ||
   #define EQUAL_ANY(expr, ...) (APPLY_N((expr) == EQUAL_ANY_HELPER, __VA_ARGS__) 0)
   #define EQUAL_ALL_HELPER(a) a &&
   #define EQUAL_ALL(expr, ...) (APPLY_N((expr) == EQUAL_ALL_HELPER, __VA_ARGS__) 1)
-
   #define ASSERT_EXPR(cond, msg) \
     (0 * (int)sizeof(char[1 - 2 * !(cond)]))
-
   #define STR_H(...) #__VA_ARGS__
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
 
   #define VA_SWITCH_FIRST(first, ...) first
-
   #define VA_SWITCH_EMPTY(...) VA_SWITCH_FIRST(__VA_OPT__(0, ) 1, ~)
   #define VA_SWITCH_IMPL_0(default_val, ...) __VA_ARGS__
   #define VA_SWITCH_IMPL_1(default_val) default_val
   #define VA_SWITCH(default_val, ...) \
     ID_CONCAT(VA_SWITCH_IMPL_, VA_SWITCH_EMPTY(__VA_ARGS__))(default_val __VA_OPT__(, ) __VA_ARGS__)
 
-  #define _RANGE_NAME(prefix) ID_CONCAT(_range_val_, ID_CONCAT(prefix, __LINE__))
+//
+// loops
+//
 
+  #define _RANGE_NAME(prefix) ID_CONCAT(_range_val_, ID_CONCAT(prefix, __LINE__))
   #define each_RANGE(type, name, start, end, ...)                            \
     type name = (start),                                                     \
          *const _RANGE_NAME(s) = (typeof(_RANGE_NAME(s)))REF(type, (start)), \
@@ -145,7 +162,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     (*(type const *)_RANGE_NAME(s) <= *(type const *)_RANGE_NAME(e)          \
          ? name < *(type *)_RANGE_NAME(e)                                    \
          : name > *(type *)_RANGE_NAME(e));                                  \
-    name += VA_SWITCH(*_RANGE_NAME(s) > *_RANGE_NAME(e) ? -1 : 1, __VA_ARGS__)
+    name += VA_SWITCH(_RANGE_NAME(s) > _RANGE_NAME(e) ? -1 : 1, __VA_ARGS__)
 
   #define types_eq(T1, T2) \
     _Generic((T1){0}, T2: true, default: false)
@@ -189,11 +206,17 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
       } else                                                      \
         SCOPED_DECLARATION_LOOPS(decl = *_RANGE_NAME(item))
 
-  #define TU_ACESS(tut, type) \
-    ({type* result_ = NULL ; TU_MATCH(tut, (type,result_ = TUPLE_EXPAND_B(tut);), (default,));result_; })
-  #define TU_GET(tut, type, otherwise) \
-    ({var_ *result_ = TU_ACESS(tut,type);result_?*result_:otherwise; })
+//
+// var
+//
 
   #define var_ __auto_type
+
+//
+// expect
+//
+
+  #define if_unlikley(...) if (__builtin_expect(!!(__VA_ARGS__), 1))
+  #define if_likley(...) if (__builtin_expect(!!(__VA_ARGS__), 0))
 
 #endif
