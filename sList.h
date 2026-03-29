@@ -90,6 +90,13 @@ static inline sList_header *sList_appendFromArr(AllocatorV allocator, sList_head
 static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, usize width, usize i, void *element) {
   return sList_insertFromArr(allocator, l, element, 1, i, width);
 }
+  #if defined(__BLOCKS__)
+    #pragma GCC warning "blocks enabled, non-stable pointers break"
+    #define msList(T) __block T *
+  #else
+    #define msList(T) T *
+  #endif
+
   #define SLIST_INIT_HELPER(allocator, T, initLength, ...) ((T *)(sList_new(allocator, initLength, sizeof(T))->buf))
   #define msList_init(allocator, T, ...) \
     SLIST_INIT_HELPER(allocator, T __VA_OPT__(, __VA_ARGS__), 2)
@@ -191,11 +198,12 @@ static inline sList_header *sList_insertFromArr(
       if (msList_cap(s) < (new_cap))                                                         \
         s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), new_cap)->buf; \
     } while (0)
+  // #include "tests.c"
   #if defined(MAKE_TEST_FN)
     #include "macros.h"
 
 MAKE_TEST_FN(msList_push_pop, {
-  int *list = msList_init(allocator, int);
+  msList(int) list = msList_init(allocator, int);
   defer { msList_deInit(allocator, list); };
   for (each_RANGE(usize, i, 0, 50))
     msList_push(allocator, list, i * i);
@@ -206,7 +214,7 @@ MAKE_TEST_FN(msList_push_pop, {
 });
 
 MAKE_TEST_FN(msList_insert_remove, {
-  int *list = msList_init(allocator, int);
+  msList(int) list = msList_init(allocator, int);
   defer { msList_deInit(allocator, list); };
 
   msList_push(allocator, list, 100);
@@ -234,7 +242,7 @@ MAKE_TEST_FN(msList_insert_remove, {
 });
 
 MAKE_TEST_FN(msList_array_operations, {
-  int *list = msList_init(allocator, int);
+  msList(int) list = msList_init(allocator, int);
   defer { msList_deInit(allocator, list); };
 
   int arr1[] = {1, 2, 3};
@@ -257,7 +265,7 @@ MAKE_TEST_FN(msList_array_operations, {
 });
 
 MAKE_TEST_FN(msList_capacity_and_padding, {
-  int *list = msList_init(allocator, int);
+  msList(int) list = msList_init(allocator, int);
   defer { msList_deInit(allocator, list); };
 
   msList_reserve(allocator, list, 50);
@@ -280,7 +288,7 @@ MAKE_TEST_FN(msList_capacity_and_padding, {
 });
 
 MAKE_TEST_FN(msList_vla_cast, {
-  int *list = msList_init(allocator, int);
+  msList(int) list = msList_init(allocator, int);
   defer { msList_deInit(allocator, list); };
 
   msList_push(allocator, list, 7);

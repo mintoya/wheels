@@ -317,7 +317,8 @@ MAKE_TEST_FN(HMap_clear_macro, {
 })
 MAKE_TEST_FN(HMap_transform_macro, {
   mHmap(int, int) map = mHmap_init(allocator, int, int, 8);
-  defer { mHmap_deinit(map); };
+  var_ mapp = &map;
+  defer { mHmap_deinit(*mapp); };
 
   for (int i = 0; i < 100; i++)
     mHmap_set(map, i, i * 3);

@@ -40,9 +40,9 @@ slice(c8) vason_node_toStr(AllocatorV allocator, vason_node n);
 
 NAMESPACE_STRUCT(
     vasonTree_newItem,
-    (pair,  &vason_node_newPair),
+    (pair, &vason_node_newPair),
     (table, &vason_node_newTable),
-    (string,&vason_node_newStr),
+    (string, &vason_node_newStr),
 );
 NAMESPACE_STRUCT(
     vasonTree_makeItem,
@@ -52,15 +52,16 @@ NAMESPACE_STRUCT(
     vasonTree,
     (make, vasonTree_makeItem),
     (new, vasonTree_newItem),
-    (free,       &vason_node_freeRecursive),
-    (stringify,  &vason_node_toStr),
-    (asContainer,&vason_node_toContainer),
+    (free, &vason_node_freeRecursive),
+    (stringify, &vason_node_toStr),
+    (asContainer, &vason_node_toContainer),
 );
   #if defined(MAKE_TEST_FN)
 
 MAKE_TEST_FN(vason_exact_memcmp_match, {
   vason_node root = vason_node_newTable(allocator);
-  defer { vason_node_freeRecursive(allocator, root); };
+  var_ *rp = &root;
+  defer { vason_node_freeRecursive(allocator, *rp); };
 
   vason_node p_key = vason_node_str(allocator, "hello");
   vason_node p_val = vason_node_str(allocator, "world");
@@ -321,9 +322,10 @@ vason_node vason_node_deepCopy(AllocatorV allocator, vason_node n) {
 }
 slice(c8) vason_node_toStr(AllocatorV allocator, vason_node n) {
   c8 *strp = NULL;
-  defer { aFree(allocator, strp); };
   vason_container c = vason_node_toContainer(allocator, n, &strp);
-  defer { vason_container_free(c); };
-  return vason_tostr(allocator, c);
+  var_ v = vason_tostr(allocator, c);
+  vason_container_free(c);
+  aFree(allocator, strp);
+  return v;
 }
 #endif

@@ -53,6 +53,7 @@ struct vason_getArg {
   };
 };
 
+  // #include "tests.c"
   #if defined(MY_PRINTER_H)
     #include "print.h"
 REGISTER_PRINTER(vason_container, {
@@ -285,7 +286,8 @@ MAKE_TEST_FN(vason_parser_immediate, {
   slice(c8) input = (slice(c8)){(usize)strlen(text), (c8 *)text};
 
   vason_container c = vason_parseString(allocator, input);
-  defer { vason_container_free(c); };
+  vason_container *cp = &c;
+  defer { vason_container_free(*cp); };
 
   if (!c.tags || c.tags[c.current] != vason_TABLE)
     return 1;
@@ -321,7 +323,8 @@ MAKE_TEST_FN(vason_parser_lazy, {
   slice(c8) input = (slice(c8)){(usize)strlen(text), (c8 *)text};
 
   vason_container c = vason_parseString_Lazy(allocator, input);
-  defer { vason_container_free(c); };
+  vason_container *cp = &c;
+  defer { vason_container_free(*cp); };
 
   if (!c.tags || c.tags[c.current] != vason_TABLE)
     return 1;

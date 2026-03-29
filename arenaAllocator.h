@@ -174,8 +174,8 @@ void my_arena_free(AllocatorV arena, void *ptr, char *fn, usize line) {
     b = b->next;
   assertMessage(b, "ptr not in any arena block");
   FBA_State fbs = arena_toFBA(b);
-  defer { sync_fba(b, fbs); };
   _fba_free(fbs.allocator, ptr, fn, line);
+  sync_fba(b, fbs);
 }
 usize my_arena_realsize(AllocatorV arena, void *ptr) {
   My_arena_includeBlock *maib = (typeof(maib))arena;
@@ -184,7 +184,6 @@ usize my_arena_realsize(AllocatorV arena, void *ptr) {
     b = b->next;
   assertMessage(b, "ptr not in any arena block");
   FBA_State fbs = arena_toFBA(b);
-  defer { sync_fba(b, fbs); };
   return _fba_size(fbs.allocator, ptr);
 }
 void *my_arena_r_alloc(AllocatorV arena, void *ptr, usize size, char *fn, usize ln) {
@@ -194,7 +193,8 @@ void *my_arena_r_alloc(AllocatorV arena, void *ptr, usize size, char *fn, usize 
     b = b->next;
   assertMessage(b, "ptr not in any arena block");
   FBA_State fbs = arena_toFBA(b);
-  defer { sync_fba(b, fbs); };
+  var_ fr = &fbs;
+  defer { sync_fba(b, *fr); };
   void *inplace =
       _fba_resize_nullable(fbs.allocator, ptr, size);
   if (inplace)
