@@ -51,7 +51,7 @@ NAMESPACE_STRUCT(
 NAMESPACE_STRUCT(
     vasonTree,
     (make, vasonTree_makeItem),
-    (new, vasonTree_newItem),
+    (new_, vasonTree_newItem),
     (free, &vason_node_freeRecursive),
     (stringify, &vason_node_toStr),
     (asContainer, &vason_node_toContainer),
@@ -60,7 +60,7 @@ NAMESPACE_STRUCT(
 
 MAKE_TEST_FN(vason_exact_memcmp_match, {
   vason_node root = vason_node_newTable(allocator);
-  var_ *rp = &root;
+  var_ rp = &root;
   defer { vason_node_freeRecursive(allocator, *rp); };
 
   vason_node p_key = vason_node_str(allocator, "hello");

@@ -97,13 +97,18 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 // pragmas
 //
 
-  #define PRAGMA_MAKE_STR(...) #__VA_ARGS__
-  #define MAKE_PRAGMA(warning) _Pragma(PRAGMA_MAKE_STR(GCC diagnostic ignored warning))
-  #define DIAGNOSTIC_PUSH(...)     \
-    _Pragma("GCC diagnostic push") \
-        APPLY_N(MAKE_PRAGMA, __VA_ARGS__)
-  #define DIAGNOSTIC_POP() \
-    _Pragma("GCC diagnostic pop")
+  #if !defined(__GNUC__)
+    #define PRAGMA_MAKE_STR(...) #__VA_ARGS__
+    #define MAKE_PRAGMA(warning) _Pragma(PRAGMA_MAKE_STR(GCC diagnostic ignored warning))
+    #define DIAGNOSTIC_PUSH(...)     \
+      _Pragma("GCC diagnostic push") \
+          APPLY_N(MAKE_PRAGMA, __VA_ARGS__)
+    #define DIAGNOSTIC_POP() \
+      _Pragma("GCC diagnostic pop")
+  #else
+    #define DIAGNOSTIC_PUSH(...)
+    #define DIAGNOSTIC_POP()
+  #endif
 
 //
 // (,) stuff
@@ -155,21 +160,25 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 //
 
   #define _RANGE_NAME(prefix) ID_CONCAT(_range_val_, ID_CONCAT(prefix, __LINE__))
-  #define each_RANGE(type, name, start, end, ...)                            \
-    type name = (start),                                                     \
-         *const _RANGE_NAME(s) = (typeof(_RANGE_NAME(s)))REF(type, (start)), \
-         *const _RANGE_NAME(e) = (typeof(_RANGE_NAME(e)))REF(type, (end));   \
-    (*(type const *)_RANGE_NAME(s) <= *(type const *)_RANGE_NAME(e)          \
-         ? name < *(type *)_RANGE_NAME(e)                                    \
-         : name > *(type *)_RANGE_NAME(e));                                  \
+  #define each_RANGE(type, name, start, end, ...) \
+    type name = (start),                          \
+         _RANGE_NAME(s) = (start),                \
+         _RANGE_NAME(e) = (end);                  \
+    (_RANGE_NAME(s) <= _RANGE_NAME(e)             \
+         ? name < _RANGE_NAME(e)                  \
+         : name > _RANGE_NAME(e));                \
     name += VA_SWITCH(_RANGE_NAME(s) > _RANGE_NAME(e) ? -1 : 1, __VA_ARGS__)
 
   #define types_eq(T1, T2) \
     _Generic((T1){0}, T2: true, default: false)
 
-  #define SCOPED_DECLARATION_LOOPS(decl)                                       \
-    for (char _RANGE_NAME(once) = 1; _RANGE_NAME(once); _RANGE_NAME(once) = 0) \
-      for (decl; _RANGE_NAME(once); _RANGE_NAME(once) = 0)
+  #if defined(__clang__)
+    #define SCOPED_DECLARATION_LOOPS(decl) \
+      for (decl; 1; ({ break; }))
+  #else
+    #define SCOPED_DECLARATION_LOOPS(decl) \
+      if (decl; 1)
+  #endif
 
   #define each_VLAP(type, name, vla)                                    \
     each_RANGE(                                                         \

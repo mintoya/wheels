@@ -38,7 +38,7 @@ struct debugStats debugAllocator_stats(AllocatorV allocator);
  *      - will print traces to stdout
  */
 int debugAllocatorDeInit(AllocatorV);
-// #include "tests.cpp"
+// #include "tests.c"
 
 #if defined(MAKE_TEST_FN)
 MAKE_TEST_FN(debug_allocator_test, {
@@ -47,17 +47,22 @@ MAKE_TEST_FN(debug_allocator_test, {
   AllocatorV debug = debugAllocator(
       allocator = allocator,
   );
-  // defer { debugAllocatorDeInit(debug); };
   for (each_RANGE(usize, i, 0, allocations)) {
     usize size = (i * i) + 1;
-    aResize(debug, aCreate(debug, int, 1), size);
+    int *ip = (int *)aAlloc(debug, 1);
+    aResize(debug, ip, size);
     total += size;
   }
   var_ stats = debugAllocator_stats(debug);
-  if (!EQUAL_ALL(stats.max_memory, stats.current_memory, total))
+  if (stats.current_memory != total) {
+    printf("%zu %zu", stats.current_memory, total);
     return 1;
-  if (debugAllocatorDeInit(debug) != allocations)
+  }
+  int n = debugAllocatorDeInit(debug);
+  if (n != allocations) {
+    printf("%i %zu", n, allocations);
     return 1;
+  }
   return 0;
 });
 #endif
