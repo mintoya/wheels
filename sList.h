@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #if !defined(SHORT_LIST_H)
   #define SHORT_LIST_H (1)
   #include "allocator.h"
@@ -53,19 +54,6 @@ static inline sList_header *sList_append(AllocatorV allocator, sList_header *l, 
   sList_set(l, width, l->length - 1, element);
   return l;
 }
-static inline sList_header *sList_appendFromArr(AllocatorV allocator, sList_header *l, usize width, void *source, usize ammount) {
-  if (!ammount)
-    return l;
-  if (l->capacity < l->length + ammount)
-    l = sList_realloc(allocator, l, width, l->length + ammount);
-  uint8_t *dest = l->buf + l->length * width;
-  if (source)
-    memcpy(dest, source, ammount * width);
-  else
-    memset(dest, 0, ammount * width);
-  l->length += ammount;
-  return l;
-}
 static inline void sList_remove(sList_header *l, usize width, usize i) {
   if (i >= l->length)
     return;
@@ -73,18 +61,31 @@ static inline void sList_remove(sList_header *l, usize width, usize i) {
   l->length--;
 }
 static inline sList_header *sList_insertFromArr(AllocatorV allocator, sList_header *l, const void *source, usize length, usize location, size_t width) {
-  if (!length || location > l->length)
+  void *ts = NULL;
+  if (length && (u8 *)source >= l->buf && (u8 *)source < l->buf + l->capacity * width) {
+    ts = aAlloc(allocator, width * length);
+    memcpy(ts, source, width * length);
+  }
+  if (!length || location > l->length) {
+    if (ts)
+      aFree(allocator, ts);
     return l;
+  }
   if (l->capacity < l->length + length)
     l = sList_realloc(allocator, l, width, l->length + length);
   void *res = l->buf + (location)*width;
   memmove(l->buf + (location + length) * width, res, (l->length - location) * width);
   if (source)
-    memcpy(res, source, length * width);
+    memcpy(res, ts ?: source, length * width);
   else
     memset(res, 0, length * width);
   l->length += length;
+  if (ts)
+    aFree(allocator, ts);
   return l;
+}
+static inline sList_header *sList_appendFromArr(AllocatorV allocator, sList_header *l, usize width, void *source, usize ammount) {
+  return sList_insertFromArr(allocator, l, source, ammount, l->length, width);
 }
 static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, usize width, usize i, void *element) {
   return sList_insertFromArr(allocator, l, element, 1, i, width);
@@ -110,9 +111,10 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
     } while (0)
   #define msList_push(allocator, s, val)                                                                          \
     do {                                                                                                          \
+      var_ _v_temp = val;                                                                                         \
       if (__builtin_expect((msList_len(s) == msList_cap(s)), 0))                                                  \
         s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), SLIST_GROW_EQ(msList_len(s)))->buf; \
-      (s)[msList_len(s)++] = (val);                                                                               \
+      (s)[msList_len(s)++] = (_v_temp);                                                                           \
     } while (0)
   #define msList_insArr(allocator, s, place, vla)                         \
     do {                                                                  \

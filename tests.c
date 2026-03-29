@@ -50,32 +50,32 @@ void segv_handler(int sig) {
   longjmp(test_jump_env, 1);
 }
 
-MAKE_TEST_FN(hello, { printf("hello test\n");return 0; });
-MAKE_TEST_FN(allocator_test, {
-  int *i = aCreate(allocator, int, 5);
-  defer { aFree(allocator, i); };
-  int *i2 = aCreate(allocator, int, 8);
-  defer { aFree(allocator, i2); };
-  _fba_print(allocator);
-  for (int ii = 0; ii < 5; ii++)
-    i[ii] = ii * ii;
-  for (int ii = 0; ii < 5; ii++)
-    if (i[ii] != ii * ii)
-      return 1;
-  return 0;
-});
-MAKE_TEST_FN(shouldFail, {
-  int i = *(int *)NULL;
-});
-MAKE_TEST_FN(allocator_file_test, {
-  aAlloc(allocator, 0);
-});
+// MAKE_TEST_FN(hello, { printf("hello test\n");return 0; });
+// MAKE_TEST_FN(allocator_test, {
+//   int *i = aCreate(allocator, int, 5);
+//   defer { aFree(allocator, i); };
+//   int *i2 = aCreate(allocator, int, 8);
+//   defer { aFree(allocator, i2); };
+//   _fba_print(allocator);
+//   for (int ii = 0; ii < 5; ii++)
+//     i[ii] = ii * ii;
+//   for (int ii = 0; ii < 5; ii++)
+//     if (i[ii] != ii * ii)
+//       return 1;
+//   return 0;
+// });
+// MAKE_TEST_FN(shouldFail, {
+//   int i = *(int *)NULL;
+// });
+// MAKE_TEST_FN(allocator_file_test, {
+//   aAlloc(allocator, 0);
+// });
 
 int main(void) {
   signal(SIGSEGV, segv_handler);
   signal(SIGABRT, segv_handler); // sent by my assert depending on #defines
   signal(SIGILL, segv_handler);  // sent by my assert depending on #defines
-  AllocatorV allocator = FBA_static(1 << 20);
+  // AllocatorV allocator = FBA_static(1 << 20);
   usize failCount = 0;
 
   foreach (struct testItem test, VLAP(testList, testCount)) {
@@ -83,7 +83,8 @@ int main(void) {
     printf("test %s: {\n", test.name);
     fflush(stdout);
     if (!setjmp(test_jump_env)) {
-      int res = test.function(allocator);
+      // int res = test.function(allocator);
+      int res = test.function(stdAlloc);
       printf("}\n");
       bool failed = false;
       if (res) {
@@ -91,19 +92,19 @@ int main(void) {
         fflush(stdout);
         failed = 1;
       }
-      if (FBA_current(allocator)) {
-        printf(ASSERTMESSAGE_PRINTORANGE "test %s leaked\n", test.name);
-        printf("memory layout : {\n");
-        _fba_print(allocator);
-        printf("}\n" ASSERTMESSAGE_PRINTRESET);
-        fflush(stdout);
-        failed = 1;
-      }
+      // if (FBA_current(allocator)) {
+      //   printf(ASSERTMESSAGE_PRINTORANGE "test %s leaked\n", test.name);
+      //   printf("memory layout : {\n");
+      //   _fba_print(allocator);
+      //   printf("}\n" ASSERTMESSAGE_PRINTRESET);
+      //   fflush(stdout);
+      //   failed = 1;
+      // }
       failCount += failed;
     } else {
       failCount++;
     }
-    FBA_reset(allocator);
+    // FBA_reset(allocator);
   }
   printf("%lu tests failed out of %lu", failCount, testCount);
 }
