@@ -404,8 +404,9 @@ HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, const usize metaSize)
       .valsize = vSize,
       .metaSize = metaSize,
   };
-  foreach_ptr(sList_header * (*v)[1], VLAP(hm->storage, hm->metaSize))
-      **v = sList_new(allocator, 2, kSize + vSize);
+  for_eachP((sList_header * *v, VLAP(hm->storage, hm->metaSize)), {
+    *v = sList_new(allocator, 2, kSize + vSize);
+  });
   return hm;
 }
 
@@ -514,15 +515,17 @@ void *HMap_get(const HMap *map, const void *key) {
 
 u32 HMap_count(const HMap *map) {
   u32 i = 0;
-  foreach (var_ v, VLAP(map->storage, map->metaSize))
+  for_each((var_ v, VLAP(map->storage, map->metaSize)), {
     i += v->length;
+  });
   return i;
 }
 
 u32 HMap_countCollisions(const HMap *map) {
   u32 collisions = 0;
-  foreach (var_ v, VLAP(map->storage, map->metaSize))
+  for_each((var_ v, VLAP(map->storage, map->metaSize)), {
     collisions += v->length ? v->length - 1 : 0;
+  });
   return collisions;
 }
 
@@ -533,8 +536,9 @@ usize HMap_footprint(const HMap *map) {
   res += sizeof(HMap);
   res += sizeof(*(map->storage)) * map->metaSize;
   res += elementSize;
-  foreach (var_ v, VLAP(map->storage, map->metaSize))
+  for_each((var_ v, VLAP(map->storage, map->metaSize)), {
     res += (elementSize)*v->length;
+  });
   return res;
 }
 bool HMap_getSet(HMap *map, const void *key, void *val) {
@@ -584,7 +588,8 @@ HMap_both HMap_getBoth(HMap *map, const void *key) {
 }
 
 void HMap_clear(HMap *map) {
-  foreach (var_ v, VLAP(map->storage, map->metaSize))
+  for_each((var_ v, VLAP(map->storage, map->metaSize)), {
     v->length = 0;
+  });
 }
 #endif // HMap_C

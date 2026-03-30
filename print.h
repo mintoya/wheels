@@ -293,8 +293,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(_void_ptr_printerfn,"ptr", void *, {
   }
 });
 REGISTER_SPECIAL_PRINTER_NEEDID(_slice_c8_printerfn, "slice(c8)", slice(c8), {
-    foreach(c32 c, slice_vla(in))
-      PUTC(c);
+    for_each((c32 c,slice_vla(in)), PUTC(c););
 });
 
 REGISTER_PRINTER(c8, { PUTC((c32)in); });

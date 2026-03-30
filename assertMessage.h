@@ -45,7 +45,7 @@ void __attribute__((noreturn)) _assertMessageFail(
     #define assertMessage(expr, ...)            \
       do {                                      \
         DIAGNOSTIC_PUSH("-Wunknown-attributes") \
-        if (!(expr)) [[unlikely]] {             \
+        if_unlikely(!(expr)) {                  \
           DIAGNOSTIC_POP()                      \
           void *array[5];                       \
           size_t size = _ASSERT_GET_BT(array);  \
