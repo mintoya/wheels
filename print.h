@@ -560,7 +560,7 @@ MAKE_PRINT_ARG_TYPE(u32);
 #endif
 // clang-format on
 
-static thread_local bool print_f_shouldFlush = 1;
+volatile static thread_local bool print_f_shouldFlush = 1;
 void print_f(outputFunction put, void *arb, const char *fmt, ...);
 
 #define print_wfO(printerfn, arb, fmt, ...)                                                       \
