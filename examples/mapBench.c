@@ -1,14 +1,30 @@
 #include "../print.h"
 #include "../shmap.h"
-#include <stdcountof.h>
 #include <time.h>
 
-#define N_ITERS 100000
+#define N_ITERS 1000000
 
-constexpr char keys[][8] = {
-    "one", "two", "three", "four",
-    "five", "six", "seven", "eight",
-    "ten", "eleven", "twelve", "thirten"
+const char keys[][8] = {
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirten",
+    "osne",
+    "asltwo",
+    "thriee",
+    "sfour",
+    "oene",
+    "aslelev",
+    "twelee",
+    "enur",
 };
 
 typedef struct {
@@ -26,11 +42,9 @@ BenchResult bench_sHmap(AllocatorV allocator) {
 
   double t0 = now_sec();
 
-  for (int it = 0; it < N_ITERS; ++it) {
-    for (int i = 0; i < countof(keys); ++i) {
+  for (each_RANGE(int, it, 0, N_ITERS))
+    for (each_RANGE(int, i, 0, countof(keys)))
       msHmap_set(sm, keys[i], i);
-    }
-  }
 
   double t1 = now_sec();
 
@@ -47,7 +61,7 @@ BenchResult bench_sHmap(AllocatorV allocator) {
   r.set_time = t1 - t0;
   r.get_time = t2 - t1;
 
-  msHmap_deinit(allocator, sm);
+  msHmap_deinit(sm);
   return r;
 }
 typedef struct {
@@ -67,21 +81,18 @@ BenchResult bench_mHmap(AllocatorV allocator) {
 
   double t0 = now_sec();
 
-  for (int it = 0; it < N_ITERS; ++it) {
-    for (int i = 0; i < countof(keys); ++i) {
+  for (each_RANGE(int, iters, 0, N_ITERS))
+    for (each_RANGE(int, i, 0, countof(keys)))
       mHmap_set(hm, convert(keys[i]), i);
-    }
-  }
 
   double t1 = now_sec();
 
-  for (int it = 0; it < N_ITERS; ++it) {
-    for (int i = 0; i < countof(keys); ++i) {
+  for (each_RANGE(int, iters, 0, N_ITERS))
+    for (each_RANGE(int, i, 0, countof(keys))) {
       int *v = mHmap_get(hm, convert(keys[i]));
       if (!v)
         abort();
     }
-  }
 
   double t2 = now_sec();
 

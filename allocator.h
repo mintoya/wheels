@@ -1,6 +1,9 @@
 #ifndef MY_ALLOCATOR_H
 #define MY_ALLOCATOR_H
+#include "mytypes.h"
 #include <stdalign.h>
+#include <stdarg.h>
+#include <stdlib.h>
 #if defined(__cplusplus)
   #include <cstddef>
 #else
@@ -10,10 +13,7 @@
 
 #define MY_ALLOCATOR_STRICTEST
 
-__attribute__((const)) extern inline uintptr_t lineup(uintptr_t unaligned, size_t aligneder) {
-  return (unaligned / aligneder + !!(unaligned % aligneder)) *
-         aligneder;
-}
+__attribute__((const)) static inline uptr lineup(uptr unalinged, usize a) { return (unalinged + (a - 1)) & ~(a - 1); }
 
 typedef struct My_allocator My_allocator;
 typedef const My_allocator *AllocatorV;
@@ -25,13 +25,13 @@ typedef const My_allocator *AllocatorV;
  *  @param 1 allocator
  *  @param 2 size    *non-0*
  */
-typedef void *(*const My_allocatorAlloc)(AllocatorV, size_t);
+typedef void *(*const My_allocatorAlloc)(AllocatorV, size_t, char *, usize);
 /**
  *  equivalent of free
  *  @param 1 allocator
  *  @param 2 pointer    *non-null* pointer must've come from same allocator
  */
-typedef void (*const My_allocatorFree)(AllocatorV, void *);
+typedef void (*const My_allocatorFree)(AllocatorV, void *, char *, usize);
 /**
  *  equivalent of realloc
  *    intended to behave as if
@@ -41,7 +41,7 @@ typedef void (*const My_allocatorFree)(AllocatorV, void *);
  *  @param 3 size       new size of allocation, non-zero
  *  @return moved pointer
  */
-typedef void *(*const My_allocatorResize)(AllocatorV, void *, size_t);
+typedef void *(*const My_allocatorResize)(AllocatorV, void *, size_t, char *, usize);
 /**
  *  get the size of an allocation/reallocation
  *  @param 1 allocator
@@ -58,9 +58,12 @@ typedef struct My_allocator {
   max_align_t /*          */ arb[];
 } My_allocator;
 
-void *aAlloc(AllocatorV allocator, size_t size);
-void *aResize(AllocatorV allocator, void *oldptr, size_t size);
-void aFree(AllocatorV allocator, void *oldptr);
+#define aAlloc(...) ((aAlloc)(__VA_ARGS__, __FILE__, __LINE__))
+#define aResize(...) ((aResize)(__VA_ARGS__, __FILE__, __LINE__))
+#define aFree(...) ((aFree)(__VA_ARGS__, __FILE__, __LINE__))
+void *(aAlloc)(AllocatorV allocator, size_t size, char *, usize);
+void *(aResize)(AllocatorV allocator, void *oldptr, size_t size, char *, usize);
+void(aFree)(AllocatorV allocator, void *oldptr, char *, usize);
 
 #include "macros.h"
 #define aCreate(allocator, type, ...)                                      \
@@ -83,40 +86,38 @@ extern AllocatorV stdAlloc;
 #if defined(MY_ALLOCATOR_C)
 #include "assertMessage.h"
 #include "mytypes.h"
-#include <stdio.h>
-void *aAlloc(AllocatorV allocator, size_t size) {
+void *(aAlloc)(AllocatorV allocator, size_t size, char *file, usize line) {
 #ifdef MY_ALLOCATOR_STRICTEST
-  assertMessage(size, "allocators cant allocate nothing");
+  assertMessage(size, "allocators cant allocate nothing : %s,%zu", file, line);
 #endif
-  void *res = (allocator)->alloc(allocator, size);
+  void *res = (allocator)->alloc(allocator, size, file, line);
 #ifdef MY_ALLOCATOR_STRICTEST
   assertMessage(res, "allocators cant return null");
   assertMessage(!((uintptr_t)res % alignof(max_align_t)), "wrong alignment out of allocator");
 #endif
   return res;
 }
-void *aResize(AllocatorV allocator, void *oldptr, size_t size) {
+void *(aResize)(AllocatorV allocator, void *oldptr, size_t size, char *file, usize line) {
 #ifdef MY_ALLOCATOR_STRICTEST
-  assertMessage(size, "allocators cant allocate nothing");
+  assertMessage(size, "allocators cant allocate nothing : %s,%zu", file, line);
   assertMessage(oldptr, "allocators cant reallocate nothing");
 #endif
-  void *res = (allocator)->resize(allocator, oldptr, size);
+  void *res = (allocator)->resize(allocator, oldptr, size, file, line);
 #ifdef MY_ALLOCATOR_STRICTEST
   assertMessage(res, "allocators cant return null, r");
   assertMessage(!((uintptr_t)res % alignof(max_align_t)), "wrong alignment out of allocator, r");
 #endif
   return res;
 }
-void aFree(AllocatorV allocator, void *oldptr) {
-
+void(aFree)(AllocatorV allocator, void *oldptr, char *file, usize line) {
 #ifdef MY_ALLOCATOR_STRICTEST
-  assertMessage(oldptr, "allocators dont deal with null");
+  assertMessage(oldptr, "allocators dont deal with null: %s %zu", file, line);
 #endif
-  ((allocator)->free(allocator, oldptr));
+  (allocator)->free(allocator, oldptr, file, line);
 }
-void *default_alloc(const My_allocator *allocator, size_t s) { return malloc(s); }
-void *default_r_alloc(const My_allocator *allocator, void *p, size_t s) { return realloc(p, s); }
-void default_free(const My_allocator *allocator, void *p) { return free(p); }
+void *default_alloc(const My_allocator *allocator, size_t s, char *, usize) { return malloc(s); }
+void *default_r_alloc(const My_allocator *allocator, void *p, size_t s, char *, usize) { return realloc(p, s); }
+void default_free(const My_allocator *allocator, void *p, char *, usize) { return free(p); }
 #if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
   #define DEFAULT_SIZE_GETTER (1)
   #include <malloc.h>

@@ -1,29 +1,38 @@
 #include "../arenaAllocator.h"
 #include "../debugallocator.h"
 #include "../mylist.h"
+#include "../print.h"
 #include "../wheels.h"
+#include <stddefer.h>
 int main(void) {
-  Arena_scoped *s = arena_new_ext(stdAlloc, 1024);
+  AllocatorV *s = arena_new_ext(stdAlloc, 1024);
+  defer { arena_cleanup(s); };
+
   AllocatorV local = debugAllocator(
       log = stderr,
       allocator = stdAlloc,
   );
   defer { print("{} leaks detected\n", (isize)debugAllocatorDeInit(local)); };
 
-  print("--- Testing mList ---\n");
-  mList_scoped(int) m_list = mList_init(local, int);
+  mList(int) ints = mList_init(local, int, 1000);
+  defer { mList_deInit(ints); };
 
-  mList_push(m_list, 10);
-  mList_push(m_list, 20);
-  mList_push(m_list, 30);
-  mList_ins(m_list, 1, 15);
-  mList_rem(m_list, 2);
+  for (each_RANGE(int, i, 0, 100))
+    mList_push(ints, i);
 
-  int m_popped = mList_pop(m_list);
-  print("mList popped: {} (Expected: 30)\n", m_popped);
+  var_ ints2 = mList_map(
+      ints, local, i, ({
+        struct intbuf {
+          char buf[12];
+        };
+        struct intbuf bufa;
+        snprintf(bufa.buf, sizeof(bufa), "%d", i * i);
+        bufa;
+      })
+  );
 
-  for (each_VLAP(it, mList_vla(m_list)))
-      print("m_list iter: {}\n", *it);
-
+  defer { mList_deInit(ints2); };
+  foreach (var_ i, mList_vla(ints2))
+    println("{cstr}", (c8 *)i.buf);
   return 0;
 }

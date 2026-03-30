@@ -22,7 +22,7 @@ typedef struct stringList {
 struct u64_vl_max {
   vlength _[sizeof(u64) * 8 / 7 + 1];
 };
-extern inline struct u64_vl_max u64_toVlen(u64 len) {
+static inline struct u64_vl_max u64_toVlen(u64 len) {
   typeof(u64_toVlen(0)) res = {0};
   for (int i = countof(res._); i > 0; i--)
     res._[countof(res._) - i] = (typeof(*res._)){
@@ -31,14 +31,14 @@ extern inline struct u64_vl_max u64_toVlen(u64 len) {
     };
   return res;
 }
-extern inline u64 vlen_toU64(struct vlength *vlen) {
+static inline u64 vlen_toU64(struct vlength *vlen) {
   u64 res = 0;
   do
     res = (res << 7) | (vlen->data);
   while (vlen++->hasNext);
   return res;
 }
-extern inline fptr vlqbuf_toFptr(vlength *b) {
+static inline fptr vlqbuf_toFptr(vlength *b) {
   return (fptr){
       .len = (usize)vlen_toU64(b),
       .ptr = ({
@@ -184,10 +184,10 @@ MAKE_TEST_FN(test_stringList_churn_stats, {
 #endif
 
 #if defined(STRING_LIST_C)
-  #include <stdcountof.h>
   #include <stddef.h>
-  #include <string.h>
-static_assert(sizeof(vlength) == sizeof(u8), "vlength warning");
+
+int STRINGLIST_INTS_EQUAL = ASSERT_EXPR(sizeof(struct vlength) == sizeof(char), "");
+
   #define vlen_stat(stringLiteral) ({                 \
     static struct [[gnu::packed]] {                   \
       typeof(u64_toVLen(0)) len;                      \
@@ -267,12 +267,12 @@ fptr stringList_append(stringList *sl, fptr ptr) {
     } else {
       offset = sl->flist[insert.i - 1];
       msList_rem(sl->flist, insert.i - 1);
-      { // split buffer
+      if (false) { // split buffer
         fptr op = vlqbuf_toFptr((vlength *)sl->buff + offset);
         usize newlen =
             op.len - ptr.len - countof(u64_toVlen(0)._);
-        __auto_type b = u64_toVlen(newlen);
-        __auto_type bp = b._;
+        var_ b = u64_toVlen(newlen);
+        var_ bp = b._;
         usize bpl = countof(b._);
         while (bitcast(u8, *bp) == bitcast(u8, ((vlength){.hasNext = 1, .data = 0}))) {
           bp++;

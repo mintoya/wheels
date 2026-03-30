@@ -28,7 +28,7 @@ __attribute__((pure))
  * @return pointer to i`th element
  *      - even if i is out of bounds
  */
-extern inline void *
+static inline void *
 List_getRefForce(const List *l, List_index_t i, size_t width) { return (l->head + width * i); };
 __attribute__((pure))
 /**
@@ -37,7 +37,7 @@ __attribute__((pure))
  * @return pointer to i`th element
  *      - null if i is more than l.length
  */
-extern inline void *
+static inline void *
 List_getRef(const List *l, List_index_t i, size_t width) { return (i < l->length) ? (l->head + width * i) : (NULL); }
 /**
  * writes list to l
@@ -55,7 +55,7 @@ extern inline void List_resize(List *l, List_index_t newSize, size_t width);
  * @param bytes size of each element
  * @return new list
  */
-extern inline List *List_new(AllocatorV allocator, size_t width) {
+static inline List *List_new(AllocatorV allocator, size_t width) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
   List_makeNew(allocator, l, width, 2);
   return l;
@@ -65,12 +65,12 @@ extern inline List *List_new(AllocatorV allocator, size_t width) {
  * @param l list
  */
 void List_free(List *l);
-extern inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t initSize) {
+static inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t initSize) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
   List_makeNew(allocator, l, bytes, initSize);
   return l;
 }
-__attribute__((always_inline)) extern inline void List_set(List *l, List_index_t i, const void *element, size_t width) {
+__attribute__((always_inline)) static inline void List_set(List *l, List_index_t i, const void *element, size_t width) {
   void *place = List_getRef(l, i, width);
   if (place)
     element
@@ -93,14 +93,6 @@ void List_insert(List *l, List_index_t i, void *element, size_t width);
  */
 List *List_fromArr(AllocatorV, const void *source, size_t size, List_index_t length);
 /**
- * inserts elements into list
- * @param l list
- * @param source pointer to value
- * @param length element count
- * @return adress of first inserted element
- */
-void *List_appendFromArr(List *l, const void *source, List_index_t length, size_t width);
-/**
  * inserts list into list
  * @param l list
  * @param source pointer to values
@@ -108,8 +100,18 @@ void *List_appendFromArr(List *l, const void *source, List_index_t length, size_
  * @return adress of first inserted element
  */
 void *List_insertFromArr(List *l, const void *source, List_index_t length, List_index_t location, size_t width);
+/**
+ * inserts elements into list
+ * @param l list
+ * @param source pointer to value
+ * @param length element count
+ * @return adress of first inserted element
+ */
+extern inline void *List_appendFromArr(List *l, const void *source, List_index_t ammount, size_t width) {
+  return List_insertFromArr(l, source, ammount, l->length, width);
+}
 
-__attribute__((pure)) extern inline List_index_t List_length(const List *l) { return l ? l->length : 0; }
+__attribute__((pure)) static inline List_index_t List_length(const List *l) { return l ? l->length : 0; }
 /*
  * searches for a value which has an identical value to element
  * @param list
@@ -137,8 +139,9 @@ template <typename T>
 using mList_t = T (**)(List *);
   #define mList(T) mList_t<T>
 #else
-  #define mList(T) typeof(T(**)(List *))
+  #define mList(T, ...) typeof(T(*__VA_ARGS__ *)(List *))
 #endif
+#define is_const_ptr(p) _Generic((p), const typeof(*p) *: 1, default: 0)
 
 #include "macros.h"
 #define mList_scoped(T) __attribute__((cleanup(List_cleanup_handler))) mList(T)
@@ -156,9 +159,10 @@ using mList_t = T (**)(List *);
 #define mList_arr(list) (((mList_iType(list) *)(((List *)(list))->head)))
 #define mList_len(list) (((List *)(list))->length)
 #define mList_cap(list) (((List *)(list))->capacity)
-
+#define mList_no_modify_test(list) int MLIST_CONST_INT_TEST = ASSERT_EXPR(!is_const_ptr(list), "")
 #define mList_push(list, val)                            \
   do {                                                   \
+    mList_no_modify_test(list);                          \
     if (mList_len(list) >= mList_cap(list)) [[unlikely]] \
       List_resize(                                       \
           (List *)list,                                  \
@@ -169,25 +173,30 @@ using mList_t = T (**)(List *);
   } while (0)
 
 #define mList_pop(list) ({            \
+  mList_no_modify_test(list);         \
   mList_arr(list)[--mList_len(list)]; \
 })
 #define mList_popFront(list)                       \
   ({                                               \
+    mList_no_modify_test(list);                    \
     mList_iType(list) result = mList_arr(list)[0]; \
     mList_rem(list, 0);                            \
     result;                                        \
   })
 #define mList_ins(list, index, val)                          \
   do {                                                       \
+    mList_no_modify_test(list);                              \
     mList_iType(list) value = val;                           \
     List_insert((List *)list, index, &value, sizeof(value)); \
   } while (0)
 #define mList_rem(list, index)                                   \
   do {                                                           \
+    mList_no_modify_test(list);                                  \
     List_remove((List *)list, index, sizeof(mList_iType(list))); \
   } while (0)
 #define mList_setCap(list, capacity) \
   do {                               \
+    mList_no_modify_test(list);      \
     List_forceResize(                \
         (List *)(list),              \
         capacity,                    \
@@ -196,24 +205,28 @@ using mList_t = T (**)(List *);
   } while (0)
 #define mList_reserve(list, capacity)                                 \
   do {                                                                \
+    mList_no_modify_test(list);                                       \
     List_resize((List *)(list), capacity, sizeof(mList_iType(list))); \
   } while (0)
-#define mList_pushArr(list, vla)                                    \
-  do {                                                              \
-    static_assert(types_eq(typeof(vla[0]), mList_iType(list)), ""); \
-    List_appendFromArr(                                             \
-        (List *)list,                                               \
-        vla,                                                        \
-        sizeof(vla) / sizeof(vla[0]),                               \
-        sizeof(vla[0])                                              \
-    );                                                              \
+#define mList_pushArr(list, vla)                                      \
+  do {                                                                \
+    mList_no_modify_test(list);                                       \
+    0 + ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), ""); \
+    List_appendFromArr(                                               \
+        (List *)list,                                                 \
+        vla,                                                          \
+        sizeof(vla) / sizeof(vla[0]),                                 \
+        sizeof(vla[0])                                                \
+    );                                                                \
   } while (0)
 #define mList_insArr(list, position, vla)                                                          \
+  mList_no_modify_test(list);                                                                      \
   do {                                                                                             \
-    static_assert(types_eq(typeof(vla[0]), mList_iType(list)), "");                                \
+    0 + ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), "");                              \
     List_insertFromArr((List *)list, vla, sizeof(vla) / sizeof(vla[0]), position, sizeof(vla[0])); \
   } while (0)
 #define mList_pad(list, ammount)  \
+  mList_no_modify_test(list);     \
   do {                            \
     List_appendFromArr(           \
         (List *)list,             \
@@ -222,16 +235,30 @@ using mList_t = T (**)(List *);
     );                            \
   } while (0)
 #define mList_clear(list)       \
-  do                            \
+  do {                          \
+    mList_no_modify_test(list); \
     ((List *)list)->length = 0; \
-  while (0)
+  } while (0)
+#define mList_map(list, allocator, var_iable, expr)                                                           \
+  ({                                                                                                          \
+    __auto_type list_type = list;                                                                             \
+    mList(mList_iType(list_type), const) list = list_type;                                                    \
+    typeof(({mList_iType(list) var_iable;expr; })) unused_type_infer;                                                                          \
+    mList(typeof(unused_type_infer)) res = mList_init(allocator, typeof(unused_type_infer), mList_len(list)); \
+    for (typeof(mList_iType(list)) var_iable,                                                                 \
+         *mList_foreach_curr = (typeof(mList_iType(list) *))mList_vla(list),                                  \
+         *const end___mList_foreach = (typeof(mList_iType(list) *))mList_vla(list)[1];                        \
+         (mList_foreach_curr < end___mList_foreach && (var_iable = *mList_foreach_curr, true));               \
+         mList_foreach_curr++)                                                                                \
+      mList_push(res, (expr));                                                                                \
+    res;                                                                                                      \
+  })
 #define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
 // #include "tests.c"
 #if defined(MAKE_TEST_FN)
-
 MAKE_TEST_FN(mlist_push_pop, {
-    mList(int) list = mList_init(allocator, int);
-    defer { mList_deInit(list); };
+  mList(int) list = mList_init(allocator, int);
+  defer { mList_deInit(list); };
 
   for (each_RANGE(usize, i, 0, 50))
     mList_push(list, i * i);
@@ -241,36 +268,29 @@ MAKE_TEST_FN(mlist_push_pop, {
 
   return 0;
 });
-
 MAKE_TEST_FN(mlist_insert_remove, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
-
   mList_push(list, 100);
   mList_push(list, 300);
-    
-  mList_ins(list, 1, 200);
+  mList_ins(list, 1, 200);
   if (mList_len(list) != 3)
     return 1;
   if (mList_arr(list)[1] != 200)
     return 1;
-
   mList_rem(list, 0);
   if (mList_len(list) != 2)
     return 1;
   if (mList_arr(list)[0] != 200)
     return 1;
-
   if (mList_popFront(list) != 200)
     return 1;
   if (mList_len(list) != 1)
     return 1;
   if (mList_arr(list)[0] != 300)
     return 1;
-
   return 0;
 });
-
 MAKE_TEST_FN(mlist_array_operations, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
@@ -293,7 +313,6 @@ MAKE_TEST_FN(mlist_array_operations, {
 
   return 0;
 });
-
 MAKE_TEST_FN(mlist_capacity_and_padding, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
@@ -316,11 +335,9 @@ MAKE_TEST_FN(mlist_capacity_and_padding, {
 
   return 0;
 });
-
 MAKE_TEST_FN(mlist_vla_cast, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
-
   mList_push(list, 7);
   mList_push(list, 8);
   mList_push(list, 9);
@@ -329,7 +346,6 @@ MAKE_TEST_FN(mlist_vla_cast, {
     return 1;
   return 0;
 });
-
 #endif
 #endif // MY_LIST_H
 
@@ -422,21 +438,28 @@ List *List_fromArr(AllocatorV allocator, const void *source, size_t width, List_
   return res;
 }
 void *List_insertFromArr(List *l, const void *source, List_index_t length, List_index_t location, size_t width) {
-  if (!length || location > l->length)
-    return NULL;
+  void *ts = NULL;
+  if (length && (u8 *)source >= l->head && (u8 *)source < l->head + l->capacity * width) {
+    ts = aAlloc(l->allocator, width * length);
+    memcpy(ts, source, width * length);
+  }
+  if (!length || location > l->length) {
+    if (ts)
+      aFree(l->allocator, ts);
+    return l;
+  }
   if (l->capacity < l->length + length)
     List_resize(l, l->length + length, width);
   void *res = l->head + (location)*width;
   memmove(l->head + (location + length) * width, res, (l->length - location) * width);
   if (source)
-    memcpy(res, source, length * width);
+    memcpy(res, ts ?: source, length * width);
   else
     memset(res, 0, length * width);
   l->length += length;
-  return res;
-}
-void *List_appendFromArr(List *l, const void *source, List_index_t ammount, size_t width) {
-  return List_insertFromArr(l, source, ammount, l->length, width);
+  if (ts)
+    aFree(l->allocator, ts);
+  return l;
 }
 
 List *List_deepCopy(List *l, size_t width) { return List_fromArr(l->allocator, l->head, width, l->length); }

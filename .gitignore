@@ -9,3 +9,4 @@ zig-out/bin
 a.out
 a.exe
 a.pdb
+/examples/includeAll.o

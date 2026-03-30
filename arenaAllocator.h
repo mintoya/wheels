@@ -2,14 +2,9 @@
 #define ARENA_ALLOCATOR_H
 #include "allocator.h"
 #include "assertMessage.h"
+#include "macros.h"
 #include "mytypes.h"
 #include <string.h>
-#if HAS_ASAN
-  #include <sanitizer/asan_interface.h>
-#else
-  #define ASAN_POISON_MEMORY_REGION(addr, size) ((void)(addr, size))
-  #define ASAN_UNPOISON_MEMORY_REGION(addr, size) ((void)(addr, size))
-#endif
 
 // create arena based on another arena
 AllocatorV arena_new_ext(AllocatorV base, usize blockSize);
@@ -62,10 +57,11 @@ MAKE_TEST_FN(arena_test, {
 #endif
 
 #if defined(ARENA_ALLOCATOR_C)
+#include "fbaAllocator.h"
 
-void my_arena_free(AllocatorV arena, voidptr ptr);
-voidptr my_arena_alloc(AllocatorV arena, usize size);
-voidptr my_arena_r_alloc(AllocatorV arena, voidptr ptr, usize size);
+void my_arena_free(AllocatorV arena, voidptr ptr, char *, usize);
+voidptr my_arena_alloc(AllocatorV arena, usize size, char *, usize);
+voidptr my_arena_r_alloc(AllocatorV arena, voidptr ptr, usize size, char *, usize);
 usize my_arena_realsize(AllocatorV arena, voidptr ptr);
 
 typedef struct ArenaHead ArenaHead;
@@ -124,7 +120,7 @@ void ownArenaDeInit(My_allocator *d) {
 }
 AllocatorV arena_new_ext(AllocatorV base, usize blockSize) {
   My_arena_includeBlock *res = aCreate(base, My_arena_includeBlock);
-  static constexpr auto defaultArena =
+  static const var_ defaultArena =
       (My_allocator){
           .alloc = my_arena_alloc,
           .free = my_arena_free,
@@ -153,7 +149,6 @@ void arena_clear(AllocatorV arena) {
   while (it) {
     ArenaBuf *next = it->next;
     it->offset = 0;
-    ASAN_POISON_MEMORY_REGION(it->buffer, it->capacity);
     it = next;
   }
 }
@@ -172,15 +167,15 @@ void sync_fba(ArenaBuf *ab, FBA_State fba) {
   ab->capacity = fba.capacity;
   ab->offset = fba.offset;
 }
-void my_arena_free(AllocatorV arena, void *ptr) {
+void my_arena_free(AllocatorV arena, void *ptr, char *fn, usize line) {
   My_arena_includeBlock *maib = (typeof(maib))arena;
   ArenaBuf *b = maib->block->next;
   while (b && !inarena(b, ptr))
     b = b->next;
   assertMessage(b, "ptr not in any arena block");
   FBA_State fbs = arena_toFBA(b);
-  defer { sync_fba(b, fbs); };
-  _fba_free(fbs.allocator, ptr);
+  _fba_free(fbs.allocator, ptr, fn, line);
+  sync_fba(b, fbs);
 }
 usize my_arena_realsize(AllocatorV arena, void *ptr) {
   My_arena_includeBlock *maib = (typeof(maib))arena;
@@ -189,28 +184,28 @@ usize my_arena_realsize(AllocatorV arena, void *ptr) {
     b = b->next;
   assertMessage(b, "ptr not in any arena block");
   FBA_State fbs = arena_toFBA(b);
-  defer { sync_fba(b, fbs); };
   return _fba_size(fbs.allocator, ptr);
 }
-void *my_arena_r_alloc(AllocatorV arena, void *ptr, usize size) {
+void *my_arena_r_alloc(AllocatorV arena, void *ptr, usize size, char *fn, usize ln) {
   My_arena_includeBlock *maib = (typeof(maib))arena;
   ArenaBuf *b = maib->block->next;
   while (b && !inarena(b, ptr))
     b = b->next;
   assertMessage(b, "ptr not in any arena block");
   FBA_State fbs = arena_toFBA(b);
-  defer { sync_fba(b, fbs); };
+  var_ fr = &fbs;
+  defer { sync_fba(b, *fr); };
   void *inplace =
       _fba_resize_nullable(fbs.allocator, ptr, size);
   if (inplace)
     return inplace;
-  void *res = my_arena_alloc(arena, size);
+  void *res = my_arena_alloc(arena, size, fn, ln);
   usize oldsize = my_arena_realsize(arena, ptr);
   memcpy(res, ptr, oldsize);
-  my_arena_free(arena, ptr);
+  my_arena_free(arena, ptr, fn, ln);
   return res;
 }
-void *my_arena_alloc(AllocatorV arena, usize size) {
+void *my_arena_alloc(AllocatorV arena, usize size, char *filename, usize ln) {
   My_arena_includeBlock *maib = (typeof(maib))arena;
   ArenaBuf *b = maib->block->next;
   void *res = nullptr;

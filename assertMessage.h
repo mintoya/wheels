@@ -4,7 +4,6 @@
 #include "mytypes.h"
 #include <assert.h>
 #include <stdarg.h>
-#include <stdcountof.h>
 #include <stdio.h>
 #include <stdlib.h>
 #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
@@ -43,21 +42,22 @@ void __attribute__((noreturn)) _assertMessageFail(
       #define _ASSERT_GET_BT(arr) 0
     #endif
 
-    #define assertMessage(expr, ...)           \
-      do {                                     \
-        bool result = (expr);                  \
-        if (__builtin_expect(!result, 0)) {    \
-          void *array[5];                      \
-          size_t size = _ASSERT_GET_BT(array); \
-          _assertMessageFail(                  \
-              #expr,                           \
-              __PRETTY_FUNCTION__,             \
-              __FILE__,                        \
-              __LINE__,                        \
-              array,                           \
-              size, "" __VA_ARGS__             \
-          );                                   \
-        }                                      \
+    #define assertMessage(expr, ...)            \
+      do {                                      \
+        DIAGNOSTIC_PUSH("-Wunknown-attributes") \
+        if (!(expr)) [[unlikely]] {             \
+          DIAGNOSTIC_POP()                      \
+          void *array[5];                       \
+          size_t size = _ASSERT_GET_BT(array);  \
+          _assertMessageFail(                   \
+              #expr,                            \
+              __PRETTY_FUNCTION__,              \
+              __FILE__,                         \
+              __LINE__,                         \
+              array,                            \
+              size, "" __VA_ARGS__              \
+          );                                    \
+        }                                       \
       } while (0)
   #else
     #include <assert.h>
@@ -73,7 +73,7 @@ __builtin_trap();
                                   \
   do {                            \
                                   \
-    static bool hasRun = false;   \
+    static char hasRun = false;   \
                                   \
     if (!hasRun)                  \
       assertMessage(__VA_ARGS__); \
