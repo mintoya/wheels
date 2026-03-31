@@ -9,26 +9,16 @@
 #include <locale.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
-#if __has_include(<wchar.h>)
-  #include <wchar.h>
-#endif
-
-#if defined(PRINTER_NOC32TOMB) || !__has_include(<uchar.h>)
-static inline usize c32rtomb(char *s, c32 chars, mbstate_t *_) {
-  return s ? (*s = (char)chars, 0) : 1;
-}
-#else
-  #include <uchar.h>
-#endif
 
 typedef void (*outputFunction)(
-    const c32 *,
+    const c8 *,
     void *,
-    unsigned int,
+    usize,
     bool
 );
-typedef void (*printerFunction)(
+typedef usize (*printerFunction)(
     outputFunction,
     const void *,
     fptr args,
@@ -63,58 +53,25 @@ typedef pEsc printerEscape;
 
 #if !defined(NOFILEPRINTER)
 static void fileprint(
-    const c32 *c,
+    const c8 *c,
     void *fileHandle,
-    unsigned int length,
+    usize length,
     bool flush
 ) {
-  #define BUF_ELEMENTS (2 << 8)
-  #define MAX_UTF8_BYTES 4
   FILE *file = (FILE *)fileHandle;
 
   static thread_local struct {
-    c32 buf[BUF_ELEMENTS];
-    c8 crBuf[BUF_ELEMENTS * MAX_UTF8_BYTES];
+    c8 buf[1 << 9];
     usize place;
   } buffer = {0};
 
   static thread_local mbstate_t mbs = {0};
-  if (flush || (buffer.place + length) > BUF_ELEMENTS) {
-    usize writeByteCount = 0;
-    char *dest = (char *)buffer.crBuf;
-    for (usize i = 0; i < buffer.place; i++) {
-      isize writelen = c32rtomb(dest + writeByteCount, buffer.buf[i], &mbs);
-      if (writelen == -1) {
-        memset(&mbs, 0, sizeof(mbs));
-        continue;
-      }
-      writeByteCount += writelen;
-    }
-
-    for (usize i = 0; i < length; i++) {
-      if (writeByteCount + MAX_UTF8_BYTES > sizeof(buffer.crBuf)) {
-        fwrite(buffer.crBuf, 1, writeByteCount, file);
-        writeByteCount = 0;
-      }
-
-      isize writelen = c32rtomb(dest + writeByteCount, c[i], &mbs);
-      if (writelen == -1) {
-        memset(&mbs, 0, sizeof(mbs));
-        continue;
-      }
-      writeByteCount += writelen;
-    }
-    if (writeByteCount > 0) {
-      fwrite(buffer.crBuf, 1, writeByteCount, file);
-    }
-    if (flush) {
-      fflush(file);
-    }
-
+  if (flush || (buffer.place + length) > countof(buffer.buf)) {
+    fwrite(buffer.buf, sizeof(c8), buffer.place, file);
+    fwrite(c, sizeof(c8), length, file);
     buffer.place = 0;
-
   } else {
-    memcpy(buffer.buf + buffer.place, c, length * sizeof(c32));
+    memcpy(buffer.buf + buffer.place, c, length * sizeof(c8));
     buffer.place += length;
   }
 }
@@ -158,14 +115,11 @@ static printerFunction PrinterSingleton_get(fptr name) {
 }
 
 // arg utils
-// clang-format off
 
 unsigned int printer_arg_indexOf(fptr string, char c);
-fptr printer_arg_until(char delim, fptr string) ;
-fptr printer_arg_after(char delim, fptr slice) ;
-fptr printer_arg_trim(fptr in) ;
-
-// clang-format on
+fptr printer_arg_until(char delim, fptr string);
+fptr printer_arg_after(char delim, fptr slice);
+fptr printer_arg_trim(fptr in);
 
 #ifdef _WIN32
   #include <windows.h>
@@ -191,16 +145,17 @@ __attribute__((constructor(201))) static void printerInit() {
 #define UNIQUE_PRINTER_FN2 \
   LABEL_PRINTER_GEN(printerConstructor, UNIQUE_GEN_PRINTER)
 
-#define PUTS(characters) put((c32 *)U##characters, _arb, (sizeof(U##characters) / sizeof(c32)) - 1, 0)
-#define PUTC(character) put(REF(c32, (c32)(character)), _arb, 1, 0)
+#define PUTS(characters) put(characters, _arb, countof(characters) - 1, 0)
+#define PUTC(character) put(ASSERT_EXPR(types_eq(c8, typeof(character)), "") + REF(c8, character), _arb, 1, 0)
 
 #define REGISTER_PRINTER(T, ...)                                       \
-  static void GETTYPEPRINTERFN(T)(                                     \
+  static usize GETTYPEPRINTERFN(T)(                                    \
       outputFunction put, const void *_v_in_ptr, fptr args, void *_arb \
   ) {                                                                  \
     (void)args;                                                        \
     T in = *(T *)_v_in_ptr;                                            \
-    __VA_ARGS__                                                        \
+    __VA_ARGS__;                                                       \
+    return sizeof(T);                                                  \
   }                                                                    \
   __attribute__((constructor(202))) static void register_##T() {       \
     fptr key = (fptr){                                                 \
@@ -210,17 +165,18 @@ __attribute__((constructor(201))) static void printerInit() {
     PrinterSingleton_append(key, GETTYPEPRINTERFN(T));                 \
   }
 
-#define REGISTER_SPECIAL_PRINTER_NEEDID(id, str, type, ...)                          \
-  static void id(outputFunction put, const void *_v_in_ptr, fptr args, void *_arb) { \
-    type in = *(typeof(in) *)_v_in_ptr;                                              \
-    __VA_ARGS__                                                                      \
-  }                                                                                  \
-  __attribute__((constructor(203))) static void UNIQUE_PRINTER_FN2() {               \
-    fptr key = (fptr){                                                               \
-        .len = strlen(str),                                                          \
-        .ptr = (uint8_t *)str,                                                       \
-    };                                                                               \
-    PrinterSingleton_append(key, id);                                                \
+#define REGISTER_SPECIAL_PRINTER_NEEDID(id, str, type, ...)                           \
+  static usize id(outputFunction put, const void *_v_in_ptr, fptr args, void *_arb) { \
+    type in = *(typeof(in) *)_v_in_ptr;                                               \
+    __VA_ARGS__;                                                                      \
+    return sizeof(in);                                                                \
+  }                                                                                   \
+  __attribute__((constructor(203))) static void UNIQUE_PRINTER_FN2() {                \
+    fptr key = (fptr){                                                                \
+        .len = strlen(str),                                                           \
+        .ptr = (uint8_t *)str,                                                        \
+    };                                                                                \
+    PrinterSingleton_append(key, id);                                                 \
   }
 
 #define REGISTER_SPECIAL_PRINTER(str, type, ...) \
@@ -233,32 +189,12 @@ __attribute__((constructor(201))) static void printerInit() {
       printer_arg_trim(printer_arg_until(':', fp_from(strname))), put,    \
       printer_arg_after(':', fp_from(strname)), _arb                      \
   );
-#define PRINTERARGSEACH(...)                     \
-  fptr tempargs = printer_arg_trim(args);        \
-  while (tempargs.len) {                         \
-    fptr arg = printer_arg_until(' ', tempargs); \
-    __VA_ARGS__                                  \
-    tempargs = printer_arg_after(' ', tempargs); \
-    tempargs = printer_arg_trim(tempargs);       \
-  }
-
-#define REGISTER_ALIASED_PRINTER(realtype, alias)                            \
-  __attribute__((constructor(202))) static void register__##alias() {        \
-    fptr key = (fptr){                                                       \
-        .len = sizeof(EXPAND_AND_STRINGIFY(alias)) - 1,                      \
-        .ptr = (uint8_t *)EXPAND_AND_STRINGIFY(alias),                       \
-    };                                                                       \
-    uint8_t *refFn =                                                         \
-        (uint8_t *)(void *)REF(printerFunction, GETTYPEPRINTERFN(realtype)); \
-    PrinterSingleton_append(key, GETTYPEPRINTERFN(realtype));                \
-  }
 
 struct print_arg {
   void *ref;
   fptr name;
 };
 void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr args, void *arb);
-// clang-format off
 
 // examples with builtin types
 // the behavior of PUTS is modular
@@ -276,7 +212,7 @@ void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr 
 // ex: "fptr<void>: c0 length"
 //
 
-REGISTER_SPECIAL_PRINTER_NEEDID(_void_ptr_printerfn,"ptr", void *, {
+REGISTER_SPECIAL_PRINTER_NEEDID(_void_ptr_printerfn, "ptr", void *, {
   uintptr_t v = (uintptr_t)in;
   PUTS("0x");
 
@@ -287,41 +223,53 @@ REGISTER_SPECIAL_PRINTER_NEEDID(_void_ptr_printerfn,"ptr", void *, {
     if (nibble || !leading || shift == 0) {
       leading = 0;
       char c = (nibble < 10) ? ('0' + nibble) : ('a' + nibble - 10);
-      PUTC((c32)c);
+      PUTC(c);
     }
     shift -= 4;
   }
 });
 REGISTER_SPECIAL_PRINTER_NEEDID(_slice_c8_printerfn, "slice(c8)", slice(c8), {
-    for_each((c32 c,slice_vla(in)), PUTC(c););
+  for_each((c8 c, slice_vla(in)), PUTC(c););
 });
 
-REGISTER_PRINTER(c8, { PUTC((c32)in); });
-REGISTER_PRINTER(c32, { PUTC(in); });
+REGISTER_PRINTER(c8, { PUTC(in); });
 REGISTER_SPECIAL_PRINTER("cstr", char *, {
   if (!in)
     in = "__NULLCSTR__";
-  while (*in) {
-    PUTC((c32)*in);
-    in++;
+  while (*in)
+    PUTC(*in++);
+});
+REGISTER_PRINTER(c32, {
+  if (in <= 0x7F) {
+    PUTC((c8)in);
+  } else if (in <= 0x7FF) {
+    PUTC((c8)(0xC0 | (in >> 6)));
+    PUTC((c8)(0x80 | (in & 0x3F)));
+  } else if (in <= 0xFFFF) {
+    PUTC((c8)(0xE0 | (in >> 12)));
+    PUTC((c8)(0x80 | ((in >> 6) & 0x3F)));
+    PUTC((c8)(0x80 | (in & 0x3F)));
+  } else {
+    PUTC((c8)(0xF0 | (in >> 18)));
+    PUTC((c8)(0x80 | ((in >> 12) & 0x3F)));
+    PUTC((c8)(0x80 | ((in >> 6) & 0x3F)));
+    PUTC((c8)(0x80 | (in & 0x3F)));
   }
 });
-REGISTER_SPECIAL_PRINTER("wcstr", c32 *, {
-  if (!in)
-    in = (c32 *)U"__NULLCSTR__";
-  while (*in) {
-    PUTC(*in);
-    in++;
-  }
+REGISTER_SPECIAL_PRINTER("c32str", c32 *, {
+  in = in ?: U"__NULLCSTR__";
+  while (*in)
+    USETYPEPRINTER(c32, *in++);
 });
-
 REGISTER_PRINTER(usize, {
-  c32 digits[sizeof(usize)*8/3];
+  c8 digits[sizeof(usize) * 8 / 3];
   u8 digit = 0;
   usize l = 1;
   while (l <= in / 10) {
-    if (l * 10 < l) break;
-    else l = l * 10;
+    if (l * 10 < l)
+      break;
+    else
+      l = l * 10;
   }
   while (l) {
     char c = in / l + '0';
@@ -333,82 +281,77 @@ REGISTER_PRINTER(usize, {
 });
 REGISTER_PRINTER(isize, {
   usize uin = (usize)in;
-  if (in < 0) { PUTC(L'-'); uin =0-in; }
+  if (in < 0) {
+    PUTC((c8)'-');
+    uin = 0 - in;
+  }
   USETYPEPRINTER(usize, uin);
 });
 
 REGISTER_PRINTER(f128, {
   usize digits = 0;
-  if (( args = printer_arg_trim(args) ).len)  
-    for(var_ i = 0;i<args.len && (args.ptr[i]<= '9' && args.ptr[i]>= '0');i++){
-      digits*=10;
-      digits+=args.ptr[i]-'0';
+  if ((args = printer_arg_trim(args)).len)
+    for (var_ i = 0; i < args.len && (args.ptr[i] <= '9' && args.ptr[i] >= '0'); i++) {
+      digits *= 10;
+      digits += args.ptr[i] - '0';
     }
-   
-  digits = digits?:3;
-  in = in<0?(PUTC(L'-'),-in):in;
+
+  digits = digits ?: 3;
+  in = in < 0 ? (PUTC((c8)'-'), -in) : in;
   f128 u = in;
 
   f128 round = 0.5;
-  for(usize i = 0; i < digits; i++){
+  for (usize i = 0; i < digits; i++) {
     round /= 10.0;
   }
   u += round;
 
   f128 tens = 1;
-  while(u / tens >= 10){
-    tens*=10;
+  while (u / tens >= 10) {
+    tens *= 10;
   }
 
-  while(tens >= 1){
+  while (tens >= 1) {
     int d = (int)(u / tens);
-    PUTC(d + '0');
+    PUTC((c8)(d + '0'));
     u -= (f128)d * tens;
     tens /= 10;
   }
 
-  if(digits > 0){
-    PUTC('.');
-    for(usize i = 0;i<digits;i++){
+  if (digits > 0) {
+    PUTC((c8)'.');
+    for (usize i = 0; i < digits; i++) {
       u *= 10;
       int d = (int)u;
-      PUTC(d + '0');
+      PUTC((c8)(d + '0'));
       u -= (f128)d;
     }
   }
 });
 REGISTER_PRINTER(float, {
   f128 r = (f128)in;
-  print_f_helper((struct print_arg) {.ref = (void*)&r},
-    fp("f128"), put, args, _arb
-  );
+  print_f_helper((struct print_arg){.ref = (void *)&r}, fp("f128"), put, args, _arb);
 });
 REGISTER_PRINTER(double, {
   f128 r = (f128)in;
-  print_f_helper((struct print_arg) {.ref = (void*)&r},
-    fp("f128"), put, args, _arb
-  );
+  print_f_helper((struct print_arg){.ref = (void *)&r}, fp("f128"), put, args, _arb);
 });
 REGISTER_PRINTER(ldouble, {
   f128 r = (f128)in;
-  print_f_helper((struct print_arg) {.ref = (void*)&r},
-    fp("f128"), put, args, _arb
-  );
+  print_f_helper((struct print_arg){.ref = (void *)&r}, fp("f128"), put, args, _arb);
 });
 REGISTER_PRINTER(u32, {
   USETYPEPRINTER(usize, (usize)in);
 });
 REGISTER_PRINTER(i32, {
-    USETYPEPRINTER(isize, (isize)in);
+  USETYPEPRINTER(isize, (isize)in);
 });
-REGISTER_PRINTER(fptr ,{
+REGISTER_PRINTER(fptr, {
   const c32 hex_chars[17] = U"0123456789abcdef";
   char cut0s = 0;
   char useLength = 0;
-  PRINTERARGSEACH({
-    if (fptr_eq(fp_from("length"), arg)) 
-      useLength = 1;
-  });
+  if (fptr_eq(fp_from("length"), printer_arg_trim(args)))
+    useLength = 1;
   if (useLength) {
     PUTS("<");
     USETYPEPRINTER(usize, in.len);
@@ -427,8 +370,8 @@ REGISTER_PRINTER(fptr ,{
   for (usize i = start; i < in.len; i++) {
     u8 top = (in.ptr[i] & 0xF0) >> 4;
     u8 bottom = in.ptr[i] & 0x0F;
-    PUTC(hex_chars[top]);
-    PUTC(hex_chars[bottom]);
+    PUTC((c8)(hex_chars[top]));
+    PUTC((c8)(hex_chars[bottom]));
   }
   PUTS(">");
   if (useLength)
@@ -472,11 +415,10 @@ REGISTER_PRINTER(pEsc, {
 });
 
 REGISTER_SPECIAL_PRINTER("x", u8, {
-  const c32 hex_chars[17] = U"0123456789abcdef";
-  PUTC(hex_chars[in >> 4 & 0xf]);
-  PUTC(hex_chars[in & 0xf]);
+  const c8 hex_chars[17] = "0123456789abcdef";
+  PUTC((c8)(hex_chars[in >> 4 & 0xf]));
+  PUTC((c8)(hex_chars[in & 0xf]));
 });
-
 REGISTER_SPECIAL_PRINTER("u8", u8, {
   USETYPEPRINTER(usize, (usize)in);
 });
@@ -489,7 +431,6 @@ REGISTER_SPECIAL_PRINTER("u32", u32, {
 REGISTER_SPECIAL_PRINTER("u64", u64, {
   USETYPEPRINTER(usize, (usize)in);
 });
-
 REGISTER_SPECIAL_PRINTER("i8", i8, {
   USETYPEPRINTER(isize, (isize)in);
 });
@@ -505,30 +446,30 @@ REGISTER_SPECIAL_PRINTER("i64", i64, {
 #if !defined(__cplusplus)
 
   #define MAKE_PRINT_ARG_TYPE(type) \
-  type: ((fptr){sizeof(#type)-1,(u8*)#type})
+  type:                             \
+    ((fptr){sizeof(#type) - 1, (u8 *)#type})
   #if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
     #define MAKE_PRINTINTS MAKE_PRINT_ARG_TYPE(i32), MAKE_PRINT_ARG_TYPE(u32),
   #else
     #define MAKE_PRINTINTS
   #endif
 
-  #define MAKE_PRINT_ARG(a)                                                                                                                                                                                                     \
-    ((struct print_arg){                                                                                                                                                                                                        \
-        .ref = REF(typeof(a), a),                                                                                                                                                                                               \
-        .name = _Generic(\
-            a,\
-            MAKE_PRINT_ARG_TYPE(fptr),\
-            MAKE_PRINT_ARG_TYPE(isize),\
-            MAKE_PRINT_ARG_TYPE(usize),\
-            MAKE_PRINT_ARG_TYPE(float),\
-            MAKE_PRINT_ARG_TYPE(double),\
-            MAKE_PRINT_ARG_TYPE(ldouble),\
-            MAKE_PRINT_ARG_TYPE(pEsc),\
-            MAKE_PRINTINTS\
-            void *: ((fptr){sizeof("ptr")-1,(u8*)"ptr"}),\
-            slice(c8): ((fptr){sizeof("slice(c8)")-1,(u8*)"slice(c8)"}),\
-            default: nullFptr\
-            ),\
+  #define MAKE_PRINT_ARG(a)                                                  \
+    ((struct print_arg){                                                     \
+        .ref = REF(typeof(a), a),                                            \
+        .name = _Generic(                                                    \
+            a,                                                               \
+            MAKE_PRINT_ARG_TYPE(fptr),                                       \
+            MAKE_PRINT_ARG_TYPE(isize),                                      \
+            MAKE_PRINT_ARG_TYPE(usize),                                      \
+            MAKE_PRINT_ARG_TYPE(float),                                      \
+            MAKE_PRINT_ARG_TYPE(double),                                     \
+            MAKE_PRINT_ARG_TYPE(ldouble),                                    \
+            MAKE_PRINT_ARG_TYPE(pEsc),                                       \
+            MAKE_PRINTINTS void *: ((fptr){sizeof("ptr") - 1, (u8 *)"ptr"}), \
+            slice(c8): ((fptr){sizeof("slice(c8)") - 1, (u8 *)"slice(c8)"}), \
+            default: nullFptr                                                \
+        ),                                                                   \
     }),
 
 #else
@@ -558,7 +499,6 @@ MAKE_PRINT_ARG_TYPE(u32);
         .name = fp_from(type_name_cstr(a)) \
     }),
 #endif
-// clang-format on
 
 volatile static thread_local bool print_f_shouldFlush = 1;
 void print_f(outputFunction put, void *arb, const char *fmt, ...);
@@ -605,13 +545,10 @@ __attribute__((constructor(205))) static void post_init() {
 }
 #endif // PRINTER_LIST_TYPENAMES
 
-// converts wchars to chars
-// writes length to olen
 #endif
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
 #define MY_PRINTER_C (1)
-#pragma once
 #endif
 #ifdef MY_PRINTER_C
 
@@ -658,8 +595,7 @@ void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr 
     USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = 1}));
     PUTS("__ NO_TYPE(");
     if (typeName.len)
-      foreach (var_ i, VLAP(typeName.ptr, typeName.len))
-        PUTC(i);
+      for_each((var_ i, VLAP(typeName.ptr, typeName.len)), PUTC((c8)i););
     PUTS(") __");
     USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));
   } else {
@@ -687,7 +623,7 @@ void print_f(outputFunction put, void *arb, const char *fmt, ...) {
       tname = printer_arg_trim(tname);
       if (!assumedName.ref) {
         va_end(l);
-        return put(U"__ NO ARGUMENT PROVIDED, ENDING PRINT __\n", arb, 41, 1);
+        return put("__ NO ARGUMENT PROVIDED, ENDING PRINT __\n", arb, 41, 1);
       }
       print_f_helper(assumedName, tname, put, parseargs, arb);
       i = j;
@@ -696,11 +632,10 @@ void print_f(outputFunction put, void *arb, const char *fmt, ...) {
     } else if (fmt[i] == '/') {
       toggled = !toggled;
       if (!toggled)
-        put(REF(c32, U'/'), arb, 1, 0);
+        put("/", arb, 1, 0);
     } else {
       toggled = 0;
-      c32 c = (c32)(fmt[i]);
-      put(&c, arb, 1, 0);
+      put(fmt + i, arb, 1, 0);
     }
   }
   va_end(l);

@@ -2,22 +2,27 @@
 #include "../print.h"
 #include <stdlib.h>
 
-sliceDef(c32);
-sliceDef(i32);
-REGISTER_SPECIAL_PRINTER_NEEDID(print_c8slice, "slice(c8)", slice(c8), {
-  for_each((c32 c, slice_vla(in)), {
-    PUTC(c);
-  });
-});
-REGISTER_SPECIAL_PRINTER_NEEDID(print_c32slice, "slice(c32)", slice(c32), {
-  for_each((i32 c, slice_vla(in)), {
-    USETYPEPRINTER(i32, c);
-  });
-});
-REGISTER_SPECIAL_PRINTER_NEEDID(print_i32slice, "slice(i32)", slice(i32), {
-  PUTC('[');
-  for_each((i32 i, slice_vla(in)), {
-    USETYPEPRINTER(i32, i);
-  });
-  PUTC(']');
+sliceDef(u8);
+outputFunction a;
+static void emptyPrinter(const c8 *, void *, usize, bool) {}
+REGISTER_SPECIAL_PRINTER_NEEDID(slice_printer_generic_version, "slice", slice(u8), {
+  fptr farg = printer_arg_trim(args);
+  void *ptr = in.ptr;
+  var_ printer = PrinterSingleton_get(farg);
+  if (!printer) {
+    USETYPEPRINTER(pEsc, ((pEsc){.fg = {.r = 255}, .fgset = 1}));
+    PUTS("__could'nt find printer for ");
+    USENAMEDPRINTER("slice(c8)", farg);
+    PUTS("__");
+    USETYPEPRINTER(pEsc, (pEsc){.reset = 1});
+  } else {
+    PUTC((c8)'[');
+    usize size = 0;
+    for (each_RANGE(usize, i, 0, in.len)) {
+      if (i)
+        PUTC((c8)',');
+      size = printer(put, size * i + (u8 *)ptr, nullFptr, _arb);
+    }
+    PUTC((c8)']');
+  }
 });
