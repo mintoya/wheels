@@ -59,7 +59,7 @@ struct vason_getArg {
 REGISTER_PRINTER(vason_container, {
   if (in.current >= msList_len(in.tags) || in.tags[in.current] & vason_INVALID) {
     PUTS("(!)");
-    return;
+    goto end;
   } else if (in.tags[in.current] & vason_UNPARSED) {
     PUTS("(?");
     switch (in.tags[in.current] ^ vason_UNPARSED) {
@@ -76,7 +76,7 @@ REGISTER_PRINTER(vason_container, {
         PUTS("s)");
         break;
     }
-    return;
+    goto end;
   }
   switch (in.tags[in.current]) {
     case vason_INVALID:
@@ -110,6 +110,7 @@ REGISTER_PRINTER(vason_container, {
       PUTS("}");
     } break;
   }
+end:
 });
   #endif
 
