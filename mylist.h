@@ -47,7 +47,12 @@ List_getRef(const List *l, List_index_t i, size_t width) { return (i < l->length
  * @param init initial capacity
  */
 void List_makeNew(AllocatorV allocator, List *l, size_t bytes, List_index_t init);
-extern inline void List_resize(List *l, List_index_t newSize, size_t width);
+extern inline void List_resize(List *l, List_index_t newSize, size_t width) {
+  newSize = newSize ? newSize : 1;
+  if ((newSize > l->capacity || newSize < l->capacity / 8))
+    return List_forceResize(l, newSize, width);
+  return;
+}
 
 /**
  * creates new list
@@ -160,16 +165,16 @@ using mList_t = T (**)(List *);
 #define mList_len(list) (((List *)(list))->length)
 #define mList_cap(list) (((List *)(list))->capacity)
 #define mList_no_modify_test(list) int MLIST_CONST_INT_TEST = ASSERT_EXPR(!is_const_ptr(list), "")
-#define mList_push(list, val)                            \
-  do {                                                   \
-    mList_no_modify_test(list);                          \
-    if (mList_len(list) >= mList_cap(list)) [[unlikely]] \
-      List_resize(                                       \
-          (List *)list,                                  \
-          LIST_GROW_EQ(mList_len(list)),                 \
-          sizeof(mList_iType(list))                      \
-      );                                                 \
-    mList_arr(list)[mList_len(list)++] = (val);          \
+#define mList_push(list, val)                       \
+  do {                                              \
+    mList_no_modify_test(list);                     \
+    if_unlikely(mList_len(list) >= mList_cap(list)) \
+        List_resize(                                \
+            (List *)list,                           \
+            LIST_GROW_EQ(mList_len(list)),          \
+            sizeof(mList_iType(list))               \
+        );                                          \
+    mList_arr(list)[mList_len(list)++] = (val);     \
   } while (0)
 
 #define mList_pop(list) ({            \
@@ -378,12 +383,6 @@ void List_free(List *l) {
     aFree(l->allocator, l->head);
   l->head = NULL;
   aFree(l->allocator, l);
-}
-extern inline void List_resize(List *l, List_index_t newSize, size_t width) {
-  newSize = newSize ? newSize : 1;
-  if ((newSize > l->capacity || newSize < l->capacity / 8))
-    return List_forceResize(l, newSize, width);
-  return;
 }
 inline List_index_t List_locate(const List *l, const void *element, size_t width) {
   List_index_t i = 0;
