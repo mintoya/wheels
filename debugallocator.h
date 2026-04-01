@@ -80,7 +80,7 @@ struct tracedata {
   usize size;
 };
 typedef struct {
-  mHmap(void *, struct tracedata) map;
+  mHmap(void *, msList(struct tracedata)) map;
   AllocatorV actualAllocator;
   struct dbgAlloc_config config;
   usize max, current, total;
@@ -107,7 +107,7 @@ AllocatorV debugAllocatorInit(struct dbgAlloc_config config) {
   AllocatorV allocator = config.allocator;
   Debug_allocator_block *res = aCreate(allocator, Debug_allocator_block);
   res->internals[0] = (debugAllocatorInternals){
-      .map = mHmap_init(allocator, void *, struct tracedata),
+      .map = mHmap_init(allocator, void *, msList(struct tracedata)),
       .actualAllocator = allocator,
       .config = config,
       .max = 0,
@@ -145,16 +145,24 @@ int debugAllocatorDeInit(AllocatorV allocator) {
   mHmap_foreach(
       internals->map,
       void *, ptr,
-      struct tracedata, val,
+      msList(struct tracedata), val,
       {
         leaks++;
+        var_ last = *msList_get(val, msList_len(val) - 1);
         if (out) {
           print_wfO(
               fileprint, out,
               "leaked {}{usize}{} bytes at {}{ptr}{} in {cstr} at {}\n"
               "=========================================================\n",
-              g, val.size, rst, b, ptr, r, val.fn, val.ln
+              g, last.size, rst, b, ptr, r, last.fn, last.ln
           );
+          for_each((struct tracedata allocation, msList_vla(val)), {
+            print_wfO(
+                fileprint, out,
+                "from {cstr} line {}\n",
+                allocation.fn, allocation.ln
+            );
+          });
 
           print_wfO(
               fileprint, out,
@@ -162,7 +170,7 @@ int debugAllocatorDeInit(AllocatorV allocator) {
           );
           print_wfO(fileprint, out, "{}", rst);
         }
-        (aFree)(realAllocator, (void *)ptr, val.fn, val.ln);
+        (aFree)(realAllocator, (void *)ptr, last.fn, last.ln);
       }
   );
   mHmap_deinit(internals->map);
@@ -176,10 +184,20 @@ void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln)
   void *res = ((aAlloc)(realAllocator, size, fn, ln));
   internals->total++;
 
-  struct tracedata data;
-  data.size = size;
-  data.fn = fn;
-  data.ln = ln;
+  struct tracedata *data = msList_init(realAllocator, struct tracedata);
+  msList_push(
+      realAllocator,
+      data,
+      ((struct tracedata){
+          .size = size,
+          .fn = fn,
+          .ln = ln,
+      })
+  );
+  assertMessage(
+      !mHmap_get(internals->map, res),
+      "allocator allocated buisy memory"
+  );
   mHmap_set(internals->map, res, data);
   internals->current += size;
 
@@ -194,22 +212,28 @@ void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size, char *
   AllocatorV realAllocator = internals->actualAllocator;
   internals->total++;
 
-  struct tracedata *i = mHmap_get(internals->map, ptr);
+  struct tracedata **i = mHmap_get(internals->map, ptr);
   assertMessage(i, "pointer not in allocator");
 
-  if (i)
-    internals->current -= i->size;
+  internals->current -= i[0][msList_len(i[0]) - 1].size;
   assertMessage(mHmap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
   mHmap_rem(internals->map, ptr);
 
   void *res = (aResize)(realAllocator, ptr, size, fn, ln);
-
-  var_ data = (struct tracedata){
-      .size = size,
-      .fn = fn,
-      .ln = ln,
-  };
-  mHmap_set(internals->map, res, data);
+  assertMessage(
+      !mHmap_get(internals->map, res),
+      "allocator allocated buisy memory"
+  );
+  msList_push(
+      realAllocator,
+      *i,
+      ((struct tracedata){
+          .size = size,
+          .fn = fn,
+          .ln = ln,
+      })
+  );
+  mHmap_set(internals->map, res, *i);
 
   internals->current += size;
 
@@ -222,9 +246,9 @@ void debugAllocator_free(AllocatorV allocator, void *ptr, char *fn, usize ln) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
   (aFree)(realAllocator, ptr, fn, ln);
-  struct tracedata *data = mHmap_get(internals->map, ptr);
+  struct tracedata **data = mHmap_get(internals->map, ptr);
   assertMessage(data, "pointer not in allocator");
-  internals->current -= data->size;
+  internals->current -= data[0][msList_len(data[0]) - 1].size;
   assertMessage(mHmap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
   mHmap_rem(internals->map, ptr);
 }

@@ -157,29 +157,30 @@ using mHmap_t = Tb (**)(HMap *, Ta);
     mHmap_init_length(allocator, keytype, valtype __VA_OPT__(, __VA_ARGS__), 32)
   #define mHmap_deinit(map) ({ HMap_free((HMap *)map); })
 
-  #define mHmap_set(map, key, val)                           \
-    do {                                                     \
-      typeof(key) _k = (key);                                \
-      typeof((*map)(nullptr, key)) _v = (val);               \
-      0 + ASSERT_EXPR(                                       \
-              types_eq(                                      \
-                  mHmap(typeof(_k), typeof(_v)), typeof(map) \
-              ),                                             \
-              ""                                             \
-          );                                                 \
-      HMap_fset(                                             \
-          (HMap *)map,                                       \
-          (fptr){sizeof(_k), (u8 *)&_k}, &_v                 \
-      );                                                     \
+  #define mHmap_set(map, key, val)                       \
+    do {                                                 \
+      typeof(key) _k = (key);                            \
+      typeof((*map)(nullptr, key)) _v = (val);           \
+      ASSERT_EXPR(                                       \
+          types_eq(                                      \
+              mHmap(typeof(_k), typeof(_v)), typeof(map) \
+          ),                                             \
+          ""                                             \
+      );                                                 \
+      HMap_fset(                                         \
+          (HMap *)map,                                   \
+          (fptr){sizeof(_k), (u8 *)&_k}, &_v             \
+      );                                                 \
     } while (0)
 
   #define mHmap_foreach(map, keyType, keyDec, valType, valDec, ...)     \
-    0 + ASSERT_EXPR(                                                    \
-            types_eq(                                                   \
-                mHmap(typeof(keyType), typeof(valType)), typeof(map)    \
-            ),                                                          \
-            ""                                                          \
-        );                                                              \
+    ASSERT_EXPR(                                                        \
+        types_eq(                                                       \
+            mHmap(typeof(keyType), typeof(valType)),                    \
+            typeof(map)                                                 \
+        ),                                                              \
+        ""                                                              \
+    );                                                                  \
     const usize _meta_count = HMap_getMetaSize((HMap *)map);            \
     for (usize _i = 0; _i < _meta_count; _i++) {                        \
       const usize _meta_subcount = HMap_getBucketSize((HMap *)map, _i); \
@@ -201,40 +202,40 @@ using mHmap_t = Tb (**)(HMap *, Ta);
       }                                                                 \
     }
 
-  #define mHmap_rem(map, key)                                      \
-    do {                                                           \
-      typeof(key) _k = (key);                                      \
-      0 + ASSERT_EXPR(                                             \
-              types_eq(                                            \
-                  mHmap(typeof(_k), typeof((*map)(nullptr, key))), \
-                  typeof(map)                                      \
-              ),                                                   \
-              ""                                                   \
-          );                                                       \
-      HMap_fset(                                                   \
-          (HMap *)map,                                             \
-          (fptr){                                                  \
-              sizeof(_k),                                          \
-              (u8 *)&_k,                                           \
-          },                                                       \
-          nullptr                                                  \
-      );                                                           \
+  #define mHmap_rem(map, key)                                  \
+    do {                                                       \
+      typeof(key) _k = (key);                                  \
+      ASSERT_EXPR(                                             \
+          types_eq(                                            \
+              mHmap(typeof(_k), typeof((*map)(nullptr, key))), \
+              typeof(map)                                      \
+          ),                                                   \
+          ""                                                   \
+      );                                                       \
+      HMap_fset(                                               \
+          (HMap *)map,                                         \
+          (fptr){                                              \
+              sizeof(_k),                                      \
+              (u8 *)&_k,                                       \
+          },                                                   \
+          nullptr                                              \
+      );                                                       \
     } while (0)
 
-  #define mHmap_get(map, key)                                       \
-    ({                                                              \
-      0 + ASSERT_EXPR(                                              \
-              types_eq(                                             \
-                  mHmap(typeof(key), typeof((*map)(nullptr, key))), \
-                  typeof(map)                                       \
-              ),                                                    \
-              ""                                                    \
-          );                                                        \
-      (typeof((*map)(nullptr, key)) *)                              \
-          HMap_fget_ns(                                             \
-              (HMap *)map,                                          \
-              (fptr){sizeof(key), (u8 *)REF(typeof(key), key)}      \
-          );                                                        \
+  #define mHmap_get(map, key)                                   \
+    ({                                                          \
+      ASSERT_EXPR(                                              \
+          types_eq(                                             \
+              mHmap(typeof(key), typeof((*map)(nullptr, key))), \
+              typeof(map)                                       \
+          ),                                                    \
+          ""                                                    \
+      );                                                        \
+      (typeof((*map)(nullptr, key)) *)                          \
+          HMap_fget_ns(                                         \
+              (HMap *)map,                                      \
+              (fptr){sizeof(key), (u8 *)REF(typeof(key), key)}  \
+          );                                                    \
     })
 
   #define mHmapGetOrSet(sh, key, val) ({                         \

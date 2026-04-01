@@ -82,7 +82,7 @@ static struct {
 } PrinterSingleton;
 
 static void PrinterSingleton_init() {
-  PrinterSingleton.data = msHmap_init(stdAlloc, printerFunction);
+  PrinterSingleton.data = msHmap_init(stdAlloc, printerFunction, 32);
 }
 static void PrinterSingleton_append(fptr name, printerFunction function) {
   msHmap_set(PrinterSingleton.data, name, function);
@@ -146,7 +146,7 @@ __attribute__((constructor(201))) static void printerInit() {
   LABEL_PRINTER_GEN(printerConstructor, UNIQUE_GEN_PRINTER)
 
 #define PUTS(characters) put(characters, _arb, countof(characters) - 1, 0)
-#define PUTC(character) put(ASSERT_EXPR(types_eq(c8, typeof(character)), "") + REF(c8, character), _arb, 1, 0)
+#define PUTC(character) put((ASSERT_EXPR(types_eq(c8, typeof(character)), ""), 0) + REF(c8, character), _arb, 1, 0)
 
 #define REGISTER_PRINTER(T, ...)                                       \
   static usize GETTYPEPRINTERFN(T)(                                    \
@@ -509,38 +509,27 @@ void print_f(outputFunction put, void *arb, const char *fmt, ...);
   )
 
 #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
-#define print(fmt, ...) print_wfO(fileprint, stdout, fmt, __VA_ARGS__)
-#define println(fmt, ...) print(fmt "\n", __VA_ARGS__)
 #define print_(fmt, ...) print_wfO(fileprint, stdout, fmt, __VA_ARGS__)
 #define println_(fmt, ...) print(fmt "\n", __VA_ARGS__)
+#define print(fmt, ...) print_(fmt, __VA_ARGS__)
+#define println(fmt, ...) println_(fmt, __VA_ARGS__)
 
 #ifdef PRINTER_LIST_TYPENAMES
-__attribute__((constructor(205))) static void post_init() {
-  assert(false & "rerite");
-  // outputFunction put = defaultPrinter;
+__attribute__((constructor(205))) static void printer_post_initfn() {
   print("==============================\n"
         "printer debug\n"
         "==============================\n");
   println("list of printer type names: ");
-  for (int i = 0; i < HMap_count(PrinterSingleton.data); i++) {
-    fptr key = ((fptr){
-        HMap_getKeySize(PrinterSingleton.data),
-        (u8 *)HMap_getKey(PrinterSingleton.data, i)
-    });
-    println(" {}", key);
-  }
+  for (each_RANGE(usize, i, 0, stringList_len((stringList *)PrinterSingleton.data)))
+    println("{slice(c8)}", stringList_get((stringList *)(PrinterSingleton.data), i));
   println(
       "buckets   : {}\n"
       "footprint : {}\n"
-      "types     : {}\n"
       "collisions: {}\n"
-      "keysize   : {}\n"
       "==============================\n",
-      HMap_getMetaSize(PrinterSingleton.data),
-      HMap_footprint(PrinterSingleton.data),
-      (usize)HMap_count(PrinterSingleton.data),
-      (int)HMap_countCollisions(PrinterSingleton.data),
-      (int)HMap_getKeySize(PrinterSingleton.data)
+      ((sHmap *)PrinterSingleton.data)->num_buckets,
+      sHmap_footprint((sHmap *)PrinterSingleton.data),
+      sHmap_countCollisions((sHmap *)PrinterSingleton.data),
   );
 }
 #endif // PRINTER_LIST_TYPENAMES
@@ -616,7 +605,7 @@ void print_f(outputFunction put, void *arb, const char *fmt, ...) {
           .len = j - i - 1,
           .ptr = ((u8 *)fmt) + i + 1,
       };
-      struct print_arg assumedName = va_arg(l, struct print_arg);
+      var_ assumedName = va_arg(l, struct print_arg);
 
       fptr tname = printer_arg_until(':', typeName);
       fptr parseargs = printer_arg_after(':', typeName);

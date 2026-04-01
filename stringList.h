@@ -50,11 +50,11 @@ static inline fptr vlqbuf_toFptr(vlength *b) {
 }
 stringList *stringList_new(AllocatorV allocator, usize initSize);
 void stringList_free(stringList *sl);
-fptr stringList_get(stringList *, usize);
+fptr stringList_get(const stringList *, usize);
 fptr stringList_append(stringList *, fptr);
 void stringList_remove(stringList *, usize);
 usize stringList_len(stringList *);
-usize stringList_footprint(stringList *);
+usize stringList_footprint(const stringList *);
 fptr stringList_insert(stringList *, usize, fptr);
 fptr stringList_set(stringList *, usize, fptr);
 inline stringList *stringList_copy(AllocatorV allocator, stringList *sl) {
@@ -186,8 +186,6 @@ MAKE_TEST_FN(test_stringList_churn_stats, {
 #if defined(STRING_LIST_C)
   #include <stddef.h>
 
-int STRINGLIST_INTS_EQUAL = ASSERT_EXPR(sizeof(struct vlength) == sizeof(char), "");
-
   #define vlen_stat(stringLiteral) ({                 \
     static struct [[gnu::packed]] {                   \
       typeof(u64_toVLen(0)) len;                      \
@@ -245,7 +243,7 @@ struct flsr stringListFreeList_search(stringList *sl, usize size) {
   }
   return (struct flsr){.i = b, .f = 0};
 }
-fptr stringList_get(stringList *sl, usize i) {
+fptr stringList_get(const stringList *sl, usize i) {
   return i < msList_len(sl->ulist) ? vlqbuf_toFptr(sl->buff + sl->ulist[i]) : nullFptr;
 }
 fptr stringList_append(stringList *sl, fptr ptr) {
@@ -319,7 +317,7 @@ void stringList_remove(stringList *sl, usize i) {
   );
   msList_rem(sl->ulist, i);
 }
-usize stringList_footprint(stringList *sl) {
+usize stringList_footprint(const stringList *sl) {
   // clang-format off
   return
       + sizeof(*msList_vla(sl->ulist))
@@ -327,14 +325,12 @@ usize stringList_footprint(stringList *sl) {
       +sl->len;
   // clang-format on
 };
-
 fptr stringList_insert(stringList *sl, usize i, fptr ptr) {
   assertMessage(i <= msList_len(sl->ulist));
   fptr res = stringList_append(sl, ptr);
   msList_ins(sl->allocator, sl->ulist, i, msList_pop(sl->ulist));
   return res;
 }
-
 fptr stringList_set(stringList *sl, usize i, fptr ptr) {
   stringList_remove(sl, i);
   return stringList_insert(sl, i, ptr);

@@ -164,7 +164,7 @@ using mList_t = T (**)(List *);
 #define mList_arr(list) (((mList_iType(list) *)(((List *)(list))->head)))
 #define mList_len(list) (((List *)(list))->length)
 #define mList_cap(list) (((List *)(list))->capacity)
-#define mList_no_modify_test(list) int MLIST_CONST_INT_TEST = ASSERT_EXPR(!is_const_ptr(list), "")
+#define mList_no_modify_test(list) ASSERT_EXPR(!is_const_ptr(list), "")
 #define mList_push(list, val)                       \
   do {                                              \
     mList_no_modify_test(list);                     \
@@ -213,21 +213,21 @@ using mList_t = T (**)(List *);
     mList_no_modify_test(list);                                       \
     List_resize((List *)(list), capacity, sizeof(mList_iType(list))); \
   } while (0)
-#define mList_pushArr(list, vla)                                      \
-  do {                                                                \
-    mList_no_modify_test(list);                                       \
-    0 + ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), ""); \
-    List_appendFromArr(                                               \
-        (List *)list,                                                 \
-        vla,                                                          \
-        sizeof(vla) / sizeof(vla[0]),                                 \
-        sizeof(vla[0])                                                \
-    );                                                                \
+#define mList_pushArr(list, vla)                                  \
+  do {                                                            \
+    mList_no_modify_test(list);                                   \
+    ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), ""); \
+    List_appendFromArr(                                           \
+        (List *)list,                                             \
+        vla,                                                      \
+        sizeof(vla) / sizeof(vla[0]),                             \
+        sizeof(vla[0])                                            \
+    );                                                            \
   } while (0)
 #define mList_insArr(list, position, vla)                                                          \
   mList_no_modify_test(list);                                                                      \
   do {                                                                                             \
-    0 + ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), "");                              \
+    ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), "");                                  \
     List_insertFromArr((List *)list, vla, sizeof(vla) / sizeof(vla[0]), position, sizeof(vla[0])); \
   } while (0)
 #define mList_pad(list, ammount)  \

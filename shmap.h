@@ -18,11 +18,11 @@ typedef struct string_HMap {
   usize num_buckets;
   struct double_idx *buckets[];
 } sHmap;
-static inline struct double_idx *sHmap_find(sHmap *sh, fptr f) {
+static inline struct double_idx *sHmap_find(const sHmap *sh, fptr f) {
   umax hash = fptr_hash(f) % sh->num_buckets;
   AllocatorV allocator = sh->strings->allocator;
 
-  struct double_idx **list_ptr = &sh->buckets[hash];
+  var_ list_ptr = &sh->buckets[hash];
   if (!*list_ptr)
     return NULL;
 
@@ -33,7 +33,6 @@ static inline struct double_idx *sHmap_find(sHmap *sh, fptr f) {
   });
   return NULL;
 }
-
 static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
   umax hash = fptr_hash(key) % sh->num_buckets;
   AllocatorV allocator = sh->strings->allocator;
@@ -61,11 +60,11 @@ static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
   msList_push(allocator, *list_ptr, entry);
 }
 static inline void sHmap_set_cs(sHmap *sh, const char *key, void *val_ptr) { sHmap_set(sh, fptr_CS((void *)key), val_ptr); }
-static inline isize sHmap_get(sHmap *sh, const fptr k, usize v_width) {
+static inline isize sHmap_get(const sHmap *sh, const fptr k, usize v_width) {
   umax hash = fptr_hash(k);
   usize b_idx = hash % sh->num_buckets;
 
-  struct double_idx **list_ptr = &sh->buckets[b_idx];
+  var_ list_ptr = &sh->buckets[b_idx];
   if (!*list_ptr)
     return -1;
 
@@ -75,7 +74,7 @@ static inline isize sHmap_get(sHmap *sh, const fptr k, usize v_width) {
   });
   return -1;
 }
-static inline isize sHmap_get_cs(sHmap *sh, const char *key, usize v_width) {
+static inline isize sHmap_get_cs(const sHmap *sh, const char *key, usize v_width) {
   return sHmap_get(sh, fptr_CS((void *)key), v_width);
 }
 static inline sHmap *shMap_new(AllocatorV allocator, usize size, usize buckets) {
@@ -102,6 +101,24 @@ static inline void shMap_free(sHmap *map) {
   }
   aFree(allocator, map->values);
   stringList_free(map->strings);
+}
+static inline usize sHmap_footprint(const sHmap *map) {
+  usize res = stringList_footprint(map->strings);
+  for_each((var_ list, VLAP(map->buckets, map->num_buckets)), {
+    if (list)
+      res += sizeof(*msList_vla(list));
+  });
+  return res;
+}
+static inline usize sHmap_countCollisions(const sHmap *map) {
+  usize res = 0;
+  for_each((var_ list, VLAP(map->buckets, map->num_buckets)), {
+    if (list) {
+      var_ l = msList_len(list);
+      res += l ? l - 1 : 0;
+    }
+  });
+  return res;
 }
 
   #ifdef __cplusplus
@@ -146,9 +163,9 @@ using msHmap_t = T (**)(sHmap *);
     )((sHmap *)sh, key, sizeof(msHmap_iType(sh)));                                         \
     _idx < 0 ? NULL : sList_getRef(((sHmap *)sh)->values, sizeof(msHmap_iType(sh)), _idx); \
   })
-  #define msHmapGetOrSet(sh, key, val) ({                          \
-    var_ *temp_ = msHmap_get(sh, key);                             \
-    temp ? temp : (msHmap_set(sh, key, val), msHmap_get(sh, key)); \
+  #define msHmapGetOrSet(sh, key, val) ({                            \
+    var_ *temp_ = msHmap_get(sh, key);                               \
+    temp_ ? temp_ : (msHmap_set(sh, key, val), msHmap_get(sh, key)); \
   })
 
   // #include "tests.c"

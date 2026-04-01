@@ -144,7 +144,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define EQUAL_ALL_HELPER(a) a &&
   #define EQUAL_ALL(expr, ...) (APPLY_N((expr) == EQUAL_ALL_HELPER, __VA_ARGS__) 1)
   #define ASSERT_EXPR(cond, msg) \
-    (0 * (int)sizeof(char[1 - 2 * !(cond)]))
+    ((void)((int)sizeof(char[1 - 2 * !(cond)])))
   #define STR_H(...) #__VA_ARGS__
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
 
@@ -183,13 +183,13 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     for (char _RANGE_NAME(once) = 1; _RANGE_NAME(once); _RANGE_NAME(once) = 0) \
       for (decl; _RANGE_NAME(once); _RANGE_NAME(once) = 0)
 
-  #define each_VLAP(type, name, vla)                                    \
-    each_RANGE(                                                         \
-        type,                                                           \
-        name,                                                           \
-        (vla)[0] + ASSERT_EXPR(types_eq(type, typeof(&vla[0][0])), ""), \
-        (vla)[1],                                                       \
-        1                                                               \
+  #define each_VLAP(type, name, vla)                                         \
+    each_RANGE(                                                              \
+        type,                                                                \
+        name,                                                                \
+        (vla)[0] + (ASSERT_EXPR(types_eq(type, typeof(&vla[0][0])), ""), 0), \
+        (vla)[1],                                                            \
+        1                                                                    \
     )
 
   #define FOREACH_SPLIT_LABEL(label, ...) label

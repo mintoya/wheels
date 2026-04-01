@@ -3,9 +3,8 @@
 #include <stdlib.h>
 
 sliceDef(u8);
-outputFunction a;
-static void emptyPrinter(const c8 *, void *, usize, bool) {}
 REGISTER_SPECIAL_PRINTER_NEEDID(slice_printer_generic_version, "slice", slice(u8), {
+  // this will crash if you pass the wrong  type, but so would anything else
   fptr farg = printer_arg_trim(args);
   void *ptr = in.ptr;
   var_ printer = PrinterSingleton_get(farg);
