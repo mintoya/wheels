@@ -59,13 +59,10 @@ static void fileprint(
     bool flush
 ) {
   FILE *file = (FILE *)fileHandle;
-
   static thread_local struct {
     c8 buf[1 << 9];
     usize place;
   } buffer = {0};
-
-  static thread_local mbstate_t mbs = {0};
   if (flush || (buffer.place + length) > countof(buffer.buf)) {
     fwrite(buffer.buf, sizeof(c8), buffer.place, file);
     fwrite(c, sizeof(c8), length, file);
