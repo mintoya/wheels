@@ -10,17 +10,18 @@
   #define TU_MK_TAGENUM(name, t) TU_MK_TAG(name, t),              // enum fields ,
   #define TU_MK_INIT_(type, t) .TU_NAM(t) = TU_MK_TAGENUM(type, t)
 
-  #define TU_DEFINE(name, tagtype, ...)              \
-    typedef enum : tagtype {                         \
-      APPLY_N_WITH(TU_MK_TAGENUM, name, __VA_ARGS__) \
-    } name##realEnum;                                \
-    /* the actual onion */                           \
-    typedef struct {                                 \
-      name##realEnum tag;                            \
-      union {                                        \
-        APPLY_N(TU_MK_UF_, __VA_ARGS__)              \
-      };                                             \
-    } name;
+  #define TU_DEFINE(name_tatt, ...)                                         \
+    typedef enum : TUPLE_EXPAND_B(name_tatt){                               \
+        APPLY_N_WITH(TU_MK_TAGENUM, TUPLE_EXPAND_B(name_tatt), __VA_ARGS__) \
+    } ID_CONCAT(TUPLE_EXPAND_A(name_tatt), realEnum);                       \
+    /* the actual onion */                                                  \
+    typedef struct TUPLE_EXPAND_A(name_tatt) {                              \
+      ID_CONCAT(TUPLE_EXPAND_A(name_tatt), realEnum)                        \
+      tag;                                                                  \
+      union {                                                               \
+        APPLY_N(TU_MK_UF_, __VA_ARGS__)                                     \
+      };                                                                    \
+    } TUPLE_EXPAND_A(name_tatt);
   #define TU_TAG(name, type) TU_MK_INIT_(name, type)
   #define TU_MAKE_CASE_UNWRAP(a, b, c, d)                   \
     case (TU_MK_TAG(a, c)): {                               \
