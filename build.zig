@@ -24,29 +24,7 @@ pub fn build(b: *std.Build) void {
         },
         .language = .cpp,
     });
-    // exe.root_module.addCSourceFiles(.{
-    //     .files = &.{
-    //         "allocator.h",
-    //         "arenaAllocator.h",
-    //         "assertMessage.h",
-    //         "cSum.h",
-    //         "debugallocator.h",
-    //         "fptr.h",
-    //         "hhmap.h",
-    //         "my-list.h",
-    //         "mytypes.h",
-    //         "omap.h",
-    //         "shortList.h",
-    //         "stringList.h",
-    //         "vason_arr.h",
-    //         "wheels.h",
-    //     },
-    //     .flags = &.{
-    //         "-g",
-    //         "-w",
-    //     },
-    //     .language = .cpp,
-    // });
+
     if (target.result.os.tag == .windows)
         exe.root_module.linkSystemLibrary("dbghelp", .{});
     exe.rdynamic = true;

@@ -44,11 +44,12 @@ int main(int nargs, char *args[nargs]) {
   defer { vason_container_free(*f); };
   vason_index current = parsed.current;
   if (mList_len(argslist))
-    foreach (char *cptr, mList_vla(argslist))
+    for_each_((char *cptr, mList_vla(argslist)), {
       current =
           isdigit(cptr[0])
               ? vason_get(&parsed, current, atoi(cptr))
               : vason_get(&parsed, current, fptr_CS(cptr));
+    });
   if (lazy)
     vason_lazy_expand(&parsed, current);
   parsed.current = current;

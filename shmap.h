@@ -26,7 +26,7 @@ static inline struct double_idx *sHmap_find(const sHmap *sh, fptr f) {
   if (!*list_ptr)
     return NULL;
 
-  for_eachP((var_ entry, msList_vla(*list_ptr)), {
+  for_each_P((var_ entry, msList_vla(*list_ptr)), {
     fptr c = stringList_get(sh->strings, entry->kidx);
     if (fptr_eq(f, c))
       return entry;
@@ -41,12 +41,13 @@ static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
   if (!*list_ptr)
     *list_ptr = msList_init(allocator, struct double_idx);
 
-  for_eachP((var_ entry, msList_vla(*list_ptr)), {
-    if (fptr_eq(key, stringList_get(sh->strings, entry->kidx)))
-      return val_ptr
-                 ? (void)memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr, sh->vwidth)
-                 : (void)stringList_set(sh->strings, entry->kidx, nullFptr);
-  });
+  if (msList_len(*list_ptr))
+    for_each_P((var_ entry, msList_vla(*list_ptr)), {
+      if (fptr_eq(key, stringList_get(sh->strings, entry->kidx)))
+        return val_ptr
+                   ? (void)memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr, sh->vwidth)
+                   : (void)stringList_set(sh->strings, entry->kidx, nullFptr);
+    });
 
   if (!val_ptr)
     return;
@@ -68,7 +69,7 @@ static inline isize sHmap_get(const sHmap *sh, const fptr k, usize v_width) {
   if (!*list_ptr)
     return -1;
 
-  for_each((var_ entry, msList_vla(*list_ptr)), {
+  for_each_((var_ entry, msList_vla(*list_ptr)), {
     if (fptr_eq(stringList_get(sh->strings, entry.kidx), k))
       return entry.vidx;
   });
@@ -104,7 +105,7 @@ static inline void shMap_free(sHmap *map) {
 }
 static inline usize sHmap_footprint(const sHmap *map) {
   usize res = stringList_footprint(map->strings);
-  for_each((var_ list, VLAP(map->buckets, map->num_buckets)), {
+  for_each_((var_ list, VLAP(map->buckets, map->num_buckets)), {
     if (list)
       res += sizeof(*msList_vla(list));
   });
@@ -112,7 +113,7 @@ static inline usize sHmap_footprint(const sHmap *map) {
 }
 static inline usize sHmap_countCollisions(const sHmap *map) {
   usize res = 0;
-  for_each((var_ list, VLAP(map->buckets, map->num_buckets)), {
+  for_each_((var_ list, VLAP(map->buckets, map->num_buckets)), {
     if (list) {
       var_ l = msList_len(list);
       res += l ? l - 1 : 0;

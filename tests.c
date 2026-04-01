@@ -56,7 +56,7 @@ int main(void) {
   signal(SIGILL, segv_handler);  // sent by my assert depending on #defines
   usize failCount = 0;
 
-  for_each((var_ test, VLAP(testList, testCount)), {
+  for_each_((var_ test, VLAP(testList, testCount)), {
     current_test = test.name;
     printf("test %s: {\n", test.name);
     fflush(stdout);

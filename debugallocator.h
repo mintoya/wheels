@@ -156,7 +156,7 @@ int debugAllocatorDeInit(AllocatorV allocator) {
               "=========================================================\n",
               g, last.size, rst, b, ptr, r, last.fn, last.ln
           );
-          for_each((struct tracedata allocation, msList_vla(val)), {
+          for_each_((struct tracedata allocation, msList_vla(val)), {
             print_wfO(
                 fileprint, out,
                 "from {cstr} line {}\n",

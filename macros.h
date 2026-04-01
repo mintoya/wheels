@@ -181,12 +181,12 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
         1                                                                    \
     )
 
-  #define for_each(decl_vla, loop, ...)                                                                       \
+  #define for_each_(decl_vla, loop, ...)                                                                       \
     for (each_VLAP(typeof(&(TUPLE_EXPAND_B(decl_vla))[0][0]), _RANGE_NAME(item), TUPLE_EXPAND_B(decl_vla))) { \
       TUPLE_EXPAND_A(decl_vla) = *_RANGE_NAME(item);                                                          \
       loop __VA_ARGS__                                                                                        \
     }
-  #define for_eachP(decl_vla, loop, ...)                                                                      \
+  #define for_each_P(decl_vla, loop, ...)                                                                      \
     for (each_VLAP(typeof(&(TUPLE_EXPAND_B(decl_vla))[0][0]), _RANGE_NAME(item), TUPLE_EXPAND_B(decl_vla))) { \
       TUPLE_EXPAND_A(decl_vla) = _RANGE_NAME(item);                                                           \
       loop __VA_ARGS__                                                                                        \

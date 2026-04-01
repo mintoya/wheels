@@ -226,7 +226,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(_void_ptr_printerfn, "ptr", void *, {
   }
 });
 REGISTER_SPECIAL_PRINTER_NEEDID(_slice_c8_printerfn, "slice(c8)", slice(c8), {
-  for_each((c8 c, slice_vla(in)), PUTC(c););
+  for_each_((c8 c, slice_vla(in)), PUTC(c););
 });
 
 REGISTER_PRINTER(c8, { PUTC(in); });
@@ -254,9 +254,11 @@ REGISTER_PRINTER(c32, {
   }
 });
 REGISTER_SPECIAL_PRINTER("c32str", c32 *, {
-  in = in ?: U"__NULLCSTR__";
-  while (*in)
-    USETYPEPRINTER(c32, *in++);
+  if (in)
+    while (*in)
+      USETYPEPRINTER(c32, *in++);
+  else
+    PUTS("__NULLCSTR__");
 });
 REGISTER_PRINTER(usize, {
   c8 digits[sizeof(usize) * 8 / 3];
@@ -581,7 +583,7 @@ void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr 
     USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = 1}));
     PUTS("__ NO_TYPE(");
     if (typeName.len)
-      for_each((var_ i, VLAP(typeName.ptr, typeName.len)), PUTC((c8)i););
+      for_each_((var_ i, VLAP(typeName.ptr, typeName.len)), PUTC((c8)i););
     PUTS(") __");
     USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));
   } else {
