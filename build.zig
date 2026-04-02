@@ -16,11 +16,12 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addCSourceFile(.{
-        .file = b.path("examples/parser.c"),
+        .file = b.path("tests.c"),
         // .file = b.path("examples/parser_lit.cpp"),
         .flags = &.{
             "-g",
             "-w",
+            "-fno-sanitize=vla-bound",
         },
         .language = .cpp,
     });

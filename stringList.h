@@ -163,16 +163,18 @@ MAKE_TEST_FN(test_stringList_churn_stats, {
 
   printf("Phase 2 (Interleaved Remove):\n"
          "  Footprint: %zu bytes\n"
+         "  buffer size: %zu \n"
          "  Free list: %zu blocks\n\n",
-         (size_t)stringList_footprint(sl), (size_t)msList_len(sl->flist));
+         (size_t)stringList_footprint(sl), sl->len, (size_t)msList_len(sl->flist));
 
   for (usize i = 0; i < ITERS / 2; i++)
     stringList_append(sl, fp("short"));
 
   printf("Phase 3 (Re-insertion w/ Splitting):\n"
          "  Footprint: %zu bytes\n"
+         "  buffer size: %zu \n"
          "  Free list: %zu blocks\n\n",
-         (size_t)stringList_footprint(sl), (size_t)msList_len(sl->flist));
+         (size_t)stringList_footprint(sl), sl->len, (size_t)msList_len(sl->flist));
 
   return 0;
 })
@@ -265,7 +267,8 @@ fptr stringList_append(stringList *sl, fptr ptr) {
     } else {
       offset = sl->flist[insert.i - 1];
       msList_rem(sl->flist, insert.i - 1);
-      if (false) { // split buffer
+      // if (false)
+      { // split buffer
         fptr op = vlqbuf_toFptr((vlength *)sl->buff + offset);
         usize newlen =
             op.len - ptr.len - countof(u64_toVlen(0)._);
@@ -301,7 +304,8 @@ fptr stringList_append(stringList *sl, fptr ptr) {
   }
   msList_push(sl->allocator, sl->ulist, offset);
   memcpy(sl->buff + offset, vlq_ptr, vlq_len);
-  memcpy(sl->buff + offset + vlq_len, ptr.ptr, ptr.len);
+  if (ptr.ptr)
+    memcpy(sl->buff + offset + vlq_len, ptr.ptr, ptr.len);
   return (fptr){
       .len = ptr.len,
       .ptr = (u8 *)(sl->buff + offset + vlq_len),
@@ -321,7 +325,7 @@ usize stringList_footprint(const stringList *sl) {
   // clang-format off
   return
       + sizeof(*msList_vla(sl->ulist))
-      + sizeof(*msList_vla(msList_vla(sl->flist)))
+      + sizeof(*msList_vla(sl->flist))
       +sl->len;
   // clang-format on
 };
