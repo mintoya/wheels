@@ -6,12 +6,12 @@ typedef struct {
   int y;
 } point;
 REGISTER_PRINTER(point, {
-  PUTS(U"{x:");
+  PUTS("{x:");
   USETYPEPRINTER(isize, in.x);
-  PUTS(U",");
-  PUTS(U"y:");
+  PUTS(",");
+  PUTS("y:");
   USETYPEPRINTER(isize, in.y);
-  PUTS(U"}");
+  PUTS("}");
 })
 
 int main() {
@@ -19,7 +19,7 @@ int main() {
   mList_push(points, ((point){6, 1}));
   mList_push(points, ((point){0, 2}));
   mList_ins(points, 1, ((point){1, 0}));
-  mList_foreach(points, point, p, {
+  for_each_((var_ p, mList_vla(points)), {
     println("foreach : ${}", p);
   });
   println("length  : ${int}\n"

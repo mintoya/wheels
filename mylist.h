@@ -144,7 +144,7 @@ template <typename T>
 using mList_t = T (**)(List *);
   #define mList(T) mList_t<T>
 #else
-  #define mList(T, ...) typeof(T(*__VA_ARGS__ *)(List *))
+  #define mList(T) typeof(T(**)(List *))
 #endif
 #define is_const_ptr(p) _Generic((p), const typeof(*p) *: 1, default: 0)
 
@@ -165,6 +165,7 @@ using mList_t = T (**)(List *);
 #define mList_len(list) (((List *)(list))->length)
 #define mList_cap(list) (((List *)(list))->capacity)
 #define mList_no_modify_test(list) ASSERT_EXPR(!is_const_ptr(list), "")
+#define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
 #define mList_push(list, val)                       \
   do {                                              \
     mList_no_modify_test(list);                     \
@@ -244,21 +245,6 @@ using mList_t = T (**)(List *);
     mList_no_modify_test(list); \
     ((List *)list)->length = 0; \
   } while (0)
-#define mList_map(list, allocator, var_iable, expr)                                                           \
-  ({                                                                                                          \
-    __auto_type list_type = list;                                                                             \
-    mList(mList_iType(list_type), const) list = list_type;                                                    \
-    typeof(({mList_iType(list) var_iable;expr; })) unused_type_infer;                                                                          \
-    mList(typeof(unused_type_infer)) res = mList_init(allocator, typeof(unused_type_infer), mList_len(list)); \
-    for (typeof(mList_iType(list)) var_iable,                                                                 \
-         *mList_foreach_curr = (typeof(mList_iType(list) *))mList_vla(list),                                  \
-         *const end___mList_foreach = (typeof(mList_iType(list) *))mList_vla(list)[1];                        \
-         (mList_foreach_curr < end___mList_foreach && (var_iable = *mList_foreach_curr, true));               \
-         mList_foreach_curr++)                                                                                \
-      mList_push(res, (expr));                                                                                \
-    res;                                                                                                      \
-  })
-#define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
 // #include "tests.c"
 #if defined(MAKE_TEST_FN)
 MAKE_TEST_FN(mlist_push_pop, {

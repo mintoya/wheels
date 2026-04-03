@@ -4,20 +4,20 @@
 #include "../print.h"
 
 int main(void) {
-  My_allocator *local = debugAllocator(
+  var_ local = debugAllocator(
       allocator = stdAlloc,
       log = stdout,
   );
   defer { debugAllocatorDeInit(local); };
   mList(int) list = mList_init(local, int);
-  mList_pushVla(
+  mList_pushArr(
       list,
       ((int[]){5, 8, 7, 9, 5, 8, 7, 9})
   );
-  mList_foreach(list, int, element, {
+  for_each_((var_ element, mList_vla(list)), {
     println("{}", (int)element);
   });
-  println("list footprint : {}", List_headArea((List *)list));
+  println("list footprint : {}", sizeof(*mList_vla(list)));
 
   return 0;
 }

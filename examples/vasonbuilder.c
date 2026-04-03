@@ -2,7 +2,7 @@
 #include "../vason_tree.h"
 int main(void) {
   println("{}", (f128)0.6767);
-  AllocatorV local = debugAllocator(track_total = 1, log = stderr);
+  AllocatorV local = debugAllocator(log = stderr);
   defer { debugAllocatorDeInit(local); };
   c8 string[] = "{hello:{{{{}}},{},world:{hello:{world}}}}";
   struct debugStats c_start = debugAllocator_stats(local);
