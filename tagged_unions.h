@@ -5,9 +5,9 @@
 // Part of macros but got too long
 
   #define TU_NAM(t) _##t
-  #define TU_MK_TAG(t, n) ID_CONCAT(n, ID_CONCAT(TU_TAGENUM_, t)) // name of enum
-  #define TU_MK_UF_(t) t TU_NAM(t);                               // union fields ;
-  #define TU_MK_TAGENUM(name, t) TU_MK_TAG(name, t),              // enum fields ,
+  #define TU_MK_TAG(t, n) ID_CONCAT(n, TU_TAGENUM_)  // name of enum
+  #define TU_MK_UF_(t) t TU_NAM(t);                  // union fields ;
+  #define TU_MK_TAGENUM(name, t) TU_MK_TAG(name, t), // enum fields ,
   #define TU_MK_INIT_(type, t) .TU_NAM(t) = TU_MK_TAGENUM(type, t)
 
   #define TU_DEFINE(name_tatt, ...)                                         \
@@ -58,7 +58,7 @@
     /* Automatically casts input into correct type output as a pointer         */ \
     do {                                                                          \
       var_ local_item = TUPLE_EXPAND_B(type_val_tuple);                           \
-      var_ tmp = ASSERT_EXPR(                                                     \
+      ASSERT_EXPR(                                                                \
           types_eq(TUPLE_EXPAND_A(type_val_tuple), typeof(local_item)), ""        \
       );                                                                          \
       switch ((TUPLE_EXPAND_B(type_val_tuple)).tag) {                             \
