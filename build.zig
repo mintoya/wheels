@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addCSourceFile(.{
-        .file = b.path("tests.c"),
+        .file = b.path("examples/mapBench.c"),
         // .file = b.path("examples/parser_lit.cpp"),
         .flags = &.{
             "-g",

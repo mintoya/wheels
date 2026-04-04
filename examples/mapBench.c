@@ -2,7 +2,7 @@
 #include "../shmap.h"
 #include <time.h>
 
-#define N_ITERS 1000000
+#define N_ITERS 100000
 
 const char keys[][8] = {
     "one",
@@ -102,29 +102,51 @@ BenchResult bench_mHmap(AllocatorV allocator) {
   mHmap_deinit(hm);
   return r;
 }
+BenchResult bench_mHmapo(AllocatorV allocator) {
+  BenchResult r = {0};
+
+  mHmap(key, int) hm = mHmap_init(allocator, key, int, 0, 32);
+
+  double t0 = now_sec();
+
+  for (each_RANGE(int, iters, 0, N_ITERS))
+    for (each_RANGE(int, i, 0, countof(keys)))
+      mHmap_set(hm, convert(keys[i]), i);
+
+  double t1 = now_sec();
+
+  for (each_RANGE(int, iters, 0, N_ITERS))
+    for (each_RANGE(int, i, 0, countof(keys))) {
+      int *v = mHmap_get(hm, convert(keys[i]));
+      if (!v)
+        abort();
+    }
+
+  double t2 = now_sec();
+
+  r.set_time = t1 - t0;
+  r.get_time = t2 - t1;
+
+  mHmap_deinit(hm);
+  return r;
+}
 int main() {
   AllocatorV allocator = stdAlloc;
   BenchResult s = bench_sHmap(allocator);
   BenchResult m = bench_mHmap(allocator);
-
-  println("=== Results (8 keys, {} iterations) ===", (usize)N_ITERS);
+  BenchResult o = bench_mHmapo(allocator);
 
   print(
       "sHmap  SET: {:3} sec\n"
-      "mHmap  SET: {:3} sec\n",
-      s.set_time, m.set_time
+      "mHmap  SET: {:3} sec\n"
+      "oHmap  SET: {:3} sec\n",
+      s.set_time, m.set_time, o.set_time
   );
   print(
       "sHmap  GET: {:3} sec\n"
-      "mHmap  GET: {:3} sec\n",
-      s.get_time, m.get_time
-  );
-  print(
-      "Ratios\n"
-      "SET  s/m: {:2}X\n"
-      "GET  s/m: {:2}X\n",
-      s.set_time / m.set_time,
-      s.get_time / m.get_time
+      "mHmap  GET: {:3} sec\n"
+      "oHmap  GET: {:3} sec\n",
+      s.get_time, m.get_time, o.get_time
   );
 }
 #include "../wheels.h"
