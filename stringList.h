@@ -55,50 +55,28 @@ usize stringList_len(stringList *);
 usize stringList_footprint(const stringList *);
 
 static inline fptr stringList_fptr_passthrough(const fptr f) { return f; }
+fptr stringList_get(const stringList *, usize);
 
 fptr stringList_push(stringList *, fptr);
 fptr stringList_set(stringList *, usize, fptr);
 fptr stringList_insert(stringList *, usize, fptr);
-fptr stringList_get(const stringList *, usize);
+static inline fptr stringList_push_chars(stringList *sl, const char *cstr) {
+  return stringList_push(sl, fptr_CSP(cstr));
+}
+static inline fptr stringList_set_chars(stringList *sl, usize idx, const char *cstr) {
+  return stringList_set(sl, idx, fptr_CSP(cstr));
+}
+static inline fptr stringList_insert_chars(stringList *sl, usize idx, const char *cstr) {
+  return stringList_insert(sl, idx, fptr_CSP(cstr));
+}
 
-  #define stringList_push(stringlist, ptr)           \
-    (stringList_push)(                               \
-        stringlist,                                  \
-        _Generic(                                    \
-            (ptr),                                   \
-            char *: fptr_CSP,                        \
-            char[]: fptr_CSP,                        \
-            const char *: fptr_CSP,                  \
-            const char[]: fptr_CSP,                  \
-            const fptr: stringList_fptr_passthrough, \
-            fptr: stringList_fptr_passthrough        \
-        )(ptr)                                       \
-    )
-  #define stringList_set(stringlist, idx, ptr)       \
-    (stringList_set)(                                \
-        stringlist, idx,                             \
-        _Generic(                                    \
-            (ptr),                                   \
-            char *: fptr_CSP,                        \
-            char[]: fptr_CSP,                        \
-            const char *: fptr_CSP,                  \
-            const char[]: fptr_CSP,                  \
-            const fptr: stringList_fptr_passthrough, \
-            fptr: stringList_fptr_passthrough        \
-        )(ptr)                                       \
-    )
-  #define stringList_insert(stringlist, idx, ptr)    \
-    (stringList_insert)(                             \
-        stringlist, idx,                             \
-        _Generic(                                    \
-            (ptr),                                   \
-            char *: fptr_CSP,                        \
-            char[]: fptr_CSP,                        \
-            const char *: fptr_CSP,                  \
-            const char[]: fptr_CSP,                  \
-            const fptr: stringList_fptr_passthrough, \
-            fptr: stringList_fptr_passthrough        \
-        )(ptr)                                       \
+  #define stringList_push(stringlist, ptr) \
+    _Generic((ptr), char *: stringList_push_chars, fptr: (stringList_push))(stringlist, ptr)
+  #define stringList_set(stringlist, idx, ptr) \
+    _Generic((ptr), char *: stringList_set_chars, fptr: (stringList_set))(stringlist, idx, ptr)
+  #define stringList_insert(stringlist, idx, ptr)                                \
+    _Generic((ptr), char *: stringList_insert_chars, fptr: (stringList_insert))( \
+        stringlist, idx, ptr                                                     \
     )
 
 inline stringList *stringList_copy(AllocatorV allocator, stringList *sl) {
