@@ -52,7 +52,7 @@ static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
   if (!val_ptr)
     return;
   usize s_idx = stringList_len(sh->strings);
-  stringList_append(sh->strings, key);
+  stringList_push(sh->strings, key);
 
   usize v_idx = sh->values->length;
   sh->values = sList_append(allocator, sh->values, sh->vwidth, val_ptr);

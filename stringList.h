@@ -50,17 +50,61 @@ static inline fptr vlqbuf_toFptr(vlength *b) {
 }
 stringList *stringList_new(AllocatorV allocator, usize initSize);
 void stringList_free(stringList *sl);
-fptr stringList_get(const stringList *, usize);
-fptr stringList_append(stringList *, fptr);
 void stringList_remove(stringList *, usize);
 usize stringList_len(stringList *);
 usize stringList_footprint(const stringList *);
-fptr stringList_insert(stringList *, usize, fptr);
+
+static inline fptr stringList_fptr_passthrough(const fptr f) { return f; }
+
+fptr stringList_push(stringList *, fptr);
 fptr stringList_set(stringList *, usize, fptr);
+fptr stringList_insert(stringList *, usize, fptr);
+fptr stringList_get(const stringList *, usize);
+
+  #define stringList_push(stringlist, ptr)           \
+    (stringList_push)(                               \
+        stringlist,                                  \
+        _Generic(                                    \
+            (ptr),                                   \
+            char *: fptr_CSP,                        \
+            char[]: fptr_CSP,                        \
+            const char *: fptr_CSP,                  \
+            const char[]: fptr_CSP,                  \
+            const fptr: stringList_fptr_passthrough, \
+            fptr: stringList_fptr_passthrough        \
+        )(ptr)                                       \
+    )
+  #define stringList_set(stringlist, idx, ptr)       \
+    (stringList_set)(                                \
+        stringlist, idx,                             \
+        _Generic(                                    \
+            (ptr),                                   \
+            char *: fptr_CSP,                        \
+            char[]: fptr_CSP,                        \
+            const char *: fptr_CSP,                  \
+            const char[]: fptr_CSP,                  \
+            const fptr: stringList_fptr_passthrough, \
+            fptr: stringList_fptr_passthrough        \
+        )(ptr)                                       \
+    )
+  #define stringList_insert(stringlist, idx, ptr)    \
+    (stringList_insert)(                             \
+        stringlist, idx,                             \
+        _Generic(                                    \
+            (ptr),                                   \
+            char *: fptr_CSP,                        \
+            char[]: fptr_CSP,                        \
+            const char *: fptr_CSP,                  \
+            const char[]: fptr_CSP,                  \
+            const fptr: stringList_fptr_passthrough, \
+            fptr: stringList_fptr_passthrough        \
+        )(ptr)                                       \
+    )
+
 inline stringList *stringList_copy(AllocatorV allocator, stringList *sl) {
   stringList *res = stringList_new(allocator, sl->len > 10 ? sl->len : 10);
   for (each_RANGE(usize, i, 0, stringList_len(sl)))
-    stringList_append(res, stringList_get(sl, i));
+    stringList_push(res, stringList_get(sl, i));
   return res;
 }
   #if defined __cplusplus
@@ -73,15 +117,14 @@ struct strList {
   inline fptr get(usize idx) { return stringList_get(ptr, idx); }
   inline fptr set(usize idx, fptr ptrf) { return stringList_set(ptr, idx, ptrf); }
   inline void remove(usize idx) { return stringList_remove(ptr, idx); }
-  inline fptr push(fptr ptrf) { return stringList_append(ptr, ptrf); }
+  inline fptr push(fptr ptrf) { return stringList_push(ptr, ptrf); }
   inline fptr insert(usize idx, fptr ptrf) { return stringList_insert(ptr, idx, ptrf); }
   inline usize len() { return stringList_len(ptr); }
   const fptr operator[](usize idx) { return get(idx); }
 };
   #endif
-typedef int test_result;
 
-  // #include "tests.cpp"
+  // #include "tests.c"
   #if defined(MAKE_TEST_FN)
 MAKE_TEST_FN(test_stringList_lifecycle, {
   stringList *sl = stringList_new(allocator, 10);
@@ -90,7 +133,7 @@ MAKE_TEST_FN(test_stringList_lifecycle, {
     return 1;
 
   fptr data = fp("Hello");
-  stringList_append(sl, data);
+  stringList_push(sl, data);
   if (stringList_len(sl) != 1)
     return 1;
 
@@ -112,8 +155,8 @@ MAKE_TEST_FN(test_stringList_manipulation, {
   if (!sl)
     return 1;
 
-  stringList_append(sl, fp("one"));
-  stringList_append(sl, fp("two"));
+  stringList_push(sl, "one");
+  stringList_push(sl, "two");
 
   // Test Insert: ["one", "mid", "two"]
   stringList_insert(sl, 1, fp("mid"));
@@ -148,30 +191,25 @@ MAKE_TEST_FN(test_stringList_churn_stats, {
   if (!sl)
     return 1;
 
-  printf("=== StringList Churn Statistics (%zu iterations) ===\n", (size_t)ITERS);
+  for (each_RANGE(usize, i, 0, ITERS))
+    stringList_push(sl, "medium_length_string");
 
-  for (usize i = 0; i < ITERS; i++)
-    stringList_append(sl, fp("medium_length_string"));
-
-  printf("Phase 1 (Bulk Append):\n"
-         "  Footprint: %zu bytes\n"
+  printf("  Footprint: %zu bytes\n"
          "  Free list: %zu blocks\n\n",
          (size_t)stringList_footprint(sl), (size_t)msList_len(sl->flist));
 
   for (ptrdiff_t i = ITERS - 1; i >= 0; i -= 2)
     stringList_remove(sl, (usize)i);
 
-  printf("Phase 2 (Interleaved Remove):\n"
-         "  Footprint: %zu bytes\n"
+  printf("  Footprint: %zu bytes\n"
          "  buffer size: %zu \n"
          "  Free list: %zu blocks\n\n",
          (size_t)stringList_footprint(sl), sl->len, (size_t)msList_len(sl->flist));
 
   for (usize i = 0; i < ITERS / 2; i++)
-    stringList_append(sl, fp("short"));
+    stringList_push(sl, "short");
 
-  printf("Phase 3 (Re-insertion w/ Splitting):\n"
-         "  Footprint: %zu bytes\n"
+  printf("  Footprint: %zu bytes\n"
          "  buffer size: %zu \n"
          "  Free list: %zu blocks\n\n",
          (size_t)stringList_footprint(sl), sl->len, (size_t)msList_len(sl->flist));
@@ -245,10 +283,10 @@ struct flsr stringListFreeList_search(stringList *sl, usize size) {
   }
   return (struct flsr){.i = b, .f = 0};
 }
-fptr stringList_get(const stringList *sl, usize i) {
+fptr(stringList_get)(const stringList *sl, usize i) {
   return i < msList_len(sl->ulist) ? vlqbuf_toFptr(sl->buff + sl->ulist[i]) : nullFptr;
 }
-fptr stringList_append(stringList *sl, fptr ptr) {
+fptr(stringList_push)(stringList *sl, fptr ptr) {
   struct flsr insert = stringListFreeList_search(sl, ptr.len);
   typeof(u64_toVlen(0)) vlq_struct = u64_toVlen(ptr.len);
 
@@ -329,13 +367,13 @@ usize stringList_footprint(const stringList *sl) {
       +sl->len;
   // clang-format on
 };
-fptr stringList_insert(stringList *sl, usize i, fptr ptr) {
+fptr(stringList_insert)(stringList *sl, usize i, fptr ptr) {
   assertMessage(i <= msList_len(sl->ulist));
-  fptr res = stringList_append(sl, ptr);
+  fptr res = stringList_push(sl, ptr);
   msList_ins(sl->allocator, sl->ulist, i, msList_pop(sl->ulist));
   return res;
 }
-fptr stringList_set(stringList *sl, usize i, fptr ptr) {
+fptr(stringList_set)(stringList *sl, usize i, fptr ptr) {
   stringList_remove(sl, i);
   return stringList_insert(sl, i, ptr);
 }

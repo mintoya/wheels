@@ -37,7 +37,7 @@ static inline sList_header *sList_new(AllocatorV allocator, usize initLen, usize
   return res;
 }
 static inline void *sList_getRef(sList_header *l, usize width, usize i) { return i < l->length ? (l->buf + width * i) : NULL; }
-static inline void *sList_set(sList_header *l, usize width, usize index, void *element) {
+static inline void *sList_set(sList_header *l, usize width, usize index, const void *element) {
   void *place = sList_getRef(l, width, index);
   if (place) {
     element
@@ -47,7 +47,7 @@ static inline void *sList_set(sList_header *l, usize width, usize index, void *e
   return place;
 }
 
-static inline sList_header *sList_append(AllocatorV allocator, sList_header *l, usize width, void *element) {
+static inline sList_header *sList_append(AllocatorV allocator, sList_header *l, usize width, const void *element) {
   if (l->capacity < l->length + 1)
     l = sList_realloc(allocator, l, width, SLIST_GROW_EQ(l->length));
   l->length++;
