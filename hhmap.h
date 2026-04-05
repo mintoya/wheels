@@ -13,6 +13,8 @@ typedef struct HMap HMap;
  * @param allocator allocator
  * @param metaSize number of buckets
  *     each bucket is a dynamic array
+ * @param maxHash maximum hash size, only used if metaSize is zero
+ *     mutually exclusive with metaSize, both will be used to bodulo the hash of the item
  * @return pointer to new HMap or NULL on failure
  */
 HMap *HMap_new(
@@ -20,7 +22,7 @@ HMap *HMap_new(
     u32 vSize,
     AllocatorV allocator,
     usize metaSize,
-    usize maxHash // only used if metaSize is 0
+    usize maxHash
 );
 /**
  * Creates a new hash, with same keys and vals as another hash map
@@ -32,7 +34,7 @@ HMap *HMap_new(
  * `@param vSize size of value type
  * `@param metaSize number of buckets
  */
-void HMap_transform(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u32 metaSize, u32 maxHash);
+void HMap_manage(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u32 metaSize, u32 maxHash);
 /**
  * free's hm
  * @param hm map
@@ -268,7 +270,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
   #define HMap_scoped [[gnu::cleanup(HMap_cleanup_handler)]] HMap
 
 // #define MAKE_TEST_FN(fn, th) \
-//   int fn(AllocatorV allocator) { th }
+  //   int fn(AllocatorV allocator) { th }
 
   #if defined(MAKE_TEST_FN)
     #include "macros.h"
@@ -302,6 +304,13 @@ MAKE_TEST_FN(HMap_basic_test, {
     if (!v || *v != i * i)
       return 1;
   }
+
+  for (int i = 0; i < 100; i++)
+    if (i % 2)
+      mHmap_rem(map, i);
+  for (int i = 0; i < 100; i++)
+    if (!((!!mHmap_get(map, i)) ^ i % 2))
+      return 1;
 
   mHmap_clear(map);
   for (int i = 0; i < 100; i++) {
@@ -343,6 +352,107 @@ MAKE_TEST_FN(HMap_open_test, {
       return 1;
   }
 
+  for (int i = 0; i < 100; i++)
+    if (i % 2)
+      mHmap_rem(map, i);
+  for (int i = 0; i < 100; i++)
+    if (!((!!mHmap_get(map, i)) ^ i % 2))
+      return 1;
+
+  mHmap_clear(map);
+  for (int i = 0; i < 100; i++) {
+    int *v = mHmap_get(map, i);
+    if (v)
+      return 1;
+  }
+
+  return 0;
+});
+MAKE_TEST_FN(HMap_basic_test_loaded, {
+  mHmap(int, int) map = mHmap_init(allocator, int, int, 1);
+  defer { mHmap_deinit(map); };
+
+  for (int i = 0; i < 100; i++)
+    mHmap_set(map, i, i * 2);
+
+  for (int i = 0; i < 100; i++) {
+    int *v = mHmap_get(map, i);
+    if (!v || *v != i * 2)
+      return 1;
+  }
+  int array[100] = {};
+  mHmap_foreach(map, int, i, int, i2, {
+    array[i] = 1;
+    if (i2 != i * 2)
+      return 1;
+  });
+  for_each_((var_ i, VLAP(array, 100)), {
+    if (!i)
+      return 1;
+  });
+  for (int i = 0; i < 100; i++)
+    mHmap_set(map, i, i * i);
+
+  for (int i = 0; i < 100; i++) {
+    int *v = mHmap_get(map, i);
+    if (!v || *v != i * i)
+      return 1;
+  }
+
+  for (int i = 0; i < 100; i++)
+    if (i % 2)
+      mHmap_rem(map, i);
+  for (int i = 0; i < 100; i++)
+    if (!((!!mHmap_get(map, i)) ^ i % 2))
+      return 1;
+
+  mHmap_clear(map);
+  for (int i = 0; i < 100; i++) {
+    int *v = mHmap_get(map, i);
+    if (v)
+      return 1;
+  }
+
+  return 0;
+});
+MAKE_TEST_FN(HMap_open_test_loaded, {
+  mHmap(int, int) map = mHmap_init(allocator, int, int, 0, 1);
+  defer { mHmap_deinit(map); };
+
+  for (int i = 0; i < 100; i++)
+    mHmap_set(map, i, i * 2);
+
+  for (int i = 0; i < 100; i++) {
+    int *v = mHmap_get(map, i);
+    if (!v || *v != i * 2)
+      return 1;
+  }
+  int array[100] = {};
+  mHmap_foreach(map, int, i, int, i2, {
+    array[i] = 1;
+    if (i2 != i * 2)
+      return 1;
+  });
+  for_each_((var_ i, VLAP(array, 100)), {
+    if (!i)
+      return 1;
+  });
+  for (int i = 0; i < 100; i++)
+    mHmap_set(map, i, i * i);
+
+  for (int i = 0; i < 100; i++) {
+    int *v = mHmap_get(map, i);
+    if (!v || *v != i * i)
+      return 1;
+  }
+
+  for (int i = 0; i < 100; i++)
+    if (i % 2)
+      mHmap_rem(map, i);
+  for (int i = 0; i < 100; i++)
+    if (!((!!mHmap_get(map, i)) ^ i % 2))
+      return 1;
+
   mHmap_clear(map);
   for (int i = 0; i < 100; i++) {
     int *v = mHmap_get(map, i);
@@ -360,7 +470,7 @@ MAKE_TEST_FN(HMap_transform_basic_test, {
   for (int i = 0; i < 100; i++)
     mHmap_set(map, i, i * 3);
 
-  HMap_transform((HMap **)&map, sizeof(int), sizeof(int), allocator, 128, 0);
+  HMap_manage((HMap **)&map, sizeof(int), sizeof(int), allocator, 128, 0);
 
   for (int i = 0, *v; (v = mHmap_get(map, i), i < 100); i++)
     if (!v || *v != i * 3)
@@ -376,7 +486,7 @@ MAKE_TEST_FN(HMap_transform_open_test, {
   for (int i = 0; i < 100; i++)
     mHmap_set(map, i, i * 3);
 
-  HMap_transform((HMap **)&map, sizeof(int), sizeof(int), allocator, 0, 128);
+  HMap_manage((HMap **)&map, sizeof(int), sizeof(int), allocator, 0, 128);
 
   for (int i = 0, *v; (v = mHmap_get(map, i), i < 100); i++)
     if (!v || *v != i * 3)
@@ -493,11 +603,13 @@ struct HMap_inner_item HMap_get_inner_zero(const HMap *map, usize idx) {
   res.val = (void *)((u8 *)res.key + map->keysize);
   return res;
 }
+
 void HMap_free(HMap *hm) {
   AllocatorV allocator = hm->allocator;
-  const u32 msize = hm->metaSize;
-  for (int i = 0; i < msize; i++)
-    aFree(allocator, hm->storage[i]);
+  const u32 msize = hm->metaSize ?: 2;
+  for_each_((var_ s, VLAP(hm->storage, msize)), {
+    aFree(allocator, s);
+  });
   aFree(allocator, hm);
 }
 
@@ -505,7 +617,7 @@ __attribute__((const, always_inline)) void *LesserList_getref(const usize elw, c
   return (u8 *)(hll->buf) + idx * (elw);
 }
 
-void HMap_transform(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u32 metaSize, u32 maxHash) {
+void HMap_manage(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u32 metaSize, u32 maxHash) {
   assertMessage(last && *last);
   assertMessage(metaSize || maxHash);
 
@@ -578,7 +690,7 @@ void HMap_set_normal(HMap *map, const void *key, const void *val) {
   }
   memcpy(place, key, map->keysize);
   val ? (void)memcpy(place + map->keysize, val, map->valsize)
-      : sList_remove(list[0], elw, list[0]->length - 1);
+      : (void)sList_remove(list[0], elw, listindex);
 }
 void *HMap_get_normal(const HMap *map, const void *key) {
   if (!key)
@@ -608,7 +720,7 @@ void *HMap_get_open(const HMap *map, const void *key) {
   if (lindex >= map->storage[0]->length)
     return nullptr;
   struct HMap_inner_item it = HMap_get_inner_zero(map, lindex);
-  while (lindex < map->storage[0]->length && it.flag[0] && memcmp(it.key, key, map->keysize)) {
+  while (it.flag[0] && memcmp(it.key, key, map->keysize)) {
     lindex++;
     if (lindex < map->storage[0]->length)
       it = HMap_get_inner_zero(map, lindex);
