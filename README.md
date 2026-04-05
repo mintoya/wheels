@@ -19,9 +19,9 @@ meant to hold on to raw data
   mList_push(list, 7);
   // null since the list isnt that long
   int *elem = mList_get(list, 10);
-  mList_foreach(list, int, v, {
+  for_each_((var_ v, mList_vla(list)),{
     println("{}", v);
-  });
+  })
 ```
 # shortList 
  - the other dynamic list
@@ -102,11 +102,11 @@ meant to hold on to raw data
       int y;
     } point;
     REGISTER_PRINTER(point, {
-      PUTS(U"{x:");
+      PUTS("{x:");
       USETYPEPRINTER(usize, in.x); // use already registered printer
-      PUTS(U",y:");
+      PUTS(",y:");
       USETYPEPRINTER(usize, in.y);
-      PUTC(U'}');
+      PUTC('}');
     })
     // now you can call this with
     print("${point}",((point){0,0}));
@@ -117,12 +117,12 @@ meant to hold on to raw data
  need to be called in order, this would be really annoying so wheels.h 
  just ensures that all the libraries have the implementatoins called in order
 ``` c
-    #include "wheels/umap.h"
+    #include "wheels/hhmap.h"
     #include "wheels/stringList.h"
     #include "wheels/wheels.h"
     // umap is dependant on both stringlist and my-list
     // stringlist is dependant on my-list 
     // wheels will implement in this order
-    //  umap -> stringlist  -> my-list 
+    //  hhmap -> stringlist  -> my-list 
 ```
 
