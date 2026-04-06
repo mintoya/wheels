@@ -17,7 +17,7 @@ typedef uint32_t char32_t;
   #endif
 #endif
 
-// just for macros
+//
 typedef unsigned int uint;
 typedef unsigned char uchar;
 typedef unsigned long ulong;

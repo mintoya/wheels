@@ -270,12 +270,14 @@ using mHmap_t = Tb (**)(HMap *, Ta);
   #define HMap_scoped [[gnu::cleanup(HMap_cleanup_handler)]] HMap
 
 // #define MAKE_TEST_FN(fn, th) \
-  //   int fn(AllocatorV allocator) { th }
+//   int fn(AllocatorV allocator) { th }
 
-  #if defined(MAKE_TEST_FN)
-    #include "macros.h"
-MAKE_TEST_FN(HMap_basic_test, {
-  mHmap(int, int) map = mHmap_init(allocator, int, int);
+  #if !defined MAKE_TEST_FN
+    #define MAKE_TEST_FN(fn, ...) \
+      int fn(AllocatorV allocator) { __VA_ARGS__ }
+  #endif
+  #include "macros.h"
+inline int HMap_test_structure(mHmap(int, int) map) {
   defer { mHmap_deinit(map); };
 
   for (int i = 0; i < 100; i++)
@@ -320,147 +322,22 @@ MAKE_TEST_FN(HMap_basic_test, {
   }
 
   return 0;
+}
+MAKE_TEST_FN(HMap_basic_test, {
+  mHmap(int, int) map = mHmap_init(allocator, int, int, 32, 0);
+  return HMap_test_structure(map);
 });
 MAKE_TEST_FN(HMap_open_test, {
-  mHmap(int, int) map = mHmap_init(allocator, int, int, 0);
-  defer { mHmap_deinit(map); };
-
-  for (int i = 0; i < 100; i++)
-    mHmap_set(map, i, i * 2);
-
-  for (int i = 0; i < 100; i++) {
-    int *v = mHmap_get(map, i);
-    if (!v || *v != i * 2)
-      return 1;
-  }
-  int array[100] = {};
-  mHmap_foreach(map, int, i, int, i2, {
-    array[i] = 1;
-    if (i2 != i * 2)
-      return 1;
-  });
-  for_each_((var_ i, VLAP(array, 100)), {
-    if (!i)
-      return 1;
-  });
-  for (int i = 0; i < 100; i++)
-    mHmap_set(map, i, i * i);
-
-  for (int i = 0; i < 100; i++) {
-    int *v = mHmap_get(map, i);
-    if (!v || *v != i * i)
-      return 1;
-  }
-
-  for (int i = 0; i < 100; i++)
-    if (i % 2)
-      mHmap_rem(map, i);
-  for (int i = 0; i < 100; i++)
-    if (!((!!mHmap_get(map, i)) ^ i % 2))
-      return 1;
-
-  mHmap_clear(map);
-  for (int i = 0; i < 100; i++) {
-    int *v = mHmap_get(map, i);
-    if (v)
-      return 1;
-  }
-
-  return 0;
+  mHmap(int, int) map = mHmap_init(allocator, int, int, 0, 32);
+  return HMap_test_structure(map);
 });
 MAKE_TEST_FN(HMap_basic_test_loaded, {
-  mHmap(int, int) map = mHmap_init(allocator, int, int, 1);
-  defer { mHmap_deinit(map); };
-
-  for (int i = 0; i < 100; i++)
-    mHmap_set(map, i, i * 2);
-
-  for (int i = 0; i < 100; i++) {
-    int *v = mHmap_get(map, i);
-    if (!v || *v != i * 2)
-      return 1;
-  }
-  int array[100] = {};
-  mHmap_foreach(map, int, i, int, i2, {
-    array[i] = 1;
-    if (i2 != i * 2)
-      return 1;
-  });
-  for_each_((var_ i, VLAP(array, 100)), {
-    if (!i)
-      return 1;
-  });
-  for (int i = 0; i < 100; i++)
-    mHmap_set(map, i, i * i);
-
-  for (int i = 0; i < 100; i++) {
-    int *v = mHmap_get(map, i);
-    if (!v || *v != i * i)
-      return 1;
-  }
-
-  for (int i = 0; i < 100; i++)
-    if (i % 2)
-      mHmap_rem(map, i);
-  for (int i = 0; i < 100; i++)
-    if (!((!!mHmap_get(map, i)) ^ i % 2))
-      return 1;
-
-  mHmap_clear(map);
-  for (int i = 0; i < 100; i++) {
-    int *v = mHmap_get(map, i);
-    if (v)
-      return 1;
-  }
-
-  return 0;
+  mHmap(int, int) map = mHmap_init(allocator, int, int, 1, 0);
+  return HMap_test_structure(map);
 });
 MAKE_TEST_FN(HMap_open_test_loaded, {
   mHmap(int, int) map = mHmap_init(allocator, int, int, 0, 1);
-  defer { mHmap_deinit(map); };
-
-  for (int i = 0; i < 100; i++)
-    mHmap_set(map, i, i * 2);
-
-  for (int i = 0; i < 100; i++) {
-    int *v = mHmap_get(map, i);
-    if (!v || *v != i * 2)
-      return 1;
-  }
-  int array[100] = {};
-  mHmap_foreach(map, int, i, int, i2, {
-    array[i] = 1;
-    if (i2 != i * 2)
-      return 1;
-  });
-  for_each_((var_ i, VLAP(array, 100)), {
-    if (!i)
-      return 1;
-  });
-  for (int i = 0; i < 100; i++)
-    mHmap_set(map, i, i * i);
-
-  for (int i = 0; i < 100; i++) {
-    int *v = mHmap_get(map, i);
-    if (!v || *v != i * i)
-      return 1;
-  }
-
-  for (int i = 0; i < 100; i++)
-    if (i % 2)
-      mHmap_rem(map, i);
-  for (int i = 0; i < 100; i++)
-    if (!((!!mHmap_get(map, i)) ^ i % 2))
-      return 1;
-
-  mHmap_clear(map);
-  for (int i = 0; i < 100; i++) {
-    int *v = mHmap_get(map, i);
-    if (v)
-      return 1;
-  }
-
-  return 0;
+  return HMap_test_structure(map);
 });
 MAKE_TEST_FN(HMap_transform_basic_test, {
   mHmap(int, int) map = mHmap_init(allocator, int, int, 8);
@@ -495,7 +372,6 @@ MAKE_TEST_FN(HMap_transform_open_test, {
   return 0;
 });
 
-  #endif
 #endif // HMap_H
 
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0

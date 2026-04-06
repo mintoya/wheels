@@ -38,7 +38,6 @@ struct debugStats debugAllocator_stats(AllocatorV allocator);
  *      - will print traces to stdout
  */
 int debugAllocatorDeInit(AllocatorV);
-// #include "tests.c"
 
 #if defined(MAKE_TEST_FN)
 MAKE_TEST_FN(debug_allocator_test, {

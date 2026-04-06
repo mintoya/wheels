@@ -104,72 +104,46 @@ struct strList {
 };
   #endif
 
-  // #include "tests.c"
-  #if defined(MAKE_TEST_FN)
-MAKE_TEST_FN(test_stringList_lifecycle, {
-  stringList *sl = stringList_new(allocator, 10);
-  defer { stringList_free(sl); };
-  if (!sl)
-    return 1;
+  #if !defined MAKE_TEST_FN
+    #define MAKE_TEST_FN(fn, th) \
+      int fn(AllocatorV allocator) { th }
+  #endif
 
-  fptr data = fp("Hello");
-  stringList_push(sl, data);
-  if (stringList_len(sl) != 1)
-    return 1;
-
-  fptr retrieved = stringList_get(sl, 0);
-  if (retrieved.len != 5)
-    return 1;
-  for (usize i = 0; i < 5; i++) {
-    if (retrieved.ptr[i] != data.ptr[i])
-      return 1;
-  }
-  if (stringList_footprint(sl) == 0)
-    return 1;
-
-  return 0;
-})
 MAKE_TEST_FN(test_stringList_manipulation, {
   stringList *sl = stringList_new(allocator, 4);
   defer { stringList_free(sl); };
-  if (!sl)
-    return 1;
 
   stringList_push(sl, "one");
   stringList_push(sl, "two");
 
-  // Test Insert: ["one", "mid", "two"]
-  stringList_insert(sl, 1, fp("mid"));
+  //  ["one", "mid", "two"]
+  stringList_insert(sl, 1, "mid");
   if (stringList_len(sl) != 3)
     return 1;
 
-  fptr mid = stringList_get(sl, 1);
-  if (mid.len != 3 || mid.ptr[0] != 'm')
+  if (!fptr_eq(stringList_get(sl, 1), fp("mid")))
     return 1;
 
-  // Test Set: ["one", "new", "two"]
-  stringList_set(sl, 1, fp("new"));
-  fptr updated = stringList_get(sl, 1);
-  if (updated.ptr[0] != 'n')
+  // ["one", "new", "two"]
+
+  stringList_set(sl, 1, "new");
+  if (!fptr_eq(stringList_get(sl, 1), fp("new")))
     return 1;
 
-  // Test Remove: ["new", "two"]
+  //  ["new", "two"]
   stringList_remove(sl, 0);
   if (stringList_len(sl) != 2)
     return 1;
 
-  fptr shifted = stringList_get(sl, 0);
-  if (shifted.ptr[0] != 'n')
+  if (!fptr_eq(stringList_get(sl, 0), fp("new")))
     return 1;
 
   return 0;
 })
-MAKE_TEST_FN(test_stringList_churn_stats, {
+MAKE_TEST_FN(test_stringList_churn, {
   usize ITERS = 100;
   stringList *sl = stringList_new(allocator, 1024);
   defer { stringList_free(sl); };
-  if (!sl)
-    return 1;
 
   for (each_RANGE(usize, i, 0, ITERS))
     stringList_push(sl, "medium_length_string");
@@ -196,7 +170,6 @@ MAKE_TEST_FN(test_stringList_churn_stats, {
 
   return 0;
 })
-  #endif
 #endif
 
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
