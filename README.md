@@ -1,16 +1,15 @@
 Some wheels im reinventing
 -
-# fptr.h
-a pointer + a length, used as both a generic pointer and 
-a "slice" in this library
-meant to hold on to raw data 
 # types.h
- - a bunch of zig style typedefs , things like u8,f64
- - slice and nullable macros for even more zig style types
+- a bunch of zig style typedefs , things like u8,f64
+- slice and nullable macros for even more zig style types
+# fptr.h
+- typedef'd as just a slice of u8
+- meant to hold on to raw data 
 # myList 
- - my-list.h is a basic dynamic list implementation
- - very close to [the vec in CC](https://github.com/JacksonAllan/CC) 
- - example of macro usage: 
+- my-list.h is a basic dynamic list implementation
+- very close to [the vec in CC](https://github.com/JacksonAllan/CC) 
+- example of macro usage: 
 ```c
   mList(int) list = mList_init(localArena, int);
   mList_push(list, 4);
@@ -24,10 +23,10 @@ meant to hold on to raw data
   })
 ```
 # shortList 
- - the other dynamic list
- - stb-style list
- - lower overheaed than list, doesnt remember allocator or width
- - example of macro usage: 
+- the other dynamic list
+- stb-style list
+- lower overheaed than list, doesnt remember allocator or width
+- example of macro usage: 
 ```c
   int* list = msList_init(localArena, int);
   msList_push(localArena,list, 4);
@@ -38,12 +37,15 @@ meant to hold on to raw data
   int *elem = msList_get(list, 10);
 ```
 # hhmap.h
- - hash map with linked-list style collision resolution
+- hash map with linked-list style collision resolution
  but linked list elements are in a normal list buffer
 
- - example of macro usage: 
+- example of macro usage: 
 ```c
-  mHmap(int, int) map = mHmap_init(localArena, int, int);
+  mHmap(int, int) map = mHmap_init(localArena, int, int ,8); 
+  // hashmap with 8 separate chaining arrays and
+  mHmap(int, int) map = mHmap_init(localArena, int, int ,0 ,8);
+  // hashmap with a maximum hash of 8 and linear probing
   mHmap_set(map, 1, 1);
   mHmap_set(map, 2, 4);
   mHmap_set(map, 3, 9);
@@ -57,8 +59,6 @@ meant to hold on to raw data
 ```
  # stringList.h
  - metadata array + char array for array of arbitrary size elements 
- # cSum.h
- basic checksum written for my keyboard project
 # vason.h (didnt know vson was taken lol)
  custom config language parser
  it can hypothetically parse a json file 
@@ -82,14 +82,16 @@ meant to hold on to raw data
     - uninterupted lines of characters are grouped
 - {} and [] are interchangeable for json compatibility
 - not really lua-style, everything is an array, and there are no rules around pair names
- # print.h
+# vason_tree.h
+- helper for building vason in  memory, currently has no parser, just converts and deconverts from arr version
+# print.h
  a *lot* of macros that make printing easier ( hopefully )
  generates a hashmap of slices to function pointers before main using constructor attribute
 ###  types that are handled automatically
- - fptr  : prints as hex bytes
- - isize : wrapper around usize
- - usize : main integer printer
- - f128  : no f64 yet for windows reasons, prints in scientific notation
+- fptr  : prints as hex bytes
+- isize : wrapper around usize
+- usize : main integer printer
+- f128  : no f64 yet for windows reasons, prints in scientific notation
  ```c
     #include "print.h"
     #include "wheels.h"
@@ -106,8 +108,8 @@ meant to hold on to raw data
       USETYPEPRINTER(usize, in.x); // use already registered printer
       PUTS(",y:");
       USETYPEPRINTER(usize, in.y);
-      PUTC('}');
-    })
+      PUTS("}");
+    });
     // now you can call this with
     print("${point}",((point){0,0}));
  ```

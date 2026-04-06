@@ -49,7 +49,9 @@ static inline fptr vlqbuf_toFptr(vlength *b) {
   };
 }
 stringList *stringList_new(AllocatorV allocator, usize initSize);
+stringList stringList_newVal(AllocatorV allocator, usize initSize);
 void stringList_free(stringList *sl);
+void stringList_free_data(stringList slp);
 void stringList_remove(stringList *, usize);
 usize stringList_len(stringList *);
 usize stringList_footprint(const stringList *);
@@ -215,30 +217,38 @@ MAKE_TEST_FN(test_stringList_churn_stats, {
     };                                                \
     (vlqbuf) & res;                                   \
   })
-stringList *stringList_new(AllocatorV allocator, usize initSize) {
-  stringList *res = aCreate(allocator, stringList);
-  *res = (typeof(*res)){
+
+stringList stringList_newVal(AllocatorV allocator, usize initSize) {
+  stringList res = (typeof(res)){
       .ulist = msList_init(allocator, ptrdiff_t),
       .flist = msList_init(allocator, ptrdiff_t),
       .len = 0,
-      .buff = (typeof(res->buff))aAlloc(allocator, initSize),
+      .buff = (typeof(res.buff))aAlloc(allocator, initSize),
       .allocator = allocator,
   };
-  assertMessage(!msList_len(res->ulist), "should be 0, is %llu", (unsigned long long)msList_len(res->ulist));
-  assertMessage(!msList_len(res->flist), "should be 0, is %llu", (unsigned long long)msList_len(res->flist));
+  assertMessage(!msList_len(res.ulist), "should be 0, is %llu", (unsigned long long)msList_len(res.ulist));
+  assertMessage(!msList_len(res.flist), "should be 0, is %llu", (unsigned long long)msList_len(res.flist));
   if (allocator->size)
-    res->cap = allocator->size(allocator, res->buff);
+    res.cap = allocator->size(allocator, res.buff);
   else
-    res->cap = initSize;
+    res.cap = initSize;
   return res;
 }
+stringList *stringList_new(AllocatorV allocator, usize initSize) {
+  stringList *res = aCreate(allocator, stringList);
+  *res = stringList_newVal(allocator, initSize);
+  return res;
+}
+void stringList_free_data(stringList slp) {
+  AllocatorV allocator = slp.allocator;
+  msList_deInit(allocator, slp.ulist);
+  msList_deInit(allocator, slp.flist);
+  aFree(allocator, slp.buff);
+}
 void stringList_free(stringList *slp) {
-  stringList *sl = (typeof(sl))slp;
-  AllocatorV allocator = sl->allocator;
-  msList_deInit(allocator, sl->ulist);
-  msList_deInit(allocator, sl->flist);
-  aFree(allocator, sl->buff);
-  aFree(allocator, sl);
+  AllocatorV allocator = slp->allocator;
+  stringList_free_data(*slp);
+  aFree(allocator, slp);
 }
 struct flsr {
   usize i;

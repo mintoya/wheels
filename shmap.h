@@ -80,28 +80,24 @@ static inline isize sHmap_get_cs(const sHmap *sh, const char *key, usize v_width
 }
 static inline sHmap *shMap_new(AllocatorV allocator, usize size, usize buckets) {
   sHmap *res = (typeof(res))aAlloc(allocator, sizeof(sHmap) + (buckets * sizeof(struct double_idx *)));
-  stringList *sl = stringList_new(allocator, 1024);
   *res = (sHmap){
-      .strings = {*sl},
+      .strings = {stringList_newVal(allocator, 1024)},
       .values = sList_new(allocator, 8, size),
       .vwidth = size,
       .num_buckets = buckets,
   };
-  for (usize i = 0; i < buckets; i++) {
+  for (usize i = 0; i < buckets; i++)
     res->buckets[i] = NULL;
-  }
-  aFree(allocator, sl);
   return res;
 }
 static inline void shMap_free(sHmap *map) {
   AllocatorV allocator = map->strings->allocator;
-  for (usize i = 0; i < map->num_buckets; i++) {
-    if (map->buckets[i]) {
+  for (usize i = 0; i < map->num_buckets; i++)
+    if (map->buckets[i])
       msList_deInit(allocator, map->buckets[i]);
-    }
-  }
   aFree(allocator, map->values);
-  stringList_free(map->strings);
+  stringList_free_data(map->strings[0]);
+  aFree(allocator, map);
 }
 static inline usize sHmap_footprint(const sHmap *map) {
   usize res = stringList_footprint(map->strings);
@@ -169,7 +165,6 @@ using msHmap_t = T (**)(sHmap *);
     temp_ ? temp_ : (msHmap_set(sh, key, val), msHmap_get(sh, key)); \
   })
 
-  // #include "tests.c"
   #if defined(MAKE_TEST_FN)
 MAKE_TEST_FN(test_shmap_generic_values, {
   msHmap(int) sm = msHmap_init(allocator, int);
@@ -193,7 +188,6 @@ MAKE_TEST_FN(test_shmap_generic_values, {
 
   return 0;
 });
-
 MAKE_TEST_FN(test_shmap_struct_values, {
   typedef struct {
     float x, y;

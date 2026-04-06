@@ -143,7 +143,11 @@ __attribute__((constructor(201))) static void printerInit() {
   LABEL_PRINTER_GEN(printerConstructor, UNIQUE_GEN_PRINTER)
 
 #define PUTS(characters) put(characters, _arb, countof(characters) - 1, 0)
-#define PUTC(character) put((ASSERT_EXPR(types_eq(c8, typeof(character)), ""), 0) + REF(c8, character), _arb, 1, 0)
+#define PUTC(character)                               \
+  do {                                                \
+    ASSERT_EXPR(types_eq(c8, typeof(character)), ""); \
+    put(REF(c8, character), _arb, 1, 0);              \
+  } while (0)
 
 #define REGISTER_PRINTER(T, ...)                                       \
   static usize GETTYPEPRINTERFN(T)(                                    \
@@ -296,7 +300,7 @@ REGISTER_PRINTER(f128, {
     }
 
   digits = digits ?: 3;
-  in = in < 0 ? (PUTC((c8)'-'), -in) : in;
+  in = in < 0 ? (({ PUTC((c8)'-'); }), -in) : in;
   f128 u = in;
 
   f128 round = 0.5;
