@@ -41,6 +41,7 @@ typedef double f64;
 // long double is a double on windows -_-
 typedef ldouble f128;
 typedef void *voidptr;
+typedef char *cstr;
 
 typedef uintmax_t umax;
 typedef intmax_t imax;

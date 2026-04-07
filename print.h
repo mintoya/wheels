@@ -475,27 +475,30 @@ REGISTER_SPECIAL_PRINTER_NEEDID(slice_printer_generic_version, "slice", struct {
   type:                             \
     ((fptr){sizeof(#type) - 1, (u8 *)#type})
   #if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
-    #define MAKE_PRINTINTS MAKE_PRINT_ARG_TYPE(i32), MAKE_PRINT_ARG_TYPE(u32),
+    #define MAKE_PRINTINTS_SIZE MAKE_PRINT_ARG_TYPE(i32), MAKE_PRINT_ARG_TYPE(u32),
   #else
-    #define MAKE_PRINTINTS
+    #define MAKE_PRINTINTS_SIZE
+  #endif
+  #if __SIZEOF_DOUBLE__ != __SIZEOF_LONG_DOUBLE__
+    #define MAKE_PRINTS_D MAKE_PRINT_ARG_TYPE(double), MAKE_PRINT_ARG_TYPE(long double),
+  #else
+    #define MAKE_PRINTS_D MAKE_PRINT_ARG_TYPE(ldouble),
   #endif
 
-  #define MAKE_PRINT_ARG(a)                                                  \
-    ((struct print_arg){                                                     \
-        .ref = REF(typeof(a), a),                                            \
-        .name = _Generic(                                                    \
-            a,                                                               \
-            MAKE_PRINT_ARG_TYPE(fptr),                                       \
-            MAKE_PRINT_ARG_TYPE(isize),                                      \
-            MAKE_PRINT_ARG_TYPE(usize),                                      \
-            MAKE_PRINT_ARG_TYPE(float),                                      \
-            MAKE_PRINT_ARG_TYPE(double),                                     \
-            MAKE_PRINT_ARG_TYPE(ldouble),                                    \
-            MAKE_PRINT_ARG_TYPE(pEsc),                                       \
-            MAKE_PRINTINTS void *: ((fptr){sizeof("ptr") - 1, (u8 *)"ptr"}), \
-            slice(c8): ((fptr){sizeof("slice(c8)") - 1, (u8 *)"slice(c8)"}), \
-            default: nullFptr                                                \
-        ),                                                                   \
+  #define MAKE_PRINT_ARG(a)                                                       \
+    ((struct print_arg){                                                          \
+        .ref = REF(typeof(a), a),                                                 \
+        .name = _Generic(                                                         \
+            a,                                                                    \
+            MAKE_PRINT_ARG_TYPE(fptr),                                            \
+            MAKE_PRINT_ARG_TYPE(isize),                                           \
+            MAKE_PRINT_ARG_TYPE(usize),                                           \
+            MAKE_PRINT_ARG_TYPE(float),                                           \
+            MAKE_PRINTS_D MAKE_PRINT_ARG_TYPE(pEsc),                              \
+            MAKE_PRINTINTS_SIZE void *: ((fptr){sizeof("ptr") - 1, (u8 *)"ptr"}), \
+            slice(c8): ((fptr){sizeof("slice(c8)") - 1, (u8 *)"slice(c8)"}),      \
+            default: nullFptr                                                     \
+        ),                                                                        \
     }),
 
 #else

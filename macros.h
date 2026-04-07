@@ -44,6 +44,8 @@ To bit_cast_func(const From &src) noexcept {
     MACRO_EXPAND4(MACRO_EXPAND4(MACRO_EXPAND4(MACRO_EXPAND4(__VA_ARGS__))))
   #define MACRO_EXPAND6(...) \
     MACRO_EXPAND5(MACRO_EXPAND5(MACRO_EXPAND5(MACRO_EXPAND5(__VA_ARGS__))))
+  #define MACRO_EXPAND7(...) \
+    MACRO_EXPAND6(MACRO_EXPAND6(MACRO_EXPAND6(MACRO_EXPAND6(__VA_ARGS__))))
   #define MACRO_EXPAND(...) \
     MACRO_EXPAND3(__VA_ARGS__)
 
@@ -87,6 +89,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define APPLY_N_HELPER(macro, arg, ...) macro(arg) \
       __VA_OPT__(APPLY_N_HELPER_INVOKE PARENTHESIS_HELPER(macro, __VA_ARGS__))
   #define APPLY_N_HELPER_INVOKE() APPLY_N_HELPER
+
   #define APPLY_N_WITH(macro, captured, ...) \
     MACRO_EXPAND(APPLY_N_WITH_HELPER(macro, captured, __VA_ARGS__))
   #define APPLY_N_WITH_HELPER(macro, captured, arg, ...) macro(captured, arg) \
@@ -181,12 +184,12 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
         1                                                                    \
     )
 
-  #define for_each_(decl_vla, loop, ...)                                                                       \
+  #define for_each_(decl_vla, loop, ...)                                                                      \
     for (each_VLAP(typeof(&(TUPLE_EXPAND_B(decl_vla))[0][0]), _RANGE_NAME(item), TUPLE_EXPAND_B(decl_vla))) { \
       TUPLE_EXPAND_A(decl_vla) = *_RANGE_NAME(item);                                                          \
       loop __VA_ARGS__                                                                                        \
     }
-  #define for_each_P(decl_vla, loop, ...)                                                                      \
+  #define for_each_P(decl_vla, loop, ...)                                                                     \
     for (each_VLAP(typeof(&(TUPLE_EXPAND_B(decl_vla))[0][0]), _RANGE_NAME(item), TUPLE_EXPAND_B(decl_vla))) { \
       TUPLE_EXPAND_A(decl_vla) = _RANGE_NAME(item);                                                           \
       loop __VA_ARGS__                                                                                        \
@@ -205,4 +208,27 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define if_likely(...) if (__builtin_expect(!!(__VA_ARGS__), 1))
   #define if_unlikely(...) if (__builtin_expect(!!(__VA_ARGS__), 0))
 
+//
+// pipe
+//
+
+  #define P$_EMPTY()
+  #define P$_DEFER(m) m P$_EMPTY()
+  #define P$_FOLD_INDIRECT() P$_FOLD
+  #define P$_EAT(...)
+
+  #define P$_FOLD(state, arg, ...)                                        \
+    ({                                                                    \
+      var_ _state = (state);                                              \
+      ({                                                                  \
+        var_ $ = _state;                                                  \
+        var_ _res = arg;                                                  \
+        __VA_OPT__(P$_DEFER(P$_FOLD_INDIRECT)()(_res, __VA_ARGS__)P$_EAT) \
+        (_res);                                                           \
+      });                                                                 \
+    })
+
+  #define P$_ONE(in, ...) MACRO_EXPAND(P$_FOLD(in, __VA_ARGS__))
+  // #define P$(in, ...) MACRO_EXPAND(P$_FOLD(in, __VA_ARGS__))
+  #define P$(in, ...) P$_ONE(in __VA_OPT__(, __VA_ARGS__), $)
 #endif
