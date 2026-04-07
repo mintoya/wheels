@@ -104,10 +104,7 @@ struct strList {
 };
   #endif
 
-  #if !defined MAKE_TEST_FN
-    #define MAKE_TEST_FN(fn, th) \
-      int fn(AllocatorV allocator) { th }
-  #endif
+  #if defined(MAKE_TEST_FN)
 
 MAKE_TEST_FN(test_stringList_manipulation, {
   stringList *sl = stringList_new(allocator, 4);
@@ -170,6 +167,7 @@ MAKE_TEST_FN(test_stringList_churn, {
 
   return 0;
 })
+  #endif
 #endif
 
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
