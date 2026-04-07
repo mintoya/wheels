@@ -245,10 +245,7 @@ using mList_t = T (**)(List *);
     mList_no_modify_test(list); \
     ((List *)list)->length = 0; \
   } while (0)
-#if !defined MAKE_TEST_FN
-  #define MAKE_TEST_FN(fn, ...) \
-    int fn(AllocatorV allocator) { __VA_ARGS__ }
-#endif
+#if defined(MAKE_TEST_FN)
 MAKE_TEST_FN(mlist_tests, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
@@ -294,6 +291,7 @@ MAKE_TEST_FN(mlist_vla_cast, {
     return 1;
   return 0;
 });
+#endif
 #endif // MY_LIST_H
 
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0

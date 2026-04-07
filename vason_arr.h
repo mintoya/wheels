@@ -282,8 +282,8 @@ NAMESPACE_STRUCT(
 );
 NAMESPACE_STRUCT(
     Vason_getters,
-    (getS, &vason_get_str),
-    (getI, &vason_get_idx)
+    (string, &vason_get_str),
+    (index, &vason_get_idx)
 );
 NAMESPACE_STRUCT(
     Vason,

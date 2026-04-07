@@ -269,14 +269,8 @@ using mHmap_t = Tb (**)(HMap *, Ta);
   #define mHmap_clear(map) HMap_clear((HMap *)map)
   #define HMap_scoped [[gnu::cleanup(HMap_cleanup_handler)]] HMap
 
-// #define MAKE_TEST_FN(fn, th) \
-//   int fn(AllocatorV allocator) { th }
-
-  #if !defined MAKE_TEST_FN
-    #define MAKE_TEST_FN(fn, ...) \
-      int fn(AllocatorV allocator) { __VA_ARGS__ }
-  #endif
-  #include "macros.h"
+  #if defined(MAKE_TEST_FN)
+    #include "macros.h"
 inline int HMap_test_structure(mHmap(int, int) map) {
   defer { mHmap_deinit(map); };
 
@@ -371,6 +365,7 @@ MAKE_TEST_FN(HMap_transform_open_test, {
 
   return 0;
 });
+  #endif
 
 #endif // HMap_H
 
