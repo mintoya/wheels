@@ -88,7 +88,7 @@ void HMap_clear(HMap *map);
 // extern inline void *HMap_getKey(const HMap *map, u32 n);
 // extern inline void *HMap_getVal(const HMap *map, u32 n);
 usize HMap_footprint(const HMap *map);
-u32 HMap_countCollisions(const HMap *map);
+u8 HMap_load(const HMap *map);
 usize HMap_getKeySize(const HMap *map);
 usize HMap_getValSize(const HMap *map);
 // resizes all buckets, can do this before lots of insertions
@@ -295,6 +295,8 @@ inline int HMap_test_structure(mHmap(int, int) map) {
   for (int i = 0; i < 100; i++)
     mHmap_set(map, i, i * i);
 
+  printf("map load : %i \n", (int)HMap_load((HMap *)map));
+
   for (int i = 0; i < 100; i++) {
     int *v = mHmap_get(map, i);
     if (!v || *v != i * i)
@@ -318,11 +320,11 @@ inline int HMap_test_structure(mHmap(int, int) map) {
   return 0;
 }
 MAKE_TEST_FN(HMap_basic_test, {
-  mHmap(int, int) map = mHmap_init(allocator, int, int, 32, 0);
+  mHmap(int, int) map = mHmap_init(allocator, int, int, 500, 0);
   return HMap_test_structure(map);
 });
 MAKE_TEST_FN(HMap_open_test, {
-  mHmap(int, int) map = mHmap_init(allocator, int, int, 0, 32);
+  mHmap(int, int) map = mHmap_init(allocator, int, int, 0, 500);
   return HMap_test_structure(map);
 });
 MAKE_TEST_FN(HMap_basic_test_loaded, {
@@ -650,14 +652,10 @@ u32 HMap_count(const HMap *map) {
   }
   return i;
 }
-
-u32 HMap_countCollisions(const HMap *map) {
-  assertMessage(map->metaSize, "not with open adressing");
-  u32 collisions = 0;
-  for_each_((var_ v, VLAP(map->storage, map->metaSize)), {
-    collisions += v->length ? v->length - 1 : 0;
-  });
-  return collisions;
+u8 HMap_load(const HMap *map) {
+  u32 count = HMap_count(map), cap = map->metaSize ?: map->maxHash;
+  u32 load = (count * 100) / cap;
+  return load < 0xff ? load : 0xff;
 }
 
 usize HMap_footprint(const HMap *map) {
