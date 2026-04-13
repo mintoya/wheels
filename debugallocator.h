@@ -49,7 +49,7 @@ MAKE_TEST_FN(debug_allocator_test, {
   for (each_RANGE(usize, i, 0, allocations)) {
     usize size = (i * i) + 1;
     int *ip = (int *)aAlloc(debug, 1);
-    aResize(debug, ip, size);
+    aResize(debug, ip, 1, size);
     total += size;
   }
   var_ stats = debugAllocator_stats(debug);
@@ -218,7 +218,7 @@ void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size, char *
   assertMessage(mHmap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
   mHmap_rem(internals->map, ptr);
 
-  void *res = (aResize)(realAllocator, ptr, size, fn, ln);
+  void *res = (aResize)(realAllocator, ptr, i[0]->size, size, fn, ln);
   assertMessage(
       !mHmap_get(internals->map, res),
       "allocator allocated buisy memory"

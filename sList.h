@@ -17,7 +17,7 @@ typedef struct sList_header {
   alignas(max_align_t) u8 buf[];
 } sList_header;
 static inline sList_header *sList_realloc(AllocatorV allocator, sList_header *header, usize width, usize newsize) {
-  sList_header *res = (typeof(res))aResize(allocator, header, sizeof(sList_header) + newsize * width);
+  sList_header *res = (typeof(res))aResize(allocator, header, sizeof(sList_header) + header->length * width, sizeof(sList_header) + newsize * width);
   if (allocator->size) {
     usize s = allocator->size(allocator, res);
     res->capacity = (s - sizeof(sList_header)) / width;

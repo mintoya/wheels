@@ -271,7 +271,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
 
   #if defined(MAKE_TEST_FN)
     #include "macros.h"
-inline int HMap_test_structure(mHmap(int, int) map) {
+static inline int HMap_test_structure(mHmap(int, int) map) {
   defer { mHmap_deinit(map); };
 
   for (int i = 0; i < 100; i++)

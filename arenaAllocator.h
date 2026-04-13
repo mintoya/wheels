@@ -4,6 +4,7 @@
 #include "assertMessage.h"
 #include "macros.h"
 #include "mytypes.h"
+#include <stddef.h>
 #include <string.h>
 
 // create arena based on another arena
@@ -15,13 +16,13 @@ void arena_clear(AllocatorV arena);
 // total bytes taken up by the arena
 usize arena_footprint(AllocatorV);
 usize arena_countBlocks(AllocatorV arena);
+usize arena_totalMem(AllocatorV arena);
 static void arena_cleanup_handler [[maybe_unused]] (My_allocator **arenaPtr) {
   if (arenaPtr && *arenaPtr) {
     arena_cleanup(*arenaPtr);
     *arenaPtr = NULL;
   }
 }
-usize arena_totalMem(AllocatorV arena);
 
 #define Arena_scoped [[gnu::cleanup(arena_cleanup_handler)]] My_allocator
 
@@ -41,7 +42,7 @@ MAKE_TEST_FN(arena_test, {
   arena_clear(arena);
   r = arena_totalMem(arena);
   if (r)
-    return 1;
+    return 2;
   printf("total data :  %zu\n", sizeof(int) * (67 + 5));
   printf("total blocks : %zu\n", arena_countBlocks(arena));
   printf("total footprint : %zu\n", arena_footprint(arena));
@@ -61,8 +62,6 @@ MAKE_TEST_FN(arena_test, {
 
 void my_arena_free(AllocatorV arena, voidptr ptr, char *, usize);
 voidptr my_arena_alloc(AllocatorV arena, usize size, char *, usize);
-voidptr my_arena_r_alloc(AllocatorV arena, voidptr ptr, usize size, char *, usize);
-usize my_arena_realsize(AllocatorV arena, voidptr ptr);
 
 typedef struct ArenaHead ArenaHead;
 typedef struct ArenaBuf ArenaBuf;
@@ -72,7 +71,7 @@ typedef struct ArenaHead {
 } ArenaHead;
 typedef struct ArenaBuf {
   ArenaBuf *next;
-  usize capacity, offset;
+  usize capacity, offset, count;
   alignas(alignof(max_align_t)) u8 buffer[/*size*/];
 } ArenaBuf;
 typedef struct {
@@ -90,6 +89,7 @@ ArenaBuf *arenablock_new(AllocatorV allocator, usize blockSize) {
   *res = (ArenaBuf){
       .next = nullptr,
       .offset = 0,
+      .count = 0,
       .capacity = trueSize,
   };
   return res;
@@ -124,8 +124,8 @@ AllocatorV arena_new_ext(AllocatorV base, usize blockSize) {
       (My_allocator){
           .alloc = my_arena_alloc,
           .free = my_arena_free,
-          .resize = my_arena_r_alloc,
-          .size = my_arena_realsize
+          .resize = nullptr,
+          .size = nullptr,
       };
   memcpy(res->allocator, &defaultArena, sizeof(defaultArena));
   res->block[0] = (typeof(*res->block)){
@@ -159,6 +159,7 @@ FBA_State arena_toFBA(ArenaBuf *ab) {
   return (FBA_State){
       .capacity = ab->capacity,
       .offset = ab->offset,
+      .count = ab->count,
       .allocator = {},
       .buffer = ab->buffer,
   };
@@ -166,6 +167,7 @@ FBA_State arena_toFBA(ArenaBuf *ab) {
 void sync_fba(ArenaBuf *ab, FBA_State fba) {
   ab->capacity = fba.capacity;
   ab->offset = fba.offset;
+  ab->count = fba.count;
 }
 void my_arena_free(AllocatorV arena, void *ptr, char *fn, usize line) {
   My_arena_includeBlock *maib = (typeof(maib))arena;
@@ -176,34 +178,6 @@ void my_arena_free(AllocatorV arena, void *ptr, char *fn, usize line) {
   FBA_State fbs = arena_toFBA(b);
   _fba_free(fbs.allocator, ptr, fn, line);
   sync_fba(b, fbs);
-}
-usize my_arena_realsize(AllocatorV arena, void *ptr) {
-  My_arena_includeBlock *maib = (typeof(maib))arena;
-  ArenaBuf *b = maib->block->next;
-  while (b && !inarena(b, ptr))
-    b = b->next;
-  assertMessage(b, "ptr not in any arena block");
-  FBA_State fbs = arena_toFBA(b);
-  return _fba_size(fbs.allocator, ptr);
-}
-void *my_arena_r_alloc(AllocatorV arena, void *ptr, usize size, char *fn, usize ln) {
-  My_arena_includeBlock *maib = (typeof(maib))arena;
-  ArenaBuf *b = maib->block->next;
-  while (b && !inarena(b, ptr))
-    b = b->next;
-  assertMessage(b, "ptr not in any arena block");
-  FBA_State fbs = arena_toFBA(b);
-  var_ fr = &fbs;
-  defer { sync_fba(b, *fr); };
-  void *inplace =
-      _fba_resize_nullable(fbs.allocator, ptr, size);
-  if (inplace)
-    return inplace;
-  void *res = my_arena_alloc(arena, size, fn, ln);
-  usize oldsize = my_arena_realsize(arena, ptr);
-  memcpy(res, ptr, oldsize);
-  my_arena_free(arena, ptr, fn, ln);
-  return res;
 }
 void *my_arena_alloc(AllocatorV arena, usize size, char *filename, usize ln) {
   My_arena_includeBlock *maib = (typeof(maib))arena;
@@ -216,8 +190,8 @@ void *my_arena_alloc(AllocatorV arena, usize size, char *filename, usize ln) {
       sync_fba(b, fbs);
     } else {
       usize nextsize = b->capacity * 2;
-      if (nextsize < size + alignof(max_align_t) + sizeof(FBA_Header))
-        nextsize = size + alignof(max_align_t) + sizeof(FBA_Header);
+      if (nextsize < size + alignof(max_align_t) + alignof(max_align_t))
+        nextsize = size + alignof(max_align_t) + alignof(max_align_t);
 
       b->next = b->next ?: arenablock_new(maib->block[0].allocator, nextsize);
       b = b->next;

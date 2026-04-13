@@ -28,7 +28,7 @@ void testPush_b(testerFunction t, c8 *name) {
 #define MAKE_TEST_CONCAT_(a, b) a##b
 #define MAKE_TEST_CONCAT(a, b) MAKE_TEST_CONCAT_(a, b)
 #define MAKE_TEST_FN(testname, ...)                                   \
-  int(testname)(AllocatorV allocator) { __VA_ARGS__ }                 \
+  static int(testname)(AllocatorV allocator) { __VA_ARGS__ }          \
   [[gnu::constructor(301)]] void                                      \
   MAKE_TEST_CONCAT(test_register_a_, __COUNTER__)() { testPush_a(); } \
   [[gnu::constructor(304)]] void                                      \
@@ -65,7 +65,7 @@ int main(void) {
       printf("}\n");
       bool failed = false;
       if (res) {
-        printf(ASSERTMESSAGE_PRINTRED "test %s failed\n" ASSERTMESSAGE_PRINTRESET, test.name);
+        printf(ASSERTMESSAGE_PRINTRED "test %s failed with %i\n" ASSERTMESSAGE_PRINTRESET, test.name, res);
         fflush(stdout);
         failed = 1;
       }

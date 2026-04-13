@@ -14,8 +14,10 @@ slice(c8) read_stdin(AllocatorV allocator) {
   usize bytes;
   while ((bytes = fread(data + size, 1, capacity - size, stdin)) > 0) {
     size += bytes;
-    if (size == capacity)
-      data = (c8 *)aResize(allocator, data, (capacity += capacity));
+    if (size == capacity) {
+      data = (c8 *)aResize(allocator, data, capacity, (capacity * 2));
+      capacity *= 2;
+    }
   }
   return (slice(c8)){.ptr = data, .len = size};
 }

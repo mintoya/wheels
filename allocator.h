@@ -4,6 +4,7 @@
 #include <stdalign.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 #if defined(__cplusplus)
   #include <cstddef>
 #else
@@ -14,6 +15,14 @@
 #define MY_ALLOCATOR_STRICTEST
 
 __attribute__((const)) static inline uptr lineup(uptr unalinged, usize a) { return (unalinged + (a - 1)) & ~(a - 1); }
+__attribute__((const)) static inline uptr aAlloc_align(uptr unaligned) {
+  return lineup(
+      unaligned, alignof(max_align_t) > sizeof(usize)
+                     ? alignof(max_align_t)
+                     : sizeof(usize)
+  );
+}
+// pretty sure these are always the same?
 
 typedef struct My_allocator My_allocator;
 typedef const My_allocator *AllocatorV;
@@ -53,8 +62,8 @@ typedef size_t (*const My_allocatorGetUsable)(AllocatorV, void *);
 typedef struct My_allocator {
   My_allocatorAlloc /*    */ alloc;
   My_allocatorFree /*     */ free;
-  My_allocatorResize /*   */ resize;
-  My_allocatorGetUsable /**/ size; ///< optional
+  My_allocatorResize /*   */ resize; ///< optional
+  My_allocatorGetUsable /**/ size;   ///< optional
   max_align_t /*          */ arb[];
 } My_allocator;
 
@@ -62,7 +71,7 @@ typedef struct My_allocator {
 #define aResize(...) ((aResize)(__VA_ARGS__, __FILE__, __LINE__))
 #define aFree(...) ((aFree)(__VA_ARGS__, __FILE__, __LINE__))
 void *(aAlloc)(AllocatorV allocator, size_t size, char *, usize);
-void *(aResize)(AllocatorV allocator, void *oldptr, size_t size, char *, usize);
+void *(aResize)(AllocatorV allocator, void *oldptr, size_t oldsize, size_t newsize, char *, usize);
 void(aFree)(AllocatorV allocator, void *oldptr, char *, usize);
 
 #include "macros.h"
@@ -97,16 +106,32 @@ void *(aAlloc)(AllocatorV allocator, size_t size, char *file, usize line) {
 #endif
   return res;
 }
-void *(aResize)(AllocatorV allocator, void *oldptr, size_t size, char *file, usize line) {
+void *(aResize)(AllocatorV allocator, void *oldptr, usize oldsize, size_t newsize, char *file, usize line) {
 #ifdef MY_ALLOCATOR_STRICTEST
-  assertMessage(size, "allocators cant allocate nothing : %s,%zu", file, line);
+  assertMessage(newsize, "allocators cant allocate nothing : %s,%zu", file, line);
   assertMessage(oldptr, "allocators cant reallocate nothing");
 #endif
-  void *res = (allocator)->resize(allocator, oldptr, size, file, line);
+  void *res = (allocator)->resize
+                  ? ({
+                      void *result = (allocator)->resize(allocator, oldptr, newsize, file, line);
 #ifdef MY_ALLOCATOR_STRICTEST
-  assertMessage(res, "allocators cant return null, r");
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "wrong alignment out of allocator, r");
+                      assertMessage(result, "allocators cant return null, r");
+                      assertMessage(!((uintptr_t)result % alignof(max_align_t)), "wrong alignment out of allocator, r");
 #endif
+                      result;
+                    })
+                  : ({
+                      max_align_t *result = (max_align_t *)allocator->alloc(allocator, newsize, file, line);
+#ifdef MY_ALLOCATOR_STRICTEST
+                      assertMessage(result, "allocators cant return null, r");
+                      assertMessage(!((uintptr_t)result % alignof(max_align_t)), "wrong alignment out of allocator, r");
+#endif
+                      usize size = oldsize < newsize ? oldsize : newsize;
+                      for (each_RANGE(usize, i, 0, (aAlloc_align(size) / sizeof(max_align_t))))
+                        result[i] = ((max_align_t *)oldptr)[i];
+                      allocator->free(allocator, oldptr, file, line);
+                      (void *)result;
+                    });
   return res;
 }
 void(aFree)(AllocatorV allocator, void *oldptr, char *file, usize line) {
