@@ -95,9 +95,9 @@ static inline void shMap_free(sHmap *map) {
   for (usize i = 0; i < map->num_buckets; i++)
     if (map->buckets[i])
       msList_deInit(allocator, map->buckets[i]);
-  aFree(allocator, map->values);
+  aFree(allocator, map->values, map->vwidth * map->values->capacity);
   stringList_free_data(map->strings[0]);
-  aFree(allocator, map);
+  aFree(allocator, map, sizeof(sHmap) + (map->num_buckets * sizeof(struct double_idx *)));
 }
 static inline usize sHmap_footprint(const sHmap *map) {
   usize res = stringList_footprint(map->strings);

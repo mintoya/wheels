@@ -1,3 +1,4 @@
+#include "fptr.h"
 #if !defined(VASON_BUILDER_H)
   #define VASON_BUILDER_H
   #include "macros.h"
@@ -33,7 +34,7 @@ vason_node vason_node_newTable(AllocatorV a);
 vason_node vason_node_newStr(AllocatorV a, slice(c8) str);
 void vason_table_push(AllocatorV a, vason_node *table, vason_node item);
 vason_node vason_container_toNode(AllocatorV allocator, vason_container c);
-vason_container vason_node_toContainer(AllocatorV allocator, vason_node n, c8 **strContainer);
+vason_container vason_node_toContainer(AllocatorV allocator, vason_node n, slice(c8) * strContainer);
 vason_node vason_node_str(AllocatorV a, const char *c);
 vason_node vason_node_deepCopy(AllocatorV allocator, vason_node n);
 slice(c8) vason_node_toStr(AllocatorV allocator, vason_node n);
@@ -76,7 +77,7 @@ MAKE_TEST_FN(vason_exact_memcmp_match, {
   vason_table_push(allocator, &root, vason_node_deepCopy(allocator, root));
 
   slice(c8) result = vason_node_toStr(allocator, root);
-  defer { aFree(allocator, result.ptr); };
+  defer { aFree(allocator, result.ptr, result.len); };
 
   const char expected[] = "{hello:world,hello,world,{hello:world,hello,world}}";
 
@@ -135,13 +136,13 @@ void vason_node_freeRecursive(AllocatorV allocator, vason_node n) {
 void vason_node_free(AllocatorV allocator, vason_node n) {
   switch (n.tag) {
     case vason_PAIR: {
-      aFree(allocator, n.pair);
+      aFree(allocator, n.pair, sizeof(*n.pair) * 2);
     } break;
     case vason_TABLE: {
       msList_deInit(allocator, n.table);
     } break;
     case vason_STRING: {
-      aFree(allocator, n.string);
+      aFree(allocator, n.string, sizeof(*n.string) + n.string->len);
     } break;
     default:
       assertMessage(false, "no free for this node ");
@@ -219,8 +220,8 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
       assertMessage(false, "unreachable?");
   }
 }
-vason_container vason_node_toContainer(AllocatorV allocator, vason_node n, c8 **strContainer) {
-  assertMessage(strContainer && !*strContainer);
+vason_container vason_node_toContainer(AllocatorV allocator, vason_node n, slice(c8) * strContainer) {
+  assertMessage(strContainer && !strContainer->len);
   vason_container res = (vason_container){
       .current = 0,
       .tags = msList_init(allocator, vason_tag),
@@ -236,7 +237,7 @@ vason_container vason_node_toContainer(AllocatorV allocator, vason_node n, c8 **
   slice(c8) resStr = {msList_len(res.text.ptr), aCreate(allocator, c8, msList_len(res.text.ptr))};
   memcpy(resStr.ptr, res.text.ptr, msList_len(res.text.ptr));
   msList_deInit(allocator, res.text.ptr);
-  *strContainer = resStr.ptr;
+  *strContainer = resStr;
   res.text = resStr;
   return res;
 }
@@ -321,11 +322,11 @@ vason_node vason_node_deepCopy(AllocatorV allocator, vason_node n) {
   return res;
 }
 slice(c8) vason_node_toStr(AllocatorV allocator, vason_node n) {
-  c8 *strp = NULL;
+  slice(c8) strp = {};
   vason_container c = vason_node_toContainer(allocator, n, &strp);
   var_ v = vason_tostr(allocator, c);
   vason_container_free(c);
-  aFree(allocator, strp);
+  aFree(allocator, strp.ptr, strp.len);
   return v;
 }
 #endif

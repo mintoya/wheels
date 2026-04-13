@@ -480,8 +480,8 @@ void vason_container_free(vason_container container) {
   msList_deInit(alocator, container.tags);
   msList_deInit(alocator, container.tables_strings);
   if (container.tokens) {
-    aFree(alocator, container.tokens->ptr);
-    aFree(alocator, container.tokens);
+    aFree(alocator, container.tokens->ptr, container.tokens->len);
+    aFree(alocator, container.tokens, sizeof(*container.tokens));
   }
 }
 slice(c8) vason_container_asString(vason_container c) {
@@ -725,7 +725,7 @@ vason_container vason_parseString(AllocatorV allocator, slice(c8) string) {
       (vason_token_t *)aAlloc(allocator, sizeof(vason_token_t) * string.len)
   };
   vason_tokenize(tokens, string);
-  defer { aFree(allocator, tokens.ptr); };
+  defer { aFree(allocator, tokens.ptr, tokens.len); };
   vason_parse_level1(
       (vason_span){
           .start = 0,
@@ -981,7 +981,7 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
 }
 slice(c8) vason_tostr(AllocatorV allocator, vason_container c) {
   mList(c8) res = mList_init(allocator, c8);
-  defer { aFree(allocator, res); };
+  defer { aFree(allocator, res, sizeof(mList(c8))); };
 
   vason_tostr_lesser(c, res);
 

@@ -75,6 +75,7 @@ int main(void) {
     }
   });
   printf("%lu tests failed out of %lu", failCount, testCount);
+  aFree(stdAlloc, testList, testCount * sizeof(*testList));
 }
 #define WHEELS_INCLUDE_ALL (1)
 #include "wheels.h"

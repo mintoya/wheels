@@ -33,8 +33,8 @@ MAKE_TEST_FN(arena_test, {
   defer { arena_cleanup(arena); };
   int *ints = aCreate(arena, int, 5);
   int *ints2 = aCreate(arena, int, 67);
-  aFree(arena, ints2);
-  aFree(arena, ints);
+  aFree(arena, ints2, 5);
+  aFree(arena, ints, 67);
   usize r = arena_totalMem(arena);
   if (r)
     return 1;
@@ -60,7 +60,7 @@ MAKE_TEST_FN(arena_test, {
 #if defined(ARENA_ALLOCATOR_C)
 #include "fbaAllocator.h"
 
-void my_arena_free(AllocatorV arena, voidptr ptr, char *, usize);
+void my_arena_free(AllocatorV arena, voidptr ptr, usize size, char *, usize);
 voidptr my_arena_alloc(AllocatorV arena, usize size, char *, usize);
 
 typedef struct ArenaHead ArenaHead;
@@ -139,10 +139,10 @@ void arena_cleanup(AllocatorV arena) {
   AllocatorV allocator = ((ArenaHead *)(arena->arb))->allocator;
   while (it) {
     ArenaBuf *next = it->next;
-    aFree(allocator, it);
+    aFree(allocator, it, sizeof(*it) + it->capacity);
     it = next;
   }
-  aFree(allocator, (void *)arena);
+  aFree(allocator, (void *)arena, sizeof(My_arena_includeBlock));
 }
 void arena_clear(AllocatorV arena) {
   ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
@@ -169,14 +169,14 @@ void sync_fba(ArenaBuf *ab, FBA_State fba) {
   ab->offset = fba.offset;
   ab->count = fba.count;
 }
-void my_arena_free(AllocatorV arena, void *ptr, char *fn, usize line) {
+void my_arena_free(AllocatorV arena, void *ptr, usize size, char *fn, usize line) {
   My_arena_includeBlock *maib = (typeof(maib))arena;
   ArenaBuf *b = maib->block->next;
   while (b && !inarena(b, ptr))
     b = b->next;
   assertMessage(b, "ptr not in any arena block");
   FBA_State fbs = arena_toFBA(b);
-  _fba_free(fbs.allocator, ptr, fn, line);
+  _fba_free(fbs.allocator, ptr, size, fn, line);
   sync_fba(b, fbs);
 }
 void *my_arena_alloc(AllocatorV arena, usize size, char *filename, usize ln) {

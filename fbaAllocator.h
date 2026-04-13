@@ -6,7 +6,7 @@
   #include <assert.h>
   #include <stddef.h>
 void *_fba_alloc(AllocatorV allocator, usize size, char *, usize);
-void _fba_free(AllocatorV allocator, void *ptr, char *, usize);
+void _fba_free(AllocatorV allocator, void *ptr, usize size, char *, usize);
 void *_fba_alloc_nullable(AllocatorV allocator, usize size);
 void _fba_print(AllocatorV allocator);
 const My_allocator FBA_prototype[1] = {
@@ -55,10 +55,13 @@ extern inline void FBA_init(max_align_t *buffer, usize size, FBA_State res[1]) {
 
 #ifdef FBA_ALLOCATOR_C
   #include <stdio.h>
-void _fba_free(AllocatorV allocator, void *ptr, char *, usize) {
+void _fba_free(AllocatorV allocator, void *ptr, usize size, char *, usize) {
+  size = aAlloc_align(size);
   FBA_State *f = (typeof(f))allocator;
   assert("ptr is outside buffer" && (u8 *)ptr >= (u8 *)f->buffer);
   assert("ptr is outside buffer" && (u8 *)ptr < (u8 *)f->buffer + f->offset);
+  if (((u8 *)ptr + size) == f->offset + f->buffer)
+    f->offset -= size;
   f->count--;
   if (!f->count)
     f->offset = 0;

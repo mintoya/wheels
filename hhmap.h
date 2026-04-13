@@ -1,6 +1,7 @@
 #include "allocator.h"
 #include "assertMessage.h"
 #include <assert.h>
+#include <stddefer.h>
 #if !defined(HMAP_H)
   #define HMAP_H (1)
 typedef struct HMap HMap;
@@ -437,7 +438,7 @@ HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, usize metaSize, usize
   assertMessage(kSize && vSize && allocator);
   if (!metaSize) {
     assertMessage(maxHash);
-    usize totalSize = sizeof(HMap) + 3 * sizeof(sList_header);
+    usize totalSize = sizeof(HMap) + 2 * sizeof(sList_header);
     HMap *hm = (typeof(hm))aAlloc(allocator, totalSize);
     *hm = (HMap){
         .allocator = allocator,
@@ -478,12 +479,18 @@ struct HMap_inner_item HMap_get_inner_zero(const HMap *map, usize idx) {
 }
 
 void HMap_free(HMap *hm) {
-  AllocatorV allocator = hm->allocator;
-  const u32 msize = hm->metaSize ?: 2;
-  for_each_((var_ s, VLAP(hm->storage, msize)), {
-    aFree(allocator, s);
-  });
-  aFree(allocator, hm);
+  if (!hm->metaSize) {
+    usize totalSize = sizeof(HMap) + 2 * sizeof(sList_header);
+    defer { aFree(hm->allocator, hm, totalSize); };
+    sList_free(hm->allocator, hm->storage[0], hm->keysize + hm->valsize);
+    sList_free(hm->allocator, hm->storage[1], sizeof(u8));
+  } else {
+    usize totalSize = sizeof(HMap) + hm->metaSize * sizeof(sList_header);
+    defer { aFree(hm->allocator, hm, totalSize); };
+    for_each_((var_ v, VLAP(hm->storage, hm->metaSize)), {
+      sList_free(hm->allocator, v, hm->keysize + hm->valsize);
+    });
+  }
 }
 
 __attribute__((const, always_inline)) void *LesserList_getref(const usize elw, const sList_header *hll, u32 idx) {
@@ -504,7 +511,7 @@ void HMap_manage(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u3
   HMap *newMap = HMap_new(kSize, vSize, allocator, metaSize, maxHash);
 
   var_ tembBuf = aCreate(allocator, u8, newMap->keysize + newMap->valsize);
-  defer { aFree(allocator, tembBuf); };
+  defer { aFree(allocator, tembBuf, newMap->keysize + newMap->valsize); };
 
   var_ tempKey = tembBuf;
   var_ tempVal = tembBuf + newMap->keysize;

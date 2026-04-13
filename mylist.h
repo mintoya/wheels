@@ -69,7 +69,14 @@ static inline List *List_new(AllocatorV allocator, size_t width) {
  * frees list and its array
  * @param l list
  */
-void List_free(List *l);
+static inline void List_free(List *l, size_t bw) {
+  if (!l || !l->allocator)
+    return;
+  if (l->head)
+    aFree(l->allocator, l->head, l->capacity * bw);
+  l->head = NULL;
+  aFree(l->allocator, l, sizeof(*l));
+}
 static inline List *List_newInitL(AllocatorV allocator, size_t bytes, uint32_t initSize) {
   List *l = (List *)aAlloc(allocator, sizeof(List));
   List_makeNew(allocator, l, bytes, initSize);
@@ -132,13 +139,6 @@ extern inline void List_remove(List *l, List_index_t i, size_t width);
 extern inline void List_zeroOut(List *l, size_t width);
 List *List_deepCopy(List *l, size_t width);
 
-__attribute__((unused)) static void List_cleanup_handler(void *ListPtrPtr) {
-  List **l = (List **)ListPtrPtr;
-  if (l && *l) {
-    List_free(*l);
-    *l = NULL;
-  }
-}
 #ifdef __cplusplus
 template <typename T>
 using mList_t = T (**)(List *);
@@ -149,16 +149,15 @@ using mList_t = T (**)(List *);
 #define is_const_ptr(p) _Generic((p), const typeof(*p) *: 1, default: 0)
 
 #include "macros.h"
-#define mList_scoped(T) __attribute__((cleanup(List_cleanup_handler))) mList(T)
 
 #define MLIST_INIT_HELPER(allocator, T, initLength, ...) ((mList(T))List_newInitL(allocator, sizeof(T), initLength))
 #define mList_init(allocator, T, ...) \
   MLIST_INIT_HELPER(allocator, T __VA_OPT__(, __VA_ARGS__), 2)
 
 #define mList_iType(list) typeof((*list)(NULL))
-#define mList_deInit(list)   \
-  do {                       \
-    List_free((List *)list); \
+#define mList_deInit(list)                              \
+  do {                                                  \
+    List_free((List *)list, sizeof(mList_iType(list))); \
   } while (0)
 
 #define mList_arr(list) (((mList_iType(list) *)(((List *)(list))->head)))
@@ -286,7 +285,10 @@ MAKE_TEST_FN(mlist_vla_cast, {
   mList_push(list, 7);
   mList_push(list, 8);
   mList_push(list, 9);
-  mList_pushArr(list, *mList_vla(list));
+  int *arr = aCreate(allocator, int, 3);
+  defer { aFree(allocator, arr, 3); }
+  memcpy(arr, mList_arr(list), 3 * sizeof(int));
+  mList_pushArr(list, *VLAP(arr, 3));
   if (mList_len(list) != 6)
     return 1;
   return 0;
@@ -315,14 +317,6 @@ void List_makeNew(AllocatorV allocator, List *l, size_t width, List_index_t init
   l->capacity = allocator->size
                     ? allocator->size(allocator, l->head) / width
                     : initialSize;
-}
-void List_free(List *l) {
-  if (!l || !l->allocator)
-    return;
-  if (l->head)
-    aFree(l->allocator, l->head);
-  l->head = NULL;
-  aFree(l->allocator, l);
 }
 inline List_index_t List_locate(const List *l, const void *element, size_t width) {
   List_index_t i = 0;
@@ -377,27 +371,19 @@ List *List_fromArr(AllocatorV allocator, const void *source, size_t width, List_
   return res;
 }
 void *List_insertFromArr(List *l, const void *source, List_index_t length, List_index_t location, size_t width) {
-  void *ts = NULL;
-  if (length && (u8 *)source >= l->head && (u8 *)source < l->head + l->capacity * width) {
-    ts = aAlloc(l->allocator, width * length);
-    memcpy(ts, source, width * length);
-  }
-  if (!length || location > l->length) {
-    if (ts)
-      aFree(l->allocator, ts);
-    return l;
-  }
+  assertMessage(
+      ((u8 *)source > l->head + l->length * width) ||
+      ((u8 *)source < l->head)
+  );
   if (l->capacity < l->length + length)
     List_resize(l, l->length + length, width);
   void *res = l->head + (location)*width;
   memmove(l->head + (location + length) * width, res, (l->length - location) * width);
   if (source)
-    memcpy(res, ts ?: source, length * width);
+    memcpy(res, source, length * width);
   else
     memset(res, 0, length * width);
   l->length += length;
-  if (ts)
-    aFree(l->allocator, ts);
   return l;
 }
 

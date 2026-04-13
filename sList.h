@@ -36,6 +36,9 @@ static inline sList_header *sList_new(AllocatorV allocator, usize initLen, usize
   res->length = 0;
   return res;
 }
+static inline void sList_free(AllocatorV allocator, sList_header *sl, usize width) {
+  aFree(allocator, sl, width * sl->capacity + sizeof(*sl));
+}
 static inline void *sList_getRef(sList_header *l, usize width, usize i) { return i < l->length ? (l->buf + width * i) : NULL; }
 static inline void *sList_set(sList_header *l, usize width, usize index, const void *element) {
   void *place = sList_getRef(l, width, index);
@@ -61,27 +64,19 @@ static inline void sList_remove(sList_header *l, usize width, usize i) {
   l->length--;
 }
 static inline sList_header *sList_insertFromArr(AllocatorV allocator, sList_header *l, const void *source, usize length, usize location, size_t width) {
-  void *ts = NULL;
-  if (length && (u8 *)source >= l->buf && (u8 *)source < l->buf + l->capacity * width) {
-    ts = aAlloc(allocator, width * length);
-    memcpy(ts, source, width * length);
-  }
-  if (!length || location > l->length) {
-    if (ts)
-      aFree(allocator, ts);
-    return l;
-  }
+  assertMessage(
+      ((u8 *)source > l->buf + l->length * width) ||
+      ((u8 *)source < l->buf)
+  );
   if (l->capacity < l->length + length)
     l = sList_realloc(allocator, l, width, l->length + length);
   void *res = l->buf + (location)*width;
   memmove(l->buf + (location + length) * width, res, (l->length - location) * width);
   if (source)
-    memcpy(res, ts ?: source, length * width);
+    memcpy(res, source, length * width);
   else
     memset(res, 0, length * width);
   l->length += length;
-  if (ts)
-    aFree(allocator, ts);
   return l;
 }
 static inline sList_header *sList_appendFromArr(AllocatorV allocator, sList_header *l, usize width, void *source, usize ammount) {
@@ -101,9 +96,9 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
   #define msList_init(allocator, T, ...) \
     SLIST_INIT_HELPER(allocator, T __VA_OPT__(, __VA_ARGS__), 2)
   #define msList_header(s) (((sList_header *)(s)) - 1)
-  #define msList_deInit(allocator, s)     \
-    do {                                  \
-      aFree(allocator, msList_header(s)); \
+  #define msList_deInit(allocator, s)                      \
+    do {                                                   \
+      sList_free(allocator, msList_header(s), sizeof(*s)); \
     } while (0)
   #define msList_ins(allocator, s, idx, val)                                                 \
     do {                                                                                     \
@@ -294,7 +289,11 @@ MAKE_TEST_FN(msList_vla_cast, {
   msList_push(allocator, list, 7);
   msList_push(allocator, list, 8);
   msList_push(allocator, list, 9);
-  msList_pushArr(allocator, list, *msList_vla(list));
+  int *arr = aCreate(allocator, int, 3);
+  defer { aFree(allocator, arr, 3); }
+  memcpy(arr, list, 3 * sizeof(int));
+
+  msList_pushArr(allocator, list, *VLAP(arr, 3));
   if (msList_len(list) != 6)
     return 1;
   return 0;

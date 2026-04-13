@@ -214,12 +214,12 @@ void stringList_free_data(stringList slp) {
   AllocatorV allocator = slp.allocator;
   msList_deInit(allocator, slp.ulist);
   msList_deInit(allocator, slp.flist);
-  aFree(allocator, slp.buff);
+  aFree(allocator, slp.buff, slp.cap);
 }
 void stringList_free(stringList *slp) {
   AllocatorV allocator = slp->allocator;
   stringList_free_data(*slp);
-  aFree(allocator, slp);
+  aFree(allocator, slp, sizeof(stringList));
 }
 struct flsr {
   usize i;
