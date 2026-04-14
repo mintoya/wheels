@@ -18,7 +18,7 @@ struct dbgAlloc_config {
  */
 AllocatorV debugAllocatorInit(struct dbgAlloc_config config);
 struct debugStats {
-  usize max_memory, current_memory, total_calls;
+  usize max_memory, current_memory, total_calls, total_active_allocations;
 };
 struct debugStats debugAllocator_stats(AllocatorV allocator);
 #define PREPEND_DOT_MAC(...) .__VA_ARGS__,
@@ -91,11 +91,26 @@ void debugAllocator_free(AllocatorV allocator, void *ptr, usize size, char *fn, 
 struct debugStats debugAllocator_stats(AllocatorV allocator) {
   debugAllocatorInternals internals = *(debugAllocatorInternals *)allocator->arb;
   return (struct debugStats){
-      (usize)internals.max,
-      (usize)internals.current,
-      (usize)internals.total,
+      .max_memory = internals.max,
+      .current_memory = internals.current,
+      .total_active_allocations = HMap_count((HMap *)internals.map),
+      .total_calls = internals.total,
   };
 }
+REGISTER_SPECIAL_PRINTER_NEEDID(print_debug_stats, "dbga-stats", struct debugStats, {
+  PUTS("{max storage: ");
+  USETYPEPRINTER(usize, in.max_memory);
+  PUTS(",");
+  PUTS("current storage: ");
+  USETYPEPRINTER(usize, in.current_memory);
+  PUTS(",");
+  PUTS("active allocations : ");
+  USETYPEPRINTER(usize, in.total_active_allocations);
+  PUTS(",");
+  PUTS("total calls : ");
+  USETYPEPRINTER(usize, in.total_calls);
+  PUTS("}");
+});
 AllocatorV debugAllocatorInit(struct dbgAlloc_config config) {
   AllocatorV allocator = config.allocator;
   Debug_allocator_block *res = aCreate(allocator, Debug_allocator_block);

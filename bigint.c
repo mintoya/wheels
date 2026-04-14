@@ -1,231 +1,437 @@
+
 #include "stdckdint.h"
-#include <__stdarg_va_list.h>
+#include "wheels/debugallocator.h"
+#include "wheels/fptr.h"
 #include <stdarg.h>
 #include <stddef.h>
 #include <stddefer.h>
-#include <string.h>
-#define my_ckd_add(a, b) ({                     \
-  struct {                                      \
-    typeof(a) carry, result;                    \
-  } ___res;                                     \
-  ___res.carry = ckd_add(&___res.result, a, b); \
-  ___res;                                       \
-})
-#define my_ckd_sub(a, b) ({                    \
+#include <threads.h>
+#define my_ckd_add(a, b) ({                    \
   struct {                                     \
     typeof(a) flag, result;                    \
   } ___res;                                    \
-  ___res.flag = ckd_sub(&___res.result, a, b); \
-  ___res;                                      \
-})
-#define my_ckd_mul(a, b) ({                    \
-  struct {                                     \
-    typeof(a) flag, result;                    \
-  } ___res;                                    \
-  ___res.flag = ckd_mul(&___res.result, a, b); \
+  ___res.flag = ckd_add(&___res.result, a, b); \
   ___res;                                      \
 })
 #include "wheels/arenaAllocator.h"
 #include "wheels/macros.h"
 #include "wheels/mytypes.h"
 #include "wheels/print.h"
-#include "wheels/shmap.h"
 #include "wheels/wheels.h"
 
-typedef u8 bigint_unit;
-typedef msList(bigint_unit) bigint;
+typedef msList(u8) bigint;
 typedef typeof(*((bigint)NULL)) bigint_unit;
 
 bool bigint_negetive(bigint i) {
-  return i[msList_len(i) - 1] & 0x80;
+  return i ? !!(i[msList_len(i) - 1] & ((((bigint_unit)-1) >> 1) + 1)) : 0;
 }
-void bigint_trim(bigint i) {
-  if (msList_len(i) < 2)
-    return;
-  const bigint_unit sign_bit = (bigint_unit)1 << (sizeof(bigint_unit) * 8 - 1);
-  if (bigint_negetive(i)) {
-    while (
-        msList_len(i) > 1 &&
-        i[msList_len(i) - 1] == (bigint_unit)-1 &&
-        (i[msList_len(i) - 2] & sign_bit)) {
-      msList_len(i)--;
-    }
+bigint_unit bigint_get(bigint b, usize idx) {
+  bigint_unit u = bigint_negetive(b) ? -1 : 0;
+  return b
+             ? P$(msList_get(b, idx),
+                  $ ? *$ : u;)
+             : 0;
+}
+int bigint_cmp(bigint a, bigint b) {
+  i8 neg = bigint_negetive(a);
+  if (neg != bigint_negetive(b))
+    return neg ? -1 : 1;
+  neg = neg ? -1 : 1;
+
+  usize len_a = a ? msList_len(a) : 0;
+  usize len_b = b ? msList_len(b) : 0;
+  usize max_len = len_a > len_b ? len_a : len_b;
+
+  for (usize k = max_len; k > 0; k--) {
+    usize i = k - 1;
+    bigint_unit ua = bigint_get(a, i);
+    bigint_unit ub = bigint_get(b, i);
+    if (ua != ub)
+      return (ua < ub) ? -neg : neg;
+  }
+
+  return 0;
+}
+void bigint_trim(bigint *b) {
+  sList_header *slh = msList_header(*b);
+  if (bigint_negetive(b[0])) {
+    bigint_unit check = (((bigint_unit)-1) >> 1) + 1;
+    bigint_unit skip = ((bigint_unit)-1);
+    while (slh->length > 1 && b[0][slh->length - 1] == skip && b[0][slh->length - 2] & check)
+      slh->length--;
   } else {
-    while (
-        msList_len(i) > 1 &&
-        i[msList_len(i) - 1] == 0 &&
-        !(i[msList_len(i) - 2] & sign_bit)) {
-      msList_len(i)--;
-    }
+    bigint_unit check = (((bigint_unit)-1) >> 1) + 1;
+    bigint_unit skip = 0;
+    while (slh->length > 1 && b[0][slh->length - 1] == skip && !(b[0][slh->length - 2] & check))
+      slh->length--;
   }
 }
-bigint bigint_from(AllocatorV allocator, usize len, u8 *buffer) {
-  usize l2 =
-      (len / sizeof(bigint_unit)) * sizeof(bigint_unit) + 1;
-  bigint res = msList_init(allocator, bigint_unit, l2);
-  memcpy(res, buffer, len);
-  msList_len(res) = l2;
-  bigint_trim(res);
-  return res;
-}
-void bigint_expand(AllocatorV allocator, usize len, bigint *i) {
-  bigint_unit n = bigint_negetive(i[0]) ? -1 : 0;
-  while (msList_len(i[0]) < len)
-    msList_push(allocator, *i, n);
+void bigint_expand(AllocatorV allocator, bigint *b, usize len) {
+  assertMessage(len >= msList_len(*b), "%zu < %zu", len, msList_len(*b));
+  bigint_unit u = 0;
+  if (bigint_negetive(b[0]))
+    u = (bigint_unit)-1;
+  while (len >= msList_len(*b))
+    msList_push(allocator, *b, u);
 }
 bigint bigint_copy(AllocatorV allocator, bigint b) {
-  bigint res = bigint_from(allocator, 0, 0);
-  msList_pushArr(allocator, res, *msList_vla(b));
-  return res;
+  var_ r = msList_init(allocator, bigint_unit, b ? msList_len(b) : 1);
+  if (b)
+    msList_pushArr(allocator, r, *msList_vla(b));
+  return r;
 }
-bigint bigint_add(AllocatorV allocator, bigint a, bigint b) {
-  bigint res = bigint_from(allocator, 0, 0);
 
-  usize len = msList_len(a) > msList_len(b)
-                  ? msList_len(a)
-                  : msList_len(b);
-
-  typeof(*((bigint)NULL)) carry = 0;
-
-  for (each_RANGE(usize, i, 0, len)) {
-    typeof(*((bigint)NULL)) ai = P$(msList_get(a, i), $ ? *$ : 0);
-    typeof(*((bigint)NULL)) bi = P$(msList_get(b, i), $ ? *$ : 0);
-    var_ ckd = my_ckd_add(ai, bi);
-    var_ ckd2 = my_ckd_add(ckd.result, carry);
-    carry = ckd2.carry | ckd.carry;
-    msList_push(allocator, res, ckd2.result);
+void bigint_add_unit_ip(AllocatorV allocator, bigint *a, bigint_unit b) {
+  assertMessage(a && *a);
+  for (usize p = 0; b && p < msList_len(a); p++) {
+    var_ c = my_ckd_add(a[0][p], b);
+    b = c.flag;
+    a[0][p] = c.result;
   }
-  msList_push(allocator, res, carry);
-  bigint_trim(res);
-  return res;
+  msList_push(allocator, *a, b);
 }
-void bigint_add_ip(AllocatorV allocator, bigint *a, bigint br) {
-  bigint b = bigint_copy(allocator, br);
-  defer { msList_deInit(allocator, b); };
-
+void bigint_negate_ip(AllocatorV allocator, bigint *i) {
+  assertMessage(i);
+  if (!*i)
+    return;
+  for_each_P((var_ j, msList_vla(*i)), { *j = ~*j; });
+  bigint_unit ca = 1;
+  for (usize c = 0; ca && c < msList_len(i[0]); c++) {
+    var_ c1 = my_ckd_add(ca, i[0][c]);
+    i[0][c] = c1.result;
+    ca = c1.flag;
+  }
+}
+void bigint_add_ip_flag(AllocatorV allocator, bigint *a, bigint b, bool negate) {
   usize len = msList_len(a[0]) > msList_len(b)
                   ? msList_len(a[0])
                   : msList_len(b);
-  bigint_expand(allocator, len, a);
-  bigint_expand(allocator, len, &b);
-
+  bigint_expand(allocator, a, len);
   bigint_unit carry = 0;
 
-  for (each_RANGE(usize, i, 0, len)) {
-    typeof(*((bigint)NULL)) ai = P$(msList_get(a[0], i), $ ? *$ : 0);
-    typeof(*((bigint)NULL)) bi = P$(msList_get(b, i), $ ? *$ : 0);
-    var_ ckd = my_ckd_add(ai, bi);
-    var_ ckd2 = my_ckd_add(ckd.result, carry);
-    carry = ckd2.carry | ckd.carry;
-    a[0][i] = ckd2.result;
-    // msList_push(allocator, res, ckd2.result);
+  for (usize i = 0; i < len; i++) {
+    var_ ra = my_ckd_add(negate ? ~a[0][i] : a[0][i], carry);
+    var_ rb = my_ckd_add(ra.result, bigint_get(b, i));
+    a[0][i] = negate ? ~rb.result : rb.result;
+    carry = ra.flag + rb.flag;
   }
-  msList_push(allocator, a[0], carry);
-  bigint_trim(*a);
+  msList_len(a[0]) = len;
 }
-i8 bigint_cmp(bigint a, bigint b) {
-  bigint_trim(a);
-  bigint_trim(b);
-  bool negetiveMode;
-  if (bigint_negetive(a)) {
-    if (bigint_negetive(b)) {
-      negetiveMode = true;
-    } else {
-      return 1;
-    }
-  } else if (bigint_negetive(b)) {
-    return -1;
-  }
-  usize la = msList_len(a);
-  usize lb = msList_len(b);
-  if (la != lb)
-    return la > lb ? -1 : 1;
-  for (usize i = la; i > 0; i--) {
-    if (a[i - 1] > b[i - 1])
-      return -1;
-    else if (a[i - 1] < b[i - 1])
-      return 1;
-  }
-  return 0;
+void bigint_add_ip(AllocatorV allocator, bigint *a, bigint b) {
+  return bigint_add_ip_flag(allocator, a, b, 0);
 }
-bigint bigint_mul_i(AllocatorV allocator, bigint a, bigint_unit b) {
-  bigint res = bigint_from(allocator, 0, 0);
-
-  const int half = sizeof(bigint_unit) * 4;
-  const bigint_unit mask = ((bigint_unit)1 << half) - 1;
-
-  bigint_unit carry = 0;
-
-  for_each_((var_ v, msList_vla(a)), {
-    bigint_unit a0 = v & mask;
-    bigint_unit a1 = v >> half;
-
-    bigint_unit b0 = b & mask;
-    bigint_unit b1 = b >> half;
-
-    bigint_unit p0 = a0 * b0;
-    bigint_unit p1 = a0 * b1;
-    bigint_unit p2 = a1 * b0;
-    bigint_unit p3 = a1 * b1;
-
-    bigint_unit mid =
-        (p0 >> half) +
-        (p1 & mask) +
-        (p2 & mask) +
-        carry;
-
-    msList_push(allocator, res, (p0 & mask) | (mid << half));
-    carry = (p1 >> half) + (p2 >> half) + (p3) + (mid >> half);
-  });
-
-  if (carry)
-    msList_push(allocator, res, carry);
-
+void bigint_sub_ip(AllocatorV allocator, bigint *a, bigint b1) {
+  bigint_add_ip_flag(allocator, a, b1, 1);
+}
+bigint bigint_from(AllocatorV allocator, i64 i) {
+  var_ r = msList_init(allocator, bigint_unit, sizeof(i) / sizeof(bigint_unit));
+  msList_pushArr(allocator, r, *VLAP((bigint_unit *)&i, sizeof(i) / sizeof(bigint_unit)));
+  bigint_trim(&r);
+  return r;
+}
+bigint bigint_negate(AllocatorV allocator, bigint i) {
+  var_ res = bigint_copy(allocator, i);
+  bigint_negate_ip(allocator, &res);
   return res;
 }
-bigint bigint_mul(AllocatorV allocator, bigint a, bigint b) {
-  bigint_trim(a);
-  bigint_trim(b);
-  AllocatorV arena = arena_new_ext(allocator, 1024);
-  defer { arena_cleanup(arena); };
+bigint bigint_add(AllocatorV allocator, bigint a, bigint b) {
+  bigint res = bigint_copy(allocator, a);
+  bigint_add_ip(allocator, &res, b);
+  return res;
+}
+bigint bigint_sub(AllocatorV allocator, bigint a, bigint b) {
+  bigint res = bigint_copy(allocator, a);
+  bigint_sub_ip(allocator, &res, b);
+  return res;
+}
 
-  mList(bigint) resultsList = mList_init(arena, bigint, msList_len(b) ?: 1);
+struct {
+  bigint_unit result, carry;
+} bigint_mul_units(bigint_unit a, bigint_unit b) {
+  typedef typeof(bigint_mul_units(0, 0)) rT;
+  // multiplication results in a number at most twice the digits
+  // figure out carry
+  //  bottom half
+  bigint_unit a0 = a & ((1 << (sizeof(bigint_unit) * 4)) - 1);
+  bigint_unit b0 = b & ((1 << (sizeof(bigint_unit) * 4)) - 1);
+  // top half
+  bigint_unit a1 = a >> ((sizeof(bigint_unit) * 4));
+  bigint_unit b1 = b >> ((sizeof(bigint_unit) * 4));
 
-  for (each_RANGE(usize, curr, 0, msList_len(b))) {
-    var_ tmp = bigint_mul_i(arena, a, b[curr]);
-    msList_insArr(arena, tmp, 0, *VLAP((bigint)NULL, curr));
-    mList_push(resultsList, tmp);
+  bigint_unit carry = 0;
+  bigint_unit result = 0;
+  result += a0 * b0;
+  carry += ckd_add(&result, result, (bigint_unit)(a1 * b0 << ((sizeof(bigint_unit) * 4))));
+  carry += ckd_add(&result, result, (bigint_unit)(a0 * b1 << ((sizeof(bigint_unit) * 4))));
+  carry += a1 * b1;
+  carry += a1 * b0 >> ((sizeof(bigint_unit) * 4));
+  carry += a0 * b1 >> ((sizeof(bigint_unit) * 4));
+
+  return ((rT){
+      .result = result,
+      .carry = carry,
+  });
+}
+
+bigint bigint_mul_single(AllocatorV allocator, bigint *b, bigint_unit bu) {
+  typedef typeof(bigint_mul_units(0, 0)) product;
+  bigint res = msList_init(allocator, bigint_unit, msList_len(b[0]));
+  bigint_unit carry = 0;
+  for (each_RANGE(usize, i, 0, msList_len(b[0]))) {
+    product p = bigint_mul_units(b[0][i], bu);
+    var_ c2 = my_ckd_add(p.result, carry);
+    carry = c2.flag + p.carry;
+    msList_push(allocator, res, c2.result);
   }
+  msList_push(allocator, res, carry);
+  return res;
+}
+bigint bigint_mul(AllocatorV allocator, bigint a1, bigint b1) {
+  var_ arena = arena_new_ext(allocator, 1024);
+  defer { arena_cleanup(arena); };
+  bool negetive = 0;
+  var_ a = bigint_negetive(a1)
+               ? (negetive = !negetive, bigint_negate(arena, a1))
+               : bigint_copy(arena, a1);
+  var_ b = bigint_negetive(b1)
+               ? (negetive = !negetive, bigint_negate(arena, b1))
+               : bigint_copy(arena, b1);
 
-  bigint res = P$(
-      msList_len(a) + msList_len(b),
-      bigint_from(allocator, $, NULL)
-  );
-  for_each_((bigint bi, mList_vla(resultsList)), {
+  var_ partials = msList_init(arena, bigint, msList_len(b));
+  for (each_RANGE(usize, i, 0, msList_len(b))) {
+    var_ temp = bigint_mul_single(arena, &a, b[i]);
+    msList_insArr(arena, temp, 0, *VLAP((bigint)NULL, i));
+    msList_push(arena, partials, temp);
+  }
+  var_ res = bigint_from(allocator, 0);
+  for_each_((var_ bi, msList_vla(partials)), {
     bigint_add_ip(allocator, &res, bi);
   });
+  // while (msList_len(res) < msList_len(a) + msList_len(b))
+  //   msList_push(allocator, res, 0);
+
+  if (negetive)
+    bigint_negate_ip(allocator, &res);
+
+  bigint_trim(&res);
   return res;
+}
+bigint_unit bigint_div_guess_under(bigint a, bigint b) {
+  assertMessage(
+      !bigint_negetive(a) &&
+      !bigint_negetive(b)
+  );
+  bigint_trim(&b);
+  bigint_trim(&a);
+  if (!bigint_cmp(a, NULL)) { // a == 0
+    return 0;
+  }
+  var_ cmp = bigint_cmp(a, b);
+  if (cmp < 0) { // a < b
+    return 0;
+  } else if (cmp == 0) {
+    return 1;
+  } else if (msList_len(a) == 1) { //
+    return bigint_get(a, 0) / bigint_get(b, 0);
+  } else {
+    bigint_unit a0 = bigint_get(a, 1);
+    bigint_unit b0 = bigint_get(b, 1);
+    bigint_unit a1 = bigint_get(a, 0);
+    bigint_unit b1 = bigint_get(b, 0);
+
+    int unit_bits = sizeof(bigint_unit) * 8;
+    bigint_unit q = 0;
+    bigint_unit rem_h = 0;
+    bigint_unit rem_l = 0;
+
+    for (int i = (unit_bits * 2); i > 0; i--) {
+      rem_h = (rem_h << 1) | (rem_l >> (unit_bits - 1));
+      rem_l <<= 1;
+
+      bigint_unit bit = ((i - 1) >= unit_bits)
+                            ? ((a0 >> ((i - 1) - unit_bits)) & 1)
+                            : ((a1 >> (i - 1)) & 1);
+
+      rem_l |= bit;
+
+      if (rem_h > b0 || (rem_h == b0 && rem_l >= b1)) {
+        if (rem_l < b1)
+          rem_h -= 1;
+        rem_l -= b1;
+        rem_h -= b0;
+
+        if ((i - 1) < unit_bits) {
+          q |= ((bigint_unit)1 << (i - 1));
+        }
+      }
+    }
+
+    return q;
+  }
+}
+struct {
+  bigint result;
+  bigint remainder;
+} bigint_div(AllocatorV allocator, bigint a1, bigint b1) {
+  typedef typeof(bigint_div(allocator, a1, b1)) div_result;
+  var_ arena = arena_new_ext(allocator, 1024);
+  defer { arena_cleanup(arena); };
+  assertMessage(bigint_cmp(b1, NULL), "Division by zero");
+
+  bool negetive = 0;
+  var_ remainder = bigint_negetive(a1)
+                       ? (negetive = !negetive, bigint_negate(arena, a1))
+                       : bigint_copy(arena, a1);
+  var_ b = bigint_negetive(b1)
+               ? (negetive = !negetive, bigint_negate(arena, b1))
+               : bigint_copy(arena, b1);
+  bigint_trim(&remainder);
+  bigint_trim(&b);
+  if (msList_len(b) > msList_len(remainder))
+    return ((div_result){
+        .result = 0,
+        .remainder = negetive
+                         ? bigint_negate(allocator, remainder)
+                         : bigint_copy(allocator, remainder),
+    });
+  var_ partials = msList_init(arena, bigint, msList_len(remainder) - msList_len(b) + 1);
+
+  // r 00 10 00
+  // b 00 10 10
+  for (usize i = msList_len(remainder); i >= msList_len(b); i--) {
+    var_ t = bigint_copy(arena, b);
+    usize shift = i - msList_len(b);
+    if (shift > 0)
+      msList_insArr(arena, t, 0, *VLAP((bigint)NULL, shift));
+    msList_push(arena, partials, t);
+  }
+
+  var_ result = msList_init(allocator, bigint_unit, msList_len(partials) + 1);
+  // rs 00 00 00
+  //
+  // rm 00 10 00
+  //
+  // b0 10 10 00
+  // b1 00 10 10
+  var_ local = arena_new_ext(arena, 512);
+  for (usize i = 0; i < msList_len(partials); i++) {
+    defer { arena_clear(local); };
+
+    bigint temp = bigint_copy(local, partials[i]);
+    // bigint_unit bu = 0;
+    bigint_unit bu = bigint_div_guess_under(remainder, temp);
+
+    bigint s = bigint_mul_single(local, &temp, bu);
+    while (1) {
+      bigint next_s = bigint_mul_single(local, &temp, bu + 1);
+      if (bigint_cmp(next_s, remainder) > 0)
+        break;
+      s = next_s;
+      bu++;
+    }
+
+    msList_ins(allocator, result, 0, bu);
+    bigint_sub_ip(arena, &remainder, s);
+  }
+  if (negetive) {
+    bigint_negate_ip(allocator, &result);
+    bigint_negate_ip(allocator, &remainder);
+  }
+  return (div_result){
+      .remainder = remainder,
+      .result = result,
+  };
 }
 
 NAMESPACE_STRUCT(
     BInt,
     (add, &bigint_add),
+    (sub, &bigint_sub),
     (mul, &bigint_mul),
-    (cmp, &bigint_cmp),
-    (copy, &bigint_copy),
+    (div, &bigint_div),
     (from, &bigint_from),
-    (trim, &bigint_trim),
-    (expand, &bigint_expand),
+    (negate, &bigint_negate),
     (negetive, &bigint_negetive),
 );
 REGISTER_PRINTER(bigint, {
-  for (usize i = msList_len(in); i > 0; i--)
-    for (usize j = sizeof(*in); j > 0; j--)
-      USENAMEDPRINTER("x", ((u8 *)(in + (i - 1)))[j - 1]);
+  args = printer_arg_trim(args); // remove spaces
+  bool debug = fptr_eq(args, fp("debug")) | fptr_eq(args, fp("dbg"));
+
+  if (debug) {
+    PUTS("[");
+    for (usize i = in ? msList_len(in) : 0; i > 0; i--)
+      for (usize j = sizeof(*in); j > 0; j--)
+        USENAMEDPRINTER("x", ((u8 *)(in + (i - 1)))[j - 1]);
+    PUTS("]");
+  } else {
+    var_ arena = arena_new_ext(stdAlloc, 512); // heap operations for printing
+    defer { arena_cleanup(arena); };
+    in = bigint_negetive(in)
+             ? (PUTS("-"), bigint_negate(arena, in))
+             : bigint_copy(arena, in);
+    bigint ten = bigint_from(arena, 10);
+    var_ digits = msList_init(arena, c8, 10);
+
+    while (bigint_cmp(in, NULL)) {
+      var_ dig_big = bigint_div(arena, in, ten);
+      var_ dig = bigint_get(dig_big.remainder, 0);
+      msList_ins(arena, digits, 0, dig + '0');
+      in = dig_big.result;
+    }
+    put(digits, _arb, msList_len(digits), 0);
+  }
 });
+
 int main(void) {
-  bigint b = BInt.from(stdAlloc, 2, (u8[]){0xff, 0xff});
-  bigint a = BInt.from(stdAlloc, 1, (u8[]){0xff});
-  bigint c = BInt.mul(stdAlloc, a, b);
-  println("{bigint} * {bigint} = {bigint}", a, b, c);
+  AllocatorV debug = debugAllocator(
+      allocator = stdAlloc,
+      log = stdout
+  );
+  defer { debugAllocatorDeInit(debug); };
+
+  AllocatorV arena = arena_new_ext(debug, 1024);
+  defer { arena_cleanup(arena); };
+  {
+    defer { arena_clear(arena); };
+    bigint a = BInt.from(arena, 1024);
+    println(
+        "{bigint} * -1 = {bigint}",
+        a, BInt.negate(arena, a)
+    );
+    struct debugStats s = debugAllocator_stats(debug);
+    println("{dbga-stats}", s);
+  }
+  {
+    defer { arena_clear(arena); };
+    bigint a = BInt.from(arena, -10);
+    bigint b = BInt.from(arena, -252);
+    println(
+        "{bigint} - {bigint} = {bigint}",
+        a, b, BInt.sub(arena, a, b)
+    );
+    struct debugStats s = debugAllocator_stats(debug);
+    println("{dbga-stats}", s);
+  }
+  {
+    defer { arena_clear(arena); };
+    bigint a = BInt.from(arena, -10);
+    bigint b = BInt.from(arena, -252);
+    println(
+        "{bigint} * {bigint} = {bigint}",
+        a, b, BInt.mul(arena, a, b)
+    );
+    struct debugStats s = debugAllocator_stats(debug);
+    println("{dbga-stats}", s);
+  }
+  {
+    defer { arena_clear(arena); };
+    bigint a = BInt.from(arena, -2000);
+    bigint b = BInt.from(arena, -11);
+    println(
+        "{bigint} // {bigint} = {bigint}",
+        a, b, BInt.div(arena, a, b).result
+    );
+    struct debugStats s = debugAllocator_stats(debug);
+    println("{dbga-stats}", s);
+  }
 }

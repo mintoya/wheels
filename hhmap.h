@@ -1,7 +1,6 @@
 #include "allocator.h"
 #include "assertMessage.h"
 #include <assert.h>
-#include <stddefer.h>
 #if !defined(HMAP_H)
   #define HMAP_H (1)
 typedef struct HMap HMap;
