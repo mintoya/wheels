@@ -17,6 +17,7 @@ typedef struct sList_header {
   alignas(max_align_t) u8 buf[];
 } sList_header;
 static inline sList_header *sList_realloc(AllocatorV allocator, sList_header *header, usize width, usize newsize) {
+  assertMessage(header && header->capacity);
   sList_header *res = (typeof(res))aResize(allocator, header, sizeof(sList_header) + header->length * width, sizeof(sList_header) + newsize * width);
   if (allocator->size) {
     usize s = allocator->size(allocator, res);
@@ -92,7 +93,9 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
     #define msList(T) T *
   #endif
 
-  #define SLIST_INIT_HELPER(allocator, T, initLength, ...) ((T *)(sList_new(allocator, initLength, sizeof(T))->buf))
+  #define SLIST_INIT_HELPER(allocator, T, initLength, ...) ({       \
+    (T *)(sList_new(allocator, (initLength) ?: 1, sizeof(T))->buf); \
+  })
   #define msList_init(allocator, T, ...) \
     SLIST_INIT_HELPER(allocator, T __VA_OPT__(, __VA_ARGS__), 2)
   #define msList_header(s) (((sList_header *)(s)) - 1)

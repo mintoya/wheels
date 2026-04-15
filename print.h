@@ -530,11 +530,16 @@ MAKE_PRINT_ARG_TYPE(u32);
 #endif
 
 volatile static thread_local bool print_f_shouldFlush = 1;
-void print_f(outputFunction put, void *arb, const char *fmt, ...);
+void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *);
 
-#define print_wfO(printerfn, arb, fmt, ...)                                                       \
-  print_f(                                                                                        \
-      printerfn, arb, fmt, __VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){}) \
+#define print_wfO(printerfn, arb, fmt, ...)                                      \
+  print_f(                                                                       \
+      printerfn,                                                                 \
+      arb,                                                                       \
+      fmt,                                                                       \
+      (struct print_arg[]){                                                      \
+          __VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){}) \
+      }                                                                          \
   )
 
 #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
@@ -621,9 +626,7 @@ void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr 
   }
 }
 
-void print_f(outputFunction put, void *arb, const char *fmt, ...) {
-  va_list l;
-  va_start(l, fmt);
+void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *args) {
   bool toggled = 0;
   for (u32 i = 0; fmt[i]; i++) {
     if (fmt[i] == '{' && !toggled) {
@@ -634,13 +637,12 @@ void print_f(outputFunction put, void *arb, const char *fmt, ...) {
           .len = j - i - 1,
           .ptr = ((u8 *)fmt) + i + 1,
       };
-      var_ assumedName = va_arg(l, struct print_arg);
+      var_ assumedName = *args++;
 
       fptr tname = printer_arg_until(':', typeName);
       fptr parseargs = printer_arg_after(':', typeName);
       tname = printer_arg_trim(tname);
       if (!assumedName.ref) {
-        va_end(l);
         return put("__ NO ARGUMENT PROVIDED, ENDING PRINT __\n", arb, 41, 1);
       }
       print_f_helper(assumedName, tname, put, parseargs, arb);
@@ -656,7 +658,6 @@ void print_f(outputFunction put, void *arb, const char *fmt, ...) {
       put(fmt + i, arb, 1, 0);
     }
   }
-  va_end(l);
   if (print_f_shouldFlush)
     put(NULL, arb, 0, 1);
 }

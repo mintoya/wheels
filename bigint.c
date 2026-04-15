@@ -1,27 +1,37 @@
 
 #include "stdckdint.h"
+#include "wheels/arenaAllocator.h"
 #include "wheels/debugallocator.h"
 #include "wheels/fptr.h"
-#include <stdarg.h>
-#include <stddef.h>
-#include <stddefer.h>
-#include <threads.h>
-#define my_ckd_add(a, b) ({                    \
-  struct {                                     \
-    typeof(a) flag, result;                    \
-  } ___res;                                    \
-  ___res.flag = ckd_add(&___res.result, a, b); \
-  ___res;                                      \
-})
-#include "wheels/arenaAllocator.h"
 #include "wheels/macros.h"
 #include "wheels/mytypes.h"
 #include "wheels/print.h"
 #include "wheels/wheels.h"
+#include <stdarg.h>
+#include <stddef.h>
+#include <stddefer.h>
+#include <threads.h>
 
-typedef msList(u8) bigint;
+#if !defined(BIGINT_BITS)
+  #define BIGINT_BITS 8
+#endif
+typedef unsigned _BitInt(BIGINT_BITS) bigint_unit;
+typedef msList(bigint_unit) bigint;
 typedef typeof(*((bigint)NULL)) bigint_unit;
 
+bool bigint_ckd_add(bigint_unit *res, bigint_unit a, bigint_unit b) {
+  static_assert(~(bigint_unit)0 > 0, "must be unsigned ");
+  *res = a + b;
+  return a > (~(bigint_unit)0) - b;
+}
+struct {
+  bigint_unit result;
+  bool flag;
+} bigint_ckd_add_struct(bigint_unit a, bigint_unit b) {
+  typeof(bigint_ckd_add_struct(a, b)) res;
+  res.flag = bigint_ckd_add(&res.result, a, b);
+  return res;
+}
 bool bigint_negetive(bigint i) {
   return i ? !!(i[msList_len(i) - 1] & ((((bigint_unit)-1) >> 1) + 1)) : 0;
 }
@@ -84,7 +94,7 @@ bigint bigint_copy(AllocatorV allocator, bigint b) {
 void bigint_add_unit_ip(AllocatorV allocator, bigint *a, bigint_unit b) {
   assertMessage(a && *a);
   for (usize p = 0; b && p < msList_len(a); p++) {
-    var_ c = my_ckd_add(a[0][p], b);
+    var_ c = bigint_ckd_add_struct(a[0][p], b);
     b = c.flag;
     a[0][p] = c.result;
   }
@@ -97,7 +107,7 @@ void bigint_negate_ip(AllocatorV allocator, bigint *i) {
   for_each_P((var_ j, msList_vla(*i)), { *j = ~*j; });
   bigint_unit ca = 1;
   for (usize c = 0; ca && c < msList_len(i[0]); c++) {
-    var_ c1 = my_ckd_add(ca, i[0][c]);
+    var_ c1 = bigint_ckd_add_struct(ca, i[0][c]);
     i[0][c] = c1.result;
     ca = c1.flag;
   }
@@ -110,8 +120,8 @@ void bigint_add_ip_flag(AllocatorV allocator, bigint *a, bigint b, bool negate) 
   bigint_unit carry = 0;
 
   for (usize i = 0; i < len; i++) {
-    var_ ra = my_ckd_add(negate ? ~a[0][i] : a[0][i], carry);
-    var_ rb = my_ckd_add(ra.result, bigint_get(b, i));
+    var_ ra = bigint_ckd_add_struct(negate ? ~a[0][i] : a[0][i], carry);
+    var_ rb = bigint_ckd_add_struct(ra.result, bigint_get(b, i));
     a[0][i] = negate ? ~rb.result : rb.result;
     carry = ra.flag + rb.flag;
   }
@@ -124,8 +134,13 @@ void bigint_sub_ip(AllocatorV allocator, bigint *a, bigint b1) {
   bigint_add_ip_flag(allocator, a, b1, 1);
 }
 bigint bigint_from(AllocatorV allocator, i64 i) {
-  var_ r = msList_init(allocator, bigint_unit, sizeof(i) / sizeof(bigint_unit));
-  msList_pushArr(allocator, r, *VLAP((bigint_unit *)&i, sizeof(i) / sizeof(bigint_unit)));
+  var_ r = msList_init(allocator, bigint_unit, 1);
+  if (sizeof(bigint_unit) >= sizeof(i64)) {
+    msList_push(allocator, r, (bigint_unit)i);
+  } else {
+    usize count = sizeof(i) / sizeof(bigint_unit);
+    msList_pushArr(allocator, r, *VLAP((bigint_unit *)&i, count));
+  }
   bigint_trim(&r);
   return r;
 }
@@ -152,8 +167,8 @@ struct {
   // multiplication results in a number at most twice the digits
   // figure out carry
   //  bottom half
-  bigint_unit a0 = a & ((1 << (sizeof(bigint_unit) * 4)) - 1);
-  bigint_unit b0 = b & ((1 << (sizeof(bigint_unit) * 4)) - 1);
+  bigint_unit a0 = a & (((bigint_unit)1 << (sizeof(bigint_unit) * 4)) - 1);
+  bigint_unit b0 = b & (((bigint_unit)1 << (sizeof(bigint_unit) * 4)) - 1);
   // top half
   bigint_unit a1 = a >> ((sizeof(bigint_unit) * 4));
   bigint_unit b1 = b >> ((sizeof(bigint_unit) * 4));
@@ -161,8 +176,8 @@ struct {
   bigint_unit carry = 0;
   bigint_unit result = 0;
   result += a0 * b0;
-  carry += ckd_add(&result, result, (bigint_unit)(a1 * b0 << ((sizeof(bigint_unit) * 4))));
-  carry += ckd_add(&result, result, (bigint_unit)(a0 * b1 << ((sizeof(bigint_unit) * 4))));
+  carry += bigint_ckd_add(&result, result, (bigint_unit)(a1 * b0 << ((sizeof(bigint_unit) * 4))));
+  carry += bigint_ckd_add(&result, result, (bigint_unit)(a0 * b1 << ((sizeof(bigint_unit) * 4))));
   carry += a1 * b1;
   carry += a1 * b0 >> ((sizeof(bigint_unit) * 4));
   carry += a0 * b1 >> ((sizeof(bigint_unit) * 4));
@@ -179,7 +194,7 @@ bigint bigint_mul_single(AllocatorV allocator, bigint *b, bigint_unit bu) {
   bigint_unit carry = 0;
   for (each_RANGE(usize, i, 0, msList_len(b[0]))) {
     product p = bigint_mul_units(b[0][i], bu);
-    var_ c2 = my_ckd_add(p.result, carry);
+    var_ c2 = bigint_ckd_add_struct(p.result, carry);
     carry = c2.flag + p.carry;
     msList_push(allocator, res, c2.result);
   }
@@ -354,8 +369,11 @@ NAMESPACE_STRUCT(
     (negetive, &bigint_negetive),
 );
 REGISTER_PRINTER(bigint, {
-  args = printer_arg_trim(args); // remove spaces
-  bool debug = fptr_eq(args, fp("debug")) | fptr_eq(args, fp("dbg"));
+  bool debug = P$(
+      args,
+      printer_arg_trim($),
+      fptr_eq($, fp("debug")) | fptr_eq($, fp("dbg"))
+  );
 
   if (debug) {
     PUTS("[");
@@ -394,9 +412,10 @@ int main(void) {
   {
     defer { arena_clear(arena); };
     bigint a = BInt.from(arena, 1024);
+    bigint b = BInt.negate(arena, a);
     println(
-        "{bigint} * -1 = {bigint}",
-        a, BInt.negate(arena, a)
+        "{bigint:dbg}{bigint} * -1 = {bigint:dbg}{bigint}",
+        a, a, b, b
     );
     struct debugStats s = debugAllocator_stats(debug);
     println("{dbga-stats}", s);

@@ -21,6 +21,7 @@ struct debugStats {
   usize max_memory, current_memory, total_calls, total_active_allocations;
 };
 struct debugStats debugAllocator_stats(AllocatorV allocator);
+struct debugStats debugAllocator_clear(AllocatorV allocator);
 #define PREPEND_DOT_MAC(...) .__VA_ARGS__,
 #define debugAllocator(...) ({                     \
   struct dbgAlloc_config config = {                \
@@ -183,6 +184,20 @@ int debugAllocatorDeInit(AllocatorV allocator) {
   return leaks;
 }
 
+struct debugStats debugAllocator_clear(AllocatorV allocator) {
+  debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
+  var_ res = debugAllocator_stats(allocator);
+  mHmap_foreach(
+      internals->map,
+      void *, ptr,
+      struct tracedata, val,
+      {
+        aFree(allocator, (void *)ptr, val.size);
+      }
+  );
+  mHmap_clear(internals->map);
+  return res;
+}
 void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;

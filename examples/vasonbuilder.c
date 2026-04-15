@@ -16,7 +16,7 @@ int main(void) {
   );
   slice(c8) str = vason_tostr(local, c);
   println("input\t:{}", str);
-  aFree(local, str.ptr);
+  slice_free(local, str);
   struct debugStats n_start = debugAllocator_stats(local);
   vason_node n = vason_container_toNode(local, c);
   struct debugStats n_end = debugAllocator_stats(local);
@@ -42,8 +42,8 @@ int main(void) {
           vason_node_str(local, ":,[{\"\"}]")
       )
   );
-  c8 **strcontainer = (c8 *[1]){};
-  defer { aFree(local, *strcontainer); };
+  slice(c8) *strcontainer = {};
+  defer { slice_free(local, *strcontainer); };
   vason_container newC = vason_node_toContainer(local, n, strcontainer);
   defer { vason_container_free(newC); };
   slice(c8) result = vason_tostr(local, newC);

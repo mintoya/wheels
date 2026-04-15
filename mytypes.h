@@ -146,4 +146,12 @@ struct nullable_t {
   })
 sliceDef(c8);
 
+#define slice_alloc(type, alloccator, length) ({ \
+  slice(type) _s;                                \
+  _s.ptr = aCreate(alloccator, type, length);    \
+  _s.len = length;                               \
+  _s;                                            \
+})
+#define slice_free(allocator, slice) \
+  aFree(allocator, (slice).ptr, (sizeof(*(slice).ptr)) * (slice).len);
 #endif // MY_TYPES

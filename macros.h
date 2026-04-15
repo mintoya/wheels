@@ -67,7 +67,7 @@ struct DeferHelper {
 
     #define defer auto DEFER_NAME(_defer_, __LINE__) = DeferHelper() + [&]()
   #else
-    #if __has_include(<stddefer.h>) && ( __STDC_VERSION__ >= 202311L  || defined(__slimcc__))
+    #if __has_include(<stddefer.h>) || ( __STDC_VERSION__ >= 202311L  || defined(__slimcc__))
       #include <stddefer.h>
     #else
       #if defined(__clang__)
@@ -122,6 +122,17 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define TUPLE_EXPAND_B(tuple) TUPLE_B tuple
 
 //
+// constexpr
+//
+  #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+    #define CONST_EXPR constexpr
+  #elif defined(__cpp_constexpr) // C++ fallback
+    #define CONST_EXPR constexpr
+  #else
+    #define CONST_EXPR static const
+  #endif
+
+//
 // static constant struct based namesapce
 //
 
@@ -130,7 +141,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define NAMESPACEF_H(tuple) TUPLE_EXPAND_B(tuple),
   #define NAMESPACEF(...) APPLY_N(NAMESPACEF_H, __VA_ARGS__)
   #define NAMESPACE_STRUCT(name, ...) \
-    static const struct {             \
+    CONST_EXPR struct {               \
       NAMESPACEN(__VA_ARGS__)         \
     } name = (typeof(name)){          \
         NAMESPACEF(__VA_ARGS__)       \

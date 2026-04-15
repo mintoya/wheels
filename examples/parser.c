@@ -34,7 +34,7 @@ int main(int nargs, char *args[nargs]) {
   }
 
   slice(c8) input = read_stdin(stdAlloc);
-  defer { aFree(stdAlloc, input.ptr); };
+  defer { aFree(stdAlloc, input.ptr, input.len); };
 
   AllocatorV local = stdAlloc;
 
