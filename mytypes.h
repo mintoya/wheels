@@ -146,7 +146,7 @@ struct nullable_t {
   })
 sliceDef(c8);
 
-#define slice_alloc(type, alloccator, length) ({ \
+#define slice_alloc(alloccator, type, length) ({ \
   slice(type) _s;                                \
   _s.ptr = aCreate(alloccator, type, length);    \
   _s.len = length;                               \

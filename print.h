@@ -74,6 +74,26 @@ static void fileprint(
 }
 #endif
 
+static void vsn_print(
+    const c8 *_,
+    void *lptr,
+    usize length,
+    bool ___
+) {
+  usize *ptr = (usize *)lptr;
+  ptr[0] += length;
+}
+static void sn_print(
+    const c8 *c,
+    void *cptr,
+    usize length,
+    bool ___
+) {
+  slice(c8) *loc = (typeof(loc))cptr;
+  memcpy(loc->ptr + loc->len, c, length);
+  loc->len += length;
+}
+
 static struct {
   msHmap(printerFunction) data;
 } PrinterSingleton;
@@ -532,17 +552,43 @@ MAKE_PRINT_ARG_TYPE(u32);
 volatile static thread_local bool print_f_shouldFlush = 1;
 void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *);
 
-#define print_wfO(printerfn, arb, fmt, ...)                                      \
-  print_f(                                                                       \
-      printerfn,                                                                 \
-      arb,                                                                       \
-      fmt,                                                                       \
-      (struct print_arg[]){                                                      \
-          __VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){}) \
-      }                                                                          \
-  )
+#define print_wfO(printerfn, arb, fmt, ...)                                        \
+  do {                                                                             \
+    print_f(                                                                       \
+        printerfn,                                                                 \
+        arb,                                                                       \
+        fmt,                                                                       \
+        (struct print_arg[]){                                                      \
+            __VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){}) \
+        }                                                                          \
+    );                                                                             \
+  } while (0)
 
 #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
+static slice(c8) vsn_print_fn(AllocatorV allocator, char *fmt, struct print_arg *args) {
+  usize sn_length_ = 0;
+  print_f(
+      vsn_print,
+      &sn_length_,
+      fmt,
+      args
+  );
+  var_ sn_slice_result = slice_alloc(allocator, c8, sn_length_);
+  sn_slice_result.len = 0;
+  print_f(
+      sn_print,
+      &sn_slice_result,
+      fmt,
+      args
+  );
+  return sn_slice_result;
+}
+#define sn_print(allocator, fmt, ...) ({                                     \
+  var_ eval_print_sn = (struct print_arg[]){                                 \
+      __VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){}) \
+  };                                                                         \
+  vsn_print_fn(allocator, fmt, eval_print_sn);                               \
+})
 #define print_(fmt, ...) print_wfO(fileprint, stdout, fmt, __VA_ARGS__)
 #define println_(fmt, ...) print(fmt "\n", __VA_ARGS__)
 #define print(fmt, ...) print_(fmt, __VA_ARGS__)
