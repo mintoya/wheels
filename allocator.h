@@ -174,8 +174,8 @@ usize default_size(AllocatorV allocator, void *ptr) {
 AllocatorV stdAlloc = (typeof(stdAlloc))(My_allocator[1]){{
     default_alloc,
     default_free,
-    nullptr,
-// default_r_alloc,
+    // nullptr,
+    default_r_alloc,
 #ifdef DEFAULT_SIZE_GETTER
     default_size,
 #else
