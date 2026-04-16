@@ -114,12 +114,11 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
     do {                                               \
       sList_remove(msList_header(s), sizeof(*s), idx); \
     } while (0)
-  #define msList_push(allocator, s, val)                                                                          \
-    do {                                                                                                          \
-      var_ _v_temp = val;                                                                                         \
-      if (__builtin_expect((msList_len(s) == msList_cap(s)), 0))                                                  \
-        s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), SLIST_GROW_EQ(msList_len(s)))->buf; \
-      (s)[msList_len(s)++] = (_v_temp);                                                                           \
+  #define msList_push(allocator, s, val)                                                                            \
+    do {                                                                                                            \
+      if_unlikely(msList_len(s) == msList_cap(s))                                                                   \
+          s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), SLIST_GROW_EQ(msList_len(s)))->buf; \
+      (s)[msList_len(s)++] = (val);                                                                                 \
     } while (0)
   #define msList_insArr(allocator, s, place, vla)                     \
     do {                                                              \

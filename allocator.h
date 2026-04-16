@@ -15,6 +15,7 @@
 #define MY_ALLOCATOR_STRICTEST
 
 __attribute__((const)) static inline uptr lineup(uptr unalinged, usize a) { return (unalinged + (a - 1)) & ~(a - 1); }
+// an allocated pointer should be uncheaged when passed trought this function
 __attribute__((const)) static inline uptr aAlloc_align(uptr unaligned) {
   return lineup(
       unaligned, alignof(max_align_t) > sizeof(usize)
@@ -22,7 +23,6 @@ __attribute__((const)) static inline uptr aAlloc_align(uptr unaligned) {
                      : sizeof(usize)
   );
 }
-// pretty sure these are always the same?
 
 typedef struct My_allocator My_allocator;
 typedef const My_allocator *AllocatorV;
