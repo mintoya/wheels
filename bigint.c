@@ -7,9 +7,9 @@
 #include "wheels/mytypes.h"
 #include "wheels/print.h"
 #include "wheels/wheels.h"
+#include <cstring>
 #include <stdarg.h>
 #include <stddef.h>
-#include <stddefer.h>
 #include <threads.h>
 
 #if !defined(BIGINT_BITS)
@@ -24,10 +24,11 @@ bool bigint_ckd_add(bigint_unit *res, bigint_unit a, bigint_unit b) {
   *res = a + b;
   return a > (~(bigint_unit)0) - b;
 }
-struct {
+struct bigint_ckdt {
   bigint_unit result;
   bool flag;
-} bigint_ckd_add_struct(bigint_unit a, bigint_unit b) {
+};
+struct bigint_ckdt bigint_ckd_add_struct(bigint_unit a, bigint_unit b) {
   typeof(bigint_ckd_add_struct(a, b)) res;
   res.flag = bigint_ckd_add(&res.result, a, b);
   return res;
@@ -160,9 +161,11 @@ bigint bigint_sub(AllocatorV allocator, bigint a, bigint b) {
   return res;
 }
 
-struct {
+struct bigint_mul_t {
   bigint_unit result, carry;
-} bigint_mul_units(bigint_unit a, bigint_unit b) {
+};
+
+struct bigint_mul_t bigint_mul_units(bigint_unit a, bigint_unit b) {
   typedef typeof(bigint_mul_units(0, 0)) rT;
   // multiplication results in a number at most twice the digits
   // figure out carry
@@ -187,7 +190,23 @@ struct {
       .carry = carry,
   });
 }
-
+void bigint_shrl(AllocatorV allocator, bigint *b, isize direction) {
+  if (!bigint_cmp(b[0], NULL))
+    return;
+  if (direction < 0) {
+    direction *= -1;
+    if (direction > msList_len(b[0])) {
+      msList_len(b[0]) = 0;
+      return;
+    }
+    memmove(b[0], b[0] + direction, sizeof(b[0][0]) * (msList_len(b[0]) - direction));
+    msList_len(b[0]) -= direction;
+  } else if (direction == 0) {
+    return;
+  } else {
+    msList_insArr(allocator, b[0], 0, *VLAP((bigint_unit *)NULL, direction));
+  }
+}
 bigint bigint_mul_single(AllocatorV allocator, bigint *b, bigint_unit bu) {
   typedef typeof(bigint_mul_units(0, 0)) product;
   bigint res = msList_init(allocator, bigint_unit, msList_len(b[0]));
@@ -204,6 +223,8 @@ bigint bigint_mul_single(AllocatorV allocator, bigint *b, bigint_unit bu) {
 bigint bigint_mul(AllocatorV allocator, bigint a1, bigint b1) {
   var_ arena = arena_new_ext(allocator, 1024);
   defer { arena_cleanup(arena); };
+  if ((!bigint_cmp(a1, NULL)) || (!bigint_cmp(b1, 0)))
+    return bigint_from(allocator, 0);
   bool negetive = 0;
   var_ a = bigint_negetive(a1)
                ? (negetive = !negetive, bigint_negate(arena, a1))
@@ -211,6 +232,17 @@ bigint bigint_mul(AllocatorV allocator, bigint a1, bigint b1) {
   var_ b = bigint_negetive(b1)
                ? (negetive = !negetive, bigint_negate(arena, b1))
                : bigint_copy(arena, b1);
+  bigint_trim(&a);
+  bigint_trim(&b);
+
+  usize sh_a = 0, sh_b = 0;
+  while (!a[sh_a])
+    sh_a++;
+  while (!b[sh_b])
+    sh_b++;
+  bigint_shrl(arena, &a, -sh_a);
+  bigint_shrl(arena, &b, -sh_b);
+  // println("\nshifted a : {} , b : {}", sh_a, sh_b);
 
   var_ partials = msList_init(arena, bigint, msList_len(b));
   for (each_RANGE(usize, i, 0, msList_len(b))) {
@@ -229,6 +261,7 @@ bigint bigint_mul(AllocatorV allocator, bigint a1, bigint b1) {
     bigint_negate_ip(allocator, &res);
 
   bigint_trim(&res);
+  bigint_shrl(allocator, &res, sh_a + sh_b);
   return res;
 }
 bigint_unit bigint_div_guess_under(bigint a, bigint b) {
@@ -281,18 +314,24 @@ bigint_unit bigint_div_guess_under(bigint a, bigint b) {
       }
     }
 
-    return q;
+    return q ? q - 1 : 0;
   }
 }
-struct {
+struct bigint_div_t {
   bigint result;
   bigint remainder;
-} bigint_div(AllocatorV allocator, bigint a1, bigint b1) {
+};
+struct bigint_div_t
+bigint_div(AllocatorV allocator, bigint a1, bigint b1) {
   typedef typeof(bigint_div(allocator, a1, b1)) div_result;
   var_ arena = arena_new_ext(allocator, 1024);
   defer { arena_cleanup(arena); };
   assertMessage(bigint_cmp(b1, NULL), "Division by zero");
 
+  if ((!bigint_cmp(a1, NULL)))
+    return (div_result){
+        bigint_from(allocator, 0),
+    };
   bool negetive = 0;
   var_ remainder = bigint_negetive(a1)
                        ? (negetive = !negetive, bigint_negate(arena, a1))
@@ -302,13 +341,6 @@ struct {
                : bigint_copy(arena, b1);
   bigint_trim(&remainder);
   bigint_trim(&b);
-  if (msList_len(b) > msList_len(remainder))
-    return ((div_result){
-        .result = 0,
-        .remainder = negetive
-                         ? bigint_negate(allocator, remainder)
-                         : bigint_copy(allocator, remainder),
-    });
   var_ partials = msList_init(arena, bigint, msList_len(remainder) - msList_len(b) + 1);
 
   // r 00 10 00
@@ -316,8 +348,7 @@ struct {
   for (usize i = msList_len(remainder); i >= msList_len(b); i--) {
     var_ t = bigint_copy(arena, b);
     usize shift = i - msList_len(b);
-    if (shift > 0)
-      msList_insArr(arena, t, 0, *VLAP((bigint)NULL, shift));
+    msList_insArr(arena, t, 0, *VLAP((bigint)NULL, shift));
     msList_push(arena, partials, t);
   }
 
@@ -353,8 +384,8 @@ struct {
     bigint_negate_ip(allocator, &remainder);
   }
   return (div_result){
-      .remainder = remainder,
       .result = result,
+      .remainder = bigint_copy(allocator, remainder),
   };
 }
 
@@ -406,51 +437,60 @@ int main(void) {
       log = stdout
   );
   defer { debugAllocatorDeInit(debug); };
-
-  AllocatorV arena = arena_new_ext(debug, 1024);
-  defer { arena_cleanup(arena); };
   {
-    defer { arena_clear(arena); };
-    bigint a = BInt.from(arena, 1024);
-    bigint b = BInt.negate(arena, a);
+    defer { println("{dbga-stats}", debugAllocator_clear(debug)); };
+    bigint a = BInt.from(debug, 1024);
+    defer { msList_deInit(debug, a); };
+    bigint b = BInt.negate(debug, a);
+    defer { msList_deInit(debug, b); };
     println(
         "{bigint:dbg}{bigint} * -1 = {bigint:dbg}{bigint}",
         a, a, b, b
     );
-    struct debugStats s = debugAllocator_stats(debug);
-    println("{dbga-stats}", s);
   }
   {
-    defer { arena_clear(arena); };
-    bigint a = BInt.from(arena, -10);
-    bigint b = BInt.from(arena, -252);
+    defer { println("{dbga-stats}", debugAllocator_clear(debug)); };
+    bigint a = BInt.from(debug, -10);
+    defer { msList_deInit(debug, a); };
+    bigint b = BInt.from(debug, -252);
+    defer { msList_deInit(debug, b); };
+    bigint c = BInt.sub(debug, a, b);
+    defer { msList_deInit(debug, c); };
     println(
         "{bigint} - {bigint} = {bigint}",
-        a, b, BInt.sub(arena, a, b)
+        a, b, c
     );
-    struct debugStats s = debugAllocator_stats(debug);
-    println("{dbga-stats}", s);
   }
   {
-    defer { arena_clear(arena); };
-    bigint a = BInt.from(arena, -10);
-    bigint b = BInt.from(arena, -252);
+    // defer {
+    //   debugAllocatorDeInit(debug);
+    //   debug = debugAllocator(allocator = stdAlloc, log = stdout);
+    // };
+    defer { println("{dbga-stats}", debugAllocator_clear(debug)); };
+    bigint a = BInt.from(debug, -(2 << 2));
+    defer { msList_deInit(debug, a); };
+    bigint b = BInt.from(debug, -(2 << 8));
+    defer { msList_deInit(debug, b); };
+    bigint c = BInt.mul(debug, a, b);
     println(
         "{bigint} * {bigint} = {bigint}",
-        a, b, BInt.mul(arena, a, b)
+        a, b, c
     );
-    struct debugStats s = debugAllocator_stats(debug);
-    println("{dbga-stats}", s);
   }
   {
-    defer { arena_clear(arena); };
-    bigint a = BInt.from(arena, -2000);
-    bigint b = BInt.from(arena, -11);
+    defer { println("{dbga-stats}", debugAllocator_clear(debug)); };
+    bigint a = BInt.from(debug, -(2 << 8));
+    defer { msList_deInit(debug, a); };
+    bigint b = BInt.from(debug, -(2 << 2));
+    defer { msList_deInit(debug, b); };
+    var_ q = BInt.div(debug, a, b);
+    defer {
+      msList_deInit(debug, q.remainder);
+      msList_deInit(debug, q.result);
+    };
     println(
-        "{bigint} // {bigint} = {bigint}",
-        a, b, BInt.div(arena, a, b).result
+        "{bigint} // {bigint} = {bigint} , {bigint}",
+        a, b, q.result, q.remainder
     );
-    struct debugStats s = debugAllocator_stats(debug);
-    println("{dbga-stats}", s);
   }
 }

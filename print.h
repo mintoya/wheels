@@ -478,7 +478,11 @@ REGISTER_SPECIAL_PRINTER("i32", i32, {
 REGISTER_SPECIAL_PRINTER("i64", i64, {
   USETYPEPRINTER(isize, (isize)in);
 });
-REGISTER_SPECIAL_PRINTER_NEEDID(slice_printer_generic_version, "slice", struct {usize len;void* ptr; }, {
+struct slice_any_t {
+  usize len;
+  void *ptr;
+};
+REGISTER_SPECIAL_PRINTER_NEEDID(slice_printer_generic_version, "slice", struct slice_any_t, {
   fptr farg = printer_arg_trim(args);
   void *ptr = in.ptr;
   var_ printer = PrinterSingleton_get(farg);
@@ -554,10 +558,10 @@ MAKE_PRINT_ARG_TYPE(i32);
 MAKE_PRINT_ARG_TYPE(u32);
   #endif
 
-  #define MAKE_PRINT_ARG(a)                \
-    ((struct print_arg){                   \
-        .ref = REF(typeof(a), a),          \
-        .name = fp_from(type_name_cstr(a)) \
+  #define MAKE_PRINT_ARG(a)                                        \
+    ((struct print_arg){                                           \
+        .ref = (fptr){sizeof(typeof(a)), (u8 *)REF(typeof(a), a)}, \
+        .name = fp_from(type_name_cstr(a))                         \
     }),
 #endif
 

@@ -10,7 +10,6 @@
   #ifndef SLIST_GROW_EQ
     #define SLIST_GROW_EQ(len) (len + len / 2 + 1)
   #endif
-
 typedef struct sList_header {
   usize length;
   usize capacity;

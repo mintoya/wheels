@@ -260,11 +260,11 @@ void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize size, char *
 void debugAllocator_free(AllocatorV allocator, void *ptr, usize size, char *fn, usize ln) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
-  (aFree)(realAllocator, ptr, size, fn, ln);
   struct tracedata *data = mHmap_get(internals->map, ptr);
   assertMessage(data, "pointer not in allocator");
   internals->current -= data->size;
   assertMessage(mHmap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
+  (aFree)(realAllocator, ptr, data->size, fn, ln);
   mHmap_rem(internals->map, ptr);
 }
 #endif // MY_DEBUG_ALLOCATOR_C
