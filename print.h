@@ -600,11 +600,13 @@ static slice(c8) vsn_print_fn(AllocatorV allocator, char *fmt, struct print_arg 
   assertMessage(sn_slice_result.len == sn_length_);
   return sn_slice_result;
 }
-#define sn_print(allocator, fmt, ...) ({                                     \
-  var_ eval_print_sn = (struct print_arg[]){                                 \
-      __VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){}) \
-  };                                                                         \
-  vsn_print_fn(allocator, fmt, eval_print_sn);                               \
+#define sn_print(allocator, fmt, ...) ({                                                           \
+  struct print_arg eval_print_sn[countof((                                                         \
+      (struct print_arg[]){__VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){})} \
+  ))] = {                                                                                          \
+      __VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){})                       \
+  };                                                                                               \
+  vsn_print_fn(allocator, (char *)fmt, eval_print_sn);                                             \
 })
 #define print_(fmt, ...) print_wfO(fileprint, stdout, fmt, __VA_ARGS__)
 #define println_(fmt, ...) print(fmt "\n", __VA_ARGS__)

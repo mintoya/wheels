@@ -7,7 +7,6 @@
 #include "wheels/mytypes.h"
 #include "wheels/print.h"
 #include "wheels/wheels.h"
-#include <cstring>
 #include <stdarg.h>
 #include <stddef.h>
 #include <threads.h>
@@ -16,11 +15,12 @@
   #define BIGINT_BITS 8
 #endif
 typedef unsigned _BitInt(BIGINT_BITS) bigint_unit;
+// typedef u8 bigint_unit;
 typedef msList(bigint_unit) bigint;
 typedef typeof(*((bigint)NULL)) bigint_unit;
 
 bool bigint_ckd_add(bigint_unit *res, bigint_unit a, bigint_unit b) {
-  static_assert(~(bigint_unit)0 > 0, "must be unsigned ");
+  static_assert((bigint_unit) ~(bigint_unit)0 > 0, "must be unsigned ");
   *res = a + b;
   return a > (~(bigint_unit)0) - b;
 }
@@ -105,6 +105,7 @@ void bigint_negate_ip(AllocatorV allocator, bigint *i) {
   assertMessage(i);
   if (!*i)
     return;
+  bigint_expand(allocator, i, msList_len(*i) + 1);
   for_each_P((var_ j, msList_vla(*i)), { *j = ~*j; });
   bigint_unit ca = 1;
   for (usize c = 0; ca && c < msList_len(i[0]); c++) {
@@ -112,11 +113,13 @@ void bigint_negate_ip(AllocatorV allocator, bigint *i) {
     i[0][c] = c1.result;
     ca = c1.flag;
   }
+  bigint_trim(i);
 }
 void bigint_add_ip_flag(AllocatorV allocator, bigint *a, bigint b, bool negate) {
   usize len = msList_len(a[0]) > msList_len(b)
                   ? msList_len(a[0])
                   : msList_len(b);
+  len += 1;
   bigint_expand(allocator, a, len);
   bigint_unit carry = 0;
 
@@ -127,7 +130,9 @@ void bigint_add_ip_flag(AllocatorV allocator, bigint *a, bigint b, bool negate) 
     carry = ra.flag + rb.flag;
   }
   msList_len(a[0]) = len;
+  bigint_trim(a);
 }
+
 void bigint_add_ip(AllocatorV allocator, bigint *a, bigint b) {
   return bigint_add_ip_flag(allocator, a, b, 0);
 }
@@ -221,7 +226,7 @@ bigint bigint_mul_single(AllocatorV allocator, bigint *b, bigint_unit bu) {
   return res;
 }
 bigint bigint_mul(AllocatorV allocator, bigint a1, bigint b1) {
-  var_ arena = arena_new_ext(allocator, 1024);
+  var_ arena = arena_new_ext(allocator, (b1 ? msList_len(b1) : 1) * (b1 ? msList_len(b1) : 1) * sizeof(bigint) * 8);
   defer { arena_cleanup(arena); };
   if ((!bigint_cmp(a1, NULL)) || (!bigint_cmp(b1, 0)))
     return bigint_from(allocator, 0);
@@ -282,10 +287,10 @@ bigint_unit bigint_div_guess_under(bigint a, bigint b) {
   } else if (msList_len(a) == 1) { //
     return bigint_get(a, 0) / bigint_get(b, 0);
   } else {
-    bigint_unit a0 = bigint_get(a, 1);
-    bigint_unit b0 = bigint_get(b, 1);
-    bigint_unit a1 = bigint_get(a, 0);
-    bigint_unit b1 = bigint_get(b, 0);
+    bigint_unit a0 = bigint_get(a, msList_len(a) - 1);
+    bigint_unit b0 = bigint_get(b, msList_len(a) - 1);
+    bigint_unit a1 = bigint_get(a, msList_len(a) - 2);
+    bigint_unit b1 = bigint_get(b, msList_len(a) - 2);
 
     int unit_bits = sizeof(bigint_unit) * 8;
     bigint_unit q = 0;
@@ -364,18 +369,24 @@ bigint_div(AllocatorV allocator, bigint a1, bigint b1) {
     defer { arena_clear(local); };
 
     bigint temp = bigint_copy(local, partials[i]);
+
     // bigint_unit bu = 0;
     bigint_unit bu = bigint_div_guess_under(remainder, temp);
 
     bigint s = bigint_mul_single(local, &temp, bu);
-    while (1) {
-      bigint next_s = bigint_mul_single(local, &temp, bu + 1);
+
+    while (bigint_cmp(s, remainder) > 0 && bu > 0) {
+      bu--;
+      s = bigint_mul_single(local, &temp, bu);
+    }
+
+    while (bu != ~(bigint_unit)0) {
+      bigint next_s = bigint_mul_single(local, &temp, (bigint_unit)(bu + 1));
       if (bigint_cmp(next_s, remainder) > 0)
         break;
       s = next_s;
       bu++;
     }
-
     msList_ins(allocator, result, 0, bu);
     bigint_sub_ip(arena, &remainder, s);
   }
@@ -427,6 +438,8 @@ REGISTER_PRINTER(bigint, {
       msList_ins(arena, digits, 0, dig + '0');
       in = dig_big.result;
     }
+    if (!msList_len(digits))
+      msList_push(arena, digits, '0');
     put(digits, _arb, msList_len(digits), 0);
   }
 });
@@ -436,6 +449,11 @@ int main(void) {
       allocator = stdAlloc,
       log = stdout
   );
+  var_ sn = sn_print(stdAlloc, "{bigint:dbg}", bigint_from(stdAlloc, 100));
+  while (!sn.ptr[sn.len - 1])
+    sn.len--;
+  // assertMessage(fptr_eq(*(fptr *)&sn, fp("[64]")), "%s", sn.ptr);
+
   defer { debugAllocatorDeInit(debug); };
   {
     defer { println("{dbga-stats}", debugAllocator_clear(debug)); };
@@ -472,6 +490,7 @@ int main(void) {
     bigint b = BInt.from(debug, -(2 << 8));
     defer { msList_deInit(debug, b); };
     bigint c = BInt.mul(debug, a, b);
+    defer { msList_deInit(debug, c); };
     println(
         "{bigint} * {bigint} = {bigint}",
         a, b, c
@@ -492,5 +511,17 @@ int main(void) {
         "{bigint} // {bigint} = {bigint} , {bigint}",
         a, b, q.result, q.remainder
     );
+  }
+  bigint a = bigint_from(debug, 1);
+  bigint b = bigint_from(debug, 2);
+  // 1 1 2 3 5
+  for (int i = 0; i < 2000; i++) {
+    println("{}", i);
+    bigint c = bigint_mul(debug, a, b);
+    println("{bigint:dbg}", c);
+    // println("{bigint}{bigint:dbg}", c, c);
+    msList_deInit(debug, b);
+    b = a;
+    a = c;
   }
 }
