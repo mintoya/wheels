@@ -2,6 +2,7 @@
 #define MY_TYPES
 #include "macros.h"
 #include <assert.h>
+#include <stdalign.h>
 #include <stdbool.h>
 #if defined(__cplusplus)
   #include <cstddef>
@@ -46,8 +47,17 @@ typedef char *cstr;
 typedef uintmax_t umax;
 typedef intmax_t imax;
 typedef size_t usize;
-// #define ntype_max_u(T) ((T)(~((T)0)))
-// #define ntype_max_i(T) ((T)(ntype_max_u(T) ^ (((T)1) << (sizeof(T) * 8 - 1))))
+
+// max_align_t standin
+typedef struct myAlign {
+  union {
+#if defined(__BIGGEST_ALIGNMENT__)
+    alignas(__BIGGEST_ALIGNMENT__) u8 _ua;
+#endif
+    void *_vp;
+    usize _us;
+  };
+} myAlign;
 
 #if __has_include(<BaseTsd.h>)
   #include <BaseTsd.h>

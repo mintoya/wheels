@@ -72,11 +72,11 @@ typedef struct ArenaHead {
 typedef struct ArenaBuf {
   ArenaBuf *next;
   usize capacity, offset, count;
-  alignas(alignof(max_align_t)) u8 buffer[/*size*/];
+  alignas(myAlign) u8 buffer[/*size*/];
 } ArenaBuf;
 typedef struct {
   My_allocator allocator[1];
-  alignas(alignof(max_align_t)) ArenaHead block[1];
+  alignas(myAlign) ArenaHead block[1];
 } My_arena_includeBlock;
 
 ArenaBuf *arenablock_new(AllocatorV allocator, usize blockSize) {
@@ -190,8 +190,8 @@ void *my_arena_alloc(AllocatorV arena, usize size, char *filename, usize ln) {
       sync_fba(b, fbs);
     } else {
       usize nextsize = b->capacity * 2;
-      if (nextsize < size + alignof(max_align_t) + alignof(max_align_t))
-        nextsize = size + alignof(max_align_t) + alignof(max_align_t);
+      if (nextsize < size + alignof(myAlign) + alignof(myAlign))
+        nextsize = size + alignof(myAlign) + alignof(myAlign);
 
       b->next = b->next ?: arenablock_new(maib->block[0].allocator, nextsize);
       b = b->next;

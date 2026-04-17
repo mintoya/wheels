@@ -13,7 +13,7 @@
 typedef struct sList_header {
   usize length;
   usize capacity;
-  alignas(max_align_t) u8 buf[];
+  alignas(myAlign) u8 buf[];
 } sList_header;
 static inline sList_header *sList_realloc(AllocatorV allocator, sList_header *header, usize width, usize newsize) {
   assertMessage(header && header->capacity);

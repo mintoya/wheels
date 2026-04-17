@@ -18,8 +18,8 @@ __attribute__((const)) static inline uptr lineup(uptr unalinged, usize a) { retu
 // an allocated pointer should be uncheaged when passed trought this function
 __attribute__((const)) static inline uptr aAlloc_align(uptr unaligned) {
   return lineup(
-      unaligned, alignof(max_align_t) > sizeof(usize)
-                     ? alignof(max_align_t)
+      unaligned, alignof(myAlign) > sizeof(usize)
+                     ? alignof(myAlign)
                      : sizeof(usize)
   );
 }
@@ -30,7 +30,7 @@ typedef const My_allocator *AllocatorV;
  *  equivalent of malloc
  *    cannot return null
  *    cannot allocate 0
- *    allocation always aligned to max_align_t
+ *    allocation always aligned to myAlign
  *  @param 1 allocator
  *  @param 2 size    *non-0*
  */
@@ -64,7 +64,7 @@ typedef struct My_allocator {
   My_allocatorFree /*     */ free;
   My_allocatorResize /*   */ resize; ///< optional
   My_allocatorGetUsable /**/ size;   ///< optional
-  max_align_t /*          */ arb[];
+  alignas(myAlign) u8 /*          */ arb[];
 } My_allocator;
 
 #define aAlloc(...) ((aAlloc)(__VA_ARGS__, __FILE__, __LINE__))
@@ -103,7 +103,7 @@ void *(aAlloc)(AllocatorV allocator, size_t size, char *file, usize line) {
   void *res = (allocator)->alloc(allocator, size, file, line);
 #ifdef MY_ALLOCATOR_STRICTEST
   assertMessage(res, "allocators cant return null");
-  assertMessage(!((uintptr_t)res % alignof(max_align_t)), "wrong alignment out of allocator");
+  assertMessage(!((uintptr_t)res % alignof(myAlign)), "wrong alignment out of allocator");
 #endif
   return res;
 }
@@ -120,15 +120,15 @@ void *(aResize)(AllocatorV allocator, void *oldptr, usize oldsize, size_t newsiz
     void *result = (allocator)->resize(allocator, oldptr, newsize, file, line);
 #ifdef MY_ALLOCATOR_STRICTEST
     assertMessage(result, "allocators cant return null, r");
-    assertMessage(!((uintptr_t)result % alignof(max_align_t)), "wrong alignment out of allocator, r");
+    assertMessage(!((uintptr_t)result % alignof(myAlign)), "wrong alignment out of allocator, r");
 #endif
     res = result;
   } else {
 
-    max_align_t *result = (max_align_t *)allocator->alloc(allocator, newsize, file, line);
+    void *result = (void *)allocator->alloc(allocator, newsize, file, line);
 #ifdef MY_ALLOCATOR_STRICTEST
     assertMessage(result, "allocators cant return null, r");
-    assertMessage(!((uintptr_t)result % alignof(max_align_t)), "wrong alignment out of allocator, r");
+    assertMessage(!((uintptr_t)result % alignof(myAlign)), "wrong alignment out of allocator, r");
 #endif
     usize size = oldsize < newsize ? oldsize : newsize;
     __builtin_memcpy(result, oldptr, size);

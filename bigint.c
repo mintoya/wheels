@@ -9,6 +9,7 @@
 #include "wheels/wheels.h"
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <threads.h>
 
 #if !defined(BIGINT_BITS)
@@ -115,7 +116,7 @@ void bigint_negate_ip(AllocatorV allocator, bigint *i) {
   }
   bigint_trim(i);
 }
-void bigint_add_ip_flag(AllocatorV allocator, bigint *a, bigint b, bool negate) {
+void bigint_add_ip_flag(AllocatorV allocator, bigint *a, bigint b, bool negate, isize shift) {
   usize len = msList_len(a[0]) > msList_len(b)
                   ? msList_len(a[0])
                   : msList_len(b);
@@ -125,7 +126,7 @@ void bigint_add_ip_flag(AllocatorV allocator, bigint *a, bigint b, bool negate) 
 
   for (usize i = 0; i < len; i++) {
     var_ ra = bigint_ckd_add_struct(negate ? ~a[0][i] : a[0][i], carry);
-    var_ rb = bigint_ckd_add_struct(ra.result, bigint_get(b, i));
+    var_ rb = bigint_ckd_add_struct(ra.result, bigint_get(b, i + shift));
     a[0][i] = negate ? ~rb.result : rb.result;
     carry = ra.flag + rb.flag;
   }
@@ -133,11 +134,11 @@ void bigint_add_ip_flag(AllocatorV allocator, bigint *a, bigint b, bool negate) 
   bigint_trim(a);
 }
 
-void bigint_add_ip(AllocatorV allocator, bigint *a, bigint b) {
-  return bigint_add_ip_flag(allocator, a, b, 0);
+void bigint_add_ip(AllocatorV allocator, bigint *a, bigint b, isize shift) {
+  return bigint_add_ip_flag(allocator, a, b, 0, shift);
 }
 void bigint_sub_ip(AllocatorV allocator, bigint *a, bigint b1) {
-  bigint_add_ip_flag(allocator, a, b1, 1);
+  bigint_add_ip_flag(allocator, a, b1, 1, 0);
 }
 bigint bigint_from(AllocatorV allocator, i64 i) {
   var_ r = msList_init(allocator, bigint_unit, 1);
@@ -157,7 +158,7 @@ bigint bigint_negate(AllocatorV allocator, bigint i) {
 }
 bigint bigint_add(AllocatorV allocator, bigint a, bigint b) {
   bigint res = bigint_copy(allocator, a);
-  bigint_add_ip(allocator, &res, b);
+  bigint_add_ip(allocator, &res, b, 0);
   return res;
 }
 bigint bigint_sub(AllocatorV allocator, bigint a, bigint b) {
@@ -246,19 +247,14 @@ bigint bigint_mul(AllocatorV allocator, bigint a1, bigint b1) {
   while (!b[sh_b])
     sh_b++;
   bigint_shrl(arena, &a, -sh_a);
-  bigint_shrl(arena, &b, -sh_b);
-  // println("\nshifted a : {} , b : {}", sh_a, sh_b);
+  // bigint_shrl(arena, &b, -sh_b);
 
-  var_ partials = msList_init(arena, bigint, msList_len(b));
-  for (each_RANGE(usize, i, 0, msList_len(b))) {
-    var_ temp = bigint_mul_single(arena, &a, b[i]);
-    msList_insArr(arena, temp, 0, *VLAP((bigint)NULL, i));
-    msList_push(arena, partials, temp);
-  }
   var_ res = bigint_from(allocator, 0);
-  for_each_((var_ bi, msList_vla(partials)), {
-    bigint_add_ip(allocator, &res, bi);
-  });
+  for (each_RANGE(usize, i, 0, msList_len(b))) {
+    var_ temp = bigint_mul_single(arena, &a, bigint_get(b, i + sh_b));
+    bigint_add_ip(allocator, &res, temp, i);
+    msList_deInit(arena, temp);
+  }
   // while (msList_len(res) < msList_len(a) + msList_len(b))
   //   msList_push(allocator, res, 0);
 
@@ -269,135 +265,245 @@ bigint bigint_mul(AllocatorV allocator, bigint a1, bigint b1) {
   bigint_shrl(allocator, &res, sh_a + sh_b);
   return res;
 }
-bigint_unit bigint_div_guess_under(bigint a, bigint b) {
-  assertMessage(
-      !bigint_negetive(a) &&
-      !bigint_negetive(b)
-  );
-  bigint_trim(&b);
-  bigint_trim(&a);
-  if (!bigint_cmp(a, NULL)) { // a == 0
-    return 0;
-  }
-  var_ cmp = bigint_cmp(a, b);
-  if (cmp < 0) { // a < b
-    return 0;
-  } else if (cmp == 0) {
-    return 1;
-  } else if (msList_len(a) == 1) { //
-    return bigint_get(a, 0) / bigint_get(b, 0);
-  } else {
-    bigint_unit a0 = bigint_get(a, msList_len(a) - 1);
-    bigint_unit b0 = bigint_get(b, msList_len(a) - 1);
-    bigint_unit a1 = bigint_get(a, msList_len(a) - 2);
-    bigint_unit b1 = bigint_get(b, msList_len(a) - 2);
-
-    int unit_bits = sizeof(bigint_unit) * 8;
-    bigint_unit q = 0;
-    bigint_unit rem_h = 0;
-    bigint_unit rem_l = 0;
-
-    for (int i = (unit_bits * 2); i > 0; i--) {
-      rem_h = (rem_h << 1) | (rem_l >> (unit_bits - 1));
-      rem_l <<= 1;
-
-      bigint_unit bit = ((i - 1) >= unit_bits)
-                            ? ((a0 >> ((i - 1) - unit_bits)) & 1)
-                            : ((a1 >> (i - 1)) & 1);
-
-      rem_l |= bit;
-
-      if (rem_h > b0 || (rem_h == b0 && rem_l >= b1)) {
-        if (rem_l < b1)
-          rem_h -= 1;
-        rem_l -= b1;
-        rem_h -= b0;
-
-        if ((i - 1) < unit_bits) {
-          q |= ((bigint_unit)1 << (i - 1));
-        }
-      }
-    }
-
-    return q ? q - 1 : 0;
-  }
-}
 struct bigint_div_t {
   bigint result;
   bigint remainder;
 };
-struct bigint_div_t
-bigint_div(AllocatorV allocator, bigint a1, bigint b1) {
-  typedef typeof(bigint_div(allocator, a1, b1)) div_result;
-  var_ arena = arena_new_ext(allocator, 1024);
-  defer { arena_cleanup(arena); };
+
+// Knuth Algorithm D — operates on bigint directly, little-endian words
+// u is modified in-place to become the remainder after the call
+
+static int bigint_nlz(bigint_unit x) {
+  int n = 0;
+  int bits = sizeof(bigint_unit) * 8;
+  if (x == 0)
+    return bits;
+  bigint_unit msb = (bigint_unit)1 << (bits - 1);
+  while (!(x & msb)) {
+    n++;
+    x <<= 1;
+  }
+  return n;
+}
+
+static void knuth_divmod(
+    AllocatorV arena,
+    bigint u, // dividend in, remainder out (must have extra 0 word at top)
+    bigint v, // divisor (normalized copy, untouched)
+    bigint q  // quotient out (pre-allocated, length m+1)
+) {
+  typedef unsigned long long u64;
+  const int bits = sizeof(bigint_unit) * 8;
+  const u64 BASE = (u64)1 << bits;
+  int n = (int)msList_len(v);
+  int m = (int)msList_len(u) - n - 1; // u has m+n+1 words (extra guard word)
+
+  int s = bigint_nlz(v[n - 1]);
+
+  // Normalized copies on the arena
+  bigint vn = msList_init(arena, bigint_unit, n);
+  bigint un = msList_init(arena, bigint_unit, m + n + 1);
+
+  // Shift v left by s into vn
+  for (int i = n - 1; i > 0; i--)
+    msList_push(arena, vn, (v[i] << s) | (v[i - 1] >> (bits - s)));
+  msList_push(arena, vn, v[0] << s); // vn[0] last (push = append, little-endian)
+  // fix: we built vn backwards above — build correctly
+  msList_len(vn) = 0;
+  msList_push(arena, vn, v[0] << s);
+  for (int i = 1; i < n; i++)
+    msList_push(arena, vn, (v[i] << s) | (v[i - 1] >> (bits - s)));
+
+  // Shift u left by s into un (u has m+n words, un gets m+n+1)
+  msList_push(arena, un, u[0] << s);
+  for (int i = 1; i < m + n; i++)
+    msList_push(arena, un, (u[i] << s) | (u[i - 1] >> (bits - s)));
+  msList_push(arena, un, u[m + n - 1] >> (bits - s));
+
+  for (int j = m; j >= 0; j--) {
+    // Estimate q̂
+    u64 num = ((u64)un[j + n] << bits) | un[j + n - 1];
+    u64 qhat = num / vn[n - 1];
+    u64 rhat = num % vn[n - 1];
+
+    // Refine (at most 2 iterations, proven by Knuth)
+    while (qhat >= BASE ||
+           qhat * vn[n - 2] > BASE * rhat + un[j + n - 2]) {
+      qhat--;
+      rhat += vn[n - 1];
+      if (rhat >= BASE)
+        break;
+    }
+
+    // Multiply and subtract: un[j..j+n] -= qhat * vn
+    long long borrow = 0;
+    for (int i = 0; i < n; i++) {
+      u64 prod = qhat * (u64)vn[i];
+      long long sub = (long long)un[j + i] - borrow - (long long)(prod & (BASE - 1));
+      un[j + i] = (bigint_unit)sub;
+      borrow = (long long)(prod >> bits) - (sub >> bits);
+    }
+    long long top = (long long)un[j + n] - borrow;
+    un[j + n] = (bigint_unit)top;
+
+    q[j] = (bigint_unit)qhat;
+
+    // Add back if overshot (~1/BASE chance)
+    if (top < 0) {
+      q[j]--;
+      u64 carry = 0;
+      for (int i = 0; i < n; i++) {
+        carry += (u64)un[j + i] + (u64)vn[i];
+        un[j + i] = (bigint_unit)carry;
+        carry >>= bits;
+      }
+      un[j + n] += (bigint_unit)carry;
+    }
+  }
+
+  // Denormalize remainder back into u (shift un right by s)
+  for (int i = 0; i < n - 1; i++)
+    u[i] = (un[i] >> s) | (un[i + 1] << (bits - s));
+  u[n - 1] = un[n - 1] >> s;
+}
+
+struct bigint_div_t bigint_div(AllocatorV allocator, bigint a1, bigint b1) {
+  typedef struct bigint_div_t div_result;
   assertMessage(bigint_cmp(b1, NULL), "Division by zero");
 
-  if ((!bigint_cmp(a1, NULL)))
-    return (div_result){
-        bigint_from(allocator, 0),
-    };
-  bool negetive = 0;
-  var_ remainder = bigint_negetive(a1)
-                       ? (negetive = !negetive, bigint_negate(arena, a1))
-                       : bigint_copy(arena, a1);
+  if (!bigint_cmp(a1, NULL))
+    return (div_result){bigint_from(allocator, 0), bigint_from(allocator, 0)};
+
+  var_ arena = arena_new_ext(allocator, 4096);
+  defer { arena_cleanup(arena); };
+
+  bool negative = 0;
+  var_ a = bigint_negetive(a1)
+               ? (negative = !negative, bigint_negate(arena, a1))
+               : bigint_copy(arena, a1);
   var_ b = bigint_negetive(b1)
-               ? (negetive = !negetive, bigint_negate(arena, b1))
+               ? (negative = !negative, bigint_negate(arena, b1))
                : bigint_copy(arena, b1);
-  bigint_trim(&remainder);
+  bigint_trim(&a);
   bigint_trim(&b);
-  var_ partials = msList_init(arena, bigint, msList_len(remainder) - msList_len(b) + 1);
 
-  // r 00 10 00
-  // b 00 10 10
-  for (usize i = msList_len(remainder); i >= msList_len(b); i--) {
-    var_ t = bigint_copy(arena, b);
-    usize shift = i - msList_len(b);
-    msList_insArr(arena, t, 0, *VLAP((bigint)NULL, shift));
-    msList_push(arena, partials, t);
+  if (bigint_cmp(a, b) < 0) {
+    bigint rem = bigint_copy(allocator, a);
+    if (negative)
+      bigint_negate_ip(allocator, &rem);
+    return (div_result){bigint_from(allocator, 0), rem};
   }
 
-  var_ result = msList_init(allocator, bigint_unit, msList_len(partials) + 1);
-  // rs 00 00 00
-  //
-  // rm 00 10 00
-  //
-  // b0 10 10 00
-  // b1 00 10 10
-  var_ local = arena_new_ext(arena, 512);
-  for (usize i = 0; i < msList_len(partials); i++) {
-    defer { arena_clear(local); };
+  typedef unsigned long long u64;
+  const int bits = sizeof(bigint_unit) * 8;
+  const u64 BASE = (u64)1 << bits;
 
-    bigint temp = bigint_copy(local, partials[i]);
+  int n = (int)msList_len(b);
+  int m = (int)msList_len(a) - n;
 
-    // bigint_unit bu = 0;
-    bigint_unit bu = bigint_div_guess_under(remainder, temp);
+  // single-word divisor fast path
+  if (n == 1) {
+    bigint q = msList_init(allocator, bigint_unit, m + 1);
 
-    bigint s = bigint_mul_single(local, &temp, bu);
+    // Initialize array with zeros first to establish length
+    for (int i = 0; i <= m; i++)
+      msList_push(allocator, q, (bigint_unit)0);
 
-    while (bigint_cmp(s, remainder) > 0 && bu > 0) {
-      bu--;
-      s = bigint_mul_single(local, &temp, bu);
+    u64 rem = 0;
+    for (int i = m; i >= 0; i--) {
+      u64 cur = rem * BASE + a[i];
+      q[i] = (bigint_unit)(cur / b[0]);
+      rem = cur % b[0];
     }
 
-    while (bu != ~(bigint_unit)0) {
-      bigint next_s = bigint_mul_single(local, &temp, (bigint_unit)(bu + 1));
-      if (bigint_cmp(next_s, remainder) > 0)
+    bigint_trim(&q);
+    bigint r = bigint_from(allocator, (i64)rem);
+    if (negative) {
+      bigint_negate_ip(allocator, &q);
+      bigint_negate_ip(allocator, &r);
+    }
+    return (div_result){q, r};
+  }
+  // Knuth Algorithm D — multi-word
+  int s = bigint_nlz(b[n - 1]);
+
+  // normalized divisor vn[0..n-1]
+  bigint vn = msList_init(arena, bigint_unit, n);
+  for (int i = 0; i < n; i++)
+    msList_push(arena, vn, (bigint_unit)0);
+  vn[0] = b[0] << s;
+  for (int i = 1; i < n; i++)
+    vn[i] = s ? (b[i] << s) | (b[i - 1] >> (bits - s)) : b[i];
+
+  // normalized dividend un[0..m+n], one extra guard word
+  bigint un = msList_init(arena, bigint_unit, m + n + 1);
+  for (int i = 0; i < m + n + 1; i++)
+    msList_push(arena, un, (bigint_unit)0);
+  un[m + n] = s ? a[m + n - 1] >> (bits - s) : 0;
+  un[0] = a[0] << s;
+  for (int i = 1; i < m + n; i++)
+    un[i] = s ? (a[i] << s) | (a[i - 1] >> (bits - s)) : a[i];
+
+  bigint q = msList_init(allocator, bigint_unit, m + 1);
+  for (int i = 0; i <= m; i++)
+    msList_push(allocator, q, (bigint_unit)0);
+
+  for (int j = m; j >= 0; j--) {
+    u64 num = ((u64)un[j + n] << bits) | un[j + n - 1];
+    u64 qhat = num / vn[n - 1];
+    u64 rhat = num % vn[n - 1];
+
+    // refine estimate
+    while (qhat >= BASE ||
+           qhat * (u64)vn[n - 2] > BASE * rhat + un[j + n - 2]) {
+      qhat--;
+      rhat += vn[n - 1];
+      if (rhat >= BASE)
         break;
-      s = next_s;
-      bu++;
     }
-    msList_ins(allocator, result, 0, bu);
-    bigint_sub_ip(arena, &remainder, s);
+
+    // multiply and subtract
+    long long borrow = 0;
+    for (int i = 0; i < n; i++) {
+      u64 prod = qhat * (u64)vn[i];
+      long long sub = (long long)un[j + i] - borrow - (long long)(prod & (BASE - 1));
+      un[j + i] = (bigint_unit)sub;
+      borrow = (long long)(prod >> bits) - (sub >> bits);
+    }
+    long long top = (long long)un[j + n] - borrow;
+    un[j + n] = (bigint_unit)top;
+
+    q[j] = (bigint_unit)qhat;
+
+    // add back if overshot
+    if (top < 0) {
+      q[j]--;
+      u64 carry = 0;
+      for (int i = 0; i < n; i++) {
+        carry += (u64)un[j + i] + (u64)vn[i];
+        un[j + i] = (bigint_unit)carry;
+        carry >>= bits;
+      }
+      un[j + n] += (bigint_unit)carry;
+    }
   }
-  if (negetive) {
-    bigint_negate_ip(allocator, &result);
-    bigint_negate_ip(allocator, &remainder);
+
+  // denormalize remainder
+  bigint r = msList_init(allocator, bigint_unit, n);
+  for (int i = 0; i < n; i++)
+    msList_push(allocator, r, (bigint_unit)0);
+  for (int i = 0; i < n - 1; i++)
+    r[i] = s ? (un[i] >> s) | (un[i + 1] << (bits - s)) : un[i];
+  r[n - 1] = un[n - 1] >> s;
+
+  bigint_trim(&q);
+  bigint_trim(&r);
+
+  if (negative) {
+    bigint_negate_ip(allocator, &q);
+    bigint_negate_ip(allocator, &r);
   }
-  return (div_result){
-      .result = result,
-      .remainder = bigint_copy(allocator, remainder),
-  };
+  return (div_result){q, r};
 }
 
 NAMESPACE_STRUCT(
@@ -411,11 +517,11 @@ NAMESPACE_STRUCT(
     (negetive, &bigint_negetive),
 );
 REGISTER_PRINTER(bigint, {
-  bool debug = P$(
-      args,
-      printer_arg_trim($),
-      fptr_eq($, fp("debug")) | fptr_eq($, fp("dbg"))
-  );
+  args = printer_arg_trim(args);
+  bool debug = fptr_eq(args, fp("dbg"));
+  bool normal = !debug;
+  normal |= fptr_eq(args, fp("both"));
+  debug |= fptr_eq(args, fp("both"));
 
   if (debug) {
     PUTS("[");
@@ -423,7 +529,8 @@ REGISTER_PRINTER(bigint, {
       for (usize j = sizeof(*in); j > 0; j--)
         USENAMEDPRINTER("x", ((u8 *)(in + (i - 1)))[j - 1]);
     PUTS("]");
-  } else {
+  }
+  if (normal) {
     var_ arena = arena_new_ext(stdAlloc, 512); // heap operations for printing
     defer { arena_cleanup(arena); };
     in = bigint_negetive(in)
@@ -492,7 +599,7 @@ int main(void) {
     bigint c = BInt.mul(debug, a, b);
     defer { msList_deInit(debug, c); };
     println(
-        "{bigint} * {bigint} = {bigint}",
+        "{bigint:both} * {bigint:both} = {bigint:both}",
         a, b, c
     );
   }
@@ -512,16 +619,16 @@ int main(void) {
         a, b, q.result, q.remainder
     );
   }
+  // return 0;
   bigint a = bigint_from(debug, 1);
-  bigint b = bigint_from(debug, 2);
+  bigint b = bigint_from(debug, 1);
   // 1 1 2 3 5
-  for (int i = 0; i < 2000; i++) {
-    println("{}", i);
-    bigint c = bigint_mul(debug, a, b);
-    println("{bigint:dbg}", c);
-    // println("{bigint}{bigint:dbg}", c, c);
-    msList_deInit(debug, b);
-    b = a;
-    a = c;
+  int i = 2;
+  while (1) {
+    bigint c = bigint_add(debug, a, b);
+    println("{bigint}\n{} ", c, i++, );
+    msList_deInit(debug, a);
+    a = b;
+    b = c;
   }
 }

@@ -21,7 +21,7 @@ const My_allocator FBA_prototype[1] = {
 typedef struct {
   My_allocator allocator[1];
   usize capacity, offset, count;
-  alignas(max_align_t) u8 *buffer;
+  u8 *buffer;
 } FBA_State;
 extern inline usize FBA_current(AllocatorV allocator) {
   FBA_State *f = (typeof(f))allocator;
@@ -32,7 +32,8 @@ extern inline void FBA_reset(AllocatorV allocator) {
   f->offset = 0;
   // f->count = 0;
 }
-extern inline void FBA_init(max_align_t *buffer, usize size, FBA_State res[1]) {
+extern inline void FBA_init(u8 *buffer, usize size, FBA_State res[1]) {
+  assert(buffer == (typeof(buffer))lineup((uptr)buffer, alignof(myAlign)));
   __builtin_memcpy(res->allocator, FBA_prototype, sizeof(res->allocator));
   res->capacity = size;
   res->offset = 0;
