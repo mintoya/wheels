@@ -56,6 +56,8 @@ typedef struct myAlign {
 #endif
     void *_vp;
     usize _us;
+    ldouble _ld;
+    void (*_fp)(void);
   };
 } myAlign;
 

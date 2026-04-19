@@ -21,7 +21,7 @@ typedef void (*outputFunction)(
 typedef struct {
   void (*function)(
       outputFunction,
-      const void *,
+      fptr,
       fptr args,
       void *
   );
@@ -171,51 +171,51 @@ __attribute__((constructor(201))) static void printerInit() {
     put(REF(c8, character), _arb, 1, 0);              \
   } while (0)
 
-#define REGISTER_PRINTER(T, ...)                                       \
-  static void GETTYPEPRINTERFN(T)(                                     \
-      outputFunction put, const void *_v_in_ptr, fptr args, void *_arb \
-  ) {                                                                  \
-    (void)args;                                                        \
-    T in = *(T *)_v_in_ptr;                                            \
-    __VA_ARGS__;                                                       \
-  }                                                                    \
-  __attribute__((constructor(202))) static void register_##T() {       \
-    fptr key = (fptr){                                                 \
-        .len = sizeof(#T) - 1,                                         \
-        .ptr = (uint8_t *)#T,                                          \
-    };                                                                 \
-    PrinterSingleton_append(                                           \
-        key,                                                           \
-        (printerFunction){                                             \
-            GETTYPEPRINTERFN(T),                                       \
-            sizeof(T),                                                 \
-        }                                                              \
-    );                                                                 \
+#define REGISTER_PRINTER(T, ...)                                 \
+  static void GETTYPEPRINTERFN(T)(                               \
+      outputFunction put, fptr _v_in_ptr, fptr args, void *_arb  \
+  ) {                                                            \
+    (void)args;                                                  \
+    T in = *(T *)(_v_in_ptr.ptr);                                \
+    __VA_ARGS__;                                                 \
+  }                                                              \
+  __attribute__((constructor(202))) static void register_##T() { \
+    fptr key = (fptr){                                           \
+        .len = sizeof(#T) - 1,                                   \
+        .ptr = (uint8_t *)#T,                                    \
+    };                                                           \
+    PrinterSingleton_append(                                     \
+        key,                                                     \
+        (printerFunction){                                       \
+            GETTYPEPRINTERFN(T),                                 \
+            sizeof(T),                                           \
+        }                                                        \
+    );                                                           \
   }
 
-#define REGISTER_SPECIAL_PRINTER_NEEDID(id, str, type, ...)                          \
-  static void id(outputFunction put, const void *_v_in_ptr, fptr args, void *_arb) { \
-    type in = *(typeof(in) *)_v_in_ptr;                                              \
-    __VA_ARGS__;                                                                     \
-  }                                                                                  \
-  __attribute__((constructor(203))) static void UNIQUE_PRINTER_FN2() {               \
-    fptr key = (fptr){                                                               \
-        .len = strlen(str),                                                          \
-        .ptr = (uint8_t *)str,                                                       \
-    };                                                                               \
-    PrinterSingleton_append(                                                         \
-        key,                                                                         \
-        (printerFunction){                                                           \
-            id,                                                                      \
-            sizeof(type),                                                            \
-        }                                                                            \
-    );                                                                               \
+#define REGISTER_SPECIAL_PRINTER_NEEDID(id, str, type, ...)                   \
+  static void id(outputFunction put, fptr _v_in_ptr, fptr args, void *_arb) { \
+    type in = *(typeof(in) *)(_v_in_ptr.ptr);                                 \
+    __VA_ARGS__;                                                              \
+  }                                                                           \
+  __attribute__((constructor(203))) static void UNIQUE_PRINTER_FN2() {        \
+    fptr key = (fptr){                                                        \
+        .len = strlen(str),                                                   \
+        .ptr = (uint8_t *)str,                                                \
+    };                                                                        \
+    PrinterSingleton_append(                                                  \
+        key,                                                                  \
+        (printerFunction){                                                    \
+            id,                                                               \
+            sizeof(type),                                                     \
+        }                                                                     \
+    );                                                                        \
   }
 
 #define REGISTER_SPECIAL_PRINTER(str, type, ...) \
   REGISTER_SPECIAL_PRINTER_NEEDID(UNIQUE_PRINTER_FN, str, type, __VA_ARGS__)
 #define USETYPEPRINTER(T, val) \
-  GETTYPEPRINTERFN(T)(put, (u8 *)(void *)REF(T, val), nullFptr, _arb)
+  GETTYPEPRINTERFN(T)(put, (fptr){sizeof(T), (u8 *)(void *)REF(T, val)}, nullFptr, _arb)
 #define USENAMEDPRINTER(strname, val)                                                                  \
   print_f_helper(                                                                                      \
       (struct print_arg){.ref = ((fptr){sizeof(val), (u8 *)REF(typeof(val), val)}), .name = nullFptr}, \
@@ -271,6 +271,9 @@ REGISTER_SPECIAL_PRINTER("cstr", char *, {
     in = "__NULLCSTR__";
   while (*in)
     PUTC(*in++);
+});
+REGISTER_SPECIAL_PRINTER("carr", char, {
+  PUTS(*VLAP((char *)_v_in_ptr.ptr, _v_in_ptr.len));
 });
 REGISTER_PRINTER(c32, {
   if (in <= 0x7F) {
@@ -498,7 +501,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(slice_printer_generic_version, "slice", struct s
     for (each_RANGE(usize, i, 0, in.len)) {
       if (i)
         PUTC((c8)',');
-      printer.function(put, size * i + (u8 *)ptr, nullFptr, _arb);
+      printer.function(put, (fptr){size, size * i + (u8 *)ptr}, nullFptr, _arb);
     }
     PUTC((c8)']');
   }
@@ -508,8 +511,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(slice_printer_generic_version, "slice", struct s
 #if !defined(__cplusplus)
 
   #define MAKE_PRINT_ARG_TYPE(type) \
-  type:                             \
-    ((fptr){sizeof(#type) - 1, (u8 *)#type})
+    type * : ((fptr){sizeof(#type) - 1, (u8 *)#type})
   #if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
     #define MAKE_PRINTINTS_SIZE MAKE_PRINT_ARG_TYPE(i32), MAKE_PRINT_ARG_TYPE(u32),
   #else
@@ -521,20 +523,24 @@ REGISTER_SPECIAL_PRINTER_NEEDID(slice_printer_generic_version, "slice", struct s
     #define MAKE_PRINTS_D MAKE_PRINT_ARG_TYPE(ldouble),
   #endif
 
-  #define MAKE_PRINT_ARG(a)                                                       \
-    ((struct print_arg){                                                          \
-        .ref = ((fptr){sizeof(a), (u8 *)REF(typeof(a), a)}),                      \
-        .name = _Generic(                                                         \
-            a,                                                                    \
-            MAKE_PRINT_ARG_TYPE(fptr),                                            \
-            MAKE_PRINT_ARG_TYPE(isize),                                           \
-            MAKE_PRINT_ARG_TYPE(usize),                                           \
-            MAKE_PRINT_ARG_TYPE(float),                                           \
-            MAKE_PRINTS_D MAKE_PRINT_ARG_TYPE(pEsc),                              \
-            MAKE_PRINTINTS_SIZE void *: ((fptr){sizeof("ptr") - 1, (u8 *)"ptr"}), \
-            slice(c8): ((fptr){sizeof("slice(c8)") - 1, (u8 *)"slice(c8)"}),      \
-            default: nullFptr                                                     \
-        ),                                                                        \
+  #define MAKE_PRINT_ARG(a)                                                    \
+    ((struct print_arg){                                                       \
+        .ref = ((fptr){sizeof(a), (u8 *)REF(typeof(a), a)}),                   \
+        .name = _Generic(                                                      \
+            &(typeof(a)){0},                                                   \
+            MAKE_PRINT_ARG_TYPE(fptr),                                         \
+            MAKE_PRINT_ARG_TYPE(isize),                                        \
+            MAKE_PRINT_ARG_TYPE(usize),                                        \
+            MAKE_PRINT_ARG_TYPE(float),                                        \
+            MAKE_PRINTS_D /**/                                                 \
+                MAKE_PRINT_ARG_TYPE(pEsc),                                     \
+            MAKE_PRINTINTS_SIZE /**/                                           \
+            void **: ((fptr){sizeof("ptr") - 1, (u8 *)"ptr"}),                 \
+            slice(c8) *: ((fptr){sizeof("slice(c8)") - 1, (u8 *)"slice(c8)"}), \
+            char **: ((fptr){sizeof("cstr") - 1, (u8 *)"cstr"}),               \
+            char (*)[sizeof(a)]: ((fptr){sizeof("carr") - 1, (u8 *)"carr"}),   \
+            default: nullFptr                                                  \
+        ),                                                                     \
     }),
 
 #else
@@ -600,7 +606,7 @@ static slice(c8) vsn_print_fn(AllocatorV allocator, char *fmt, struct print_arg 
   assertMessage(sn_slice_result.len == sn_length_);
   return sn_slice_result;
 }
-#define sn_print(allocator, fmt, ...) ({                                                           \
+#define snprint(allocator, fmt, ...) ({                                                            \
   struct print_arg eval_print_sn[countof((                                                         \
       (struct print_arg[]){__VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){})} \
   ))] = {                                                                                          \
@@ -673,7 +679,6 @@ inline fptr printer_arg_trim(fptr in) {
 }
 
 void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr args, void *_arb) {
-  void *ref = p.ref.ptr;
   if (!typeName.len) {
     typeName = p.name;
   }
@@ -687,10 +692,14 @@ void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr 
     USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));
   } else if (fn.size > p.ref.len) {
     USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = 1}));
-    PUTS("__ PRINTER WOULD READ OOB __");
+    PUTS("__ PRINTER TRIED TO READ ");
+    USETYPEPRINTER(usize, fn.size);
+    PUTS(" BUT ITEM ONLY HAS ");
+    USETYPEPRINTER(usize, p.ref.len);
+    PUTS(" BYTES __");
     USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));
   } else {
-    fn.function(put, ref, args, _arb);
+    fn.function(put, p.ref, args, _arb);
   }
 }
 
