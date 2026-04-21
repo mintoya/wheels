@@ -3,14 +3,10 @@
 #include "mytypes.h"
 #include <stdalign.h>
 #include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(__cplusplus)
-  #include <cstddef>
-#else
-  #include <stddef.h>
-#endif
-#include <stdint.h>
 
 #define MY_ALLOCATOR_STRICTEST
 
@@ -23,6 +19,10 @@ __attribute__((const)) static inline uptr aAlloc_align(uptr unaligned) {
                      : sizeof(usize)
   );
 }
+
+//
+// types
+//
 
 typedef struct My_allocator My_allocator;
 typedef const My_allocator *AllocatorV;
@@ -67,9 +67,13 @@ typedef struct My_allocator {
   alignas(myAlign) u8 /*          */ arb[];
 } My_allocator;
 
-#define aAlloc(...) ((aAlloc)(__VA_ARGS__, __FILE__, __LINE__))
-#define aResize(...) ((aResize)(__VA_ARGS__, __FILE__, __LINE__))
-#define aFree(...) ((aFree)(__VA_ARGS__, __FILE__, __LINE__))
+//
+// helpers
+//
+
+#define aAlloc(...) ((aAlloc)(__VA_ARGS__, (char *)__FUNCTION__, __LINE__))
+#define aResize(...) ((aResize)(__VA_ARGS__, (char *)__FUNCTION__, __LINE__))
+#define aFree(...) ((aFree)(__VA_ARGS__, (char *)__FUNCTION__, __LINE__))
 void *(aAlloc)(AllocatorV allocator, size_t size, char *, usize);
 void *(aResize)(AllocatorV allocator, void *oldptr, size_t oldsize, size_t newsize, char *, usize);
 void(aFree)(AllocatorV allocator, void *oldptr, usize size, char *file, usize line);
@@ -84,6 +88,9 @@ void(aFree)(AllocatorV allocator, void *oldptr, usize size, char *file, usize li
     __builtin_memset(_res, 0, sizeof(type) * _count);                      \
     _res;                                                                  \
   })
+
+#if defined(__cplusplus)
+#endif
 
 extern AllocatorV stdAlloc;
 

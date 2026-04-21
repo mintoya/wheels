@@ -222,6 +222,12 @@ __attribute__((constructor(201))) static void printerInit() {
       printer_arg_trim(printer_arg_until(':', fp_from(strname))), put,                                 \
       printer_arg_after(':', fp_from(strname)), _arb                                                   \
   );
+#define USENAMEDPRINTER_WA(strname, args, val)                                                         \
+  print_f_helper(                                                                                      \
+      (struct print_arg){.ref = ((fptr){sizeof(val), (u8 *)REF(typeof(val), val)}), .name = nullFptr}, \
+      printer_arg_trim(printer_arg_until(':', fp_from(strname))), put,                                 \
+      args, _arb                                                                                       \
+  );
 
 struct print_arg {
   fptr ref;
@@ -273,6 +279,8 @@ REGISTER_SPECIAL_PRINTER("cstr", char *, {
     PUTC(*in++);
 });
 REGISTER_SPECIAL_PRINTER("carr", char, {
+  // string literals will end up here
+  // this will stop a seg fault, since they are passed in themselves instead of the type
   PUTS(*VLAP((char *)_v_in_ptr.ptr, _v_in_ptr.len));
 });
 REGISTER_PRINTER(c32, {
@@ -502,6 +510,36 @@ REGISTER_SPECIAL_PRINTER_NEEDID(slice_printer_generic_version, "slice", struct s
       if (i)
         PUTC((c8)',');
       printer.function(put, (fptr){size, size * i + (u8 *)ptr}, nullFptr, _arb);
+    }
+    PUTC((c8)']');
+  }
+  //
+});
+REGISTER_SPECIAL_PRINTER_NEEDID(msList_printer_generic, "msList", void *, {
+  fptr farg = printer_arg_trim(args);
+  var_ printer = PrinterSingleton_get(
+      printer_arg_trim(
+          printer_arg_until(':', farg)
+      )
+  );
+  if (!printer.function) {
+    USETYPEPRINTER(pEsc, ((pEsc){.fg = {.r = 255}, .fgset = 1}));
+    PUTS("__could'nt find printer for ");
+    USENAMEDPRINTER("slice(c8)", printer_arg_until(':', farg));
+    PUTS("__");
+    USETYPEPRINTER(pEsc, (pEsc){.reset = 1});
+  } else {
+    PUTC((c8)'[');
+    usize size = printer.size;
+    for (each_RANGE(usize, i, 0, msList_len(in))) {
+      if (i)
+        PUTC((c8)',');
+      printer.function(
+          put,
+          (fptr){size, size * i + (u8 *)in},
+          printer_arg_after(':', farg),
+          _arb
+      );
     }
     PUTC((c8)']');
   }

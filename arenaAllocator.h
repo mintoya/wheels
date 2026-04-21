@@ -16,6 +16,7 @@ void arena_clear(AllocatorV arena);
 // total bytes taken up by the arena
 usize arena_footprint(AllocatorV);
 usize arena_countBlocks(AllocatorV arena);
+
 usize arena_totalMem(AllocatorV arena);
 static void arena_cleanup_handler [[maybe_unused]] (My_allocator **arenaPtr) {
   if (arenaPtr && *arenaPtr) {
@@ -209,4 +210,5 @@ usize arena_countBlocks(AllocatorV arena) {
   }
   return res;
 }
+
 #endif // ARENA_ALLOCATOR_C

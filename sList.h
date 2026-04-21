@@ -11,8 +11,8 @@
     #define SLIST_GROW_EQ(len) (len + len / 2 + 1)
   #endif
 typedef struct sList_header {
-  usize length;
   usize capacity;
+  usize length;
   alignas(myAlign) u8 buf[];
 } sList_header;
 static inline sList_header *sList_realloc(AllocatorV allocator, sList_header *header, usize width, usize newsize) {

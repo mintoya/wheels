@@ -1,3 +1,4 @@
+#include <stdio.h>
 #if !defined(SHMAP_H)
   #define SHMAP_H (1)
   #include "fptr.h"
@@ -33,7 +34,7 @@ static inline struct double_idx *sHmap_find(const sHmap *sh, fptr f) {
   });
   return NULL;
 }
-static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
+static inline void *sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
   umax hash = fptr_hash(key) % sh->num_buckets;
   AllocatorV allocator = sh->strings->allocator;
 
@@ -44,13 +45,17 @@ static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
   if (msList_len(*list_ptr))
     for_each_P((var_ entry, msList_vla(*list_ptr)), {
       if (fptr_eq(key, stringList_get(sh->strings, entry->kidx)))
-        return val_ptr
-                   ? (void)memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr, sh->vwidth)
-                   : (void)stringList_set(sh->strings, entry->kidx, nullFptr);
+        if (val_ptr) {
+          memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr, sh->vwidth);
+          return sh->values->buf + (entry->vidx * sh->vwidth);
+        } else {
+          stringList_set(sh->strings, entry->kidx, nullFptr);
+          return NULL;
+        }
     });
 
   if (!val_ptr)
-    return;
+    return NULL;
   usize s_idx = stringList_len(sh->strings);
   stringList_push(sh->strings, key);
 
@@ -59,8 +64,9 @@ static inline void sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
 
   struct double_idx entry = {.kidx = s_idx, .vidx = v_idx};
   msList_push(allocator, *list_ptr, entry);
+  return sList_getRef(sh->values, sh->vwidth, sh->values->length - 1);
 }
-static inline void sHmap_set_cs(sHmap *sh, const char *key, void *val_ptr) { sHmap_set(sh, fptr_CS((void *)key), val_ptr); }
+static inline void *sHmap_set_cs(sHmap *sh, const char *key, void *val_ptr) { return sHmap_set(sh, fptr_CS((void *)key), val_ptr); }
 static inline isize sHmap_get(const sHmap *sh, const fptr k, usize v_width) {
   umax hash = fptr_hash(k);
   usize b_idx = hash % sh->num_buckets;
@@ -131,16 +137,14 @@ using msHmap_t = T (**)(sHmap *);
 
   #define msHmap_deinit(sh) \
     shMap_free((sHmap *)sh)
-  #define msHmap_set(sh, key, val)   \
-    do {                             \
-      msHmap_iType(sh) _v = (val);   \
-      _Generic(                      \
+  #define msHmap_set(sh, key, val) \
+    ({msHmap_iType(sh) _v = (val);   \
+      (msHmap_iType(sh)*)_Generic(                      \
           (key),                     \
           fptr: sHmap_set,           \
           char *: sHmap_set_cs,      \
           const char *: sHmap_set_cs \
-      )((sHmap *)sh, key, &_v);      \
-    } while (0)
+      )((sHmap *)sh, key, &_v); })
   #define msHmap_rem(sh, key)        \
     do {                             \
       _Generic(                      \
