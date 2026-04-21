@@ -184,7 +184,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     name += VA_SWITCH(_RANGE_NAME(s) > _RANGE_NAME(e) ? -1 : 1, __VA_ARGS__)
 
   #define types_eq(T1, T2) \
-    _Generic((T1){0}, T2: true, default: false)
+    _Generic((*((T1 *)NULL)), T2: true, default: false)
 
   #define each_VLAP(type, name, vla)                                         \
     each_RANGE(                                                              \

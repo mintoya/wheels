@@ -545,6 +545,64 @@ REGISTER_SPECIAL_PRINTER_NEEDID(msList_printer_generic, "msList", void *, {
   }
   //
 });
+REGISTER_SPECIAL_PRINTER_NEEDID(mHmap_printer_generic, "mHmap", HMap *, {
+  fptr farg = printer_arg_trim(args);
+
+  var_ kprinter = PrinterSingleton_get(printer_arg_trim(
+      printer_arg_until(',', farg)
+  ));
+  var_ vprinter = PrinterSingleton_get(printer_arg_trim(
+      printer_arg_until(':', printer_arg_after(',', farg))
+  ));
+  if (!(kprinter.function && vprinter.function)) {
+    PUTS("__could'nt find printer for ");
+    USENAMEDPRINTER("slice(c8)", farg);
+    PUTS("__");
+  } else {
+    PUTS("{");
+    var_ it = HMap_iterator(in);
+    for (void *raw = HMap_next(&it); raw; raw = HMap_next(&it)) {
+      u8 *key = (u8 *)raw;
+      u8 *val = (u8 *)raw + HMap_getKeySize(in);
+      kprinter.function(
+          put,
+          (fptr){HMap_getKeySize(in), key},
+          nullFptr,
+          _arb
+      );
+      PUTS(":");
+      vprinter.function(
+          put,
+          (fptr){HMap_getValSize(in), val},
+          nullFptr,
+          _arb
+      );
+      PUTS(",");
+    }
+    PUTS("}");
+  }
+});
+// REGISTER_SPECIAL_PRINTER_NEEDID(msHmap_printer_generic, "msHmap", sHmap *, {
+//   fptr farg = printer_arg_trim(args);
+//   var_ printer = PrinterSingleton_get(
+//       printer_arg_trim(
+//           printer_arg_until(':', farg)
+//       )
+//   );
+//   if (!printer.function) {
+//     USETYPEPRINTER(pEsc, ((pEsc){.fg = {.r = 255}, .fgset = 1}));
+//     PUTS("__could'nt find printer for ");
+//     USENAMEDPRINTER("slice(c8)", printer_arg_until(':', farg));
+//     PUTS("__");
+//     USETYPEPRINTER(pEsc, (pEsc){.reset = 1});
+//   } else {
+//     PUTC((c8)'{');
+//     usize size = printer.size;
+//
+//     PUTC((c8)'{');
+//   }
+//   //
+// });
 
 #if !defined(__cplusplus)
 

@@ -121,6 +121,15 @@ bool HMap_fget(HMap *map, const fptr key, void *val);
  */
 void *HMap_fget_ns(HMap *map, const fptr key);
 
+typedef struct HMapIterator {
+  const HMap *map;
+  u32 bucket_idx;
+  u32 element_idx;
+} HMapIterator;
+static inline HMapIterator HMap_iterator(const HMap *hm) {
+  return (HMapIterator){hm, 0, 0};
+}
+void *HMap_next(HMapIterator *it);
 /**
  * @param vv pointer to HMap pointer
  */
@@ -732,4 +741,40 @@ void HMap_clear(HMap *map) {
     });
   }
 }
+
+/**
+ * @return pointer to the next key, or nullptr if done.
+ */
+void *HMap_next(HMapIterator *it) {
+  if (!it || !it->map)
+    return nullptr;
+
+  const HMap *map = it->map;
+  const u32 metaSize = HMap_getMetaSize(map);
+
+  if (metaSize > 0) {
+    while (it->bucket_idx < metaSize) {
+      const u32 bucket_size = HMap_getBucketSize(map, it->bucket_idx);
+      if (it->element_idx < bucket_size) {
+        void *key = HMap_getCoord(map, it->bucket_idx, it->element_idx);
+        it->element_idx++;
+        return key;
+      }
+      it->bucket_idx++;
+      it->element_idx = 0;
+    }
+  } else {
+    const u32 hLen = HMap_getHLen(map);
+    while (it->bucket_idx < hLen) {
+      struct HMap_inner_item item = HMap_get_inner_zero(map, it->bucket_idx);
+      it->bucket_idx++;
+      if (item.flag[0] == 1) {
+        return item.key;
+      }
+    }
+  }
+
+  return nullptr;
+}
+
 #endif // HMap_C
