@@ -47,7 +47,7 @@ To bit_cast_func(const From &src) noexcept {
   #define MACRO_EXPAND7(...) \
     MACRO_EXPAND6(MACRO_EXPAND6(MACRO_EXPAND6(MACRO_EXPAND6(__VA_ARGS__))))
   #define MACRO_EXPAND(...) \
-    MACRO_EXPAND6(__VA_ARGS__)
+    MACRO_EXPAND3(__VA_ARGS__)
 
   #define DEFER_NAME(a, b) ID_CONCAT(a, b)
 

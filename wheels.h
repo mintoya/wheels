@@ -3,6 +3,12 @@
 #endif
 #define MY_WHEEELS_H
 
+#if defined(MY_BIGINT_H) || defined(WHEELS_INCLUDE_ALL)
+  #define MY_BIGINT_C (1)
+  #include "bigint.h"
+#endif
+#undef MY_BIGINT_H
+
 #if defined(MY_PRINTER_H) || defined(WHEELS_INCLUDE_ALL)
   #define MY_PRINTER_C (1)
   #include "print.h"

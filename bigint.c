@@ -1,5 +1,4 @@
 
-#include "stdckdint.h"
 #include "wheels/arenaAllocator.h"
 #include "wheels/debugallocator.h"
 #include "wheels/fptr.h"
@@ -11,11 +10,7 @@
 #include <stddef.h>
 #include <threads.h>
 
-#if !defined(BIGINT_BITS)
-  #define BIGINT_BITS 8
-#endif
-typedef unsigned _BitInt(BIGINT_BITS) bigint_unit;
-// typedef u8 bigint_unit;
+typedef u8 bigint_unit;
 typedef msList(bigint_unit) bigint;
 typedef typeof(*((bigint)NULL)) bigint_unit;
 
@@ -275,7 +270,7 @@ struct bigint_div_t {
 };
 
 bigint_unit bigint_estimate_q(bigint rem, bigint b) {
-  typedef unsigned _BitInt(BIGINT_BITS * 2) double_unit;
+  typedef unsigned _BitInt(sizeof(bigint_unit) * 16) double_unit;
   usize len_b = bigint_digits(b);
   if (len_b == 0)
     return 0;
@@ -292,17 +287,16 @@ bigint_unit bigint_estimate_q(bigint rem, bigint b) {
     return ~(bigint_unit)0;
   }
 
-  double_unit top_rem = ((double_unit)r1 << BIGINT_BITS) | r0;
+  double_unit top_rem = ((double_unit)r1 << (sizeof(bigint_unit) * 8)) | r0;
 
   double_unit q_guess = top_rem / d1;
   double_unit r_guess = top_rem % d1;
 
-  while ((q_guess * d0) > ((r_guess << BIGINT_BITS) | 0)) {
+  while ((q_guess * d0) > ((r_guess << (sizeof(bigint_unit) * 8)) | 0)) {
     q_guess--;
     r_guess += d1;
-    if (r_guess > ~(bigint_unit)0) {
+    if (r_guess > (bigint_unit) ~(bigint_unit)0)
       break;
-    }
   }
 
   return (bigint_unit)q_guess;
