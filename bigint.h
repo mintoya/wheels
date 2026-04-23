@@ -6,7 +6,7 @@
   #include "wheels/mytypes.h"
   #include "wheels/sList.h"
 
-typedef u8 bigint_unit;
+typedef unsigned int bigint_unit;
 typedef msList(bigint_unit) bigint;
 typedef typeof(*((bigint)NULL)) bigint_unit;
 
@@ -296,10 +296,6 @@ bigint bigint_sub(AllocatorV allocator, bigint a, bigint b) {
   return res;
 }
 
-struct bigint_mul_t {
-  bigint_unit result, carry;
-};
-
 struct bigint_mul_t bigint_mul_units(bigint_unit a, bigint_unit b) {
   typedef typeof(bigint_mul_units(0, 0)) rT;
   // multiplication results in a number at most twice the digits
@@ -393,10 +389,6 @@ bigint bigint_mul(AllocatorV allocator, bigint a1, bigint b1) {
   bigint_shrl(allocator, &res, sh_a + sh_b);
   return res;
 }
-struct bigint_div_t {
-  bigint div;
-  bigint mod;
-};
 
 bigint_unit bigint_estimate_q(bigint rem, bigint b) {
   typedef unsigned _BitInt(sizeof(bigint_unit) * 16) double_unit;
