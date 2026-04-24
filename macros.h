@@ -67,7 +67,7 @@ struct DeferHelper {
 
     #define defer auto DEFER_NAME(_defer_, __LINE__) = DeferHelper() + [&]()
   #else
-    #if __has_include(<stddefer.h>) || ( __STDC_VERSION__ >= 202311L  || defined(__slimcc__))
+    #if __has_include(<stddefer.h>)
       #include <stddefer.h>
     #else
       #if defined(__clang__)
