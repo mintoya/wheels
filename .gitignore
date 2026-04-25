@@ -10,3 +10,5 @@ a.out
 a.exe
 a.pdb
 /examples/includeAll.o
+wheels.exe
+wheels.pdb

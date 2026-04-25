@@ -13,7 +13,7 @@ pub fn build(b: *std.Build) void {
             }),
             .strip = false,
         }),
-        .use_llvm = false,
+        // .use_llvm = false,
     });
 
     const cfile = b.option(
@@ -40,6 +40,7 @@ pub fn build(b: *std.Build) void {
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
+
     if (b.args) |args|
         run_cmd.addArgs(args);
 

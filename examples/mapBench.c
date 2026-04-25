@@ -1,5 +1,6 @@
 #include "../print.h"
 #include "../shmap.h"
+#include <stdcountof.h>
 #include <time.h>
 
 #define N_ITERS 100000
@@ -42,14 +43,14 @@ BenchResult bench_sHmap(AllocatorV allocator) {
 
   double t0 = now_sec();
 
-  for (each_RANGE(int, it, 0, N_ITERS))
-    for (each_RANGE(int, i, 0, countof(keys)))
+  foreach (int it, range(0, N_ITERS))
+    foreach (int i, range(0, countof(keys)))
       msHmap_set(sm, keys[i], i);
 
   double t1 = now_sec();
 
-  for (int it = 0; it < N_ITERS; ++it) {
-    for (int i = 0; i < countof(keys); ++i) {
+  foreach (int it, range(0, N_ITERS)) {
+    foreach (int i, range(0, countof(keys))) {
       int *v = msHmap_get(sm, keys[i]);
       if (!v)
         abort();
@@ -81,14 +82,14 @@ BenchResult bench_mHmap(AllocatorV allocator) {
 
   double t0 = now_sec();
 
-  for (each_RANGE(int, iters, 0, N_ITERS))
-    for (each_RANGE(int, i, 0, countof(keys)))
+  foreach (int iters, range(0, N_ITERS))
+    foreach (int i, range(0, countof(keys)))
       mHmap_set(hm, convert(keys[i]), i);
 
   double t1 = now_sec();
 
-  for (each_RANGE(int, iters, 0, N_ITERS))
-    for (each_RANGE(int, i, 0, countof(keys))) {
+  foreach (int iters, range(0, N_ITERS))
+    foreach (int i, range(0, countof(keys))) {
       int *v = mHmap_get(hm, convert(keys[i]));
       if (!v)
         abort();
@@ -109,14 +110,14 @@ BenchResult bench_mHmapo(AllocatorV allocator) {
 
   double t0 = now_sec();
 
-  for (each_RANGE(int, iters, 0, N_ITERS))
-    for (each_RANGE(int, i, 0, countof(keys)))
+  foreach (int iters, range(0, N_ITERS))
+    foreach (int i, range(0, countof(keys)))
       mHmap_set(hm, convert(keys[i]), i);
 
   double t1 = now_sec();
 
-  for (each_RANGE(int, iters, 0, N_ITERS))
-    for (each_RANGE(int, i, 0, countof(keys))) {
+  foreach (int iters, range(0, N_ITERS))
+    foreach (int i, range(0, countof(keys))) {
       int *v = mHmap_get(hm, convert(keys[i]));
       if (!v)
         abort();
