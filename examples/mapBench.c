@@ -1,5 +1,5 @@
-#include "../print.h"
-#include "../shmap.h"
+#include "wheels/print.h"
+#include "wheels/shmap.h"
 #include <stdcountof.h>
 #include <time.h>
 
@@ -150,4 +150,4 @@ int main() {
       s.get_time, m.get_time, o.get_time
   );
 }
-#include "../wheels.h"
+#include "wheels/wheels.h"

@@ -1,2 +1,2 @@
 #define WHEELS_INCLUDE_ALL (1)
-#include "../wheels.h"
+#include "wheels/wheels.h"

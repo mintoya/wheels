@@ -1,6 +1,6 @@
-#include "../mylist.h"
-#include "../print.h"
-#include "../wheels.h"
+#include "wheels/mylist.h"
+#include "wheels/print.h"
+#include "wheels/wheels.h"
 typedef struct {
   int x;
   int y;
@@ -19,15 +19,14 @@ int main() {
   mList_push(points, ((point){6, 1}));
   mList_push(points, ((point){0, 2}));
   mList_ins(points, 1, ((point){1, 0}));
-  for_each_((var_ p, mList_vla(points)), {
-    println("foreach : ${}", p);
-  });
-  println("length  : ${int}\n"
-          "capacity: ${int}",
+  foreach (var_ p, vla(*mList_vla(points)))
+    println("foreach : {point}", p);
+  println("length  : {}\n"
+          "capacity: {}",
           mList_len(points), mList_cap(points));
   unsigned int i;
-  println("no type test : ${}", i);
-  println("no type test2: ${thingy}", i);
-  println("missing parameter test: ${}");
+  println("no type test : {}", i);
+  println("no type test2: {thingy}", i);
+  println("missing parameter test: {}");
   return 0;
 }

@@ -1,10 +1,9 @@
-#include "../arenaAllocator.h"
-#include "../debugallocator.h"
-#include "../print.h"
-#include "../vason_arr.h"
-#include <ctype.h>
+#include "wheels/arenaAllocator.h"
+#include "wheels/debugallocator.h"
+#include "wheels/print.h"
+#include "wheels/vason_arr.h"
 
-#include "../wheels.h"
+#include "wheels/wheels.h"
 slice(c8) read_stdin(AllocatorV allocator) {
   usize size = 0;
   c8 *data = NULL;
@@ -21,6 +20,7 @@ slice(c8) read_stdin(AllocatorV allocator) {
   }
   return (slice(c8)){.ptr = data, .len = size};
 }
+bool isDigit(c8 c) { return c >= '0' && c <= '9'; }
 int main(int nargs, char *args[nargs]) {
   mList(char *) argslist = mList_init(stdAlloc, char *, nargs);
   defer { mList_deInit(argslist); };
@@ -46,12 +46,11 @@ int main(int nargs, char *args[nargs]) {
   defer { vason_container_free(*f); };
   vason_index current = parsed.current;
   if (mList_len(argslist))
-    for_each_((char *cptr, mList_vla(argslist)), {
+    foreach (char *cptr, vla(*mList_vla(argslist)))
       current =
-          isdigit(cptr[0])
+          isDigit(cptr[0])
               ? vason_get(&parsed, current, atoi(cptr))
               : vason_get(&parsed, current, fptr_CS(cptr));
-    });
   if (lazy)
     vason_lazy_expand(&parsed, current);
   parsed.current = current;

@@ -1,7 +1,7 @@
-#include "../debugallocator.h"
-#include "../macros.h"
-#include "../mylist.h"
-#include "../print.h"
+#include "wheels/debugallocator.h"
+#include "wheels/macros.h"
+#include "wheels/mylist.h"
+#include "wheels/print.h"
 
 int main(void) {
   var_ local = debugAllocator(
@@ -21,4 +21,4 @@ int main(void) {
 
   return 0;
 }
-#include "../wheels.h"
+#include "wheels/wheels.h"
