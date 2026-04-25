@@ -291,7 +291,7 @@ MAKE_TEST_FN(msList_vla_cast, {
   msList_push(allocator, list, 8);
   msList_push(allocator, list, 9);
   int *arr = aCreate(allocator, int, 3);
-  defer { aFree(allocator, arr, 3); }
+  defer { aFree(allocator, arr, 3); };
   memcpy(arr, list, 3 * sizeof(int));
 
   msList_pushArr(allocator, list, *VLAP(arr, 3));

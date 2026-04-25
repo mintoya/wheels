@@ -92,7 +92,9 @@ static void sn_print(
     bool ___
 ) {
   slice(c8) *loc = (typeof(loc))cptr;
-  memcpy(loc->ptr + loc->len, c, length);
+  assertMessage(loc && loc->ptr);
+  if (length)
+    memcpy(loc->ptr + loc->len, c, length);
   loc->len += length;
 }
 
@@ -559,24 +561,16 @@ REGISTER_SPECIAL_PRINTER_NEEDID(mHmap_printer_generic, "mHmap", HMap *, {
     USENAMEDPRINTER("slice(c8)", farg);
     PUTS("__");
   } else {
-    PUTS("mHmap");
     PUTS("{");
     foreach (var_ sp, iter(HMapIterator(in))) {
-      typedef struct {
-        void (*function)(
-            outputFunction,
-            fptr,
-            fptr args,
-            void *
-        );
-        usize size;
-      } printerFunction;
       kprinter.function(
           put, (fptr){HMap_getKeySize(in), (u8 *)sp}, nullFptr, _arb
       );
+      PUTS(":");
       vprinter.function(
           put, (fptr){HMap_getValSize(in), ((u8 *)sp) + HMap_getKeySize(in)}, nullFptr, _arb
       );
+      PUTS(",");
     }
     PUTS("}");
   }
@@ -622,7 +616,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(mHmap_printer_generic, "mHmap", HMap *, {
     ((struct print_arg){                                                       \
         .ref = ((fptr){sizeof(a), (u8 *)REF(typeof(a), a)}),                   \
         .name = _Generic(                                                      \
-            &(typeof(a)){0},                                                   \
+            &(__typeof_unqual__(a)){0},                                        \
             MAKE_PRINT_ARG_TYPE(fptr),                                         \
             MAKE_PRINT_ARG_TYPE(isize),                                        \
             MAKE_PRINT_ARG_TYPE(usize),                                        \
@@ -640,11 +634,11 @@ REGISTER_SPECIAL_PRINTER_NEEDID(mHmap_printer_generic, "mHmap", HMap *, {
 
 #else
 template <typename T>
-constexpr const char *type_name_cstr(T arg) { return ""; }
+constexpr const char *type_name_cstr() { return ""; }
 
   #define MAKE_PRINT_ARG_TYPE(type) \
     template <>                     \
-    constexpr const char *type_name_cstr<type>(type arg) { return #type; }
+    constexpr const char *type_name_cstr<type>(void) { return #type; }
 
 MAKE_PRINT_ARG_TYPE(fptr);
 MAKE_PRINT_ARG_TYPE(slice(c8));
@@ -662,23 +656,24 @@ MAKE_PRINT_ARG_TYPE(u32);
   #define MAKE_PRINT_ARG(a)                                        \
     ((struct print_arg){                                           \
         .ref = (fptr){sizeof(typeof(a)), (u8 *)REF(typeof(a), a)}, \
-        .name = fp_from(type_name_cstr(a))                         \
+        .name = fp_from(type_name_cstr<typeof(a)>())               \
     }),
 #endif
 
 volatile static thread_local bool print_f_shouldFlush = 1;
 void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *);
 
-#define print_wfO(printerfn, arb, fmt, ...)                                        \
-  do {                                                                             \
-    print_f(                                                                       \
-        printerfn,                                                                 \
-        arb,                                                                       \
-        fmt,                                                                       \
-        (struct print_arg[]){                                                      \
-            __VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){}) \
-        }                                                                          \
-    );                                                                             \
+#define print_wfO(printerfn, arb, fmt, ...)                                    \
+  do {                                                                         \
+    struct print_arg eval_print_[] = {                                         \
+        __VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){}) \
+    };                                                                         \
+    print_f(                                                                   \
+        printerfn,                                                             \
+        arb,                                                                   \
+        fmt,                                                                   \
+        eval_print_                                                            \
+    );                                                                         \
   } while (0)
 
 #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)

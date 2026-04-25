@@ -57,7 +57,7 @@ To bit_cast_func(const From &src) noexcept {
 template <typename F>
 struct Deferrer {
   F fn;
-  ~Deferrer() { fn(); }
+  inline ~Deferrer() { fn(); }
 };
 
 struct DeferHelper {

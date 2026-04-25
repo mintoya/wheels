@@ -13,12 +13,17 @@ pub fn build(b: *std.Build) void {
             }),
             .strip = false,
         }),
+        .use_llvm = false,
     });
 
+    const cfile = b.option(
+        []const u8,
+        "file",
+        "which file to run",
+    ) orelse "tests.c";
+
     exe.root_module.addCSourceFile(.{
-        .file = b.path("tests.c"),
-        // .file = b.path("examples/mapBench.c"),
-        // .file = b.path("examples/parser_lit.cpp"),
+        .file = b.path(cfile),
         .flags = &.{
             "-g",
             "-w",

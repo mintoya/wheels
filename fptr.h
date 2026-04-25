@@ -20,7 +20,10 @@ static inline fptr fptr_CSP(const char *cstr) { return ((fptr){(usize)strlen((ch
 static inline fptr fptr_fromPL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
 
 static inline int fptr_cmp(const fptr a, const fptr b) {
-  return a.len - b.len ?: memcmp(a.ptr, b.ptr, a.len);
+  return a.len - b.len
+             ?: a.len
+                ? memcmp(a.ptr, b.ptr, a.len)
+                : 0;
 }
   #if defined(__cplusplus)
 template <typename T, typename T2>

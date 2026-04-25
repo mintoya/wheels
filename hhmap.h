@@ -196,12 +196,22 @@ using mHmap_t = Tb (**)(HMap *, Ta);
       );                                                 \
     } while (0)
 
-  #define mHmap_iterator(map, keyType)               \
-    HMapIterator((HMap *)map),                       \
-        struct {                                     \
-      const keyType key;                             \
-      typeof((*map)((HMap *)NULL, (keyType){})) val; \
-    } *
+  #if !defined __cplusplus
+    #define mHmap_iterator(map, keyType)               \
+      HMapIterator((HMap *)map),                       \
+          struct {                                     \
+        const keyType key;                             \
+        typeof((*map)((HMap *)NULL, (keyType){})) val; \
+      } *
+  #else
+    #define mHmap_iterator(map, keyType) \
+      HMapIterator((HMap *)map),         \
+          typeof(({  struct {            \
+          keyType key;           \
+          typeof((*map)((HMap *)NULL, (keyType){})) val; \
+        } _;  _; })) *
+  #endif
+
   #define mHmap_foreach(map, keyType, keyDec, valType, valDec, ...)       \
     ASSERT_EXPR(                                                          \
         types_eq(                                                         \
@@ -417,7 +427,7 @@ inline void *HMap_getCoord(const HMap *map, u32 bucket, u32 index) {
   } else if (bucket)
     return nullptr;
   var_ ll = map->storage[bucket];
-  if (index > ll->length)
+  if (!ll || index > ll->length)
     return nullptr;
   return (
       (u8 *)(map->storage[bucket]->buf) +

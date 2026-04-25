@@ -151,34 +151,29 @@ int debugAllocatorDeInit(AllocatorV allocator) {
     print_wfO(fileprint, out, "leaked {} bytes\n", internals->current);
   }
 
-  mHmap_foreach(
-      internals->map,
-      void *, ptr,
-      struct tracedata, val,
-      {
-        leaks++;
-        if (out) {
-          print_wfO(
-              fileprint, out,
-              "leaked {}{usize}{} bytes at {}{ptr}{} in {cstr} at {}\n"
-              "=========================================================\n",
-              g, val.size, rst, b, ptr, r, val.fn, val.ln
-          );
-          print_wfO(
-              fileprint, out,
-              "from {cstr} line {}\n",
-              val.fn, val.ln
-          );
+  foreach (var_ kv, iter(mHmap_iterator(internals->map, void *))) {
+    leaks++;
+    if (out) {
+      print_wfO(
+          fileprint, out,
+          "leaked {}{usize}{} bytes at {}{ptr}{} in {cstr} at {}\n"
+          "=========================================================\n",
+          g, kv->val.size, rst, b, kv->key, r, kv->val.fn, kv->val.ln
+      );
+      print_wfO(
+          fileprint, out,
+          "from {cstr} line {}\n",
+          kv->val.fn, kv->val.ln
+      );
 
-          print_wfO(
-              fileprint, out,
-              "=========================================================\n",
-          );
-          print_wfO(fileprint, out, "{}", rst);
-        }
-        (aFree)(realAllocator, (void *)ptr, val.size, val.fn, val.ln);
-      }
-  );
+      print_wfO(
+          fileprint, out,
+          "=========================================================\n",
+      );
+      print_wfO(fileprint, out, "{}", rst);
+    }
+    (aFree)(realAllocator, (void *)kv->key, kv->val.size, kv->val.fn, kv->val.ln);
+  }
   mHmap_deinit(internals->map);
   aFree(realAllocator, (void *)allocator, sizeof(Debug_allocator_block));
   return leaks;
