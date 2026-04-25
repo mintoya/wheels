@@ -249,31 +249,31 @@ MAKE_TEST_FN(mlist_tests, {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deInit(list); };
 
-  for (each_RANGE(usize, i, 0, 50))
+  foreach (usize i, range(0, 50))
     mList_push(list, i * i);
 
-  for (each_RANGE(usize, i, 0, 50))
+  foreach (usize i, range(0, 50))
     if (mList_arr(list)[i] != i * i)
       return 1;
 
   // remove every even number
-  for (each_RANGE(usize, i, 0, 25))
+  foreach (usize i, range(0, 25))
     mList_rem(list, i);
 
   if (mList_len(list) != 25)
     return 1;
 
-  for_each_((var_ v, mList_vla(list)), {
+  foreach (var_ v, vla(*mList_vla(list)))
     if (!(v % 2))
       return 1;
-  });
-  for (each_RANGE(usize, i, 0, 50, 2))
+
+  foreach (usize i, range(0, 50, 2))
     mList_ins(list, i, i * i);
 
   if (mList_len(list) != 50)
     return 1;
 
-  for (each_RANGE(usize, i, 0, 50))
+  foreach (usize i, range(0, 50))
     if (mList_arr(list)[i] != i * i)
       return 1;
 

@@ -276,7 +276,8 @@ REGISTER_SPECIAL_PRINTER_NEEDID(_void_ptr_printerfn, "ptr", void *, {
   }
 });
 REGISTER_SPECIAL_PRINTER_NEEDID(_slice_c8_printerfn, "slice(c8)", slice(c8), {
-  for_each_((c8 c, slice_vla(in)), PUTC(c););
+  foreach (c8 c, vla(*slice_vla(in)))
+    PUTC(c);
 });
 
 REGISTER_PRINTER(c8, { PUTC(in); });
@@ -514,7 +515,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(slice_printer_generic_version, "slice", struct s
   } else {
     PUTC((c8)'[');
     usize size = printer.size;
-    for (each_RANGE(usize, i, 0, in.len)) {
+    foreach(usize  i , range( 0, in.len)) {
       if (i)
         PUTC((c8)',');
       printer.function(put, (fptr){size, size * i + (u8 *)ptr}, nullFptr, _arb);
@@ -539,7 +540,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(msList_printer_generic, "msList", void *, {
   } else {
     PUTC((c8)'[');
     usize size = printer.size;
-    for (each_RANGE(usize, i, 0, msList_len(in))) {
+    foreach(usize  i , range( 0, msList_len(in))) {
       if (i)
         PUTC((c8)',');
       printer.function(
@@ -721,7 +722,7 @@ __attribute__((constructor(205))) static void printer_post_initfn() {
         "printer debug\n"
         "==============================\n");
   println("list of printer type names: ");
-  for (each_RANGE(usize, i, 0, stringList_len((stringList *)PrinterSingleton.data)))
+  foreach(usize  i , range( 0, stringList_len((stringList *)PrinterSingleton.data)))
     println("{slice(c8)}", stringList_get((stringList *)(PrinterSingleton.data), i));
   println(
       "buckets   : {}\n"
@@ -783,7 +784,8 @@ void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr 
     USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = 1}));
     PUTS("__ NO_TYPE(");
     if (typeName.len)
-      for_each_((var_ i, VLAP(typeName.ptr, typeName.len)), PUTC((c8)i););
+      foreach (var_ i, span(typeName.ptr, typeName.len))
+        PUTC((c8)i[0]);
     PUTS(") __");
     USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));
   } else if (fn.size > p.ref.len) {

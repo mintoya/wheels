@@ -56,7 +56,7 @@ int main(void) {
   signal(SIGILL, segv_handler);  // sent by my assert depending on #defines
   usize failCount = 0;
 
-  for_each_((var_ test, VLAP(testList, testCount)), {
+  foreach (var_ test, vla(*VLAP(testList, testCount))) {
     current_test = test.name;
     printf("test %s: {\n", test.name);
     fflush(stdout);
@@ -73,7 +73,7 @@ int main(void) {
     } else {
       failCount++;
     }
-  });
+  }
   printf("%lu tests failed out of %lu", failCount, testCount);
   aFree(stdAlloc, testList, testCount * sizeof(*testList));
 }

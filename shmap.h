@@ -27,11 +27,11 @@ static inline struct double_idx *sHmap_find(const sHmap *sh, fptr f) {
   if (!*list_ptr)
     return NULL;
 
-  for_each_P((var_ entry, msList_vla(*list_ptr)), {
+  foreach (var_ entry, span(*list_ptr, msList_len(*list_ptr))) {
     fptr c = stringList_get(sh->strings, entry->kidx);
     if (fptr_eq(f, c))
       return entry;
-  });
+  }
   return NULL;
 }
 static inline void *sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
@@ -42,17 +42,17 @@ static inline void *sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
   if (!*list_ptr)
     *list_ptr = msList_init(allocator, struct double_idx);
 
-  if (msList_len(*list_ptr))
-    for_each_P((var_ entry, msList_vla(*list_ptr)), {
-      if (fptr_eq(key, stringList_get(sh->strings, entry->kidx)))
-        if (val_ptr) {
-          memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr, sh->vwidth);
-          return sh->values->buf + (entry->vidx * sh->vwidth);
-        } else {
-          stringList_set(sh->strings, entry->kidx, nullFptr);
-          return NULL;
-        }
-    });
+  foreach (var_ entry, span(*list_ptr, msList_len(*list_ptr))) {
+    if (fptr_eq(key, stringList_get(sh->strings, entry->kidx))) {
+      if (val_ptr) {
+        memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr, sh->vwidth);
+        return sh->values->buf + (entry->vidx * sh->vwidth);
+      } else {
+        stringList_set(sh->strings, entry->kidx, nullFptr);
+        return NULL;
+      }
+    }
+  }
 
   if (!val_ptr)
     return NULL;
@@ -75,10 +75,9 @@ static inline isize sHmap_get(const sHmap *sh, const fptr k, usize v_width) {
   if (!*list_ptr)
     return -1;
 
-  for_each_((var_ entry, msList_vla(*list_ptr)), {
+  foreach (var_ entry, vla(*msList_vla(*list_ptr)))
     if (fptr_eq(stringList_get(sh->strings, entry.kidx), k))
       return entry.vidx;
-  });
   return -1;
 }
 static inline isize sHmap_get_cs(const sHmap *sh, const char *key, usize v_width) {
@@ -107,20 +106,18 @@ static inline void shMap_free(sHmap *map) {
 }
 static inline usize sHmap_footprint(const sHmap *map) {
   usize res = stringList_footprint(map->strings);
-  for_each_((var_ list, VLAP(map->buckets, map->num_buckets)), {
+  foreach (var_ list, vla(*VLAP(map->buckets, map->num_buckets)))
     if (list)
       res += sizeof(*msList_vla(list));
-  });
   return res;
 }
 static inline usize sHmap_countCollisions(const sHmap *map) {
   usize res = 0;
-  for_each_((var_ list, VLAP(map->buckets, map->num_buckets)), {
+  foreach (var_ list, vla(*VLAP(map->buckets, map->num_buckets)))
     if (list) {
       var_ l = msList_len(list);
       res += l ? l - 1 : 0;
     }
-  });
   return res;
 }
 

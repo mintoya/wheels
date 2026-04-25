@@ -169,56 +169,65 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define VA_SWITCH(default_val, ...) \
     ID_CONCAT(VA_SWITCH_IMPL_, VA_SWITCH_EMPTY(__VA_ARGS__))(default_val __VA_OPT__(, ) __VA_ARGS__)
 
-//
-// loops
-//
-
-  #define _RANGE_NAME(prefix) ID_CONCAT(_range_val_, ID_CONCAT(prefix, __LINE__))
-  #define each_RANGE(type, name, start, end, ...) \
-    type name = (start),                          \
-         _RANGE_NAME(s) = (start),                \
-         _RANGE_NAME(e) = (end);                  \
-    (_RANGE_NAME(s) <= _RANGE_NAME(e)             \
-         ? name < _RANGE_NAME(e)                  \
-         : name > _RANGE_NAME(e));                \
-    name += VA_SWITCH(_RANGE_NAME(s) > _RANGE_NAME(e) ? -1 : 1, __VA_ARGS__)
-
   #define types_eq(T1, T2) \
     _Generic((*((T1 *)NULL)), T2: true, default: false)
 
-  #define each_VLAP(type, name, vla)                                         \
-    each_RANGE(                                                              \
-        type,                                                                \
-        name,                                                                \
-        (vla)[0] + (ASSERT_EXPR(types_eq(type, typeof(&vla[0][0])), ""), 0), \
-        (vla)[1],                                                            \
-        1                                                                    \
-    )
-
-  #define for_each_(decl_vla, loop, ...)                                                                      \
-    for (each_VLAP(typeof(&(TUPLE_EXPAND_B(decl_vla))[0][0]), _RANGE_NAME(item), TUPLE_EXPAND_B(decl_vla))) { \
-      TUPLE_EXPAND_A(decl_vla) = *_RANGE_NAME(item);                                                          \
-      loop __VA_ARGS__                                                                                        \
-    }
-  #define for_each_P(decl_vla, loop, ...)                                                                     \
-    for (each_VLAP(typeof(&(TUPLE_EXPAND_B(decl_vla))[0][0]), _RANGE_NAME(item), TUPLE_EXPAND_B(decl_vla))) { \
-      TUPLE_EXPAND_A(decl_vla) = _RANGE_NAME(item);                                                           \
-      loop __VA_ARGS__                                                                                        \
-    }
 //
-// new loops
+// loops
 //
 
   #define _each_vla(vla, decl)   \
     (size_t _i = 0, _keep = 1;   \
      _keep && _i < countof(vla); \
-     _keep = !_keep, _i++) for (decl = (vla)[_i]; _keep; _keep = !_keep)
+     _keep = !_keep, _i++) /**/  \
+        for (decl = (vla)[_i]; _keep; _keep = !_keep)
 
-  #define _each_range(start, end, inc, decl) \
-    (                                        \
-        struct { typeof((start) + 0) val; int keep; } _s = {(start), 1};        \
-        _s.keep && _s.val < (end);           \
-        _s.keep = !_s.keep, _s.val += (inc)) for (decl = _s.val; _s.keep; _s.keep = !_s.keep)
+  #define _each_range_3(start, end, decl)                           \
+    (                                                               \
+        struct {                                                    \
+          typeof((start) + (end)) val, last;                        \
+          int change;                                               \
+          int keep;                                                 \
+        } _s = {                                                    \
+            .val = (start),                                         \
+            .last = (end),                                          \
+            .change = (_s.val < _s.last ? 1 : -1),                  \
+            .keep = 1,                                              \
+        };                                                          \
+        _s.keep &&                                             /**/ \
+        (_s.change < 0 ? _s.val > _s.last : _s.val < _s.last); /**/ \
+        _s.keep = !_s.keep, _s.val += _s.change)               /**/ \
+        for (decl = _s.val; _s.keep; _s.keep = !_s.keep)
+
+  #define _each_range_4(start, end, inc, decl)                      \
+    (                                                               \
+        struct {                                                    \
+          typeof((start) + (end)) val, last;                        \
+          typeof(inc) change;                                       \
+          int keep;                                                 \
+        } _s = {                                                    \
+            .val = (start),                                         \
+            .last = (end),                                          \
+            .change = (inc),                                        \
+            .keep = 1,                                              \
+        };                                                          \
+        _s.keep &&                                             /**/ \
+        (_s.change < 0 ? _s.val > _s.last : _s.val < _s.last); /**/ \
+        _s.keep = !_s.keep, _s.val += _s.change)               /**/ \
+        for (decl = _s.val; _s.keep; _s.keep = !_s.keep)
+
+  #define _each_span(start, len, decl)  \
+    (struct {                           \
+          typeof((start) + (len)) val, last;     \
+          int keep; } _s = {                  \
+         (start),                       \
+         (start) + len,                 \
+         1,                             \
+     };                                 \
+     _s.keep &&                    /**/ \
+     _s.val < _s.last;             /**/ \
+     _s.keep = !_s.keep, _s.val++) /**/ \
+        for (decl = _s.val; _s.keep; _s.keep = !_s.keep)
 
   #define _each_iter_2(init, decl)         \
     (                                      \
@@ -235,15 +244,20 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define _each_iter(...) \
     _each_iter_sel(__VA_ARGS__, _each_iter_3, _each_iter_2)(__VA_ARGS__)
 
-  #define _im_each_vla(...)                 _each_vla(__VA_ARGS__,
-  #define _im_each_range(...)   _each_range(__VA_ARGS__ ,
-  #define _im_each_iter(...)               _each_iter(__VA_ARGS__ ,
+  #define _each_range_sel(_1, _2, _3, _4, NAME, ...) NAME
+  #define _each_range(...) \
+    _each_range_sel(__VA_ARGS__, _each_range_4, _each_range_3)(__VA_ARGS__)
+
+  #define _im_each_vla(...)  _each_vla(__VA_ARGS__,
+  #define _im_each_span(...) _each_span(__VA_ARGS__ ,
+  #define _im_each_range(...)_each_range(__VA_ARGS__ ,
+  #define _im_each_iter(...) _each_iter(__VA_ARGS__ ,
 
   #define each(decl, generator)                          \
     /**/                                                 \
     /* generators*/                                      \
     /*  vla(array) takes array and uses countof*/        \
-    /*  range(array) takes array and uses countof*/      \
+    /*  range(start,end,inc?) adds inc to start*/        \
     /*  iter(iterator struct)*/                          \
     /*    layout :*/                                     \
     /*    {*/                                            \
@@ -258,7 +272,7 @@ _im_each_ ## generator decl )
     /**/                                                 \
     /* generators*/                                      \
     /*  vla(array) takes array and uses countof*/        \
-    /*  range(array) takes array and uses countof*/      \
+    /*  range(start,end,inc?) adds inc to start*/        \
     /*  iter(iterator struct)*/                          \
     /*    layout :*/                                     \
     /*    {*/                                            \

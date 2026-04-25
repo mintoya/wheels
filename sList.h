@@ -232,9 +232,9 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
 MAKE_TEST_FN(msList_push_pop, {
   msList(int) list = msList_init(allocator, int);
   defer { msList_deInit(allocator, list); };
-  for (each_RANGE(usize, i, 0, 50))
+  foreach (usize i, range(0, 50))
     msList_push(allocator, list, i * i);
-  for (each_RANGE(usize, i, 0, 50))
+  foreach (usize i, range(0, 50))
     if (list[i] != i * i)
       return 1;
   return 0;

@@ -139,7 +139,7 @@ struct HMapIterator_struct {
   typeof(&HMapIterator_valid) valid;
   typeof(&HMapIterator_next) next;
 };
-struct HMapIterator_struct HMapIterator(const HMap *map);
+extern inline struct HMapIterator_struct HMapIterator(const HMap *map);
 
 static inline void HMap_cleanup_handler(void *vv) {
   HMap **v = (HMap **)vv;
@@ -227,9 +227,9 @@ using mHmap_t = Tb (**)(HMap *, Ta);
     );                                                                    \
     const usize _meta_count = HMap_getMetaSize((HMap *)map);              \
     if (_meta_count) {                                                    \
-      for (each_RANGE(usize, _i, 0, _meta_count)) {                       \
+      foreach (usize _i, range(0, _meta_count)) {                         \
         const usize _meta_subcount = HMap_getBucketSize((HMap *)map, _i); \
-        for (each_RANGE(usize, _j, 0, _meta_subcount)) {                  \
+        foreach (usize _j, range(0, _meta_subcount)) {                    \
           struct {                                                        \
             const keyType a;                                              \
             valType b;                                                    \
@@ -247,7 +247,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
         }                                                                 \
       }                                                                   \
     } else {                                                              \
-      for (each_RANGE(usize, _i, 0, HMap_getHLen((HMap *)map))) {         \
+      foreach (usize _i, range(0, HMap_getHLen((HMap *)map))) {           \
         var_ _local_inner = HMap_get_inner_zero((HMap *)map, _i);         \
         if (_local_inner.flag[0] != 1)                                    \
           continue;                                                       \
@@ -322,10 +322,10 @@ static inline int HMap_test_structure(mHmap(int, int) map) {
     if (i2 != i * 2)
       return 1;
   });
-  for_each_((var_ i, VLAP(array, 100)), {
+  foreach (var_ i, vla(*VLAP(array, 100))) {
     if (!i)
       return 1;
-  });
+  }
   for (int i = 0; i < 100; i++)
     mHmap_set(map, i, i * i);
 
@@ -514,9 +514,8 @@ HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, usize metaSize, usize
         .valsize = vSize,
         .metaSize = metaSize,
     };
-    for_each_P((sList_header * *v, VLAP(hm->storage, hm->metaSize)), {
-      *v = sList_new(allocator, 2, kSize + vSize);
-    });
+    foreach (var_ s, span(hm->storage, hm->metaSize))
+      s[0] = sList_new(allocator, 2, kSize + vSize);
     return hm;
   }
 }
@@ -539,9 +538,9 @@ void HMap_free(HMap *hm) {
   } else {
     usize totalSize = sizeof(HMap) + hm->metaSize * sizeof(sList_header);
     defer { aFree(hm->allocator, hm, totalSize); };
-    for_each_((var_ v, VLAP(hm->storage, hm->metaSize)), {
+    foreach (var_ v, vla(*VLAP(hm->storage, hm->metaSize))) {
       sList_free(hm->allocator, v, hm->keysize + hm->valsize);
-    });
+    };
   }
 }
 
@@ -701,13 +700,12 @@ void *HMap_get(const HMap *map, const void *key) {
 u32 HMap_count(const HMap *map) {
   u32 i = 0;
   if (map->metaSize) {
-    for_each_((var_ v, VLAP(map->storage, map->metaSize)), {
+    foreach (var_ v, vla(*VLAP(map->storage, map->metaSize))) {
       i += v->length;
-    });
+    }
   } else {
-    for_each_((var_ v, VLAP(map->storage[1]->buf, map->storage[1]->length)), {
+    foreach (var_ v, vla(*VLAP(map->storage[1]->buf, map->storage[1]->length)))
       i += v == 1;
-    });
   }
   return i;
 }
@@ -724,9 +722,8 @@ usize HMap_footprint(const HMap *map) {
   res += sizeof(HMap);
   res += sizeof(*(map->storage)) * map->metaSize;
   res += elementSize;
-  for_each_((var_ v, VLAP(map->storage, map->metaSize)), {
+  foreach (var_ v, vla(*VLAP(map->storage, map->metaSize)))
     res += (elementSize)*v->length;
-  });
   return res;
 }
 bool HMap_getSet(HMap *map, const void *key, void *val) {
@@ -779,9 +776,9 @@ void HMap_clear(HMap *map) {
   if (!map->metaSize) {
     memset(map->storage[1]->buf, 0, map->storage[1]->length * sizeof(u8));
   } else {
-    for_each_((var_ v, VLAP(map->storage, map->metaSize)), {
+    foreach (var_ v, vla(*VLAP(map->storage, map->metaSize))) {
       v->length = 0;
-    });
+    };
   }
 }
 
@@ -816,7 +813,7 @@ void HMapIterator_next(struct HMapIterator_struct_inner *it) {
   }
   it->current = HMap_getCoord(it->map, it->bucket_idx, it->element_idx);
 }
-struct HMapIterator_struct HMapIterator(const HMap *map) {
+inline struct HMapIterator_struct HMapIterator(const HMap *map) {
   struct HMapIterator_struct it = {
       .state = {{
           .map = map,

@@ -83,7 +83,7 @@ static inline fptr stringList_insert_chars(stringList *sl, usize idx, const char
 
 inline stringList *stringList_copy(AllocatorV allocator, stringList *sl) {
   stringList *res = stringList_new(allocator, sl->len > 10 ? sl->len : 10);
-  for (each_RANGE(usize, i, 0, stringList_len(sl)))
+  foreach (usize i, range(0, stringList_len(sl)))
     stringList_push(res, stringList_get(sl, i));
   return res;
 }
@@ -142,7 +142,7 @@ MAKE_TEST_FN(test_stringList_churn, {
   stringList *sl = stringList_new(allocator, 1024);
   defer { stringList_free(sl); };
 
-  for (each_RANGE(usize, i, 0, ITERS))
+  foreach (usize i, range(0, ITERS))
     stringList_push(sl, "medium_length_string");
 
   printf("  Footprint: %zu bytes\n"

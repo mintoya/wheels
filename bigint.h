@@ -236,7 +236,8 @@ void bigint_negate_ip(AllocatorV allocator, bigint *i) {
   if (!*i)
     return;
   bigint_expand(allocator, i, msList_len(*i) + 1);
-  for_each_P((var_ j, msList_vla(*i)), { *j = ~*j; });
+  foreach (usize j, span(0, msList_len(*i)))
+    i[0][j] = ~i[0][j];
   bigint_unit ca = 1;
   for (usize c = 0; ca && c < msList_len(i[0]); c++) {
     var_ c1 = bigint_ckd_add_struct(ca, i[0][c]);
@@ -340,7 +341,7 @@ bigint bigint_mul_single(AllocatorV allocator, bigint *b, bigint_unit bu) {
   typedef typeof(bigint_mul_units(0, 0)) product;
   bigint res = msList_init(allocator, bigint_unit, msList_len(b[0]));
   bigint_unit carry = 0;
-  for (each_RANGE(usize, i, 0, msList_len(b[0]))) {
+  foreach (usize i, range(0, msList_len(b[0]))) {
     product p = bigint_mul_units(b[0][i], bu);
     var_ c2 = bigint_ckd_add_struct(p.result, carry);
     carry = c2.flag + p.carry;
@@ -375,7 +376,7 @@ bigint bigint_mul(AllocatorV allocator, bigint a1, bigint b1) {
 
   {
 
-    for (each_RANGE(usize, i, 0, msList_len(b))) {
+    foreach (usize i, range(0, msList_len(b))) {
       var_ temp = bigint_mul_single(allocator, &a, bigint_get(b, i + sh_b));
       defer { msList_deInit(allocator, temp); };
       bigint_add_ip(allocator, &res, temp, i);
