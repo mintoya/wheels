@@ -50,7 +50,7 @@ typedef void (*const My_allocatorFree)(AllocatorV, void *, usize, char *, usize)
  *  @param 3 size       new size of allocation, non-zero
  *  @return moved pointer
  */
-typedef void *(*const My_allocatorResize)(AllocatorV, void *, size_t, char *, usize);
+typedef void *(*const My_allocatorResize)(AllocatorV, void *, size_t, size_t, char *, usize);
 /**
  *  get the size of an allocation/reallocation
  *  @param 1 allocator
@@ -124,7 +124,7 @@ void *(aResize)(AllocatorV allocator, void *oldptr, usize oldsize, size_t newsiz
   void *res;
   if (allocator->resize) {
 
-    void *result = (allocator)->resize(allocator, oldptr, newsize, file, line);
+    void *result = (allocator)->resize(allocator, oldptr, oldsize, newsize, file, line);
 #ifdef MY_ALLOCATOR_STRICTEST
     assertMessage(result, "allocators cant return null, r");
     assertMessage(!((uintptr_t)result % alignof(myAlign)), "wrong alignment out of allocator, r");
@@ -152,7 +152,7 @@ void(aFree)(AllocatorV allocator, void *oldptr, usize size, char *file, usize li
   (allocator)->free(allocator, oldptr, size, file, line);
 }
 void *default_alloc(const My_allocator *allocator, size_t s, char *, usize) { return malloc(aAlloc_align(s)); }
-void *default_r_alloc(const My_allocator *allocator, void *p, size_t s, char *, usize) { return realloc(p, s); }
+void *default_r_alloc(const My_allocator *allocator, void *p, size_t os, size_t ns, char *, usize) { return realloc(p, ns); }
 void default_free(const My_allocator *allocator, void *p, usize size, char *, usize) { return free(p); }
 #if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
   #define DEFAULT_SIZE_GETTER (1)

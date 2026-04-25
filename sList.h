@@ -1,3 +1,5 @@
+#include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #if !defined(SHORT_LIST_H)
   #define SHORT_LIST_H (1)
@@ -39,8 +41,17 @@ static inline sList_header *sList_new(AllocatorV allocator, usize initLen, usize
 static inline void sList_free(AllocatorV allocator, sList_header *sl, usize width) {
   aFree(allocator, sl, width * sl->capacity + sizeof(*sl));
 }
-static inline void *sList_getRef(sList_header *l, usize width, usize i) { return i < l->length ? (l->buf + width * i) : NULL; }
-static inline void *sList_set(sList_header *l, usize width, usize index, const void *element) {
+static inline void *sList_getRef(
+    sList_header *l,
+    usize width,
+    usize i
+) { return i < l->length ? (l->buf + width * i) : NULL; }
+static inline void *sList_set(
+    sList_header *l,
+    usize width,
+    usize index,
+    const void *element
+) {
   void *place = sList_getRef(l, width, index);
   if (place) {
     element
@@ -50,7 +61,12 @@ static inline void *sList_set(sList_header *l, usize width, usize index, const v
   return place;
 }
 
-static inline sList_header *sList_append(AllocatorV allocator, sList_header *l, usize width, const void *element) {
+static inline sList_header *sList_append(
+    AllocatorV allocator,
+    sList_header *l,
+    usize width,
+    const void *element
+) {
   if (l->capacity < l->length + 1)
     l = sList_realloc(allocator, l, width, SLIST_GROW_EQ(l->length));
   l->length++;
@@ -63,22 +79,45 @@ static inline void sList_remove(sList_header *l, usize width, usize i) {
   memmove(l->buf + i * width, l->buf + (i + 1) * width, (l->length - i - 1) * width);
   l->length--;
 }
-static inline sList_header *sList_insertFromArr(AllocatorV allocator, sList_header *l, const void *source, usize length, usize location, size_t width) {
-  assertMessage(
-      ((u8 *)source > l->buf + l->length * width) ||
-      ((u8 *)source < l->buf)
-  );
-  if (l->capacity < l->length + length)
-    l = sList_realloc(allocator, l, width, l->length + length);
-  void *res = l->buf + (location)*width;
-  memmove(l->buf + (location + length) * width, res, (l->length - location) * width);
+
+static inline sList_header *sList_insertFromArr(
+    AllocatorV allocator,
+    sList_header *l,
+    const void *source,
+    usize length,
+    usize location,
+    size_t width
+) {
+  if (location > l->length)
+    return l;
+
+  bool inlist =
+      (u8 *)source >= l->buf &&
+      (u8 *)source + length * width <= l->buf + l->length * width;
+
+  usize need = l->length + (inlist ? 2 * length : length);
+  u8 *obuf = l->buf;
+  if (l->capacity < need)
+    l = sList_realloc(allocator, l, width, need);
+
+  if (inlist) {
+    source = (u8 *)source - obuf + l->buf;
+    memcpy(l->buf + (l->capacity - length) * width, source, length * width);
+    source = l->buf + (l->capacity - length) * width;
+  }
+
+  u8 *dest = l->buf + location * width;
+  memmove(dest + length * width, dest, (l->length - location) * width);
+
   if (source)
-    memcpy(res, source, length * width);
+    memcpy(dest, source, length * width);
   else
-    memset(res, 0, length * width);
+    memset(dest, 0, length * width);
+
   l->length += length;
   return l;
 }
+
 static inline sList_header *sList_appendFromArr(AllocatorV allocator, sList_header *l, usize width, void *source, usize ammount) {
   return sList_insertFromArr(allocator, l, source, ammount, l->length, width);
 }
@@ -164,14 +203,6 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
   #define msList_cap(s) (msList_header(s)->capacity)
   #define msList_pop(s) ((s)[--msList_header(s)->length])
   #define msList_popFront(s) ({typeof(*s) _res = *s;msList_rem(s, 0);_res; })
-static inline sList_header *sList_insertFromArr(
-    AllocatorV allocator,
-    sList_header *l,
-    const void *source,
-    usize length,
-    usize location,
-    size_t width
-);
   #define msList_pad(allocator, s, ammount) \
     do {                                    \
       s = (typeof(s))sList_insertFromArr(   \
@@ -248,14 +279,19 @@ MAKE_TEST_FN(msList_array_operations, {
   if (list[2] != 3)
     return 1;
 
-  int arr2[] = {0};
-  msList_insArr(allocator, list, 0, arr2);
-  if (msList_len(list) != 4)
+  foreach (var_ i, range(0, msList_len(list), 1))
+    printf("%i\n", list[i]);
+  printf("\n");
+  msList_insArr(allocator, list, 0, *msList_vla(list));
+  foreach (var_ i, range(0, msList_len(list), 1))
+    printf("%i\n", list[i]);
+
+  if (msList_len(list) != 6)
     return 1;
-  if (list[0] != 0)
-    return 1;
-  if (list[1] != 1)
-    return 1;
+  if (list[0] != 1)
+    return 2;
+  if (list[1] != 2)
+    return 3;
 
   return 0;
 });

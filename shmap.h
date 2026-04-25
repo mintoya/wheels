@@ -124,6 +124,10 @@ static inline usize sHmap_countCollisions(const sHmap *map) {
   return res;
 }
 
+//
+// iterator
+//
+
   #ifdef __cplusplus
 template <typename T>
 using msHmap_t = T (**)(sHmap *);

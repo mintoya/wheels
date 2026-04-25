@@ -105,6 +105,9 @@ static struct {
 static void PrinterSingleton_init() {
   PrinterSingleton.data = msHmap_init(stdAlloc, printerFunction, 32);
 }
+static void PrinterSingleton_deInit() {
+  msHmap_deinit(PrinterSingleton.data);
+}
 static void PrinterSingleton_append(fptr name, printerFunction function) {
   msHmap_set(PrinterSingleton.data, name, function);
 }
@@ -155,6 +158,9 @@ __attribute__((constructor(201))) static void printerInit() {
   PrinterSingleton_init();
 }
 #endif
+__attribute__((destructor(201))) static void printerDeInit() {
+  PrinterSingleton_deInit();
+}
 
 #define GETTYPEPRINTERFN(T) _##T##_printer
 #define MERGE_PRINTER_M(a, b) a##b
