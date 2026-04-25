@@ -559,25 +559,24 @@ REGISTER_SPECIAL_PRINTER_NEEDID(mHmap_printer_generic, "mHmap", HMap *, {
     USENAMEDPRINTER("slice(c8)", farg);
     PUTS("__");
   } else {
+    PUTS("mHmap");
     PUTS("{");
-    var_ it = HMap_iterator(in);
-    for (void *raw = HMap_next(&it); raw; raw = HMap_next(&it)) {
-      u8 *key = (u8 *)raw;
-      u8 *val = (u8 *)raw + HMap_getKeySize(in);
+    foreach (var_ sp, iter(HMapIterator(in))) {
+      typedef struct {
+        void (*function)(
+            outputFunction,
+            fptr,
+            fptr args,
+            void *
+        );
+        usize size;
+      } printerFunction;
       kprinter.function(
-          put,
-          (fptr){HMap_getKeySize(in), key},
-          nullFptr,
-          _arb
+          put, (fptr){HMap_getKeySize(in), (u8 *)sp}, nullFptr, _arb
       );
-      PUTS(":");
       vprinter.function(
-          put,
-          (fptr){HMap_getValSize(in), val},
-          nullFptr,
-          _arb
+          put, (fptr){HMap_getValSize(in), ((u8 *)sp) + HMap_getKeySize(in)}, nullFptr, _arb
       );
-      PUTS(",");
     }
     PUTS("}");
   }

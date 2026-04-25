@@ -121,18 +121,21 @@ bool HMap_fget(HMap *map, const fptr key, void *val);
  */
 void *HMap_fget_ns(HMap *map, const fptr key);
 
-typedef struct HMapIterator {
+struct HMapIterator_struct_inner {
   const HMap *map;
+  const void *current;
   u32 bucket_idx;
   u32 element_idx;
-} HMapIterator;
-static inline HMapIterator HMap_iterator(const HMap *hm) {
-  return (HMapIterator){hm, 0, 0};
-}
-void *HMap_next(HMapIterator *it);
-/**
- * @param vv pointer to HMap pointer
- */
+};
+bool HMapIterator_valid(struct HMapIterator_struct_inner *it);
+void HMapIterator_next(struct HMapIterator_struct_inner *it);
+struct HMapIterator_struct {
+  struct HMapIterator_struct_inner state[1];
+  typeof(&HMapIterator_valid) valid;
+  typeof(&HMapIterator_next) next;
+};
+struct HMapIterator_struct HMapIterator(const HMap *map);
+
 static inline void HMap_cleanup_handler(void *vv) {
   HMap **v = (HMap **)vv;
   if (v && *v) {
@@ -179,7 +182,7 @@ using mHmap_t = Tb (**)(HMap *, Ta);
 
   #define mHmap_set(map, key, val)                       \
     do {                                                 \
-      typeof(key) _k = (key);                            \
+      typeof(key) _k = (typeof(_k))(key);                \
       typeof((*map)(nullptr, key)) _v = (val);           \
       ASSERT_EXPR(                                       \
           types_eq(                                      \
@@ -193,6 +196,12 @@ using mHmap_t = Tb (**)(HMap *, Ta);
       );                                                 \
     } while (0)
 
+  #define mHmap_iterator(map, keyType)               \
+    HMapIterator((HMap *)map),                       \
+        struct {                                     \
+      const keyType key;                             \
+      typeof((*map)((HMap *)NULL, (keyType){})) val; \
+    } *
   #define mHmap_foreach(map, keyType, keyDec, valType, valDec, ...)       \
     ASSERT_EXPR(                                                          \
         types_eq(                                                         \
@@ -402,7 +411,10 @@ u32 HMap_getMetaSize(const HMap *map) { return map->metaSize; }
 u32 HMap_getHLen(const HMap *map) { return map->storage[1]->length; }
 inline u32 HMap_getBucketSize(const HMap *map, u32 idx) { return map->storage[idx][0].length; }
 inline void *HMap_getCoord(const HMap *map, u32 bucket, u32 index) {
-  if (bucket > map->metaSize)
+  if (map->metaSize) {
+    if (bucket > map->metaSize)
+      return nullptr;
+  } else if (bucket)
     return nullptr;
   var_ ll = map->storage[bucket];
   if (index > ll->length)
@@ -732,7 +744,6 @@ HMap_both HMap_getBoth(HMap *map, const void *key) {
 }
 
 void HMap_clear(HMap *map) {
-
   if (!map->metaSize) {
     memset(map->storage[1]->buf, 0, map->storage[1]->length * sizeof(u8));
   } else {
@@ -742,39 +753,57 @@ void HMap_clear(HMap *map) {
   }
 }
 
-/**
- * @return pointer to the next key, or nullptr if done.
- */
-void *HMap_next(HMapIterator *it) {
-  if (!it || !it->map)
-    return nullptr;
+//
+// iterator
+//
 
-  const HMap *map = it->map;
-  const u32 metaSize = HMap_getMetaSize(map);
-
-  if (metaSize > 0) {
-    while (it->bucket_idx < metaSize) {
-      const u32 bucket_size = HMap_getBucketSize(map, it->bucket_idx);
-      if (it->element_idx < bucket_size) {
-        void *key = HMap_getCoord(map, it->bucket_idx, it->element_idx);
-        it->element_idx++;
-        return key;
-      }
-      it->bucket_idx++;
+bool HMapIterator_valid(struct HMapIterator_struct_inner *it) {
+  if (it->map->metaSize) {
+    return it->bucket_idx < it->map->metaSize &&
+           it->element_idx < it->map->storage[it->bucket_idx]->length;
+  } else {
+    return it->element_idx < it->map->storage[0]->length &&
+           ((u8 *)it->map->storage[1]->buf)[it->element_idx] == 1;
+  }
+}
+void HMapIterator_next(struct HMapIterator_struct_inner *it) {
+  if (it->map->metaSize) {
+    it->element_idx++;
+    while (it->bucket_idx < it->map->metaSize &&
+           it->element_idx >= it->map->storage[it->bucket_idx]->length) {
       it->element_idx = 0;
+      it->bucket_idx++;
     }
   } else {
-    const u32 hLen = HMap_getHLen(map);
-    while (it->bucket_idx < hLen) {
-      struct HMap_inner_item item = HMap_get_inner_zero(map, it->bucket_idx);
-      it->bucket_idx++;
-      if (item.flag[0] == 1) {
-        return item.key;
-      }
+    it->element_idx++;
+    while (it->element_idx < it->map->storage[0]->length &&
+           ((u8 *)it->map->storage[1]->buf)[it->element_idx] != 1) {
+      it->element_idx++;
     }
   }
 
-  return nullptr;
+  it->current = HMap_getCoord(it->map, it->bucket_idx, it->element_idx);
+}
+struct HMapIterator_struct HMapIterator(const HMap *map) {
+  struct HMapIterator_struct it = {
+      .state = {{
+          .map = map,
+          .current = map->storage[0]->buf,
+          .bucket_idx = 0,
+          .element_idx = 0,
+      }},
+      .next = HMapIterator_next,
+      .valid = HMapIterator_valid,
+  };
+
+  if (!map->metaSize)
+    while (it.state[0].element_idx < map->storage[0]->length &&
+           ((u8 *)map->storage[1]->buf)[it.state[0].element_idx] != 1) {
+      it.state[0].element_idx++;
+    }
+
+  it.state->current = HMap_getCoord(map, it.state->bucket_idx, it.state->element_idx);
+  return it;
 }
 
 #endif // HMap_C

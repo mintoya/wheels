@@ -205,6 +205,70 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
       TUPLE_EXPAND_A(decl_vla) = _RANGE_NAME(item);                                                           \
       loop __VA_ARGS__                                                                                        \
     }
+//
+// new loops
+//
+
+  #define _each_vla(vla, decl)   \
+    (size_t _i = 0, _keep = 1;   \
+     _keep && _i < countof(vla); \
+     _keep = !_keep, _i++) for (decl = (vla)[_i]; _keep; _keep = !_keep)
+
+  #define _each_range(start, end, inc, decl) \
+    (                                        \
+        struct { typeof((start) + 0) val; int keep; } _s = {(start), 1};        \
+        _s.keep && _s.val < (end);           \
+        _s.keep = !_s.keep, _s.val += (inc)) for (decl = _s.val; _s.keep; _s.keep = !_s.keep)
+
+  #define _each_iter_2(init, decl)         \
+    (                                      \
+        struct { typeof(init) x; int keep; } _s = {(init), 1};       \
+        _s.keep && _s.x.valid(_s.x.state); \
+        _s.keep = !_s.keep, _s.x.next(_s.x.state)) for (decl = _s.x.state->current; _s.keep; _s.keep = !_s.keep)
+  #define _each_iter_3(init, cast, decl)   \
+    (                                      \
+        struct { typeof(init) x; int keep; } _s = {(init), 1};       \
+        _s.keep && _s.x.valid(_s.x.state); \
+        _s.keep = !_s.keep, _s.x.next(_s.x.state)) for (decl = (cast)_s.x.state->current; _s.keep; _s.keep = !_s.keep)
+
+  #define _each_iter_sel(_1, _2, _3, NAME, ...) NAME
+  #define _each_iter(...) \
+    _each_iter_sel(__VA_ARGS__, _each_iter_3, _each_iter_2)(__VA_ARGS__)
+
+  #define _im_each_vla(...)                 _each_vla(__VA_ARGS__,
+  #define _im_each_range(...)   _each_range(__VA_ARGS__ ,
+  #define _im_each_iter(...)               _each_iter(__VA_ARGS__ ,
+
+  #define each(decl, generator)                          \
+    /**/                                                 \
+    /* generators*/                                      \
+    /*  vla(array) takes array and uses countof*/        \
+    /*  range(array) takes array and uses countof*/      \
+    /*  iter(iterator struct)*/                          \
+    /*    layout :*/                                     \
+    /*    {*/                                            \
+    /*      state [1] / ptr : state of iterator*/        \
+    /*        current : used to deduce decl*/            \
+    /*      valid : function pointer called with state*/ \
+    /*      next  : used to increment*/                  \
+    /*    }*/                                            \
+    /**/                                                 \
+_im_each_ ## generator decl )
+  #define foreach(decl, generator)                       \
+    /**/                                                 \
+    /* generators*/                                      \
+    /*  vla(array) takes array and uses countof*/        \
+    /*  range(array) takes array and uses countof*/      \
+    /*  iter(iterator struct)*/                          \
+    /*    layout :*/                                     \
+    /*    {*/                                            \
+    /*      state [1] / ptr : state of iterator*/        \
+    /*        current : used to deduce decl*/            \
+    /*      valid : function pointer called with state*/ \
+    /*      next  : used to increment*/                  \
+    /*    }*/                                            \
+    /**/                                                 \
+for _im_each_ ## generator decl )
 
 //
 // var
