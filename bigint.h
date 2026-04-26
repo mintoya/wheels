@@ -32,6 +32,7 @@ void bigint_add_ip(AllocatorV allocator, bigint *a, bigint b, isize shift);
 
 void bigint_sub_ip(AllocatorV allocator, bigint *a, bigint b, isize shift);
 bigint bigint_from(AllocatorV allocator, i64 i);
+bigint bigint_cs(AllocatorV allocator, u8 base, cstr str);
 bigint bigint_negate(AllocatorV allocator, bigint i);
 bigint bigint_add(AllocatorV allocator, bigint a, bigint b);
 bigint bigint_sub(AllocatorV allocator, bigint a, bigint b);
@@ -475,5 +476,41 @@ struct bigint_div_t bigint_div(AllocatorV allocator, bigint a1, bigint b1) {
   bigint_trim(&rem);
 
   return (struct bigint_div_t){.div = quot, .mod = rem};
+}
+bigint bigint_cs(AllocatorV allocator, u8 base, char *str) {
+  #define STACK_BIGINT(...)                                     \
+    (struct {                                                   \
+      sList_header head[1];                                     \
+      bigint_unit units[countof((bigint_unit[]){__VA_ARGS__})]; \
+    }){                                                         \
+        .head = {{                                              \
+            .length = countof((bigint_unit[]){__VA_ARGS__}),    \
+            .capacity = countof((bigint_unit[]){__VA_ARGS__}),  \
+        }},                                                     \
+        .units = {__VA_ARGS__}                                  \
+    }.units
+  assertMessage(base < 16);
+
+  bigint b = bigint_from(allocator, 0);
+
+  bigint add = STACK_BIGINT(0);
+
+  while (*str) {
+    u8 nm = 0;
+    switch (*str) {
+      case '0' ... '9': {
+        nm = (*str) - '0';
+      } break;
+      case 'a' ... 'z': {
+        nm = (*str) - 'a' + 10;
+      } break;
+    }
+    assertMessage(nm < base);
+    bigint_mul_single(allocator, &b, base);
+    add[0] = nm;
+    bigint_add_ip(allocator, &b, add, 0);
+    str++;
+  }
+  return b;
 }
 #endif
