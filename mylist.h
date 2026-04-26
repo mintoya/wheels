@@ -181,6 +181,7 @@ using mList_t = T (**)(List *);
   mList_no_modify_test(list);         \
   mList_arr(list)[--mList_len(list)]; \
 })
+#define mList_last(l) ({ mList_arr(l)[mList_len(l) - 1]; })
 #define mList_popFront(list)                       \
   ({                                               \
     mList_no_modify_test(list);                    \
@@ -371,18 +372,32 @@ List *List_fromArr(AllocatorV allocator, const void *source, size_t width, List_
   return res;
 }
 void *List_insertFromArr(List *l, const void *source, List_index_t length, List_index_t location, size_t width) {
-  assertMessage(
-      ((u8 *)source > l->head + l->length * width) ||
-      ((u8 *)source < l->head)
-  );
-  if (l->capacity < l->length + length)
-    List_resize(l, l->length + length, width);
-  void *res = l->head + (location)*width;
-  memmove(l->head + (location + length) * width, res, (l->length - location) * width);
+  if (location > l->length)
+    return l;
+
+  bool inlist =
+      (u8 *)source >= l->head &&
+      (u8 *)source + length * width <= l->head + l->length * width;
+
+  usize need = l->length + (inlist ? 2 * length : length);
+  u8 *obuf = l->head;
+  if (l->capacity < need)
+    List_resize(l, need, width);
+
+  if (inlist) {
+    source = (u8 *)source - obuf + l->head;
+    memcpy(l->head + (l->capacity - length) * width, source, length * width);
+    source = l->head + (l->capacity - length) * width;
+  }
+
+  u8 *dest = l->head + location * width;
+  memmove(dest + length * width, dest, (l->length - location) * width);
+
   if (source)
-    memcpy(res, source, length * width);
+    memcpy(dest, source, length * width);
   else
-    memset(res, 0, length * width);
+    memset(dest, 0, length * width);
+
   l->length += length;
   return l;
 }
