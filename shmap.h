@@ -45,6 +45,7 @@ static inline void *sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
   foreach (var_ entry, span(*list_ptr, msList_len(*list_ptr))) {
     if (fptr_eq(key, stringList_get(sh->strings, entry->kidx))) {
       if (val_ptr) {
+        // sList_getRef(sh->values, sh->vwidth, entry->vidx);
         memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr, sh->vwidth);
         return sh->values->buf + (entry->vidx * sh->vwidth);
       } else {
@@ -126,6 +127,81 @@ static inline AllocatorV sHmap_allocator(const sHmap *map) { return map->strings
 // iterator
 //
 
+struct sHmapIterator_struct_inner {
+  const sHmap *map;
+  const struct double_idx *current;
+  u32 bucket_idx;
+  u32 element_idx;
+};
+
+bool sHmapIterator_valid(const struct sHmapIterator_struct_inner *it);
+void sHmapIterator_next(struct sHmapIterator_struct_inner *it);
+
+struct sHmapIterator_struct {
+  struct sHmapIterator_struct_inner state[1];
+  typeof(&sHmapIterator_valid) valid;
+  typeof(&sHmapIterator_next) next;
+};
+
+extern inline struct sHmapIterator_struct sHmapIterator(const sHmap *map);
+
+bool sHmapIterator_valid(const struct sHmapIterator_struct_inner *it) {
+  return it->bucket_idx < it->map->num_buckets &&
+         it->map->buckets[it->bucket_idx] != NULL &&
+         it->element_idx < mList_len(it->map->buckets[it->bucket_idx]);
+}
+
+void sHmapIterator_next(struct sHmapIterator_struct_inner *it) {
+  it->element_idx++;
+
+  while (it->bucket_idx < it->map->num_buckets) {
+    usize current_bucket_len = it->map->buckets[it->bucket_idx] ? mList_len(it->map->buckets[it->bucket_idx]) : 0;
+
+    if (it->element_idx < current_bucket_len)
+      break;
+
+    it->bucket_idx++;
+    it->element_idx = 0;
+  }
+
+  if (it->bucket_idx < it->map->num_buckets)
+    it->current = &it->map->buckets[it->bucket_idx][it->element_idx];
+  else
+    it->current = NULL;
+}
+
+inline struct sHmapIterator_struct sHmapIterator(const sHmap *map) {
+  struct sHmapIterator_struct it = {
+      .state = {{
+          .map = map,
+          .current = NULL,
+          .bucket_idx = 0,
+          .element_idx = 0,
+      }},
+      .next = sHmapIterator_next,
+      .valid = sHmapIterator_valid,
+  };
+
+  if (!map || !map->num_buckets)
+    return it;
+
+  // Advance to the very first populated bucket
+  while (it.state[0].bucket_idx < map->num_buckets) {
+    usize current_bucket_len = map->buckets[it.state[0].bucket_idx] ? mList_len(map->buckets[it.state[0].bucket_idx]) : 0;
+
+    if (current_bucket_len > 0) {
+      break;
+    }
+    it.state[0].bucket_idx++;
+  }
+
+  if (it.state[0].bucket_idx < map->num_buckets) {
+    it.state[0].current = &map->buckets[it.state[0].bucket_idx][it.state[0].element_idx];
+  }
+
+  return it;
+}
+
   #ifdef __cplusplus
 template <typename T>
 using msHmap_t = T (**)(sHmap *);
@@ -148,6 +224,21 @@ using msHmap_t = T (**)(sHmap *);
           char *: sHmap_set_cs,      \
           const char *: sHmap_set_cs \
       )((sHmap *)sh, key, &_v); })
+  #if !defined __cplusplus
+    #define msHmap_iterator(map)   \
+      sHmapIterator((sHmap *)map), \
+          struct {                 \
+        const fptr key;            \
+        msHmap_iType(map) val;     \
+      } *
+  #else
+    #define msHmap_iterator(map)   \
+      sHmapIterator((sHmap *)map), \
+          typeof(({  struct {                          \
+      fptr key;                                      \
+      msHmap_iType(map) val;                         \
+    } _;  _; })) *
+  #endif
   #define msHmap_rem(sh, key)        \
     do {                             \
       _Generic(                      \
