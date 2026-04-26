@@ -120,6 +120,7 @@ static inline usize sHmap_countCollisions(const sHmap *map) {
     }
   return res;
 }
+static inline AllocatorV sHmap_allocator(const sHmap *map) { return map->strings->allocator; }
 
 //
 // iterator
@@ -136,6 +137,7 @@ using msHmap_t = T (**)(sHmap *);
   #define msHmap_init(allocator, T, ...) \
     (msHmap(T)) shMap_new(allocator, sizeof(T), VA_SWITCH(8, __VA_ARGS__))
 
+  #define msHmap_allocator(map) (sHmap_allocator((sHmap *)map))
   #define msHmap_deinit(sh) \
     shMap_free((sHmap *)sh)
   #define msHmap_set(sh, key, val) \
