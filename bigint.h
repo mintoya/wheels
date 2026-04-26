@@ -143,6 +143,17 @@ REGISTER_PRINTER(bigint, {
       PUTS("0");
   }
 });
+  #define bigint_stack(...)                                     \
+    (struct {                                                   \
+      sList_header head[1];                                     \
+      bigint_unit units[countof((bigint_unit[]){__VA_ARGS__})]; \
+    }){                                                         \
+        .head = {{                                              \
+            .length = countof((bigint_unit[]){__VA_ARGS__}),    \
+            .capacity = countof((bigint_unit[]){__VA_ARGS__}),  \
+        }},                                                     \
+        .units = {__VA_ARGS__}                                  \
+    }.units
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
   #define MY_BIGINT_C (1)
@@ -478,22 +489,11 @@ struct bigint_div_t bigint_div(AllocatorV allocator, bigint a1, bigint b1) {
   return (struct bigint_div_t){.div = quot, .mod = rem};
 }
 bigint bigint_cs(AllocatorV allocator, u8 base, char *str) {
-  #define STACK_BIGINT(...)                                     \
-    (struct {                                                   \
-      sList_header head[1];                                     \
-      bigint_unit units[countof((bigint_unit[]){__VA_ARGS__})]; \
-    }){                                                         \
-        .head = {{                                              \
-            .length = countof((bigint_unit[]){__VA_ARGS__}),    \
-            .capacity = countof((bigint_unit[]){__VA_ARGS__}),  \
-        }},                                                     \
-        .units = {__VA_ARGS__}                                  \
-    }.units
-  assertMessage(base < 16);
+  assertMessage(base < 33);
 
   bigint b = bigint_from(allocator, 0);
 
-  bigint add = STACK_BIGINT(0);
+  bigint add = bigint_stack(0);
 
   while (*str) {
     u8 nm = 0;
@@ -504,6 +504,10 @@ bigint bigint_cs(AllocatorV allocator, u8 base, char *str) {
       case 'a' ... 'z': {
         nm = (*str) - 'a' + 10;
       } break;
+      case ' ':
+        break;
+      default:
+        assertMessage(false, "character not supported for conversion: %c", *str);
     }
     assertMessage(nm < base);
     bigint_mul_single(allocator, &b, base);
