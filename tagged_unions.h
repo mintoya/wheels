@@ -66,8 +66,9 @@
       }                                                                           \
     } while (0);
   #define TU_OF_IM(enum, t, value) \
-    (enum) { .tag = TU_MK_TAG(enum, t), .TU_NAM(t) = value }
+    (enum) { .tag = TU_MK_TAG(enum, t), .TU_NAM(t) = ((t)value) }
   #define TU_OF(enumt, value) \
     TU_OF_IM(TUPLE_EXPAND_A(enumt), TUPLE_EXPAND_B(enumt), value)
+  #define TU_IS(enum_t, a) (a.tag == TU_MK_TAG(TUPLE_EXPAND_A(enum_t), TUPLE_EXPAND_B(enum_t)))
 
 #endif // MY_TAGGED_UNIONS_H

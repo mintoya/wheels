@@ -302,13 +302,6 @@ MAKE_TEST_FN(mlist_vla_cast, {
 #endif
 
 #if defined(MY_LIST_C)
-static inline int memzeroed(void *mem, size_t len) {
-  for (; len > 0; len--) {
-    if (((uint8_t *)mem)[len - 1])
-      return false;
-  }
-  return true;
-}
 
 // all bytes list owns
 void List_makeNew(AllocatorV allocator, List *l, size_t width, List_index_t initialSize) {
@@ -328,7 +321,7 @@ inline List_index_t List_locate(const List *l, const void *element, size_t width
     }
   } else {
     for (; i < l->length; i++) {
-      if (memzeroed(List_getRef(l, i, width), width))
+      if (memchr(List_getRef(l, i, width), 0, width))
         return i;
     }
   }

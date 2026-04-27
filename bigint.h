@@ -154,6 +154,7 @@ REGISTER_PRINTER(bigint, {
         }},                                                     \
         .units = {__VA_ARGS__}                                  \
     }.units
+
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
   #define MY_BIGINT_C (1)
@@ -493,7 +494,14 @@ bigint bigint_cs(AllocatorV allocator, u8 base, char *str) {
 
   bigint b = bigint_from(allocator, 0);
 
-  bigint add = bigint_stack(0);
+  struct {
+    sList_header head[1];
+    bigint_unit units[1];
+  } container = {
+      .head = {{1, 1}},
+      .units = {},
+  };
+  bigint add = container.units;
 
   while (*str) {
     u8 nm = 0;
