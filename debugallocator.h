@@ -80,7 +80,7 @@ MAKE_TEST_FN(debug_allocator_test, {
   debugAllocatorInternals *internals = ((debugAllocatorInternals *)debug->arb);
   int n1 = HMap_count((HMap *)internals->map);
   int n2 = 0;
-  foreach (var_ kv, iter(HMapIterator((HMap*)internals->map)))
+  foreach (var_ kv, iter(HMapIterator((HMap *)internals->map)))
     n2++;
   int n = debugAllocatorDeInit(debug);
   if (n != allocations || n1 != allocations || n2 != n1) {
@@ -122,7 +122,7 @@ AllocatorV debugAllocatorInit(struct dbgAlloc_config config) {
   AllocatorV allocator = config.allocator;
   Debug_allocator_block *res = aCreate(allocator, Debug_allocator_block);
   res->internals[0] = (debugAllocatorInternals){
-      .map = mHmap_init(allocator, void *, struct tracedata),
+      .map = mHmap_init(allocator, void *, struct tracedata, 0, 32),
       .actualAllocator = allocator,
       .config = config,
       .max = 0,

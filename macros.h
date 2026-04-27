@@ -320,4 +320,47 @@ for _im_each_ ## generator decl )
   #define P$_ONE(in, ...) MACRO_EXPAND(P$_FOLD(in, __VA_ARGS__))
   // #define P$(in, ...) MACRO_EXPAND(P$_FOLD(in, __VA_ARGS__))
   #define P$(in, ...) P$_ONE(in __VA_OPT__(, __VA_ARGS__), $)
+
+//
+// generic?
+//
+
+  #if !defined(__cplusplus)
+    #define container_ty_eval(T) , (*(T *)NULL)
+
+    #define container_t(primary, actual, ...) typeof(typeof(primary)(**)(actual __VA_OPT__(, __VA_ARGS__)))
+
+    #define container_primary(container_value, actual, ...) typeof((*(container_value))( \
+        *(actual *)NULL __VA_OPT__(APPLY_N(container_ty_eval, __VA_ARGS__))              \
+    ))
+
+    #define container_actual(container_value, actual, ...) (                                                                                                                     \
+        ASSERT_EXPR(types_eq(typeof(container_value), container_t(container_primary(container_value, actual __VA_OPT__(, __VA_ARGS__)), actual __VA_OPT__(, __VA_ARGS__))), ""), \
+        ((actual)container_value)                                                                                                                                                \
+    )
+  #else
+
+    #include <type_traits>
+
+// Helper to ensure the reconstructed type is treated as a single entity
+template <typename T>
+struct identity {
+  using type = T;
+};
+
+    #define container_t(primary, actual, ...) \
+      typename identity<typeof(typeof(primary)(**)(actual __VA_OPT__(, __VA_ARGS__)))>::type
+
+    #define container_primary(container_value, actual, ...)       \
+      typeof((*(container_value))(                                \
+          *(actual *)nullptr __VA_OPT__(, )                       \
+              __VA_OPT__(APPLY_N(container_ty_eval, __VA_ARGS__)) \
+      ))
+
+    #define container_actual(container_value, actual, ...) (                                                                                                                                          \
+        static_assert(std::is_same_v<typeof(container_value), container_t(container_primary(container_value, actual __VA_OPT__(, __VA_ARGS__)), actual __VA_OPT__(, __VA_ARGS__))>, "Type mismatch"), \
+        ((actual)container_value)                                                                                                                                                                     \
+    )
+
+  #endif
 #endif
