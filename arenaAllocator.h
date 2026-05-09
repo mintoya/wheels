@@ -1,152 +1,214 @@
 #ifndef ARENA_ALLOCATOR_H
 #define ARENA_ALLOCATOR_H
 #include "allocator.h"
-// #include "print.h"
-#include <errno.h>
-#include <stdint.h>
+#include "assertMessage.h"
+#include "macros.h"
+#include "mytypes.h"
+#include <stddef.h>
 #include <string.h>
 
-typedef struct ArenaBlock ArenaBlock;
-typedef struct ArenaBlock {
-  ArenaBlock *next;
-  size_t place;
-  size_t size;
-  size_t *freelist[10];
-  uint8_t buffer[];
-} ArenaBlock;
+// create arena based on another arena
+AllocatorV arena_new_ext(AllocatorV base, usize blockSize);
+// free's arena
+void arena_cleanup(AllocatorV arena);
+// reset's the arena blocks but doesnt free anything
+void arena_clear(AllocatorV arena);
+// total bytes taken up by the arena
+usize arena_footprint(AllocatorV);
+usize arena_countBlocks(AllocatorV arena);
 
-ArenaBlock *arenablock_new(size_t blockSize);
-void *arena_alloc(const My_allocator *ref, size_t size);
-void *arena_r_alloc(const My_allocator *arena, void *ptr, size_t size);
-void arena_free(const My_allocator *allocator, void *ptr);
-My_allocator *arena_new(size_t blockSize);
-void arenablock_free(ArenaBlock *block);
-void arena_cleanup(My_allocator *arena);
-static size_t arena_footprint(My_allocator *arena) {
-  size_t res = 0;
-  ArenaBlock *block = (ArenaBlock *)(arena->arb);
-  while (block) {
-    ArenaBlock *next = block->next;
-    res += block->size;
-    block = next;
-  }
-  return res;
-}
-static void arena_cleanup_handler(My_allocator **arenaPtr) {
-  if (arenaPtr && *arenaPtr)
+usize arena_totalMem(AllocatorV arena);
+static void arena_cleanup_handler [[maybe_unused]] (My_allocator **arenaPtr) {
+  if (arenaPtr && *arenaPtr) {
     arena_cleanup(*arenaPtr);
-  *arenaPtr = NULL;
-}
-#define Arena_scoped [[gnu::cleanup(arena_cleanup_handler)]] My_allocator
-#endif // ARENA_ALLOCATOR_H
-#ifdef ARENA_ALLOCATOR_C
-void arena_cleanup(My_allocator *arena) {
-  ArenaBlock *it = (ArenaBlock *)(arena->arb);
-  arenablock_free(it);
-  aFree((&defaultAllocator), arena);
-}
-void arenablock_free(ArenaBlock *block) {
-  while (block) {
-    ArenaBlock *next = block->next;
-    // println("free block of size ${}", block->size);
-    aFree((&defaultAllocator), block);
-    block = next;
+    *arenaPtr = NULL;
   }
 }
-void arena_free(const My_allocator *allocator, void *ptr) {
-  size_t *thisSize = (size_t *)((uint8_t *)ptr - sizeof(size_t));
-  ArenaBlock *it = (ArenaBlock *)(allocator->arb);
-  for (int i = 0; i < 10; i++) {
-    if (!it->freelist[i]) {
-      it->freelist[i] = thisSize;
-      return;
-    }
-  }
-  for (int i = 0; i < 10; i++) {
-    if (*it->freelist[i] < *thisSize) {
-      it->freelist[i] = thisSize;
-      return;
-    }
-  }
-  // noop
-}
-My_allocator *arena_new(size_t blockSize) {
-  My_allocator *res =
-      (My_allocator *)aAlloc((&defaultAllocator), sizeof(My_allocator));
-  if (!res)
-    exit(ENOMEM);
-  *res = (My_allocator){
-      .alloc = arena_alloc,
-      .free = arena_free,
-      .r_alloc = arena_r_alloc,
-      .arb = arenablock_new(blockSize),
-  };
-  return res;
-}
-void *arena_r_alloc(const My_allocator *arena, void *ptr, size_t size) {
-  if (!ptr)
-    exit(1);
-  size_t *lastSize = (size_t *)((uint8_t *)ptr - sizeof(size_t));
-  if (*lastSize > size)
-    return ptr;
-  void *res = arena_alloc(arena, size);
-  memmove(res, ptr, (*lastSize));
-  arena_free(arena, ptr);
-  return res;
-}
-void *arena_alloc(const My_allocator *ref, size_t size) {
-  ArenaBlock *it = (ArenaBlock *)(ref->arb);
-  void *res = NULL;
-  for (int i = 0; i < 10; i++) {
-    if (it->freelist[i]) {
-      size_t *sizeptr = it->freelist[i];
-      if (*sizeptr >= size) {
-        it->freelist[i] = NULL;
-        return (void *)(sizeptr + 1);
-      }
-    }
-  }
-  while (!res) {
-    if (it->size - it->place >= size + sizeof(size_t)) {
-      *(size_t *)(it->buffer + it->place) = size;
-      it->place += sizeof(size_t);
 
-      res = it->buffer + it->place;
-      it->place += size;
-    } else {
-      if (!it->next) {
-        int minsize = size + sizeof(size_t);
-        minsize = (minsize < it->size ? it->size : minsize);
-        it->next = arenablock_new(minsize);
-      }
-      it = it->next;
-    }
-  }
-  return res;
-}
-ArenaBlock *arenablock_new(size_t blockSize) {
-  ArenaBlock *res = (ArenaBlock *)aAlloc((&defaultAllocator),
-                                         (sizeof(ArenaBlock) + blockSize));
-  if (!res)
-    exit(ENOMEM);
-  *res = (ArenaBlock){
-      .next = NULL,
-      .place = 0,
-      .size = blockSize,
-      .freelist =
-          {
-              NULL,
-              NULL,
-              NULL,
-              NULL,
-              NULL,
-              NULL,
-              NULL,
-              NULL,
-              NULL,
-              NULL,
-          },
+#define Arena_scoped [[gnu::cleanup(arena_cleanup_handler)]] My_allocator
+
+#if defined(MAKE_TEST_FN)
+  #include "macros.h"
+MAKE_TEST_FN(arena_test, {
+  AllocatorV arena = arena_new_ext(allocator, 1);
+  defer { arena_cleanup(arena); };
+  int *ints = aCreate(arena, int, 5);
+  int *ints2 = aCreate(arena, int, 67);
+  aFree(arena, ints2, 5);
+  aFree(arena, ints, 67);
+  usize r = arena_totalMem(arena);
+  if (r)
+    return 1;
+  ints = aCreate(arena, int, 5);
+  arena_clear(arena);
+  r = arena_totalMem(arena);
+  if (r)
+    return 2;
+  printf("total data :  %zu\n", sizeof(int) * (67 + 5));
+  printf("total blocks : %zu\n", arena_countBlocks(arena));
+  printf("total footprint : %zu\n", arena_footprint(arena));
+  return 0;
+});
+
+#endif
+
+#endif // ARENA_ALLOCATOR_H
+
+#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
+#define ARENA_ALLOCATOR_C (1)
+#endif
+
+#if defined(ARENA_ALLOCATOR_C)
+#include "fbaAllocator.h"
+
+void my_arena_free(AllocatorV arena, voidptr ptr, usize size, char *, usize);
+voidptr my_arena_alloc(AllocatorV arena, usize size, char *, usize);
+
+typedef struct ArenaHead ArenaHead;
+typedef struct ArenaBuf ArenaBuf;
+typedef struct ArenaHead {
+  AllocatorV allocator;
+  ArenaBuf *next;
+} ArenaHead;
+typedef struct ArenaBuf {
+  ArenaBuf *next;
+  usize capacity, offset, count;
+  alignas(myAlign) u8 buffer[/*size*/];
+} ArenaBuf;
+typedef struct {
+  My_allocator allocator[1];
+  alignas(myAlign) ArenaHead block[1];
+} My_arena_includeBlock;
+
+ArenaBuf *arenablock_new(AllocatorV allocator, usize blockSize) {
+  ArenaBuf *res = (ArenaBuf *)aAlloc(allocator, sizeof(ArenaBuf) + blockSize);
+  usize trueSize =
+      allocator->size
+          ? allocator->size(allocator, res) - sizeof(ArenaBuf)
+          : blockSize;
+
+  *res = (ArenaBuf){
+      .next = nullptr,
+      .offset = 0,
+      .count = 0,
+      .capacity = trueSize,
   };
   return res;
 }
+usize arena_totalMem(AllocatorV arena) {
+  usize res = 0;
+  ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
+  while (it) {
+    ArenaBuf *next = it->next;
+    res += it->offset;
+    it = next;
+  }
+  return res;
+}
+usize arena_footprint(AllocatorV arena) {
+  usize res = 0;
+  ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
+  while (it) {
+    ArenaBuf *next = it->next;
+    res += it->capacity;
+    it = next;
+  }
+  return res;
+}
+
+void ownArenaDeInit(My_allocator *d) {
+  return arena_cleanup(d);
+}
+AllocatorV arena_new_ext(AllocatorV base, usize blockSize) {
+  My_arena_includeBlock *res = aCreate(base, My_arena_includeBlock);
+  static const var_ defaultArena =
+      (My_allocator){
+          .alloc = my_arena_alloc,
+          .free = my_arena_free,
+          .resize = nullptr,
+          .size = nullptr,
+      };
+  memcpy(res->allocator, &defaultArena, sizeof(defaultArena));
+  res->block[0] = (typeof(*res->block)){
+      .allocator = base,
+      .next = arenablock_new(base, blockSize),
+  };
+  return res->allocator;
+}
+void arena_cleanup(AllocatorV arena) {
+  ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
+  AllocatorV allocator = ((ArenaHead *)(arena->arb))->allocator;
+  while (it) {
+    ArenaBuf *next = it->next;
+    aFree(allocator, it, sizeof(*it) + it->capacity);
+    it = next;
+  }
+  aFree(allocator, (void *)arena, sizeof(My_arena_includeBlock));
+}
+void arena_clear(AllocatorV arena) {
+  ArenaBuf *it = ((ArenaHead *)(arena->arb))->next;
+  while (it) {
+    ArenaBuf *next = it->next;
+    it->offset = 0;
+    it = next;
+  }
+}
+bool inarena(ArenaBuf *it, const void *ptr) {
+  return (uintptr_t)ptr >= (uintptr_t)it->buffer && (uintptr_t)ptr < (uintptr_t)it->buffer + (uintptr_t)it->capacity;
+}
+FBA_State arena_toFBA(ArenaBuf *ab) {
+  return (FBA_State){
+      .capacity = ab->capacity,
+      .offset = ab->offset,
+      .count = ab->count,
+      .allocator = {},
+      .buffer = ab->buffer,
+  };
+}
+void sync_fba(ArenaBuf *ab, FBA_State fba) {
+  ab->capacity = fba.capacity;
+  ab->offset = fba.offset;
+  ab->count = fba.count;
+}
+void my_arena_free(AllocatorV arena, void *ptr, usize size, char *fn, usize line) {
+  My_arena_includeBlock *maib = (typeof(maib))arena;
+  ArenaBuf *b = maib->block->next;
+  while (b && !inarena(b, ptr))
+    b = b->next;
+  assertMessage(b, "ptr not in any arena block");
+  FBA_State fbs = arena_toFBA(b);
+  _fba_free(fbs.allocator, ptr, size, fn, line);
+  sync_fba(b, fbs);
+}
+void *my_arena_alloc(AllocatorV arena, usize size, char *filename, usize ln) {
+  My_arena_includeBlock *maib = (typeof(maib))arena;
+  ArenaBuf *b = maib->block->next;
+  void *res = nullptr;
+  do {
+    FBA_State fbs = arena_toFBA(b);
+    res = _fba_alloc_nullable(fbs.allocator, size);
+    if (res) {
+      sync_fba(b, fbs);
+    } else {
+      usize nextsize = b->capacity * 2;
+      if (nextsize < size + alignof(myAlign) + alignof(myAlign))
+        nextsize = size + alignof(myAlign) + alignof(myAlign);
+
+      b->next = b->next ?: arenablock_new(maib->block[0].allocator, nextsize);
+      b = b->next;
+    }
+  } while (!res);
+  return res;
+}
+usize arena_countBlocks(AllocatorV arena) {
+  My_arena_includeBlock *maib = (typeof(maib))arena;
+  ArenaBuf *b = maib->block->next;
+  usize res = 1;
+  while (b->next) {
+    b = b->next;
+    res++;
+  }
+  return res;
+}
+
 #endif // ARENA_ALLOCATOR_C

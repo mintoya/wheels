@@ -1,66 +1,24 @@
-// #define PRINTER_LIST_TYPENAMES
-#include "../allocator.h"
-#include "../arenaAllocator.h"
-#include "../hmap.h"
-#include "../macroList.h"
-#include "../print.h"
-#include "../um_fp.h"
-#include "../umap.h"
-#include "../wheels.h"
-#include <stddef.h>
-#include <stdint.h>
+#include "wheels/debugallocator.h"
+#include "wheels/macros.h"
+#include "wheels/mylist.h"
+#include "wheels/print.h"
 
 int main(void) {
-  char *l;
-  Arena_scoped *local = arena_new(1500);
-  List *hl;
-  MList(int) list;
-  MList_DFInit(list, local, hl);
-
-  MList_push(list, 5);
-  MList_push(list, 8);
-  MList_push(list, 7);
-  MList_push(list, 9);
-  MList_push(list, 5);
-  MList_push(list, 8);
-  MList_push(list, 7);
-  MList_push(list, 9);
-  MList_foreach(list, index, element, { println("${}", (int)element); });
-  println("list footprint : ${}", List_headArea(hl));
-  List_free(hl);
-
-  HMap *hm = HMap_new(local, 10);
-  UMap *um = UMap_new(local);
-
-  HMap_set(hm, fp_from("hello"), fp_from("world"));
-  HMap_set(hm, fp_from("world"), fp_from("hello"));
-  HMap_set(hm, fp_from("lsajdf"), fp_from("world"));
-  HMap_set(hm, fp_from("askjdf"), fp_from("hello"));
-
-  println("${}", HMap_get(hm, fp_from("hello")));
-  println("${}", HMap_get(hm, fp_from("world")));
-  println("hmap footprint : ${}", HMap_footprint(hm));
-  HMap_free(hm);
-
-  UMap_set(um, fp_from("hello"), fp_from("world"));
-  UMap_set(um, fp_from("world"), fp_from("hello"));
-
-  UMap_set(um, fp_from("heliafj"), fp_from("world"));
-  UMap_set(um, fp_from("asvd k"), fp_from("hello"));
-
-  println("${}", UMap_get(um, fp_from("world")));
-  println("${}", UMap_get(um, fp_from("hello")));
-
-  println("umap footprint : ${}", UMap_footprint(um));
-  println("allocated area : ${}", arena_footprint(local));
-
-  ffptr bufferTest = (ffptr){
-      .ptr = (uint8_t *)aAlloc(local, 50),
-      .width = 0,
-      .capacity = 50,
-  };
-  print_sn(bufferTest, "he${}lo world ${}", (char)'l', bufferTest.width);
-  println("${}", ffp_convert(bufferTest));
+  var_ local = debugAllocator(
+      allocator = stdAlloc,
+      log = stdout,
+  );
+  defer { debugAllocatorDeInit(local); };
+  mList(int) list = mList_init(local, int);
+  mList_pushArr(
+      list,
+      ((int[]){5, 8, 7, 9, 5, 8, 7, 9})
+  );
+  for_each_((var_ element, mList_vla(list)), {
+    println("{}", (int)element);
+  });
+  println("list footprint : {}", sizeof(*mList_vla(list)));
 
   return 0;
 }
+#include "wheels/wheels.h"

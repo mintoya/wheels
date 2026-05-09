@@ -1,31 +1,97 @@
-# Some wheels im reinventing
+Some wheels im reinventing
+-
+# types.h
+- a bunch of zig style typedefs , things like u8,f64
+- slice and nullable macros for even more zig style types
+# fptr.h
+- typedef'd as just a slice of u8
+- meant to hold on to raw data 
+# myList 
+- my-list.h is a basic dynamic list implementation
+- very close to [the vec in CC](https://github.com/JacksonAllan/CC) 
+- example of macro usage: 
+```c
+  mList(int) list = mList_init(localArena, int);
+  mList_push(list, 4);
+  mList_push(list, 5);
+  mList_push(list, 6);
+  mList_push(list, 7);
+  // null since the list isnt that long
+  int *elem = mList_get(list, 10);
+  for_each_((var_ v, mList_vla(list)),{
+    println("{}", v);
+  })
+```
+# shortList 
+- the other dynamic list
+- stb-style list
+- lower overheaed than list, doesnt remember allocator or width
+- example of macro usage: 
+```c
+  int* list = msList_init(localArena, int);
+  msList_push(localArena,list, 4);
+  msList_push(localArena,list, 5);
+  msList_push(localArena,list, 6);
+  msList_push(localArena,list, 7);
+  // null since the list isnt that long
+  int *elem = msList_get(list, 10);
+```
+# hhmap.h
+- hash map with linked-list style collision resolution
+ but linked list elements are in a normal list buffer
 
- ## um_fp.h
-a pointer + a length, used as both a generic pointer and 
-a "slice" in this library
- ## my-List & macroList .h
- my-list.h is a basic dynamic list implementation
- my-list.hpp is a cpp wrapper 
- macroList.h is an attempt to make using it less annoying in c
- ## stringList.h
- metadata array + char array for array of arbitrary size elements 
- ## cSum.h
- basic checksum written for my keyboard project
- ## umap.h
- ordered map with stringlist and list as the backed, capable of holding copies
- of other umaps with the internal type
- ## hmap.h
- hash map with linked-list style collision resolution
- linked list elements are in a normal list buffer
- same type metadta from umap
- ## kml & kmlM .h
- custom object notation format
- kml is a parser that returns a slice of that input based on the parsing args
- kmlM is a version that turns a um_fp character array into its representation
- as a umap, printing it is also meant to serve as converting it the other way
- ## print.h
+- example of macro usage: 
+```c
+  mHmap(int, int) map = mHmap_init(localArena, int, int ,8); 
+  // hashmap with 8 separate chaining arrays and
+  mHmap(int, int) map = mHmap_init(localArena, int, int ,0 ,8);
+  // hashmap with a maximum hash of 8 and linear probing
+  mHmap_set(map, 1, 1);
+  mHmap_set(map, 2, 4);
+  mHmap_set(map, 3, 9);
+  mHmap_set(map, 4, 16);
+  // null since key doesnt exist
+  // also in the map otherwise
+  int *six = mHmap_get(map, 6);
+  mHmap_foreach(map, int, key, int, val, {
+    println("{} -> {}", key, val);
+  });
+```
+ # stringList.h
+ - metadata array + char array for array of arbitrary size elements 
+# vason.h (didnt know vson was taken lol)
+ custom config language parser
+ it can hypothetically parse a json file 
+### basic syntax
+```vason
+{
+    object :
+        {key:value, key2:value2,},
+    list   :
+        {value,value,...},
+    both   :
+        {key:value,second element, third element},
+    string :
+        'string'
+}
+```
+- library doesnt reallocate the actual string input 
+- / is escape
+- strings start and end '\''
+    - they dont nescecarily have to though
+    - uninterupted lines of characters are grouped
+- {} and [] are interchangeable for json compatibility
+- not really lua-style, everything is an array, and there are no rules around pair names
+# vason_tree.h
+- helper for building vason in  memory, currently has no parser, just converts and deconverts from arr version
+# print.h
  a *lot* of macros that make printing easier ( hopefully )
- based on u/jacksaccountonreddit's [better c generics](https://github.com/JacksonAllan/CC/blob/main/articles/Better_C_Generics_Part_1_The_Extendible_Generic.md) 
+ generates a hashmap of slices to function pointers before main using constructor attribute
+###  types that are handled automatically
+- fptr  : prints as hex bytes
+- isize : wrapper around usize
+- usize : main integer printer
+- f128  : no f64 yet for windows reasons, prints in scientific notation
  ```c
     #include "print.h"
     #include "wheels.h"
@@ -38,35 +104,27 @@ a "slice" in this library
       int y;
     } point;
     REGISTER_PRINTER(point, {
-      PUTS("{x:", 3);
-      USETYPEPRINTER(int, in.x); // use already registered printer
-      PUTS(",", 1);
-      PUTS("y:", 2);
-      USETYPEPRINTER(int, in.y);
-      PUTS("}", 1);
-    })
+      PUTS("{x:");
+      USETYPEPRINTER(usize, in.x); // use already registered printer
+      PUTS(",y:");
+      USETYPEPRINTER(usize, in.y);
+      PUTS("}");
+    });
     // now you can call this with
     print("${point}",((point){0,0}));
-
-    #include "printer/genericName.h" // advances counter
-    MAKE_PRINT_ARG_TYPE(point);
-    // will create a typedef in the generic list
-    // that matches point
-    // now you can call it with
-    print("${}",((point){0,0}));
  ```
- ## wheels.h
+# wheels.h
  this library was supposed to contain single header libraries, however,
  some structures depend on eachother, which means the implementation macros
  need to be called in order, this would be really annoying so wheels.h 
  just ensures that all the libraries have the implementatoins called in order
 ``` c
-    #include "wheels/umap.h"
+    #include "wheels/hhmap.h"
     #include "wheels/stringList.h"
     #include "wheels/wheels.h"
     // umap is dependant on both stringlist and my-list
     // stringlist is dependant on my-list 
     // wheels will implement in this order
-    //  umap -> stringlist  -> my-list 
+    //  hhmap -> stringlist  -> my-list 
 ```
 

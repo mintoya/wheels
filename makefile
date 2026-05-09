@@ -1,48 +1,34 @@
-CC = gcc
-DIR = build
-# CFLAGS = -w -O3
-CFLAGS = -fsanitize=address -g -O0 -w
+# Compiler settings
+CXX      := clang++
+CC       := clang
+EXE      := wheels.exe
 
-OBJECTS = ./examples/alloctest.c
+# Files
+# Use 'make FILE=yourfile.c' to override
+FILE     ?= bigint.c
+C_SRC    := $(FILE)
 
-UNAME_S := $(shell uname -s 2>/dev/null)
+# -w: like 79 vla warnings
+CFLAGS   := -g -w -fno-sanitize=vla-bound
+CXXFLAGS := $(CFLAGS) -std=c++17
+LDFLAGS  := -rdynamic
 
-ifeq ($(UNAME_S),Darwin)    
-    EXECUTABLE = a
-else ifeq ($(UNAME_S),Linux) 
-    EXECUTABLE = a
-else ifneq ($(findstring MINGW,$(UNAME_S)),)
-    EXECUTABLE = a.exe
-else ifneq ($(findstring CYGWIN,$(UNAME_S)),)
-    EXECUTABLE = a.exe
-else ifneq ($(findstring MSYS,$(UNAME_S)),) 
-    EXECUTABLE = a.exe
-else                                       
-    EXECUTABLE = a
+ifeq ($(OS),Windows_NT)
+    LIBS := -ldbghelp
+else
+    LIBS := 
 endif
 
+# Build Rules
+.PHONY: all run clean
 
-# TODO
-# gcc -fdump-tree-original printexample.c
-# add later
-make: $(DIR) $(OBJECTS)
-	$(CC) -o $(DIR)/$(EXECUTABLE) $(OBJECTS) $(CFLAGS)
+all: $(EXE)
 
-$(DIR):
-	mkdir -p $(DIR)
+$(EXE): $(C_SRC)
+	$(CXX) $(CXXFLAGS) $(C_SRC) -o $(EXE) $(LDFLAGS) $(LIBS)
+
+run: all
+	./$(EXE)
 
 clean:
-	rm -rf $(DIR)
-run: make
-	./$(DIR)/$(EXECUTABLE) 
-debug: 
-	gcc -o $(DIR)/$(EXECUTABLE) $(OBJECTS) $(CFLAGS) -g
-	gdb --tui ./$(DIR)/$(EXECUTABLE)
-profile: make
-	@echo "perf report to view"
-	@sleep 2
-	perf record ./$(DIR)/$(EXECUTABLE)
-a: $(OBJECTS)
-	$(CC) -o $(DIR)/$(EXECUTABLE) $(OBJECTS) $(CFLAGS)
-main.o: main.c
-	$(CC) -c main.c $(CFLAGS)
+	rm -f $(EXE)
