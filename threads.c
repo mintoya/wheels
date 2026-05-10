@@ -53,29 +53,31 @@ typedef struct {int mutex_recursive_timed;}mutex_recursive_timed;
 #define thrdfn_argItemT(type_name) argstruct->args.TUPLE_EXPAND_B(type_name)
 #define thrdfn_argItemsT(...) APPLY_N_C(thrdfn_argItemT, __VA_ARGS__)
 
-#define thrdfn(name, in, out, ...)                               \
-  typedef struct {                                               \
-    thrd_t thread_handle[1];                                     \
-    int thread_status[1];                                        \
-    struct {                                                     \
-      thrdfn_structItems in                                      \
-    } args;                                                      \
-    out result;                                                  \
-  } *name##_future;                                              \
-  out name##_real(thrdfn_argItems in) { __VA_ARGS__ }            \
-  int name(void *_thrd_item_ptr) {                               \
-    name##_future argstruct = (typeof(argstruct))_thrd_item_ptr; \
-    argstruct->result = name##_real(thrdfn_argItemsT in);        \
-    return 1;                                                    \
+#define thrdfn(name, in, out, ...)                                              \
+  typedef struct {                                                              \
+    thrd_t thread_handle[1];                                                    \
+    AllocatorV allocator;                                                       \
+    int thread_status[1];                                                       \
+    struct {                                                                    \
+      thrdfn_structItems in                                                     \
+    } args;                                                                     \
+    out result;                                                                 \
+  } *name##_future;                                                             \
+  out name##_real(thrdfn_argItems in, AllocatorV allocator) { __VA_ARGS__ }     \
+  int name(void *_thrd_item_ptr) {                                              \
+    name##_future argstruct = (typeof(argstruct))_thrd_item_ptr;                \
+    argstruct->result = name##_real(thrdfn_argItemsT in, argstruct->allocator); \
+    return 1;                                                                   \
   }
 
 #define remove_paren(...) __VA_ARGS__
 
-#define thrdfn_call(allocator, fname, argss) ({      \
-  fname##_future f = aCreate(allocator, typeof(*f)); \
-  f->args = (typeof(f->args)){remove_paren argss};   \
-  thrd_create(f->thread_handle, fname, f);           \
-  f;                                                 \
+#define thrdfn_call(alloc, fname, argss) ({        \
+  fname##_future f = aCreate(alloc, typeof(*f));   \
+  f->args = (typeof(f->args)){remove_paren argss}; \
+  f->allocator = alloc;                            \
+  thrd_create(f->thread_handle, fname, f);         \
+  f;                                               \
 })
 
 #define thrdfn_await(allocator, f) ({                   \
