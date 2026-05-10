@@ -141,8 +141,41 @@ typedef struct {int mutex_recursive_timed;}mutex_recursive_timed;
 
 typedef struct basic_closure_t {
   void *arg;
-  fnptr_((void *), void) fn;
+  void (*fn)(void *); // Or fnptr_((void *), void) depending on your typedefs
 } basic_closure_t;
+
+  // 1. Define the closure structure and execution function
+  #define closurefn(name, in, ...)                               \
+    typedef struct name##_args_struct {                          \
+      thrdfn_structItems in                                      \
+    } name##_args;                                               \
+    void name##_real(thrdfn_argItems in) { __VA_ARGS__ }         \
+    void name(void *_void_arg_ptr) {                             \
+      name##_args *argstruct = (typeof(argstruct))_void_arg_ptr; \
+      name##_real(thrdfn_argItemsT in);                          \
+    }
+
+  // 2. Instantiate the argument payload and return the generic basic_closure_t
+  #define closurefn_call(alloc, fname, argss) ({              \
+    fname##_args *_f_args = aCreate(alloc, typeof(*_f_args)); \
+    _Static_assert(                                           \
+        types_eq(                                             \
+            fnptr_(                                           \
+                (APPLY_N_C(                                   \
+                    typeof, remove_paren argss                \
+                )),                                           \
+                void                                          \
+            ),                                                \
+            typeof(&fname##_real)                             \
+        ),                                                    \
+        "closurefn called with incorrect arguments"           \
+    );                                                        \
+    *_f_args = (typeof(*_f_args)){remove_paren argss};        \
+    (basic_closure_t){                                        \
+        .arg = _f_args,                                       \
+        .fn = (void (*)(void *))fname                         \
+    };                                                        \
+  })
 typedef struct tpoolNode_t {
   basic_closure_t task;
   struct tpoolNode_t *next;
