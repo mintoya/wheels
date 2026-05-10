@@ -12,3 +12,4 @@ a.pdb
 /examples/includeAll.o
 wheels.exe
 wheels.pdb
+/flamegraph.svg
