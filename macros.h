@@ -339,9 +339,9 @@ for _im_each_ ## generator decl )
   #define ptrof(T) typeof(T *)
   #define arrof(T, ...) typeof(typeof(T)[__VA_ARGS__])
 
-  #define fnptr(in, out) fnptrof(in, out)
-  #define ptr(T) ptrof(T)
-  #define arr(T, ...) arrof(T, __VA_ARGS__)
+  #define fnptr_(in, out) fnptrof(in, out)
+  #define ptr_(T) ptrof(T)
+  #define arr_(T, ...) arrof(T, __VA_ARGS__)
 
 //
 // generic?

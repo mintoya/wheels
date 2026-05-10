@@ -1,13 +1,13 @@
 #if !defined(SHMAP_H)
-  #define SHMAP_H (1)
-  #include "fptr.h"
-  #include "hhmap.h"
-  #include "macros.h"
-  #include "mylist.h"
-  #include "mytypes.h"
-  #include "sList.h"
-  #include "stringList.h"
-  #include <stddef.h>
+#define SHMAP_H (1)
+#include "fptr.h"
+#include "hhmap.h"
+#include "macros.h"
+#include "mylist.h"
+#include "mytypes.h"
+#include "sList.h"
+#include "stringList.h"
+#include <stddef.h>
 struct double_idx {
   usize kidx, vidx; // kidx in stringlist, vidx in buckets[fptr_hash(f)]
 };
@@ -45,7 +45,8 @@ static inline void *sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
     if (fptr_eq(key, stringList_get(sh->strings, entry->kidx))) {
       if (val_ptr) {
         // sList_getRef(sh->values, sh->vwidth, entry->vidx);
-        memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr, sh->vwidth);
+        memcpy(sh->values->buf + (entry->vidx * sh->vwidth), val_ptr,
+               sh->vwidth);
         return sh->values->buf + (entry->vidx * sh->vwidth);
       } else {
         stringList_set(sh->strings, entry->kidx, nullFptr);
@@ -66,7 +67,9 @@ static inline void *sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
   msList_push(allocator, *list_ptr, entry);
   return sList_getRef(sh->values, sh->vwidth, sh->values->length - 1);
 }
-static inline void *sHmap_set_cs(sHmap *sh, const char *key, void *val_ptr) { return sHmap_set(sh, fptr_CS((void *)key), val_ptr); }
+static inline void *sHmap_set_cs(sHmap *sh, const char *key, void *val_ptr) {
+  return sHmap_set(sh, fptr_CS((void *)key), val_ptr);
+}
 static inline isize sHmap_get(const sHmap *sh, const fptr k, usize v_width) {
   umax hash = fptr_hash(k);
   usize b_idx = hash % sh->num_buckets;
@@ -80,11 +83,14 @@ static inline isize sHmap_get(const sHmap *sh, const fptr k, usize v_width) {
       return entry.vidx;
   return -1;
 }
-static inline isize sHmap_get_cs(const sHmap *sh, const char *key, usize v_width) {
+static inline isize sHmap_get_cs(const sHmap *sh, const char *key,
+                                 usize v_width) {
   return sHmap_get(sh, fptr_CS((void *)key), v_width);
 }
-static inline sHmap *shMap_new(AllocatorV allocator, usize size, usize buckets) {
-  sHmap *res = (typeof(res))aAlloc(allocator, sizeof(sHmap) + (buckets * sizeof(struct double_idx *)));
+static inline sHmap *shMap_new(AllocatorV allocator, usize size,
+                               usize buckets) {
+  sHmap *res = (typeof(res))aAlloc(
+      allocator, sizeof(sHmap) + (buckets * sizeof(struct double_idx *)));
   *res = (sHmap){
       .strings = {stringList_newVal(allocator, 1024)},
       .values = sList_new(allocator, 8, size),
@@ -102,7 +108,8 @@ static inline void shMap_free(sHmap *map) {
       msList_deInit(allocator, map->buckets[i]);
   aFree(allocator, map->values, map->vwidth * map->values->capacity);
   stringList_free_data(map->strings[0]);
-  aFree(allocator, map, sizeof(sHmap) + (map->num_buckets * sizeof(struct double_idx *)));
+  aFree(allocator, map,
+        sizeof(sHmap) + (map->num_buckets * sizeof(struct double_idx *)));
 }
 static inline usize sHmap_footprint(const sHmap *map) {
   usize res = stringList_footprint(map->strings);
@@ -120,7 +127,9 @@ static inline usize sHmap_countCollisions(const sHmap *map) {
     }
   return res;
 }
-static inline AllocatorV sHmap_allocator(const sHmap *map) { return map->strings->allocator; }
+static inline AllocatorV sHmap_allocator(const sHmap *map) {
+  return map->strings->allocator;
+}
 
 //
 // iterator
@@ -154,7 +163,9 @@ void sHmapIterator_next(struct sHmapIterator_struct_inner *it) {
   it->element_idx++;
 
   while (it->bucket_idx < it->map->num_buckets) {
-    usize current_bucket_len = it->map->buckets[it->bucket_idx] ? mList_len(it->map->buckets[it->bucket_idx]) : 0;
+    usize current_bucket_len = it->map->buckets[it->bucket_idx]
+                                   ? mList_len(it->map->buckets[it->bucket_idx])
+                                   : 0;
 
     if (it->element_idx < current_bucket_len)
       break;
@@ -186,7 +197,10 @@ inline struct sHmapIterator_struct sHmapIterator(const sHmap *map) {
 
   // Advance to the very first populated bucket
   while (it.state[0].bucket_idx < map->num_buckets) {
-    usize current_bucket_len = map->buckets[it.state[0].bucket_idx] ? mList_len(map->buckets[it.state[0].bucket_idx]) : 0;
+    usize current_bucket_len =
+        map->buckets[it.state[0].bucket_idx]
+            ? mList_len(map->buckets[it.state[0].bucket_idx])
+            : 0;
 
     if (current_bucket_len > 0) {
       break;
@@ -195,74 +209,75 @@ inline struct sHmapIterator_struct sHmapIterator(const sHmap *map) {
   }
 
   if (it.state[0].bucket_idx < map->num_buckets) {
-    it.state[0].current = &map->buckets[it.state[0].bucket_idx][it.state[0].element_idx];
+    it.state[0].current =
+        &map->buckets[it.state[0].bucket_idx][it.state[0].element_idx];
   }
 
   return it;
 }
 
-  #ifdef __cplusplus
-template <typename T>
-using msHmap_t = T (**)(sHmap *);
-    #define msHmap(T) msHmap_t<T>
-  #else
-    #define msHmap(T) typeof(T(**)(sHmap *))
-  #endif
-  #define msHmap_iType(sh) typeof((*sh)(NULL))
-  #define msHmap_init(allocator, T, ...) \
-    (msHmap(T)) shMap_new(allocator, sizeof(T), VA_SWITCH(8, __VA_ARGS__))
+#ifdef __cplusplus
+template <typename T> using msHmap_t = T (**)(sHmap *);
+#define msHmap(T) msHmap_t<T>
+#else
+#define msHmap(T) typeof(T(**)(sHmap *))
+#endif
+#define msHmap_iType(sh) typeof((*sh)(NULL))
+#define msHmap_init(allocator, T, ...)                                         \
+  (msHmap(T)) shMap_new(allocator, sizeof(T), VA_SWITCH(8, __VA_ARGS__))
 
-  #define msHmap_allocator(map) (sHmap_allocator((sHmap *)map))
-  #define msHmap_deinit(sh) \
-    shMap_free((sHmap *)sh)
-  #define msHmap_set(sh, key, val) \
-    ({msHmap_iType(sh) _v = (val);   \
-      (msHmap_iType(sh)*)_Generic(                      \
-          (key),                     \
-          fptr: sHmap_set,           \
-          char *: sHmap_set_cs,      \
-          const char *: sHmap_set_cs \
-      )((sHmap *)sh, key, &_v); })
-  #if !defined __cplusplus
-    #define msHmap_iterator(map)   \
-      sHmapIterator((sHmap *)map), \
-          struct {                 \
-        const fptr key;            \
-        msHmap_iType(map) val;     \
-      } *
-  #else
-    #define msHmap_iterator(map)   \
-      sHmapIterator((sHmap *)map), \
-          typeof(({  struct {                          \
-      fptr key;                                      \
-      msHmap_iType(map) val;                         \
-    } _;  _; })) *
-  #endif
-  #define msHmap_rem(sh, key)        \
-    do {                             \
-      _Generic(                      \
-          (key),                     \
-          fptr: sHmap_set,           \
-          char *: sHmap_set_cs,      \
-          const char *: sHmap_set_cs \
-      )((sHmap *)sh, key, NULL);     \
-    } while (0)
-
-  #define msHmap_get(sh, key) (typeof(msHmap_iType(sh) *))({                               \
-    isize _idx = _Generic(                                                                 \
-        (key),                                                                             \
-        fptr: sHmap_get,                                                                   \
-        char *: sHmap_get_cs,                                                              \
-        const char *: sHmap_get_cs                                                         \
-    )((sHmap *)sh, key, sizeof(msHmap_iType(sh)));                                         \
-    _idx < 0 ? NULL : sList_getRef(((sHmap *)sh)->values, sizeof(msHmap_iType(sh)), _idx); \
+#define msHmap_allocator(map) (sHmap_allocator((sHmap *)map))
+#define msHmap_deinit(sh) shMap_free((sHmap *)sh)
+#define msHmap_set(sh, key, val)                                               \
+  ({                                                                           \
+    msHmap_iType(sh) _v = (val);                                               \
+    (msHmap_iType(sh) *)_Generic((key),                                        \
+        fptr: sHmap_set,                                                       \
+        char *: sHmap_set_cs,                                                  \
+        const char *: sHmap_set_cs)((sHmap *)sh, key, &_v);                    \
   })
-  #define msHmap_GetOrSet(sh, key, val) ({                           \
-    var_ *temp_ = msHmap_get(sh, key);                               \
-    temp_ ? temp_ : (msHmap_set(sh, key, val), msHmap_get(sh, key)); \
+#if !defined __cplusplus
+#define msHmap_iterator(map)                                                   \
+  sHmapIterator((sHmap *)map), struct {                                        \
+    const fptr key;                                                            \
+    msHmap_iType(map) val;                                                     \
+  } *
+#else
+#define msHmap_iterator(map)                                                   \
+  sHmapIterator((sHmap *)map), typeof(({                                       \
+    struct {                                                                   \
+      fptr key;                                                                \
+      msHmap_iType(map) val;                                                   \
+    } _;                                                                       \
+    _;                                                                         \
+  })) *
+#endif
+#define msHmap_rem(sh, key)                                                    \
+  do {                                                                         \
+    _Generic((key),                                                            \
+        fptr: sHmap_set,                                                       \
+        char *: sHmap_set_cs,                                                  \
+        const char *: sHmap_set_cs)((sHmap *)sh, key, NULL);                   \
+  } while (0)
+
+#define msHmap_get(sh, key)                                                    \
+  (typeof(msHmap_iType(sh) *))({                                               \
+    isize _idx = _Generic((key),                                               \
+        fptr: sHmap_get,                                                       \
+        char *: sHmap_get_cs,                                                  \
+        const char *: sHmap_get_cs)((sHmap *)sh, key,                          \
+                                    sizeof(msHmap_iType(sh)));                 \
+    _idx < 0                                                                   \
+        ? NULL                                                                 \
+        : sList_getRef(((sHmap *)sh)->values, sizeof(msHmap_iType(sh)), _idx); \
+  })
+#define msHmap_GetOrSet(sh, key, val)                                          \
+  ({                                                                           \
+    var_ *temp_ = msHmap_get(sh, key);                                         \
+    temp_ ? temp_ : (msHmap_set(sh, key, val), msHmap_get(sh, key));           \
   })
 
-  #if defined(MAKE_TEST_FN)
+#if defined(MAKE_TEST_FN)
 MAKE_TEST_FN(test_shmap_generic_values, {
   msHmap(int) sm = msHmap_init(allocator, int);
   defer { msHmap_deinit(sm); };
@@ -300,5 +315,5 @@ MAKE_TEST_FN(test_shmap_struct_values, {
 
   return 0;
 });
-  #endif
+#endif
 #endif

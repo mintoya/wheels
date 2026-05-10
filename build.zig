@@ -7,7 +7,7 @@ pub fn build(b: *std.Build) void {
         .name = "wheels",
         .root_module = b.createModule(.{
             .target = target,
-            .link_libcpp = true,
+            .link_libc = true,
             .optimize = b.standardOptimizeOption(.{
                 .preferred_optimize_mode = .Debug,
             }),
@@ -27,9 +27,11 @@ pub fn build(b: *std.Build) void {
         .flags = &.{
             "-g",
             "-w",
+            "-std=c2y",
+            "-fdefer-ts",
             "-fno-sanitize=vla-bound",
         },
-        .language = .cpp,
+        .language = .c,
     });
 
     if (target.result.os.tag == .windows)

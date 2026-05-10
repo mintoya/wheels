@@ -147,7 +147,8 @@ MAKE_TEST_FN(test_stringList_churn, {
 
   printf("  Footprint: %zu bytes\n"
          "  Free list: %zu blocks\n\n",
-         (size_t)stringList_footprint(sl), (size_t)msList_len(sl->flist));
+         (size_t)stringList_footprint(sl),
+         (size_t)msList_len(sl->flist));
 
   for (ptrdiff_t i = ITERS - 1; i >= 0; i -= 2)
     stringList_remove(sl, (usize)i);
@@ -155,7 +156,9 @@ MAKE_TEST_FN(test_stringList_churn, {
   printf("  Footprint: %zu bytes\n"
          "  buffer size: %zu \n"
          "  Free list: %zu blocks\n\n",
-         (size_t)stringList_footprint(sl), sl->len, (size_t)msList_len(sl->flist));
+         (size_t)stringList_footprint(sl),
+         sl->len,
+         (size_t)msList_len(sl->flist));
 
   for (usize i = 0; i < ITERS / 2; i++)
     stringList_push(sl, "short");
@@ -163,7 +166,9 @@ MAKE_TEST_FN(test_stringList_churn, {
   printf("  Footprint: %zu bytes\n"
          "  buffer size: %zu \n"
          "  Free list: %zu blocks\n\n",
-         (size_t)stringList_footprint(sl), sl->len, (size_t)msList_len(sl->flist));
+         (size_t)stringList_footprint(sl),
+         sl->len,
+         (size_t)msList_len(sl->flist));
 
   return 0;
 })

@@ -1,4 +1,3 @@
-#define __PRETTY_FUNCTION__ __FUNCTION__
 #pragma once
 #include "allocator.h"
 #include "assertMessage.h"

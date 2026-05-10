@@ -64,7 +64,8 @@ typedef struct My_allocator {
   My_allocatorFree /*     */ free;
   My_allocatorResize /*   */ resize; ///< optional
   My_allocatorGetUsable /**/ size;   ///< optional
-  alignas(myAlign) u8 /*          */ arb[];
+  // TODO  clearall?
+  myAlign /*          */ arb[];
 } My_allocator;
 
 //
@@ -85,7 +86,7 @@ void(aFree)(AllocatorV allocator, void *oldptr, usize size, char *file, usize li
   *(type(*)[(__VA_OPT__(1) + 0) ? __VA_ARGS__ + 0 : 1]) DIAGNOSTIC_POP()({ \
     size_t _count = (__VA_OPT__(1) + 0) ? __VA_ARGS__ + 0 : 1;             \
     type *_res = ((type *)(aAlloc(allocator, sizeof(type) * _count)));     \
-    memset(_res, 0, sizeof(type) * _count);                      \
+    memset(_res, 0, sizeof(type) * _count);                                \
     _res;                                                                  \
   })
 

@@ -1,10 +1,10 @@
 #if !defined(MY_BIGINT_H)
   #define MY_BIGINT_H (1)
   #include "print.h"
-  #include "wheels/arenaAllocator.h"
-  #include "wheels/macros.h"
-  #include "wheels/mytypes.h"
-  #include "wheels/sList.h"
+  #include "arenaAllocator.h"
+  #include "macros.h"
+  #include "mytypes.h"
+  #include "sList.h"
 
 typedef unsigned int bigint_unit;
 typedef msList(bigint_unit) bigint;

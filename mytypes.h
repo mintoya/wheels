@@ -50,10 +50,10 @@ typedef size_t usize;
 
 // max_align_t standin
 typedef struct myAlign {
-  union {
-#if defined(__BIGGEST_ALIGNMENT__)
-    alignas(__BIGGEST_ALIGNMENT__) u8 _ua;
+#if defined __BIGGEST_ALIGNMENT__
+  alignas(__BIGGEST_ALIGNMENT__)
 #endif
+      union {
     void *_vp;
     usize _us;
     ldouble _ld;

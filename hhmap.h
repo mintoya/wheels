@@ -1,12 +1,12 @@
-#include "allocator.h"
-#include "assertMessage.h"
-#include "mytypes.h"
-#include <assert.h>
 #if !defined(HMAP_H)
   #define HMAP_H (1)
 typedef struct HMap HMap;
+  #include "allocator.h"
+  #include "assertMessage.h"
   #include "fptr.h"
+  #include "mytypes.h"
   #include "sList.h"
+  #include <assert.h>
 /**
  * Creates a new hash map
  * @param kSize size of key type
