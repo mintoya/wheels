@@ -164,15 +164,16 @@ using mList_t = T (**)(List *);
 #define mList_len(list) (((List *)(list))->length)
 #define mList_cap(list) (((List *)(list))->capacity)
 #define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
-#define mList_push(list, val)                       \
-  do {                                              \
-    if_unlikely(mList_len(list) >= mList_cap(list)) \
-        List_resize(                                \
-            (List *)list,                           \
-            LIST_GROW_EQ(mList_len(list)),          \
-            sizeof(mList_iType(list))               \
-        );                                          \
-    mList_arr(list)[mList_len(list)++] = (val);     \
+#define mList_allocator(list) ({ ((List *)(list))->allocator; })
+#define mList_push(list, val)                        \
+  do {                                               \
+    if_unlikely (mList_len(list) >= mList_cap(list)) \
+      List_resize(                                   \
+          (List *)list,                              \
+          LIST_GROW_EQ(mList_len(list)),             \
+          sizeof(mList_iType(list))                  \
+      );                                             \
+    mList_arr(list)[mList_len(list)++] = (val);      \
   } while (0)
 
 #define mList_pop(list) ({            \
@@ -225,7 +226,8 @@ using mList_t = T (**)(List *);
   do {                            \
     List_appendFromArr(           \
         (List *)list,             \
-        NULL, ammount,            \
+        NULL,                     \
+        ammount,                  \
         sizeof(mList_iType(list)) \
     );                            \
   } while (0)

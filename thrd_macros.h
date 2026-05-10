@@ -1,3 +1,4 @@
+#include "sList.h"
 #if !defined(MY_THREAD_MACORS_H)
   #define MY_THREAD_MACORS_H (1)
   #include "allocator.h"
@@ -85,7 +86,7 @@ typedef struct {int mutex_recursive_timed;}mutex_recursive_timed;
   #define thrdfn_argItemsT(...) APPLY_N_C(thrdfn_argItemT, __VA_ARGS__)
 
   #define thrdfn(name, in, out, ...)                               \
-    typedef struct {                                               \
+    typedef struct name##_future_struct {                          \
       thrd_t thread_handle[1];                                     \
       AllocatorV allocator;                                        \
       int thread_status[1];                                        \
@@ -154,7 +155,9 @@ typedef struct tpoolList {
 typedef struct {
   tpoolList tasks;
   cnd_t wake_cnd;
-  int shutdown;
+  bool shutdown;
+  mList(struct tpool_worker_future_struct *) workers;
+  // i will store the allocator in there
 } tpool;
 
 thrdfn(tpool_worker, ((mutex(tpool, mutex_recursive) *, pool)), int, {
@@ -249,6 +252,51 @@ thrdfn(tpool_worker, ((mutex(tpool, mutex_recursive) *, pool)), int, {
     aFree(allocator, f_r, sizeof(*f_r));   \
     res;                                   \
   })
+
+static mutex(tpool, mutex_recursive) * tpool_init(AllocatorV alloc) {
+  typedef typeof(struct tpool_worker_future_struct *) worker_t;
+
+  var_ pool = aCreate(alloc, mutex(tpool, mutex_recursive));
+  pool->data = (tpool){
+      .tasks.allocator = alloc,
+      .shutdown = false,
+      .workers = mList_init(alloc, worker_t),
+  };
+  cnd_init(&pool->data.wake_cnd);
+  mutex_init((*pool));
+  return pool;
+}
+
+static void tpool_deInit(mutex(tpool, mutex_recursive) * pool) {
+  typeof(((tpool *)NULL)->workers) workers = NULL;
+
+  mutex_critical (var_ poolc, mutex_lock, (*pool)) {
+    workers = poolc->workers;
+    poolc->shutdown = true;
+    cnd_broadcast(&poolc->wake_cnd);
+  } else unreachable();
+
+  foreach (var_ f, vla(*mList_vla(workers)))
+    thrdfn_await(f);
+
+  mutex_critical (var_ poolc, mutex_lock, (*pool)) {
+    cnd_destroy(&poolc->wake_cnd);
+    mList_deInit(poolc->workers);
+  } else unreachable();
+
+  mutex_deInit((*pool));
+  // Note: aFree(pool) is needed here depending on your lifecycle design
+}
+
+static void tpool_addWorkers(mutex(tpool, mutex_recursive) * pool, usize count) {
+  mutex_critical (var_ poolc, mutex_lock, (*pool)) {
+    var_ list = poolc->workers;
+    var_ alloc = mList_allocator(list);
+
+    foreach (var_ i, range(0, count))
+      mList_push(list, thrdfn_call(alloc, tpool_worker, (pool)));
+  } else unreachable();
+}
 
 // example
 // poolfn(waitp, ((int, seconds)), int, {

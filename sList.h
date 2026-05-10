@@ -7,6 +7,13 @@
   #ifndef SLIST_GROW_EQ
     #define SLIST_GROW_EQ(len) (len + len / 2 + 1)
   #endif
+
+//
+// stb-ds style strechy buffer
+// does not store allocator or item size
+// always pass the same alloator into any macro that needs one
+//
+
 typedef struct sList_header {
   usize capacity;
   usize length;
@@ -41,45 +48,36 @@ static inline sList_header *sList_new(AllocatorV allocator, usize initLen, usize
 static inline void sList_free(AllocatorV allocator, sList_header *sl, usize width) {
   aFree(allocator, sl, width * sl->capacity + sizeof(*sl));
 }
+
 static inline void *sList_getRef(
     sList_header *l,
     usize width,
     usize i
 ) { return i < l->length ? (l->buf + width * i) : NULL; }
+static inline void *sList_setArr(
+    sList_header *l,
+    usize width,
+    usize length,
+    usize index,
+    const void *element
+) {
+  if (index >= l->length) return NULL;
+  else if (index + length > l->length) length = l->length - index;
+
+  void *place = sList_getRef(l, width, index);
+  element
+      ? memcpy(place, element, width * length)
+      : memset(place, /* */ 0, width * length);
+  return place;
+}
 static inline void *sList_set(
     sList_header *l,
     usize width,
     usize index,
     const void *element
 ) {
-  void *place = sList_getRef(l, width, index);
-  if (place) {
-    element
-        ? memcpy(place, element, width)
-        : memset(place, /* */ 0, width);
-  }
-  return place;
+  return sList_setArr(l, width, 1, index, element);
 }
-
-static inline sList_header *sList_append(
-    AllocatorV allocator,
-    sList_header *l,
-    usize width,
-    const void *element
-) {
-  if (l->capacity < l->length + 1)
-    l = sList_realloc(allocator, l, width, SLIST_GROW_EQ(l->length));
-  l->length++;
-  sList_set(l, width, l->length - 1, element);
-  return l;
-}
-static inline void sList_remove(sList_header *l, usize width, usize i) {
-  if (i >= l->length)
-    return;
-  memmove(l->buf + i * width, l->buf + (i + 1) * width, (l->length - i - 1) * width);
-  l->length--;
-}
-
 static inline sList_header *sList_insertFromArr(
     AllocatorV allocator,
     sList_header *l,
@@ -117,6 +115,27 @@ static inline sList_header *sList_insertFromArr(
   l->length += length;
   return l;
 }
+static inline void sList_removeArr(sList_header *l, usize width, usize len, usize idx) {
+  if (idx >= l->length) return;
+  else if (idx + len > l->length) len = l->length - idx;
+
+  if (len) memmove(l->buf + idx * width, l->buf + (idx + len) * width, (l->length - idx - len) * width);
+  l->length -= len;
+}
+static inline void sList_remove(sList_header *l, usize width, usize idx) { sList_removeArr(l, width, 1, idx); }
+
+static inline sList_header *sList_append(
+    AllocatorV allocator,
+    sList_header *l,
+    usize width,
+    const void *element
+) {
+  if (l->capacity < l->length + 1)
+    l = sList_realloc(allocator, l, width, SLIST_GROW_EQ(l->length));
+  l->length++;
+  sList_set(l, width, l->length - 1, element);
+  return l;
+}
 
 struct bbs_result {
   void *p;
@@ -152,7 +171,7 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
 }
   #if defined(__BLOCKS__)
     #pragma GCC warning "blocks enabled, non-stable pointers break"
-    #define msList(T) __block T *
+    #define msList(T) typeof(__block T *)
   #else
     #define msList(T) typeof(T *)
   #endif
@@ -178,21 +197,13 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
     do {                                               \
       sList_remove(msList_header(s), sizeof(*s), idx); \
     } while (0)
-  #define msList_push(allocator, s, val)                                                                            \
-    do {                                                                                                            \
-      if_unlikely(msList_len(s) == msList_cap(s))                                                                   \
-          s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), SLIST_GROW_EQ(msList_len(s)))->buf; \
-      (s)[msList_len(s)++] = (val);                                                                                 \
+  #define msList_push(allocator, s, val)                                                                          \
+    do {                                                                                                          \
+      if_unlikely (msList_len(s) == msList_cap(s))                                                                \
+        s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), SLIST_GROW_EQ(msList_len(s)))->buf; \
+      (s)[msList_len(s)++] = (val);                                                                               \
     } while (0)
-  // #define mList_bs(list, cmp, val) ({                       \
-  //   typeof(*list) _v = val;                                 \
-  //   _Static_assert(                                         \
-  //       types_eq(                                           \
-  //           typeof(cmp),                                    \
-  //           int (*)(const typeof(list), const typeof(list)) \
-  //       )                                                   \
-  //   );                                                      \
-  // })
+
   #define msList_insArr(allocator, s, place, vla)                     \
     do {                                                              \
       ASSERT_EXPR(_Generic(vla[0], typeof(s[0]): 1, default: 0), ""); \

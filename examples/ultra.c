@@ -39,21 +39,15 @@ int main(void) {
   var_ arena = arena_new_ext(stdAlloc, 4096);
   defer { arena_cleanup(arena); };
 
-  var_ pool = mutex_initW(tpool, mutex_recursive, (tpool){});
-  defer { mutex_deInit(pool); };
-
   TSA_State tss[1];
-  TSA_init(arena_new_ext(stdAlloc, 1024), tss);
+  TSA_init(arena_new_ext(stdAlloc, 1024), tss); // leak
   defer { TSA_deinit(tss); };
+
   AllocatorV tsa = tss->allocator;
 
-  mutex_critical (var_ p, mutex_lock, pool) {
-    p->tasks.allocator = tsa;
-  } else unreachable();
-
-  var_ workers = msList_init(arena, tpool_worker_future);
-  foreach (var_ i, range(0, 4))
-    msList_push(arena, workers, thrdfn_call(arena, tpool_worker, (&pool)));
+  var_ pool = tpool_init(tsa);
+  tpool_addWorkers(pool, 5);
+  defer { tpool_deInit(pool); };
 
   var_ config = msHmap_init(arena, DynData);
   defer { msHmap_deinit(config); };
@@ -70,22 +64,12 @@ int main(void) {
 
   foreach (var_ key, vla(keys)) {
     var_ val = msHmap_GetOrSet(config, key, ((DynData)tu_of(Num, 0)));
-    msList_push(arena, futures, poolfn_call(arena, (&pool), process_variant, (*val)));
+    msList_push(arena, futures, poolfn_call(arena, (pool), process_variant, (*val)));
   }
 
   var_ total = 0ll;
   foreach (var_ f, vla(*msList_vla(futures)))
     total += poolfn_await(arena, f);
-
-  mutex_critical (var_ mt, mutex_lock, pool) {
-    println("shutting down");
-    mt->shutdown = true;
-    cnd_broadcast(&mt->wake_cnd);
-  } else unreachable();
-
-  println("joining threads");
-  foreach (var_ f, vla(*msList_vla(workers)))
-    thrdfn_await(f);
 
   println("Async Map-Reduce Result: {}", (usize)total);
   return 0;
