@@ -13,11 +13,13 @@ typedef struct {
 
 void *_tsa_alloc(AllocatorV allocator, size_t size, char *file, usize line);
 void _tsa_free(AllocatorV allocator, void *ptr, usize size, char *file, usize line);
+void *_tsa_resize(AllocatorV allocator, void *ptr, size_t old_size, size_t new_size, char *file, usize line);
 size_t _tsa_size(AllocatorV allocator, void *ptr);
 
 const My_allocator TSA_prototype[1] = {(My_allocator){
     .alloc = _tsa_alloc,
     .free = _tsa_free,
+    .resize = _tsa_resize,
     .size = _tsa_size,
 }};
 
@@ -42,16 +44,23 @@ extern inline void TSA_deinit(TSA_State res[1]) { mtx_destroy(&res->mutex); }
 void *_tsa_alloc(AllocatorV allocator, size_t size, char *file, usize line) {
   TSA_State *tsa = (typeof(tsa))allocator;
   mtx_lock(&tsa->mutex);
-  void *res = tsa->underlying->alloc(tsa->underlying, size, file, line);
-  mtx_unlock(&tsa->mutex);
-  return res;
+  defer { mtx_unlock(&tsa->mutex); };
+  return (aAlloc)(tsa->underlying, size, file, line);
 }
 
 void _tsa_free(AllocatorV allocator, void *ptr, usize size, char *file, usize line) {
   TSA_State *tsa = (typeof(tsa))allocator;
   mtx_lock(&tsa->mutex);
-  tsa->underlying->free(tsa->underlying, ptr, size, file, line);
-  mtx_unlock(&tsa->mutex);
+  defer { mtx_unlock(&tsa->mutex); };
+  return (aFree)(tsa->underlying, ptr, size, file, line);
+}
+
+void *_tsa_resize(AllocatorV allocator, void *ptr, size_t old_size, size_t new_size, char *file, usize line) {
+  TSA_State *tsa = (typeof(tsa))allocator;
+
+  mtx_lock(&tsa->mutex);
+  defer { mtx_unlock(&tsa->mutex); };
+  return (aResize)(tsa->underlying, ptr, old_size, new_size, file, line);
 }
 
 size_t _tsa_size(AllocatorV allocator, void *ptr) {
