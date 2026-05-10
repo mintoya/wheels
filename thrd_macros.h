@@ -160,40 +160,50 @@ typedef struct {
   // i will store the allocator in there
 } tpool;
 
-thrdfn(tpool_worker, ((mutex(tpool, mutex_recursive) *, pool)), int, {
+static bool tpool_doSingle(mutex(tpool, mutex_recursive) * pool) {
   tpoolNode_t *task = NULL;
   AllocatorV allocator = NULL;
+
+  mutex_critical (var_ poolData, mutex_lock, (*pool)) {
+    if (poolData->tasks.first) {
+      task = poolData->tasks.first;
+      poolData->tasks.first = task->next;
+
+      if (!poolData->tasks.first)
+        poolData->tasks.last = NULL;
+      allocator = poolData->tasks.allocator;
+    }
+  } else return false;
+
+  if (task) {
+    var_ fn = task->task;
+    if (fn.fn) fn.fn(fn.arg);
+    aFree(allocator, task, sizeof(*task));
+    return true;
+  }
+
+  return false;
+}
+thrdfn(tpool_worker, ((mutex(tpool, mutex_recursive) *, pool)), int, {
   while (1) {
+    if (tpool_doSingle(pool))
+      continue;
+
+    // empty que
     bool time_to_exit = false;
     mutex_critical (var_ poolData, mutex_lock, (*pool)) {
-      allocator = allocator ?: poolData->tasks.allocator;
-
-      while (!poolData->tasks.first && !poolData->shutdown)
+      while (!poolData->tasks.first && !poolData->shutdown) {
         cnd_wait(&poolData->wake_cnd, pool->mtx);
-
+      }
       if (poolData->shutdown && !poolData->tasks.first) {
         time_to_exit = true;
-      } else {
-        task = poolData->tasks.first;
-        poolData->tasks.first = task->next;
-
-        if (!poolData->tasks.first) {
-          poolData->tasks.last = NULL;
-        }
       }
     } else thrd_exit(5);
 
     if (time_to_exit) break;
-
-    var_ fn = task->task;
-    if (fn.fn) fn.fn(fn.arg);
-
-    if (!allocator) thrd_exit(5);
-    aFree(allocator, task, sizeof(*task));
   }
   return 1;
 });
-
   #define poolfn(name, in, out, ...)                               \
     typedef struct {                                               \
       struct {                                                     \
@@ -214,7 +224,7 @@ thrdfn(tpool_worker, ((mutex(tpool, mutex_recursive) *, pool)), int, {
     _Static_assert(                                                         \
         types_eq(                                                           \
             fnptr_(                                                         \
-                (APPLY_N(                                                   \
+                (APPLY_N_C(                                                 \
                     typeof, remove_paren argss                              \
                 )),                                                         \
                 typeof(f->result)                                           \
@@ -243,14 +253,14 @@ thrdfn(tpool_worker, ((mutex(tpool, mutex_recursive) *, pool)), int, {
                                                                             \
     f;                                                                      \
   })
-  #define poolfn_await(allocator, f) ({    \
-    typeof(f) f_r = f;                     \
-    while (!f_r->done) {                   \
-      thrd_yield();                        \
-    }                                      \
-    typeof(f_r->result) res = f_r->result; \
-    aFree(allocator, f_r, sizeof(*f_r));   \
-    res;                                   \
+  #define poolfn_await(allocator, pool, f) ({ \
+    typeof(f) f_r = f;                        \
+    while (!f_r->done)                        \
+      if (!tpool_doSingle(pool))              \
+        thrd_yield();                         \
+    typeof(f_r->result) res = f_r->result;    \
+    aFree(allocator, f_r, sizeof(*f_r));      \
+    res;                                      \
   })
 
 static mutex(tpool, mutex_recursive) * tpool_init(AllocatorV alloc) {

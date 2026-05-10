@@ -69,7 +69,7 @@ int main(void) {
 
   var_ total = 0ll;
   foreach (var_ f, vla(*msList_vla(futures)))
-    total += poolfn_await(arena, f);
+    total += poolfn_await(arena, pool, f);
 
   println("Async Map-Reduce Result: {}", (usize)total);
   return 0;
