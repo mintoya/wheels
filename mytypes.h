@@ -47,6 +47,8 @@ typedef char *cstr;
 typedef uintmax_t umax;
 typedef intmax_t imax;
 typedef size_t usize;
+typedef struct nothing {
+} nothing;
 
 // max_align_t standin
 typedef struct myAlign {

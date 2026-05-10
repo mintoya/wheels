@@ -5,7 +5,6 @@
   #include "macros.h"
   #include <stdatomic.h>
   #include <threads.h>
-  #include <time.h>
 
   #define remove_paren(...) __VA_ARGS__
 
@@ -140,11 +139,12 @@ typedef struct {int mutex_recursive_timed;}mutex_recursive_timed;
   #include "mylist.h"
   #include "print.h"
 
+typedef struct basic_closure_t {
+  void *arg;
+  fnptr_((void *), void) fn;
+} basic_closure_t;
 typedef struct tpoolNode_t {
-  struct {
-    void *arg;
-    void (*fn)(void *);
-  } task;
+  basic_closure_t task;
   struct tpoolNode_t *next;
 } tpoolNode_t;
 typedef struct tpoolList {
@@ -178,7 +178,6 @@ static bool tpool_doSingle(mutex(tpool, mutex_recursive) * pool) {
   if (task) {
     var_ fn = task->task;
     if (fn.fn) fn.fn(fn.arg);
-    aFree(allocator, task, sizeof(*task));
     return true;
   }
 
@@ -204,66 +203,87 @@ thrdfn(tpool_worker, ((mutex(tpool, mutex_recursive) *, pool)), int, {
   }
   return 1;
 });
+
   #define poolfn(name, in, out, ...)                               \
     typedef struct {                                               \
       struct {                                                     \
         thrdfn_structItems in                                      \
       } args;                                                      \
       out result;                                                  \
-      _Atomic(bool) done;                                          \
+      _Atomic(bool) done[1];                                       \
     } *name##_future;                                              \
     out name##_real(thrdfn_argItems in) { __VA_ARGS__ }            \
     void name(void *_thrd_item_ptr) {                              \
       name##_future argstruct = (typeof(argstruct))_thrd_item_ptr; \
       argstruct->result = name##_real(thrdfn_argItemsT in);        \
-      argstruct->done = true;                                      \
+      argstruct->done[0] = true;                                   \
     }
 
-  #define poolfn_call(alloc, pool, fname, argss) ({                         \
-    fname##_future f = aCreate(alloc, typeof(*f));                          \
-    _Static_assert(                                                         \
-        types_eq(                                                           \
-            fnptr_(                                                         \
-                (APPLY_N_C(                                                 \
-                    typeof, remove_paren argss                              \
-                )),                                                         \
-                typeof(f->result)                                           \
-            ),                                                              \
-            typeof(&fname##_real)                                           \
-        ),                                                                  \
-        "poolfn not called with enough args"                                \
-    );                                                                      \
-    f->args = (typeof(f->args)){remove_paren argss};                        \
-    f->done = false;                                                        \
-                                                                            \
-    tpoolNode_t *node = aCreate(pool->data.tasks.allocator, typeof(*node)); \
-    node->task.fn = (void (*)(void *))fname;                                \
-    node->task.arg = f;                                                     \
-    node->next = NULL;                                                      \
-                                                                            \
-    mutex_critical (var_ poolData, mutex_lock, (*pool)) {                   \
-      if (poolData->tasks.last) {                                           \
-        poolData->tasks.last->next = node;                                  \
-      } else {                                                              \
-        poolData->tasks.first = node;                                       \
-      }                                                                     \
-      poolData->tasks.last = node;                                          \
-      cnd_signal(&poolData->wake_cnd);                                      \
-    } else unreachable();                                                   \
-                                                                            \
-    f;                                                                      \
-  })
-  #define poolfn_await(allocator, pool, f) ({ \
-    typeof(f) f_r = f;                        \
-    while (!f_r->done)                        \
-      if (!tpool_doSingle(pool))              \
-        thrd_yield();                         \
-    typeof(f_r->result) res = f_r->result;    \
-    aFree(allocator, f_r, sizeof(*f_r));      \
-    res;                                      \
+/**
+ */
+static inline void _tpool_enqueue(mutex(tpool, mutex_recursive) * pool, tpoolNode_t *nodeMem, basic_closure_t fn) {
+  nodeMem->task = fn;
+  nodeMem->next = NULL;
+
+  mutex_critical (var_ pooldata, mutex_lock, (*pool)) {
+    if (pooldata->tasks.last)
+      pooldata->tasks.last->next = nodeMem;
+    else pooldata->tasks.first = nodeMem;
+    pooldata->tasks.last = nodeMem;
+    cnd_signal(&pooldata->wake_cnd);
+  } else unreachable();
+}
+static inline void _tpool_wait_loop(mutex(tpool, mutex_recursive) * pool, _Atomic(bool) *done_flag) {
+  while (!atomic_load(done_flag))
+    if (!tpool_doSingle(pool))
+      thrd_yield();
+}
+
+  #define poolfn_call(pool, fname, argss) ({                        \
+    typedef struct {                                                \
+      typeof(*(fname##_future)NULL) future[1];                      \
+      tpoolNode_t node[1];                                          \
+    } pool_handle_object;                                           \
+    var_ alloc = tpool_allocator(pool);                             \
+    var_ pitem = aCreate(alloc, pool_handle_object);                \
+    var_ f = pitem->future;                                         \
+                                                                    \
+    _Static_assert(                                                 \
+        types_eq(                                                   \
+            fnptr_(                                                 \
+                (APPLY_N_C(                                         \
+                    typeof, remove_paren argss                      \
+                )),                                                 \
+                typeof(f->result)                                   \
+            ),                                                      \
+            typeof(&fname##_real)                                   \
+        ),                                                          \
+        "poolfn not called with enough args"                        \
+    );                                                              \
+                                                                    \
+    f->args = (typeof(f->args)){remove_paren argss};                \
+    f->done[0] = false;                                             \
+    _tpool_enqueue(pool, pitem->node, (basic_closure_t){f, fname}); \
+    f;                                                              \
   })
 
-static mutex(tpool, mutex_recursive) * tpool_init(AllocatorV alloc) {
+  #define poolfn_await(pool, f) ({                 \
+    var_ alloc = tpool_allocator(pool);            \
+    typedef struct {                               \
+      typeof(*(f)) future[1];                      \
+      tpoolNode_t node[1];                         \
+    } pool_handle_object;                          \
+    typeof(f) f_r = f;                             \
+                                                   \
+    _tpool_wait_loop(pool, f_r->done);             \
+                                                   \
+    typeof(f_r->result) res = f_r->result;         \
+    aFree(alloc, f_r, sizeof(pool_handle_object)); \
+    res;                                           \
+  })
+
+static mutex(tpool, mutex_recursive) *
+    tpool_init(AllocatorV alloc) {
   typedef typeof(struct tpool_worker_future_struct *) worker_t;
 
   var_ pool = aCreate(alloc, mutex(tpool, mutex_recursive));
@@ -277,9 +297,10 @@ static mutex(tpool, mutex_recursive) * tpool_init(AllocatorV alloc) {
   return pool;
 }
 
+static AllocatorV tpool_allocator(mutex(tpool, mutex_recursive) * pool);
 static void tpool_deInit(mutex(tpool, mutex_recursive) * pool) {
   typeof(((tpool *)NULL)->workers) workers = NULL;
-
+  AllocatorV alloc = tpool_allocator(pool);
   mutex_critical (var_ poolc, mutex_lock, (*pool)) {
     workers = poolc->workers;
     poolc->shutdown = true;
@@ -295,7 +316,7 @@ static void tpool_deInit(mutex(tpool, mutex_recursive) * pool) {
   } else unreachable();
 
   mutex_deInit((*pool));
-  // Note: aFree(pool) is needed here depending on your lifecycle design
+  aFree(alloc, pool, sizeof(*pool));
 }
 
 static void tpool_addWorkers(mutex(tpool, mutex_recursive) * pool, usize count) {
@@ -307,37 +328,9 @@ static void tpool_addWorkers(mutex(tpool, mutex_recursive) * pool, usize count) 
       mList_push(list, thrdfn_call(alloc, tpool_worker, (pool)));
   } else unreachable();
 }
+static AllocatorV tpool_allocator(mutex(tpool, mutex_recursive) * pool) {
+  // changing allocators for objects is illegal anyway
+  return mList_allocator(pool->data.workers);
+}
 
-// example
-// poolfn(waitp, ((int, seconds)), int, {
-//   foreach (var_ i, range(0, seconds)) {
-//     thrd_sleep(&(struct timespec){1}, NULL);
-//     println("poolwait : {}", i);
-//   }
-//   return 1;
-// });
-// #include "arenaAllocator.h"
-// #if !defined POOL_COUNT
-//   #define POOL_COUNT (1)
-// #endif
-// int main(void) {
-//
-//   var_ pool = mutex_initW(tpool, mutex_plain, (tpool){});
-//   defer { mutex_deInit(pool); };
-//
-//   var_ poolAlloc = arena_new_ext(stdAlloc, 1024);
-//   defer { arena_cleanup(poolAlloc); };
-//
-//   mutex_critical (var_ poolptr, mutex_lock, pool) {
-//     poolptr->tasks.allocator = poolAlloc;
-//   } else unreachable();
-//
-//   foreach (var_ i, range(0, POOL_COUNT))
-//     thrdfn_call(stdAlloc, tpool_worker, (&pool));
-//   var_ waita = poolfn_call(stdAlloc, (&pool), waitp, (6));
-//   var_ waitb = poolfn_call(stdAlloc, (&pool), waitp, (8));
-//   poolfn_await(stdAlloc, waita);
-//   poolfn_await(stdAlloc, waitb);
-// }
-// #include "wheels.h"
 #endif
