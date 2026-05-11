@@ -123,14 +123,19 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 //
 // (,) stuff
 //
+
   #define TUPLE_A(name, func) name
   #define TUPLE_B(name, func) func
   #define TUPLE_EXPAND_A(tuple) TUPLE_A tuple
   #define TUPLE_EXPAND_B(tuple) TUPLE_B tuple
+  #define REM_PAREN(...) __VA_ARGS__
+  #define TUPLE_PUSH_TRAILING_COMMA(...) (__VA_OPT__(__VA_ARGS__, ))
+  #define TUPLE_PUSH(tuple, a) (MACRO_EXPAND(REM_PAREN TUPLE_PUSH_TRAILING_COMMA tuple a))
 
 //
 // constexpr
 //
+
   #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
     #define CONST_EXPR constexpr
   #elif defined(__cpp_constexpr) // C++ fallback
@@ -343,46 +348,4 @@ for _im_each_ ## generator decl )
   #define ptr_(T) ptrof(T)
   #define arr_(T, ...) arrof(T, __VA_ARGS__)
 
-//
-// generic?
-//
-
-  #if !defined(__cplusplus)
-    #define container_ty_eval(T) , (*(T *)NULL)
-
-    #define container_t(primary, actual, ...) typeof(typeof(primary)(**)(actual __VA_OPT__(, __VA_ARGS__)))
-
-    #define container_primary(container_value, actual, ...) typeof((*(container_value))( \
-        *(actual *)NULL __VA_OPT__(APPLY_N(container_ty_eval, __VA_ARGS__))              \
-    ))
-
-    #define container_actual(container_value, actual, ...) (                                                                                                                     \
-        ASSERT_EXPR(types_eq(typeof(container_value), container_t(container_primary(container_value, actual __VA_OPT__(, __VA_ARGS__)), actual __VA_OPT__(, __VA_ARGS__))), ""), \
-        ((actual)container_value)                                                                                                                                                \
-    )
-  #else
-
-    #include <type_traits>
-
-// Helper to ensure the reconstructed type is treated as a single entity
-template <typename T>
-struct identity {
-  using type = T;
-};
-
-    #define container_t(primary, actual, ...) \
-      typename identity<typeof(typeof(primary)(**)(actual __VA_OPT__(, __VA_ARGS__)))>::type
-
-    #define container_primary(container_value, actual, ...)       \
-      typeof((*(container_value))(                                \
-          *(actual *)nullptr __VA_OPT__(, )                       \
-              __VA_OPT__(APPLY_N(container_ty_eval, __VA_ARGS__)) \
-      ))
-
-    #define container_actual(container_value, actual, ...) (                                                                                                                                          \
-        static_assert(std::is_same_v<typeof(container_value), container_t(container_primary(container_value, actual __VA_OPT__(, __VA_ARGS__)), actual __VA_OPT__(, __VA_ARGS__))>, "Type mismatch"), \
-        ((actual)container_value)                                                                                                                                                                     \
-    )
-
-  #endif
 #endif

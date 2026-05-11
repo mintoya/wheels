@@ -1,12 +1,9 @@
-#include "sList.h"
 #if !defined(MY_THREAD_MACORS_H)
   #define MY_THREAD_MACORS_H (1)
   #include "allocator.h"
   #include "macros.h"
   #include <stdatomic.h>
   #include <threads.h>
-
-  #define remove_paren(...) __VA_ARGS__
 
 //
 // mutex
@@ -94,31 +91,20 @@ typedef struct {int mutex_recursive_timed;}mutex_recursive_timed;
       } args;                                                      \
       out result;                                                  \
     } *name##_future;                                              \
-    out name##_real(thrdfn_argItems in) { __VA_ARGS__ }            \
-    int name(void *_thrd_item_ptr) {                               \
+    out name(thrdfn_argItems in) { __VA_ARGS__ }                   \
+    int name##_wrap(void *_thrd_item_ptr) {                        \
       name##_future argstruct = (typeof(argstruct))_thrd_item_ptr; \
-      argstruct->result = name##_real(thrdfn_argItemsT in);        \
+      argstruct->result = name(thrdfn_argItemsT in);               \
       return 1;                                                    \
     }
 
-  #define thrdfn_call(alloc, fname, argss) ({        \
-    fname##_future f = aCreate(alloc, typeof(*f));   \
-    _Static_assert(                                  \
-        types_eq(                                    \
-            fnptr_(                                  \
-                (APPLY_N(                            \
-                    typeof, remove_paren argss       \
-                )),                                  \
-                typeof(f->result)                    \
-            ),                                       \
-            typeof(&fname##_real)                    \
-        ),                                           \
-        "thrdfn not called with enough args"         \
-    );                                               \
-    f->args = (typeof(f->args)){remove_paren argss}; \
-    f->allocator = alloc;                            \
-    thrd_create(f->thread_handle, fname, f);         \
-    f;                                               \
+  #define thrdfn_call(alloc, fname, argss) ({       \
+    fname##_future f = aCreate(alloc, typeof(*f));  \
+    (void)sizeof(fname argss);                      \
+    f->args = (typeof(f->args)){REM_PAREN argss};   \
+    f->allocator = alloc;                           \
+    thrd_create(f->thread_handle, fname##_wrap, f); \
+    f;                                              \
   })
 
   #define thrdfn_await(f) ({                              \
@@ -137,44 +123,62 @@ typedef struct {int mutex_recursive_timed;}mutex_recursive_timed;
   })
 
   #include "mylist.h"
-  #include "print.h"
 
 typedef struct basic_closure_t {
   void *arg;
   void (*fn)(void *); // Or fnptr_((void *), void) depending on your typedefs
 } basic_closure_t;
 
-  // 1. Define the closure structure and execution function
-  #define closurefn(name, in, ...)                               \
-    typedef struct name##_args_struct {                          \
-      thrdfn_structItems in                                      \
-    } name##_args;                                               \
-    void name##_real(thrdfn_argItems in) { __VA_ARGS__ }         \
-    void name(void *_void_arg_ptr) {                             \
-      name##_args *argstruct = (typeof(argstruct))_void_arg_ptr; \
-      name##_real(thrdfn_argItemsT in);                          \
-    }
+  // forcing args as type + name , so (int , i)
+  #define fdec_type(tup) TUPLE_EXPAND_A(tup)
+  #define fdec_name(tup) TUPLE_EXPAND_B(tup)
 
-  // 2. Instantiate the argument payload and return the generic basic_closure_t
-  #define closurefn_call(alloc, fname, argss) ({              \
-    fname##_args *_f_args = aCreate(alloc, typeof(*_f_args)); \
-    _Static_assert(                                           \
-        types_eq(                                             \
-            fnptr_(                                           \
-                (APPLY_N_C(                                   \
-                    typeof, remove_paren argss                \
-                )),                                           \
-                void                                          \
-            ),                                                \
-            typeof(&fname##_real)                             \
-        ),                                                    \
-        "closurefn called with incorrect arguments"           \
-    );                                                        \
-    *_f_args = (typeof(*_f_args)){remove_paren argss};        \
-    (basic_closure_t){                                        \
-        .arg = _f_args,                                       \
-        .fn = (void (*)(void *))fname                         \
-    };                                                        \
+  #define fdec_params_helper(tup) fdec_type(tup) fdec_name(tup)
+  #define fdec_params(...) APPLY_N_C(fdec_params_helper, __VA_ARGS__)
+
+  #define fdec_struct_elem(e) fdec_type(e) fdec_name(e);
+  #define fdec_struct_elems(...) APPLY_N(fdec_struct_elem, __VA_ARGS__)
+  #define closure_fn_return_nothing ~, return (nothing){};
+  #define closure_fn_return_void ~, ,
+
+  #define SELECT_SECOND_HELPER(a, b, ...) b
+  #define SELECT_SECOND(...) SELECT_SECOND_HELPER(__VA_ARGS__)
+  #define SELECT_THIRD_HELPER(...) (__VA_ARGS__)
+  // #define SELECT_THIRD_HELPER(a, b, c, ...) c
+  #define SELECT_THIRD(...) SELECT_THIRD_HELPER(__VA_ARGS__)
+
+  #define closure_fn_return_if_nothing(type) SELECT_SECOND(MACRO_EXPAND(closure_fn_return_##type), )
+
+  #define fdec(name, in, out, ...) \
+    out name(fdec_params in) { __VA_ARGS__ closure_fn_return_if_nothing(out) }
+
+  #define closure_fn_structitem(a) args.arguments.fdec_name(a)
+  #define closure_fn_structitems(...) APPLY_N_C(closure_fn_structitem, __VA_ARGS__)
+
+  #define closure_fn_resultdef(type)
+
+  #define closure_fn(name, in, out, ...)             \
+    fdec(name, in, out, __VA_ARGS__);                \
+    typedef struct name##_fnStruct {                 \
+      struct {                                       \
+        fdec_struct_elems in                         \
+      } arguments;                                   \
+      out result;                                    \
+    } name##_fnStruct;                               \
+    void name##_wrap(void *ptr) {                    \
+      name##_fnStruct args = *(typeof(args) *)ptr;   \
+      args.result = name(closure_fn_structitems in); \
+      ((typeof(args) *)ptr)[0] = args;               \
+    }
+  #define closure_fn_genArgs(closure, args) ({                    \
+    closure##_fnStruct _args = (typeof(_args)){{REM_PAREN args}}; \
+    (void)sizeof(closure args);                                   \
+    _args;                                                        \
+  })
+  #define closure_fn_call(closure, args) ({         \
+    var_ _args = closure_fn_genArgs(closure, args); \
+    closure##_wrap((void *)&_args);                 \
+    _args.result;                                   \
   })
 typedef struct tpoolNode_t {
   basic_closure_t task;
@@ -213,7 +217,6 @@ static bool tpool_doSingle(mutex(tpool, mutex_recursive) * pool) {
     if (fn.fn) fn.fn(fn.arg);
     return true;
   }
-
   return false;
 }
 thrdfn(tpool_worker, ((mutex(tpool, mutex_recursive) *, pool)), int, {
@@ -245,11 +248,11 @@ thrdfn(tpool_worker, ((mutex(tpool, mutex_recursive) *, pool)), int, {
       out result;                                                  \
       _Atomic(bool) done[1];                                       \
     } *name##_future;                                              \
-    out name##_real(thrdfn_argItems in) { __VA_ARGS__ }            \
-    void name(void *_thrd_item_ptr) {                              \
+    out name(thrdfn_argItems in) { __VA_ARGS__ }                   \
+    void name##_wrap(void *_thrd_item_ptr) {                       \
       name##_future argstruct = (typeof(argstruct))_thrd_item_ptr; \
-      argstruct->result = name##_real(thrdfn_argItemsT in);        \
-      argstruct->done[0] = true;                                   \
+      argstruct->result = name(thrdfn_argItemsT in);               \
+      atomic_store(argstruct->done, true);                      \
     }
 
 /**
@@ -272,32 +275,19 @@ static inline void _tpool_wait_loop(mutex(tpool, mutex_recursive) * pool, _Atomi
       thrd_yield();
 }
 
-  #define poolfn_call(pool, fname, argss) ({                        \
-    typedef struct {                                                \
-      typeof(*(fname##_future)NULL) future[1];                      \
-      tpoolNode_t node[1];                                          \
-    } pool_handle_object;                                           \
-    var_ alloc = tpool_allocator(pool);                             \
-    var_ pitem = aCreate(alloc, pool_handle_object);                \
-    var_ f = pitem->future;                                         \
-                                                                    \
-    _Static_assert(                                                 \
-        types_eq(                                                   \
-            fnptr_(                                                 \
-                (APPLY_N_C(                                         \
-                    typeof, remove_paren argss                      \
-                )),                                                 \
-                typeof(f->result)                                   \
-            ),                                                      \
-            typeof(&fname##_real)                                   \
-        ),                                                          \
-        "poolfn not called with enough args"                        \
-    );                                                              \
-                                                                    \
-    f->args = (typeof(f->args)){remove_paren argss};                \
-    f->done[0] = false;                                             \
-    _tpool_enqueue(pool, pitem->node, (basic_closure_t){f, fname}); \
-    f;                                                              \
+  #define poolfn_call(pool, fname, argss) ({                               \
+    typedef struct {                                                       \
+      typeof(*(fname##_future)NULL) future[1];                             \
+      tpoolNode_t node[1];                                                 \
+    } pool_handle_object;                                                  \
+    var_ alloc = tpool_allocator(pool);                                    \
+    var_ pitem = aCreate(alloc, pool_handle_object);                       \
+    var_ f = pitem->future;                                                \
+    (void)sizeof(fname argss);                                             \
+    f->args = (typeof(f->args)){REM_PAREN argss};                          \
+    f->done[0] = false;                                                    \
+    _tpool_enqueue(pool, pitem->node, (basic_closure_t){f, fname##_wrap}); \
+    f;                                                                     \
   })
 
   #define poolfn_await(pool, f) ({                 \

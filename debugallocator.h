@@ -25,7 +25,7 @@ struct debugStats debugAllocator_clear(AllocatorV allocator);
 #define PREPEND_DOT_MAC(...) .__VA_ARGS__,
 #define debugAllocator(...) ({                     \
   struct dbgAlloc_config config = {                \
-      APPLY_N(PREPEND_DOT_MAC, __VA_ARGS__)        \
+      __VA_ARGS__                                  \
   };                                               \
   config.allocator = config.allocator ?: stdAlloc; \
   debugAllocatorInit(config);                      \
@@ -161,20 +161,23 @@ int debugAllocatorDeInit(AllocatorV allocator) {
     leaks++;
     if (out) {
       print_wfO(
-          fileprint, out,
-          "leaked {}{usize}{} bytes at {}{ptr}{} in {cstr} at {}\n"
-          "=========================================================\n",
-          g, kv->val.size, rst, b, kv->key, r, kv->val.fn, kv->val.ln
+          fileprint, out, "leaked {}{usize}{} bytes at {}{ptr}{} in {cstr} at {}\n"
+                          "=========================================================\n",
+          g,
+          kv->val.size,
+          rst,
+          b,
+          kv->key,
+          r,
+          kv->val.fn,
+          kv->val.ln
       );
       print_wfO(
-          fileprint, out,
-          "from {cstr} line {}\n",
-          kv->val.fn, kv->val.ln
+          fileprint, out, "from {cstr} line {}\n", kv->val.fn, kv->val.ln
       );
 
       print_wfO(
-          fileprint, out,
-          "=========================================================\n",
+          fileprint, out, "=========================================================\n",
       );
       print_wfO(fileprint, out, "{}", rst);
     }

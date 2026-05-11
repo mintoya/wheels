@@ -30,6 +30,7 @@ pub fn build(b: *std.Build) void {
             "-std=c2y",
             "-fdefer-ts",
             "-fno-sanitize=vla-bound",
+            "-fsanitize=alignment",
         },
         .language = .c,
     });

@@ -14,13 +14,14 @@ poolfn(inner_task, ((int, id)), int, {
   return id * 10;
 });
 
-// 2. The Blocking Parent Task
-// This task hogs a worker thread, spawns a sub-task, and synchronously waits for it.
 poolfn(outer_task, ((AllocatorV, alloc), (mutex(tpool, mutex_recursive) *, pool), (int, id)), int, {
-  println("outer task thread : {}", thrd_current());
-  println("[Worker] Outer task {} started.", id);
+  println(
+      "outer task thread : {}\n"
+      "[Worker] Outer task {} started.",
+      thrd_current(),
+      id
+  );
 
-  // Submit the dependent sub-task back into the SAME pool
   var_ inner_f = poolfn_call(pool, inner_task, (id));
 
   println("[Worker] Outer task {} is now awaiting its inner task...", id);
@@ -30,23 +31,22 @@ poolfn(outer_task, ((AllocatorV, alloc), (mutex(tpool, mutex_recursive) *, pool)
   println("[Worker] Outer task {} completed with result: {}", id, res);
   return res;
 });
-
+#include "../debugallocator.h"
 int main(void) {
   println("main thread : {}", thrd_current());
-  var_ arena = arena_new_ext(stdAlloc, 1024);
-  defer { arena_cleanup(arena); };
+  var_ allocator = debugAllocator(.allocator = stdAlloc, .log = stdout);
+  defer { debugAllocatorDeInit(allocator); };
 
-  var_ pool = tpool_init(arena);
+  var_ pool = tpool_init(allocator);
   tpool_addWorkers(pool, 2);
   defer { tpool_deInit(pool); };
 
-  var_ futures = msList_init(arena, outer_task_future);
+  var_ futures = msList_init(allocator, outer_task_future);
+  defer { msList_deInit(allocator, futures); };
 
-  println("[Main] Submitting 5 outer tasks to the 2-worker pool...");
-
-  foreach (var_ i, range(0, 5)) {
-    var_ v = poolfn_call(pool, outer_task, (arena, pool, i));
-    msList_push(arena, futures, v);
+  foreach (var_ i, range(0, 6)) {
+    var_ v = poolfn_call(pool, outer_task, (allocator, pool, i));
+    msList_push(allocator, futures, v);
   }
 
   println("[Main] Awaiting all outer tasks to finish...");
