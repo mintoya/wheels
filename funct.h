@@ -1,8 +1,10 @@
 #if !defined(MY_THREAD_MACORS_H)
   #define MY_THREAD_MACORS_H (1)
-  //
-  // c23 only
-  //
+
+//
+// c23 only
+//
+
   #include "allocator.h"
   #include "macros.h"
   #include "mylist.h"
@@ -91,27 +93,33 @@ typedef struct {
   #define deffunctoin_struct_item(tuple) TUPLE_EXPAND_A(tuple) TUPLE_EXPAND_B(tuple);
   #define deffunctoin_struct_items(...) APPLY_N(deffunctoin_struct_item, __VA_ARGS__)
 
-  #define deffunctoin_struct(in, out) \
+  #define deffunction_struct(in, out) \
     {                                 \
       struct {                        \
         deffunctoin_struct_items in   \
       } args;                         \
       out result;                     \
     }
-
   #define decfunction(name, in, out)                                            \
-    typedef struct name##_struct_t deffunctoin_struct(in, out) name##_struct_t; \
+    typedef struct name##_struct_t deffunction_struct(in, out) name##_struct_t; \
     void name##_wrapper(void *);                                                \
     out name(typelist_tuple_types(in))
 
+  #define SELECT_2(a, b, ...) b
+// #define SELECT_2(a, b, ...) (a, b, ...)
+
+  #define deffunction_return_if_nothing_nothing_t ~, return nothing_v;
+  #define deffunction_return_if_nothing_w(...) SELECT_2(__VA_ARGS__, (void)(0);)
+  #define deffunction_return_if_nothing(out_t) deffunction_return_if_nothing_w(deffunction_return_if_nothing_##out_t)
+
   #define deffunction_extract_item(tuple) ins->args.TUPLE_EXPAND_B(tuple)
   #define deffunction_extract_items(...) APPLY_N_C(deffunction_extract_item, __VA_ARGS__)
-  #define deffunction(name, in, out, ...)                                       \
-    typedef struct name##_struct_t deffunctoin_struct(in, out) name##_struct_t; \
-    out name(typelist_tuple_args(in)) __VA_ARGS__ /**/                          \
-        void name##_wrapper(void *inn) {                                        \
-      name##_struct_t *ins = (typeof(ins))inn;                                  \
-      ins->result = name(deffunction_extract_items in);                         \
+  #define deffunction(name, in, out, ...)                                                     \
+    typedef struct name##_struct_t deffunction_struct(in, out) name##_struct_t;               \
+    out name(typelist_tuple_args(in)) { __VA_ARGS__ deffunction_return_if_nothing(out) } /**/ \
+    void name##_wrapper(void *inn) {                                                          \
+      name##_struct_t *ins = (typeof(ins))inn;                                                \
+      ins->result = name(deffunction_extract_items in);                                       \
     }
 
 typedef struct thread_info {
@@ -276,7 +284,6 @@ deffunction_thrd(tpool_worker, ((tpool_single_t, pool)), nothing_t, {
     } else thrd_exit(5);
     if (to_exit) thrd_exit(5);
   }
-  return nothing_v;
 });
 tpoolNode_t *_tpool_queup(tpool_single_t pool, basic_closure_t fn) {
   tpoolNode_t *node = aCreate(tpool_allocator(pool), tpoolNode_t);
