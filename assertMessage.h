@@ -21,6 +21,12 @@ EXTERN_C_END
   #endif
 #endif
 
+#if __has_builtin(__builtin_trap)
+  #define assertMessage_fail_ins() __builtin_trap()
+#else
+  #define assertMessage_fail_ins() abort()
+#endif
+
 #ifndef NDEBUG
   #if !defined(noAssertMessage)
 
@@ -45,7 +51,7 @@ void __attribute__((noreturn)) _assertMessageFail(
     #define assertMessage(expr, ...)            \
       do {                                      \
         DIAGNOSTIC_PUSH("-Wunknown-attributes") \
-        if_unlikely(!(expr)) {                  \
+        if_unlikely (!(expr)) {                 \
           DIAGNOSTIC_POP()                      \
           void *array[5];                       \
           size_t size = _ASSERT_GET_BT(array);  \
@@ -55,7 +61,8 @@ void __attribute__((noreturn)) _assertMessageFail(
               __FILE__,                         \
               __LINE__,                         \
               array,                            \
-              size, "" __VA_ARGS__              \
+              size,                             \
+              "" __VA_ARGS__                    \
           );                                    \
         }                                       \
       } while (0)
@@ -66,7 +73,7 @@ void __attribute__((noreturn)) _assertMessageFail(
 #else
   #define assertMessage(expr, ...)      \
     if (__builtin_expect(!(expr), 0)) { \
-      __builtin_trap();                 \
+      assertMessage_fail_ins();         \
     }
 #endif
 #define assertOnce(...)           \
@@ -113,7 +120,10 @@ void __attribute__((noreturn)) _assertMessageFail(
                                 "file  :\t%s\n"
                                 "line  :\t%d\n"
                                 "\nfailed\n" ASSERTMESSAGE_PRINTRESET,
-      expr_str, func, file, line
+      expr_str,
+      func,
+      file,
+      line
   );
   fflush(stderr);
 
@@ -127,7 +137,7 @@ void __attribute__((noreturn)) _assertMessageFail(
     fprintf(stderr, "==========================\n" ASSERTMESSAGE_PRINTRESET);
   }
 #endif
-  __builtin_trap();
+  assertMessage_fail_ins();
 }
 
 #ifndef assertMessage_no_backtrace

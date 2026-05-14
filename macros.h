@@ -200,7 +200,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define _each_range_3(start, end, decl)                           \
     (                                                               \
         struct {                                                    \
-          typeof((start) + (end)) val, last;                        \
+          typeof_unqual((start) + (end)) val, last;                 \
           int change;                                               \
           int keep;                                                 \
         } _s = {                                                    \
@@ -217,8 +217,8 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define _each_range_4(start, end, inc, decl)                      \
     (                                                               \
         struct {                                                    \
-          typeof((start) + (end)) val, last;                        \
-          typeof(inc) change;                                       \
+          typeof_unqual((start) + (end)) val, last;                 \
+          typeof_unqual(inc) change;                                \
           int keep;                                                 \
         } _s = {                                                    \
             .val = (start),                                         \
@@ -233,7 +233,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define _each_span(start, len, decl)  \
     (struct {                           \
-          typeof((start) + (len)) val, last;     \
+          typeof_unqual((start) + (len)) val, last;     \
           int keep; } _s = {                  \
          (start),                       \
          (start) + len,                 \
@@ -246,12 +246,12 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define _each_iter_2(init, decl)         \
     (                                      \
-        struct { typeof(init) x; int keep; } _s = {(init), 1};       \
+        struct { typeof_unqual(init) x; int keep; } _s = {(init), 1};       \
         _s.keep && _s.x.valid(_s.x.state); \
         _s.keep = !_s.keep, _s.x.next(_s.x.state)) for (decl = _s.x.state->current; _s.keep; _s.keep = !_s.keep)
   #define _each_iter_3(init, cast, decl)   \
     (                                      \
-        struct { typeof(init) x; int keep; } _s = {(init), 1};       \
+        struct { typeof_unqual(init) x; int keep; } _s = {(init), 1};       \
         _s.keep && _s.x.valid(_s.x.state); \
         _s.keep = !_s.keep, _s.x.next(_s.x.state)) for (decl = (cast)_s.x.state->current; _s.keep; _s.keep = !_s.keep)
 

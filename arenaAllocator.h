@@ -7,6 +7,22 @@
 #include <stddef.h>
 #include <string.h>
 
+typedef struct ArenaHead ArenaHead;
+typedef struct ArenaBuf ArenaBuf;
+typedef struct ArenaHead {
+  AllocatorV allocator;
+  ArenaBuf *next;
+} ArenaHead;
+typedef struct ArenaBuf {
+  ArenaBuf *next;
+  usize capacity, offset, count;
+  alignas(myAlign) u8 buffer[/*size*/];
+} ArenaBuf;
+typedef struct {
+  My_allocator allocator[1];
+  alignas(myAlign) ArenaHead block[1];
+} My_arena_includeBlock;
+
 // create arena based on another arena
 AllocatorV arena_new_ext(AllocatorV base, usize blockSize);
 // free's arena
@@ -63,22 +79,6 @@ MAKE_TEST_FN(arena_test, {
 
 void my_arena_free(AllocatorV arena, voidptr ptr, usize size, char *, usize);
 voidptr my_arena_alloc(AllocatorV arena, usize size, char *, usize);
-
-typedef struct ArenaHead ArenaHead;
-typedef struct ArenaBuf ArenaBuf;
-typedef struct ArenaHead {
-  AllocatorV allocator;
-  ArenaBuf *next;
-} ArenaHead;
-typedef struct ArenaBuf {
-  ArenaBuf *next;
-  usize capacity, offset, count;
-  alignas(myAlign) u8 buffer[/*size*/];
-} ArenaBuf;
-typedef struct {
-  My_allocator allocator[1];
-  alignas(myAlign) ArenaHead block[1];
-} My_arena_includeBlock;
 
 ArenaBuf *arenablock_new(AllocatorV allocator, usize blockSize) {
   ArenaBuf *res = (ArenaBuf *)aAlloc(allocator, sizeof(ArenaBuf) + blockSize);
