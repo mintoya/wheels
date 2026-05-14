@@ -47,7 +47,7 @@
 
 #if defined(MY_THREAD_MACORS_H) || defined(WHEELS_INCLUDE_ALL)
   #define MY_THREAD_MACORS_C (1)
-  #include "thrd.h"
+  #include "funct.h"
 #endif
 #undef MY_THREAD_MACORS_C
 

@@ -97,6 +97,12 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
       __VA_OPT__(, APPLY_N_HELPER_INVOKE_C PARENTHESIS_HELPER(macro, __VA_ARGS__))
   #define APPLY_N_HELPER_INVOKE_C() APPLY_N_HELPER_C
 
+  #define APPLY_N_DELIM(macro, delim, ...) \
+    __VA_OPT__(MACRO_EXPAND(APPLY_N_HELPER_DELIM(macro, delim, __VA_ARGS__)))
+  #define APPLY_N_HELPER_DELIM(macro, delim, arg, ...) macro(arg) \
+      __VA_OPT__(delim APPLY_N_HELPER_INVOKE_DELIM PARENTHESIS_HELPER(macro, delim, __VA_ARGS__))
+  #define APPLY_N_HELPER_INVOKE_DELIM() APPLY_N_HELPER_DELIM
+
   #define APPLY_N_WITH(macro, captured, ...) \
     __VA_OPT__(MACRO_EXPAND(APPLY_N_WITH_HELPER(macro, captured, __VA_ARGS__)))
   #define APPLY_N_WITH_HELPER(macro, captured, arg, ...) macro(captured, arg) \
@@ -126,6 +132,8 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define TUPLE_A(name, func) name
   #define TUPLE_B(name, func) func
+  #define TUPLE_FIRST(a, ...) a
+  #define TUPLE_REST(a, ...) __VA_ARGS__
   #define TUPLE_EXPAND_A(tuple) TUPLE_A tuple
   #define TUPLE_EXPAND_B(tuple) TUPLE_B tuple
   #define REM_PAREN(...) __VA_ARGS__

@@ -5,8 +5,6 @@
 
   #define TU_TAG(type) ID_CONCAT(type, _enum)
 
-  #define TUPLE_FIRST(a, ...) a
-  #define TUPLE_REST(a, ...) __VA_ARGS__
   #define TU_ENUM(type_d) TU_TAG(TUPLE_FIRST type_d),
   #define TU_TDEF(type_d) typedef TUPLE_REST type_d TUPLE_FIRST type_d;
   #define TU_UMEM(type_d) TUPLE_EXPAND_A(type_d) TUPLE_EXPAND_A(type_d);
