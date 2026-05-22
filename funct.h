@@ -93,16 +93,16 @@ typedef struct {
   #define deffunctoin_struct_item(tuple) TUPLE_EXPAND_A(tuple) TUPLE_EXPAND_B(tuple);
   #define deffunctoin_struct_items(...) APPLY_N(deffunctoin_struct_item, __VA_ARGS__)
 
-  #define deffunction_struct(in, out) \
-    {                                 \
-      struct {                        \
-        deffunctoin_struct_items in   \
-      } args;                         \
-      out result;                     \
+  #define deffunction_struct(name, in, out) \
+    struct name {                           \
+      struct name##args {                   \
+        deffunctoin_struct_items in         \
+      } args;                               \
+      out result;                           \
     }
-  #define decfunction(name, in, out)                                            \
-    typedef struct name##_struct_t deffunction_struct(in, out) name##_struct_t; \
-    void name##_wrapper(void *);                                                \
+  #define decfunction(name, in, out)                                      \
+    typedef deffunction_struct(name##_struct_t, in, out) name##_struct_t; \
+    void name##_wrapper(void *);                                          \
     out name(typelist_tuple_types(in))
 
   #define SELECT_2(a, b, ...) b
@@ -115,7 +115,7 @@ typedef struct {
   #define deffunction_extract_item(tuple) ins->args.TUPLE_EXPAND_B(tuple)
   #define deffunction_extract_items(...) APPLY_N_C(deffunction_extract_item, __VA_ARGS__)
   #define deffunction(name, in, out, ...)                                                     \
-    typedef struct name##_struct_t deffunction_struct(in, out) name##_struct_t;               \
+    typedef deffunction_struct(name##_struct_t, in, out) name##_struct_t;                     \
     out name(typelist_tuple_args(in)) { __VA_ARGS__ deffunction_return_if_nothing(out) } /**/ \
     void name##_wrapper(void *inn) {                                                          \
       name##_struct_t *ins = (typeof(ins))inn;                                                \

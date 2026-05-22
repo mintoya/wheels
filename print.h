@@ -227,14 +227,18 @@ __attribute__((destructor(201))) static void printerDeInit() {
 #define USENAMEDPRINTER(strname, val)                                                                  \
   print_f_helper(                                                                                      \
       (struct print_arg){.ref = ((fptr){sizeof(val), (u8 *)REF(typeof(val), val)}), .name = nullFptr}, \
-      printer_arg_trim(printer_arg_until(':', fp_from(strname))), put,                                 \
-      printer_arg_after(':', fp_from(strname)), _arb                                                   \
+      printer_arg_trim(printer_arg_until(':', fp_from(strname))),                                      \
+      put,                                                                                             \
+      printer_arg_after(':', fp_from(strname)),                                                        \
+      _arb                                                                                             \
   );
 #define USENAMEDPRINTER_WA(strname, args, val)                                                         \
   print_f_helper(                                                                                      \
       (struct print_arg){.ref = ((fptr){sizeof(val), (u8 *)REF(typeof(val), val)}), .name = nullFptr}, \
-      printer_arg_trim(printer_arg_until(':', fp_from(strname))), put,                                 \
-      args, _arb                                                                                       \
+      printer_arg_trim(printer_arg_until(':', fp_from(strname))),                                      \
+      put,                                                                                             \
+      args,                                                                                            \
+      _arb                                                                                             \
   );
 
 struct print_arg {
@@ -287,11 +291,15 @@ REGISTER_SPECIAL_PRINTER("cstr", char *, {
   while (*in)
     PUTC(*in++);
 });
-REGISTER_SPECIAL_PRINTER("carr", char, {
-  // string literals will end up here
-  // this will stop a seg fault, since they are passed in themselves instead of the type
+
+static void carr_ptrinter(outputFunction put, fptr _v_in_ptr, fptr args, void *_arb) {
   PUTS(*VLAP((char *)_v_in_ptr.ptr, _v_in_ptr.len));
-});
+}
+__attribute__((constructor(203))) static void printerConstructor_carr() {
+  fptr key = (fptr){strlen("carr"), (u8 *)"carr"};
+  PrinterSingleton_append(key, (printerFunction){carr_ptrinter, ~(usize)0});
+}
+
 REGISTER_PRINTER(c32, {
   if (in <= 0x7F) {
     PUTC((c8)in);
@@ -660,10 +668,10 @@ MAKE_PRINT_ARG_TYPE(i32);
 MAKE_PRINT_ARG_TYPE(u32);
   #endif
 
-  #define MAKE_PRINT_ARG(a)                                        \
-    ((struct print_arg){                                           \
-        .ref = (fptr){sizeof(typeof(a)), (u8 *)REF(typeof(a), a)}, \
-        .name = fp_from(type_name_cstr<typeof(a)>())               \
+  #define MAKE_PRINT_ARG(a)                                                \
+    ((struct print_arg){                                                   \
+        .ref = (fptr){sizeof(typeof(a)), (u8 *)REF(typeof(a), a)},         \
+        .name = fp_from(type_name_cstr < std::remove_cvref_t<typeof(a)>>()) \
     }),
 #endif
 
@@ -788,7 +796,7 @@ void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr 
         PUTC((c8)i[0]);
     PUTS(") __");
     USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));
-  } else if (fn.size != p.ref.len) {
+  } else if (p.ref.len != ~(usize)0 && fn.size != p.ref.len) {
     USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = 1}));
     PUTS("__ PRINTER TRIED TO READ ");
     USETYPEPRINTER(usize, fn.size);

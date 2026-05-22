@@ -115,11 +115,12 @@ void __attribute__((noreturn)) _assertMessageFail(
 
   fprintf(
       stderr,
-      ASSERTMESSAGE_PRINTORANGE "\nassert:\t%s\n"
-                                "in fn :\t%s\n"
-                                "file  :\t%s\n"
-                                "line  :\t%d\n"
-                                "\nfailed\n" ASSERTMESSAGE_PRINTRESET,
+      ASSERTMESSAGE_PRINTORANGE
+      "\nassert:\t%s\n"
+      "in fn :\t%s\n"
+      "file  :\t%s\n"
+      "line  :\t%d\n"
+      "\nfailed\n" ASSERTMESSAGE_PRINTRESET,
       expr_str,
       func,
       file,

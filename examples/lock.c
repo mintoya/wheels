@@ -13,8 +13,8 @@ deffunction(inner_task, ((int, id)), int, {
   thrd_sleep(&(struct timespec){1}, NULL);
   return id * 10;
 });
-
-deffunction(outer_task, ((AllocatorV, alloc), (mutex(tpool, mutex_recursive) *, pool), (int, id)), int, {
+typedef struct mtxtpoolmutex_recursive *poolptr;
+deffunction(outer_task, ((AllocatorV, alloc), (poolptr, pool), (int, id)), int, {
   println(
       "outer task thread : {}\n"
       "[Worker] Outer task {} started.",
@@ -31,7 +31,9 @@ deffunction(outer_task, ((AllocatorV, alloc), (mutex(tpool, mutex_recursive) *, 
   println("[Worker] Outer task {} completed with result: {}", id, res);
   return res;
 });
+
 #include "../debugallocator.h"
+
 int main(void) {
   println("main thread : {}", thrd_current());
   var_ allocator = debugAllocator(.allocator = stdAlloc, .log = stdout);
@@ -42,9 +44,7 @@ int main(void) {
   defer { tpool_deInit(pool); };
 
   var_ futures = msList_init(allocator, typeof(poolfunction_call(pool, outer_task, (allocator, pool, 0))));
-  defer {
-    msList_deInit(allocator, futures);
-  };
+  defer { msList_deInit(allocator, futures); };
 
   foreach (var_ i, range(0, 6)) {
     var_ v = poolfunction_call_type(pool, outer_task, typeof(*futures), (allocator, pool, i));

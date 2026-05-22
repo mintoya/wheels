@@ -53,16 +53,16 @@ struct bigint_div_t {
 bigint_unit bigint_estimate_q(bigint rem, bigint b);
 struct bigint_div_t bigint_div(AllocatorV allocator, bigint a1, bigint b1);
 
-NAMESPACE_STRUCT(
-    BInt,
-    (add, &bigint_add),
-    (sub, &bigint_sub),
-    (mul, &bigint_mul),
-    (div, &bigint_div),
-    (from, &bigint_from),
-    (negate, &bigint_negate),
-    (negetive, &bigint_negetive),
-);
+// NAMESPACE_STRUCT(
+//     BInt,
+//     (add, &bigint_add),
+//     (sub, &bigint_sub),
+//     (mul, &bigint_mul),
+//     (div, &bigint_div),
+//     (from, &bigint_from),
+//     (negate, &bigint_negate),
+//     (negetive, &bigint_negetive),
+// );
 REGISTER_PRINTER(bigint, {
   args = printer_arg_trim(args);
   bool debug = fptr_eq(args, fp("dbg"));

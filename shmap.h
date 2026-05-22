@@ -153,14 +153,14 @@ static inline struct sHmapIterator_struct sHmapIterator(const sHmap *map);
 static bool sHmapIterator_valid(const struct sHmapIterator_struct_inner *it) {
   return it->bucket_idx < it->map->num_buckets &&
          it->map->buckets[it->bucket_idx] != NULL &&
-         it->element_idx < mList_len(it->map->buckets[it->bucket_idx]);
+         it->element_idx < msList_len(it->map->buckets[it->bucket_idx]);
 }
 static void sHmapIterator_next(struct sHmapIterator_struct_inner *it) {
   it->element_idx++;
 
   while (it->bucket_idx < it->map->num_buckets) {
     usize current_bucket_len = it->map->buckets[it->bucket_idx]
-                                   ? mList_len(it->map->buckets[it->bucket_idx])
+                                   ? msList_len(it->map->buckets[it->bucket_idx])
                                    : 0;
 
     if (it->element_idx < current_bucket_len)
@@ -194,7 +194,7 @@ static inline struct sHmapIterator_struct sHmapIterator(const sHmap *map) {
   while (it.state[0].bucket_idx < map->num_buckets) {
     usize current_bucket_len =
         map->buckets[it.state[0].bucket_idx]
-            ? mList_len(map->buckets[it.state[0].bucket_idx])
+            ? msList_len(map->buckets[it.state[0].bucket_idx])
             : 0;
 
     if (current_bucket_len > 0) {

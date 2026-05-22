@@ -208,7 +208,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define _each_range_3(start, end, decl)                           \
     (                                                               \
         struct {                                                    \
-          typeof_unqual((start) + (end)) val, last;                 \
+          __typeof_unqual__((start) + (end)) val, last;             \
           int change;                                               \
           int keep;                                                 \
         } _s = {                                                    \
@@ -225,8 +225,8 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define _each_range_4(start, end, inc, decl)                      \
     (                                                               \
         struct {                                                    \
-          typeof_unqual((start) + (end)) val, last;                 \
-          typeof_unqual(inc) change;                                \
+          __typeof_unqual__((start) + (end)) val, last;             \
+          __typeof_unqual__(inc) change;                            \
           int keep;                                                 \
         } _s = {                                                    \
             .val = (start),                                         \
@@ -241,7 +241,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define _each_span(start, len, decl)  \
     (struct {                           \
-          typeof_unqual((start) + (len)) val, last;     \
+          __typeof_unqual__((start) + (len)) val, last;     \
           int keep; } _s = {                  \
          (start),                       \
          (start) + len,                 \
@@ -254,12 +254,12 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define _each_iter_2(init, decl)         \
     (                                      \
-        struct { typeof_unqual(init) x; int keep; } _s = {(init), 1};       \
+        struct { __typeof_unqual__(init) x; int keep; } _s = {(init), 1};       \
         _s.keep && _s.x.valid(_s.x.state); \
         _s.keep = !_s.keep, _s.x.next(_s.x.state)) for (decl = _s.x.state->current; _s.keep; _s.keep = !_s.keep)
   #define _each_iter_3(init, cast, decl)   \
     (                                      \
-        struct { typeof_unqual(init) x; int keep; } _s = {(init), 1};       \
+        struct { __typeof_unqual__(init) x; int keep; } _s = {(init), 1};       \
         _s.keep && _s.x.valid(_s.x.state); \
         _s.keep = !_s.keep, _s.x.next(_s.x.state)) for (decl = (cast)_s.x.state->current; _s.keep; _s.keep = !_s.keep)
 
@@ -307,6 +307,62 @@ _im_each_ ## generator decl )
     /*    }*/                                            \
     /**/                                                 \
 for _im_each_ ## generator decl )
+  #if defined(__cplusplus)
+template <typename CIterator, typename CastType = void>
+struct RangeAdapter {
+  CIterator c_iter;
+  explicit RangeAdapter(CIterator it) : c_iter(it) {}
+
+  struct Sentinel {};
+
+  struct Iterator {
+    CIterator *ptr;
+
+    explicit Iterator(CIterator *p) : ptr(p) {}
+
+    // Deduce native type, or use CastType if specified
+    using ReturnType = std::conditional_t<
+        std::is_same_v<CastType, void>,
+        decltype(ptr->state->current),
+        CastType>;
+
+    ReturnType operator*() const {
+      if constexpr (std::is_same_v<CastType, void>) {
+        return ptr->state->current;
+      } else {
+        return (CastType)(ptr->state->current);
+      }
+    }
+
+    Iterator &operator++() {
+      if (ptr->valid(ptr->state)) {
+        ptr->next(ptr->state);
+      }
+      return *this;
+    }
+
+    bool operator!=(Sentinel) const {
+      return ptr->valid(ptr->state);
+    }
+  };
+
+  Iterator begin() {
+    return Iterator(&c_iter);
+  }
+
+  Sentinel end() const {
+    return Sentinel{};
+  }
+};
+template <typename CastType = void, typename CIterator>
+RangeAdapter<CIterator, CastType> as_range(CIterator it) {
+  return RangeAdapter<CIterator, CastType>(it);
+}
+    #define cpp_iterator_helper(iterator, type) \
+      as_range<type>(iterator)
+    #define cpp_iterator(...) \
+      cpp_iterator_helper(__VA_ARGS__)
+  #endif
 
 //
 // var
