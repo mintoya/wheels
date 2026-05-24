@@ -191,6 +191,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define types_eq(T1, T2) \
     _Generic((*((T1 *)NULL)), T2: true, default: false)
+  #define UNQUAL(...) __typeof__(1 ? (__VA_ARGS__) : (__VA_ARGS__))
 
 //
 // loops

@@ -1,4 +1,3 @@
-#include <cstddef>
 #if !defined(HMAP_H)
   #define HMAP_H (1)
 typedef struct HMap HMap;
