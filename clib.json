@@ -1,15 +1,33 @@
 {
   "name": "wheels",
-  "version": "1.0.0",
-  "repo": "mintoya/wheels",
-  "description": "A header library included via wheels.h include guards",
+  "version": "0.1.0",
+  "repo": "YOUR_GITHUB_USERNAME/wheels",
+  "description": "A collection of utility structures and allocators.",
   "keywords": [
-    "wheels",
-    "c",
-    "header-only"
+    "bigint",
+    "map",
+    "list",
+    "allocator",
+    "vason"
   ],
   "license": "MIT",
   "src": [
-    "*.h"
+    "wheels.h",
+    "bigint.h",
+    "print.h",
+    "shmap.h",
+    "stringList.h",
+    "vason_tree.h",
+    "vason_arr.h",
+    "debugallocator.h",
+    "funct.h",
+    "omap.h",
+    "hhmap.h",
+    "mylist.h",
+    "tsaAllocator.h",
+    "arenaAllocator.h",
+    "fbaAllocator.h",
+    "allocator.h",
+    "assertMessage.h"
   ]
 }

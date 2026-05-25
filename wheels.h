@@ -1,7 +1,7 @@
-#if defined(MY_WHEEELS_H)
+#if defined(MY_WHEELS_H)
   #error "wheels should be included once"
 #endif
-#define MY_WHEEELS_H
+#define MY_WHEELS_H
 
 #if defined(MY_BIGINT_H) || defined(WHEELS_INCLUDE_ALL)
   #define MY_BIGINT_C (1)
