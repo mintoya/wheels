@@ -1,7 +1,7 @@
 {
   "name": "wheels",
   "version": "0.1.0",
-  "repo": "YOUR_GITHUB_USERNAME/wheels",
+  "repo": "mintoya/wheels",
   "description": "A collection of utility structures and allocators.",
   "keywords": [
     "bigint",
