@@ -1,0 +1,15 @@
+{
+  "name": "wheels",
+  "version": "1.0.0",
+  "repo": "mintoya/wheels",
+  "description": "A header library included via wheels.h include guards",
+  "keywords": [
+    "wheels",
+    "c",
+    "header-only"
+  ],
+  "license": "MIT",
+  "src": [
+    "*.h"
+  ]
+}
