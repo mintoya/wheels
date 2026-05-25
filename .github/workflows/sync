@@ -1,0 +1,21 @@
+name: Pull Mirror from Codeberg
+permissions:
+  contents: write
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirror repository
+        run: |
+          git clone --bare https://codeberg.org/mintoya/wheels.git .
+          
+      - name: Push to GitHub
+        run: |
+          git remote add github https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git push github --all --force
+          git push github --tags --force
