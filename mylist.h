@@ -156,6 +156,8 @@ struct mList {
   List *ptr;
   using iType = T;
 
+  operator List *() { return ptr; }
+
   static inline mList init(AllocatorV allocator, uint32_t initLength = 2) {
     return {List_newInitL(allocator, sizeof(T), initLength)};
   }

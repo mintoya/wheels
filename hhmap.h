@@ -176,6 +176,8 @@ struct mHmap {
     V val;
   };
 
+  operator HMap *() { return ptr; }
+
   static inline mHmap init_length(AllocatorV allocator, u32 bucketcount, u32 maxHash) {
     return {HMap_new(offsetof(Item, val), sizeof(V), allocator, bucketcount, maxHash)};
   }

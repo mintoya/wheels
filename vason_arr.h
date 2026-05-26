@@ -175,11 +175,10 @@ typedef struct vason {
     return (vason){
         origional,
         vason_get_str(
-            origional, place,
-            (fptr){
-                c.length(),
-                (u8 *)c.c_str(),
-            }
+            origional, place, (fptr){
+                                  c.length(),
+                                  (u8 *)c.c_str(),
+                              }
         ),
     };
   }
@@ -770,7 +769,8 @@ vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string) {
   assertMessage(
       msList_len(res.tables_strings) == msList_len(res.tags),
       "legths %zu != %zu",
-      msList_len(res.tables_strings), msList_len(res.tags)
+      msList_len(res.tables_strings),
+      msList_len(res.tags)
   );
   return res;
 }
