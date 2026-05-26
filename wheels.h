@@ -93,14 +93,9 @@
 #endif
 #undef MY_ALLOCATOR_C
 
-// (  #ined )ifdef FPTR_H || defined (WHEELS_INCLUDE_ALL)
-//   #define FPTR_C (1)
-//   #include "fptr.h"
-// #endif
-//   #undef FPTR_C
-
 #if defined(ASSERTMESSAGE_H) || defined(WHEELS_INCLUDE_ALL)
   #define ASSERTMESSAGE_C (1)
   #include "assertMessage.h"
 #endif
+
 #undef ASSERTMESSAGE_C
