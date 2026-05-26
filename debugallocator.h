@@ -225,7 +225,7 @@ void debugAllocator_free(AllocatorV allocator, void *ptr, usize size, char *fn, 
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
   struct tracedata *data = mHmap_get(internals->map, ptr);
-  assertMessage(data, "pointer not in allocator");
+  assertMessage(data, "pointer not in allocator , from %lu %s", ln, fn);
   internals->current -= data->size;
   assertMessage(mHmap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
   (aFree)(realAllocator, ptr, data->size, fn, ln);
@@ -235,7 +235,7 @@ void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize oldsize, usi
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
   struct tracedata *data = mHmap_get(internals->map, ptr);
-  assertMessage(data, "pointer not in allocator");
+  assertMessage(data, "pointer not in allocator , from %lu %s", ln, fn);
   internals->current -= data->size;
   assertMessage(mHmap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
 
