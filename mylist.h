@@ -226,6 +226,18 @@ struct mList {
   inline void clear() {
     len() = 0;
   }
+  T *toOwned(AllocatorV allocator) {
+    T *res = nullptr;
+    if (allocator == this->allocator()) {
+      res = this->arr();
+    } else {
+      res = aCreate(allocator, T, this->len());
+      memcpy(res, this->arr(), this->len() * sizeof(T));
+      aFree(this->allocator(), this->arr(), this->cap() * sizeof(T));
+    }
+    this->ptr->head = nullptr;
+    return res;
+  }
 };
 
   #define mList(T) mList<T>
@@ -249,6 +261,7 @@ struct mList {
   #define mList_insArr(list, position, vla) (list).insArr(position, vla)
   #define mList_pad(list, ammount) (list).pad(ammount)
   #define mList_clear(list) (list).clear()
+  #define mList_toOwned(alloc, list) (list).toOwned(alloc)
 
 #else
 
@@ -342,6 +355,19 @@ struct mList {
       ((List *)list)->length = 0; \
     } while (0)
 
+  #define mList_toOwned(alloc, list) ({                                               \
+    AllocatorV _alloc = alloc;                                                        \
+    mList_iType(list) *_res = nullptr;                                                \
+    if (_alloc == mList_allocator(list)) {                                            \
+      _res = mList_arr(list);                                                         \
+    } else {                                                                          \
+      _res = aCreate(_alloc, typeof(*_res), mList_len(list));                         \
+      memcpy(_res, mList_arr(list), mList_len(list) * sizeof(*_res));                 \
+      aFree(mList_allocator(list), mList_arr(list), mList_cap(list) * sizeof(*_res)); \
+    }                                                                                 \
+    ((List *)list)->head = nullptr;                                                   \
+    _res;                                                                             \
+  })
 #endif
 
 #if defined(MAKE_TEST_FN)

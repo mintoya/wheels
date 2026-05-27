@@ -139,7 +139,7 @@ struct nullable_t {
 #define nullable_real(type, value) ((nullable(type)){.isnull = false, .data = (value)})
 #define slice_stat(s) \
   {sizeof(s) / sizeof((s)[0]), (typeof(s[0]) *)(s)}
-#define slice_vla(s) ((typeof(typeof(s.ptr[0]))(*)[s.len])s.ptr)
+#define slice_vla(s) (VLAP(s.ptr, s.len))
 #define nullslice(T) ((slice(T)){})
 
 #define nullable_fromPtr(T, ptr)          \
