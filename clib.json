@@ -12,6 +12,30 @@
   ],
   "license": "MIT",
   "src": [
-    "*.h"
-  ]
+    "allocator.h",
+    "arenaAllocator.h",
+    "assertMessage.h",
+    "bigint.h",
+    "debugallocator.h",
+    "fbaAllocator.h",
+    "fptr.h",
+    "funct.h",
+    "hhmap.h",
+    "macros.h",
+    "mylist.h",
+    "mytypes.h",
+    "omap.h",
+    "print.h",
+    "sList.h",
+    "shmap.h",
+    "stringList.h",
+    "tsaAllocator.h",
+    "tu_macros.h",
+    "vason_arr.h",
+    "vason_tree.h",
+    "wheels.h"
+  ],
+  "dependencies": {
+    "mintoya/wheels": "0.1.0"
+  }
 }
