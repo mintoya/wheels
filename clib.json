@@ -12,22 +12,6 @@
   ],
   "license": "MIT",
   "src": [
-    "wheels.h",
-    "bigint.h",
-    "print.h",
-    "shmap.h",
-    "stringList.h",
-    "vason_tree.h",
-    "vason_arr.h",
-    "debugallocator.h",
-    "funct.h",
-    "omap.h",
-    "hhmap.h",
-    "mylist.h",
-    "tsaAllocator.h",
-    "arenaAllocator.h",
-    "fbaAllocator.h",
-    "allocator.h",
-    "assertMessage.h"
+    "*.h"
   ]
 }

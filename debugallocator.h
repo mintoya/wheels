@@ -22,7 +22,6 @@ struct debugStats {
 };
 struct debugStats debugAllocator_stats(AllocatorV allocator);
 struct debugStats debugAllocator_clear(AllocatorV allocator);
-#define PREPEND_DOT_MAC(...) .__VA_ARGS__,
 #define debugAllocator(...) ({                     \
   struct dbgAlloc_config config = {                \
       __VA_ARGS__                                  \
