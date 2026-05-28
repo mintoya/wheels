@@ -14,3 +14,5 @@ wheels.exe
 wheels.pdb
 /flamegraph.svg
 /.xmake/
+/compile_commands.json
+/cpthreads

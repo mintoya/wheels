@@ -36,6 +36,5 @@
     "wheels.h"
   ],
   "dependencies": {
-    "mintoya/wheels": "0.1.0"
   }
 }

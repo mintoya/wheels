@@ -6,11 +6,13 @@
 //
 
   #include "allocator.h"
+  #include "assertMessage.h"
+
+  #include "cpthreads/cpthreads.h"
   #include "macros.h"
   #include "mylist.h"
   #include "mytypes.h"
   #include "stdatomic.h"
-  #include <threads.h>
 
 //
 // mutex
@@ -42,17 +44,17 @@ typedef struct {
   )
 // clang-format on
 
-  #define mutex(T, mtx_T)         \
-    /*valid mtx_T values:     */  \
-    /*  mutex_plain           */  \
-    /*  mutex_recursive       */  \
-    /*  mutex_timed           */  \
-    /*  mutex_recursive_timed */  \
-    typeof(struct mtx##T##mtx_T { \
-      mtx_t mtx[1];               \
-      mtx_T kind[0];              \
-      T data;                     \
-    })
+  #define mutex(T, mtx_T)        \
+    /*valid mtx_T values:     */ \
+    /*  mutex_plain           */ \
+    /*  mutex_recursive       */ \
+    /*  mutex_timed           */ \
+    /*  mutex_recursive_timed */ \
+    struct mtx##T##mtx_T {       \
+      mtx_t mtx[1];              \
+      mtx_T kind[0];             \
+      T data;                    \
+    }
 
   #define mutex_init(mutex) \
     (mtx_init(mutex.mtx, mutex_toEnum((mutex).kind[0])))
@@ -114,8 +116,8 @@ typedef struct {
 
   #define deffunction_extract_item(tuple) ins->args.TUPLE_EXPAND_B(tuple)
   #define deffunction_extract_items(...) APPLY_N_C(deffunction_extract_item, __VA_ARGS__)
+
   #define deffunction(name, in, out, ...)                                                     \
-    typedef deffunction_struct(name##_struct_t, in, out) name##_struct_t;                     \
     out name(typelist_tuple_args(in)) { __VA_ARGS__ deffunction_return_if_nothing(out) } /**/ \
     void name##_wrapper(void *inn) {                                                          \
       name##_struct_t *ins = (typeof(ins))inn;                                                \
@@ -317,7 +319,7 @@ tpool_single_t tpool_init(AllocatorV alloc) {
 }
 AllocatorV tpool_allocator(tpool_single_t pool) {
   // changing allocators for objects is illegal anyway
-  // mlist pointer is also stable, not constant vause it needs to be mutated
+  // mlist pointer is also stable, not constant cause it needs to be mutated
   return mList_allocator(pool->data.workers);
 }
 void tpool_deInit(tpool_single_t pool) {

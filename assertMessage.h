@@ -77,7 +77,6 @@ void __attribute__((noreturn)) _assertMessageFail(
     }
 #endif
 #define assertOnce(...)           \
-                                  \
   do {                            \
                                   \
     static char hasRun = false;   \
@@ -87,6 +86,13 @@ void __attribute__((noreturn)) _assertMessageFail(
     hasRun = true;                \
                                   \
   } while (0)
+
+#if __has_builtin(__builtin_unreachable)
+  #define unreachable() __builtin_unreachable()
+#else
+  #define unreachable() assertMessage(false, "reached unreachable code")
+#endif
+
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
 #define ASSERTMESSAGE_C (1)
