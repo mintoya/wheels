@@ -334,7 +334,7 @@ void tpool_deInit(tpool_single_t pool) {
 
   mutex_critical (var_ poolc, mutex_lock, (*pool)) {
     cnd_destroy(&poolc->wake_cnd);
-    mList_deInit(poolc->workers);
+    mList_deinit(poolc->workers);
   } else unreachable();
 
   mutex_deInit((*pool));

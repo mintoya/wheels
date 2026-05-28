@@ -1,9 +1,9 @@
-#include "wheels/arenaAllocator.h"
-#include "wheels/debugallocator.h"
-#include "wheels/print.h"
-#include "wheels/vason_arr.h"
+#include "../arenaAllocator.h"
+#include "../debugallocator.h"
+#include "../print.h"
+#include "../vason_arr.h"
 
-#include "wheels/wheels.h"
+#include "../wheels.h"
 slice(c8) read_stdin(AllocatorV allocator) {
   usize size = 0;
   c8 *data = NULL;
@@ -23,7 +23,7 @@ slice(c8) read_stdin(AllocatorV allocator) {
 bool isDigit(c8 c) { return c >= '0' && c <= '9'; }
 int main(int nargs, char *args[nargs]) {
   mList(char *) argslist = mList_init(stdAlloc, char *, nargs);
-  defer { mList_deInit(argslist); };
+  defer { mList_deinit(argslist); };
   bool lazy = false;
   for (var_ i = 1; i < nargs; i++) {
     if (args[i][0] == '-') {

@@ -15,25 +15,12 @@
 //
 
 typedef struct sList_header {
-  usize capacity;
+  usize isStack : 1;
+  usize capacity : sizeof(usize) * 8 - 1;
   usize length;
   alignas(myAlign) u8 buf[];
 } sList_header;
-static inline sList_header *sList_realloc(AllocatorV allocator, sList_header *header, usize width, usize newsize) {
-  assertMessage(header && header->capacity);
-  sList_header *res = (typeof(res))aResize(
-      allocator,
-      header,
-      sizeof(sList_header) + header->capacity * width,
-      sizeof(sList_header) + newsize * width
-  );
-  if (allocator->size) {
-    usize s = allocator->size(allocator, res);
-    res->capacity = (s - sizeof(sList_header)) / width;
-  } else
-    res->capacity = newsize;
-  return res;
-}
+
 static inline sList_header *sList_new(AllocatorV allocator, usize initLen, usize width) {
   assertMessage(initLen && width);
   sList_header *res = (typeof(res))aAlloc(allocator, sizeof(sList_header) + initLen * width);
@@ -45,8 +32,32 @@ static inline sList_header *sList_new(AllocatorV allocator, usize initLen, usize
   res->length = 0;
   return res;
 }
+static inline sList_header *sList_realloc(AllocatorV allocator, sList_header *header, usize width, usize newsize) {
+  assertMessage(header && header->capacity);
+  if (!header->isStack) {
+    sList_header *res = (typeof(res))aResize(
+        allocator,
+        header,
+        sizeof(sList_header) + header->capacity * width,
+        sizeof(sList_header) + newsize * width
+    );
+    if (allocator->size) {
+      usize s = allocator->size(allocator, res);
+      res->capacity = (s - sizeof(sList_header)) / width;
+    } else
+      res->capacity = newsize;
+    return res;
+  } else {
+    var_ _new = sList_new(allocator, newsize, width);
+    usize cl = (newsize < header->length ? newsize : header->length);
+    memcpy(_new->buf, header->buf, width * cl);
+    _new->length = cl;
+    return _new;
+  }
+}
 static inline void sList_free(AllocatorV allocator, sList_header *sl, usize width) {
-  aFree(allocator, sl, width * sl->capacity + sizeof(*sl));
+  if (!sl->isStack)
+    aFree(allocator, sl, width * sl->capacity + sizeof(*sl));
 }
 
 static inline void *sList_getRef(
@@ -181,6 +192,25 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
   })
   #define msList_init(allocator, T, ...) \
     SLIST_INIT_HELPER(allocator, T __VA_OPT__(, __VA_ARGS__), 2)
+
+  #define msList_stackBuffer(buffer) \
+    ({\
+     (void)countof((buffer){});\
+     struct {              \
+         sList_header header[1];     \
+         typeof(buffer) list;                \
+       }_r ;_r; })
+
+  #define msList_initBuffer(buffer) ({                                   \
+    (void)sizeof(int[_Generic(buffer, typeof(buffer): 1, default: -1)]); \
+    buffer.header[0] = (typeof(buffer.header[0])){                       \
+        .capacity = countof(buffer.list),                                \
+        .isStack = true,                                                 \
+        .length = 0,                                                     \
+    };                                                                   \
+    buffer.list;                                                         \
+  })
+
   #define msList_header(s) (((sList_header *)(s)) - 1)
   #define msList_deInit(allocator, s)                      \
     do {                                                   \
@@ -282,11 +312,25 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
     #include "macros.h"
 
 MAKE_TEST_FN(msList_push_pop, {
-  msList(int) list = msList_init(allocator, int);
+  var_ lbuf = msList_stackBuffer(int[25]);
+  msList(int) list = msList_initBuffer(lbuf);
+  // msList(int) list = msList_init(allocator,int);
   defer { msList_deInit(allocator, list); };
   foreach (usize i, range(0, 50))
     msList_push(allocator, list, i * i);
   foreach (usize i, range(0, 50))
+    if (list[i] != i * i)
+      return 1;
+  return 0;
+});
+MAKE_TEST_FN(msList_push_pop2, {
+  var_ lbuf = msList_stackBuffer(int[25]);
+  msList(int) list = msList_initBuffer(lbuf);
+  // msList(int) list = msList_init(nullptr,int);
+  defer { msList_deInit(nullptr, list); };
+  foreach (usize i, range(0, 22))
+    msList_push(nullptr, list, i * i);
+  foreach (usize i, range(0, 22))
     if (list[i] != i * i)
       return 1;
   return 0;
