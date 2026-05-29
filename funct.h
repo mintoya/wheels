@@ -1,3 +1,5 @@
+#include <threads.h>
+#include <time.h>
 #if !defined(MY_THREAD_MACORS_H)
   #define MY_THREAD_MACORS_H (1)
 
@@ -247,6 +249,35 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
     _r->result;                                                                       \
   })
 
+  // #include "tests.c"
+  #if defined(MAKE_TEST_FN)
+    #include "tsaAllocator.h"
+decfunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), nothing_t);
+deffunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), nothing_t, {
+  var_ one_second = (struct timespec){1};
+  mutex_critical (int *x, mutex_lock, i[0]) {
+    thrd_sleep(&one_second, nullptr);
+    x[0]++;
+  } else unreachable();
+});
+MAKE_TEST_FN(thread_function, {
+  var_ tsa = TSA_init(allocator);
+  defer { TSA_deinit(tsa); };
+
+  mutex(int, mutex_plain) integer = mutex_initW(int, mutex_plain, 0);
+
+  typedef typeof(thrdfunction_call(tsa, inc_integer_test, (&integer))) ifuture;
+  var_ list = mList_init(tsa, ifuture);
+
+  foreach (var_ j, range(0, 5))
+    mList_push(list, thrdfunction_call(tsa, inc_integer_test, (&integer)));
+  while (mList_len(list))
+    thrdfunction_await(tsa, mList_pop(list));
+  mutex_deInit(integer);
+  if (integer.data != 5) return 1;
+  return 0;
+})
+  #endif
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
   #define MY_THREAD_MACORS_C (1)

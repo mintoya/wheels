@@ -1,6 +1,6 @@
-#include "fptr.h"
 #if !defined(VASON_BUILDER_H)
   #define VASON_BUILDER_H
+  #include "fptr.h"
   #include "macros.h"
   #include "mylist.h"
   #include "mytypes.h"
@@ -83,7 +83,9 @@ MAKE_TEST_FN(vason_exact_memcmp_match, {
 
   printf(
       "input\t: %s \noutput\t: %.*s\n",
-      expected, result.len, result.ptr
+      expected,
+      result.len,
+      result.ptr
   );
   slice(c8) fromExpected = (slice(c8)){strlen(expected), (c8 *)expected};
   vason_container a = vason_parseString(
@@ -312,7 +314,7 @@ vason_node vason_node_deepCopy(AllocatorV allocator, vason_node n) {
     case vason_STRING: {
       res.string = (typeof(res.string))aAlloc(allocator, sizeof(*n.string) + n.string->len);
       res.string->len = n.string->len;
-      __builtin_memcpy(res.string->buffer, n.string->buffer, n.string->len);
+      memcpy(res.string->buffer, n.string->buffer, n.string->len);
     } break;
   }
   return res;

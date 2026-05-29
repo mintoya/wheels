@@ -1,6 +1,13 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
+    _ = std.process.run(b.allocator, b.graph.io, .{
+        .argv = &.{
+            "git",
+            "clone",
+            "https://github.com/Precisamento/cpthreads",
+        },
+    }) catch null;
     const target = b.standardTargetOptions(.{});
 
     const exe = b.addExecutable(.{

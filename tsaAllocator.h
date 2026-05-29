@@ -5,10 +5,10 @@
   #include <string.h>
   #include <threads.h> // Using standard C11 threads for mtx_t
 
-typedef struct {
+typedef struct TSA_State {
   My_allocator allocator[1];
   AllocatorV underlying;
-  mtx_t mutex;
+  mtx_t mutex[1];
 } TSA_State;
 
 void *_tsa_alloc(AllocatorV allocator, size_t size, char *file, usize line);
@@ -22,18 +22,21 @@ const My_allocator TSA_prototype[1] = {(My_allocator){
     .resize = _tsa_resize,
     .size = _tsa_size,
 }};
-
-extern inline void TSA_init(AllocatorV underlying, TSA_State res[1]) {
+AllocatorV TSA_init(AllocatorV underlying) {
+  TSA_State *res = aCreate(underlying, TSA_State);
   memcpy(res->allocator, TSA_prototype, sizeof(res->allocator));
   res->underlying = underlying;
-  mtx_init(&res->mutex, mtx_plain);
+  mtx_init(res->mutex, mtx_plain);
+  return res->allocator;
+}
+extern inline void TSA_deinit(AllocatorV allocator) {
+  TSA_State *ts = (typeof(ts))allocator;
+  mtx_destroy(ts->mutex);
+  var_ a = ts->underlying;
+  aFree(a, ts, sizeof(*ts));
 }
 
-extern inline void TSA_deinit(TSA_State res[1]) { mtx_destroy(&res->mutex); }
-
 #endif // TSA_ALLOCATOR_H
-
-// ---------------------------------------------------------
 
 #if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
   #define TSA_ALLOCATOR_C (1)
@@ -43,23 +46,23 @@ extern inline void TSA_deinit(TSA_State res[1]) { mtx_destroy(&res->mutex); }
 
 void *_tsa_alloc(AllocatorV allocator, size_t size, char *file, usize line) {
   TSA_State *tsa = (typeof(tsa))allocator;
-  mtx_lock(&tsa->mutex);
-  defer { mtx_unlock(&tsa->mutex); };
+  mtx_lock(tsa->mutex);
+  defer { mtx_unlock(tsa->mutex); };
   return (aAlloc)(tsa->underlying, size, file, line);
 }
 
 void _tsa_free(AllocatorV allocator, void *ptr, usize size, char *file, usize line) {
   TSA_State *tsa = (typeof(tsa))allocator;
-  mtx_lock(&tsa->mutex);
-  defer { mtx_unlock(&tsa->mutex); };
+  mtx_lock(tsa->mutex);
+  defer { mtx_unlock(tsa->mutex); };
   return (aFree)(tsa->underlying, ptr, size, file, line);
 }
 
 void *_tsa_resize(AllocatorV allocator, void *ptr, size_t old_size, size_t new_size, char *file, usize line) {
   TSA_State *tsa = (typeof(tsa))allocator;
 
-  mtx_lock(&tsa->mutex);
-  defer { mtx_unlock(&tsa->mutex); };
+  mtx_lock(tsa->mutex);
+  defer { mtx_unlock(tsa->mutex); };
   return (aResize)(tsa->underlying, ptr, old_size, new_size, file, line);
 }
 
@@ -68,9 +71,9 @@ size_t _tsa_size(AllocatorV allocator, void *ptr) {
   size_t res = 0;
 
   if (tsa->underlying->size) {
-    mtx_lock(&tsa->mutex);
+    mtx_lock(tsa->mutex);
     res = tsa->underlying->size(tsa->underlying, ptr);
-    mtx_unlock(&tsa->mutex);
+    mtx_unlock(tsa->mutex);
   }
   return res;
 }
