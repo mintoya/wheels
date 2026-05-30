@@ -237,7 +237,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
         _s.keep &&                                             /**/ \
         (_s.change < 0 ? _s.val > _s.last : _s.val < _s.last); /**/ \
         _s.keep = !_s.keep, _s.val += _s.change)               /**/ \
-        for (decl = _s.val; _s.keep; _s.keep = !_s.keep)
+        for (decl = _s.val; _s.keep; _s.keep = !_s.keep, _s.change = (inc))
 
   #define _each_span(start, len, decl)  \
     (struct {                           \

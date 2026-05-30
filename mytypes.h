@@ -169,4 +169,10 @@ sliceDef(c8);
 })
 #define slice_free(allocator, slice) \
   aFree(allocator, (slice).ptr, (sizeof(*(slice).ptr)) * (slice).len);
+
+#define sentList_t(type) typeof(type *)
+#define sentList(type, ...) \
+  (type[]) { __VA_OPT__(__VA_ARGS__, )(type){0} }
+#define sentList_vla(list) ({var_ _list = list; VLAP(_list, sentList_length(_list, sizeof(*_list))); })
+
 #endif // MY_TYPES

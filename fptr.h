@@ -25,6 +25,15 @@ static inline bool fptr_isEmpty(fptr f) {
       return false;
   return true;
 }
+static inline bool fptr_isNull(fptr f) {
+  return f.len == 0 && f.ptr == 0;
+}
+static inline usize sentList_length(void *items, usize unit) {
+  usize res = 0;
+  for (; !fptr_isEmpty((fptr){unit, items}); res++, items = (void *)((u8 *)items + unit))
+    ;
+  return res;
+}
 
 static inline int fptr_cmp(const fptr a, const fptr b) {
   return a.len - b.len

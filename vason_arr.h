@@ -939,6 +939,7 @@ slice(c8) vason_tostr(AllocatorV allocator, vason_container c) {
 
   vason_tostr_lesser(c, res);
 
+  aResize(allocator, mList_arr(res), sizeof(c8) * mList_cap(res), sizeof(c8) * mList_len(res));
   slice(c8) result = (slice(c8))slice_stat(*mList_vla(res));
   return result;
 }

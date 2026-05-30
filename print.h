@@ -286,8 +286,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(_slice_c8_printerfn, "slice(c8)", slice(c8), {
 
 REGISTER_PRINTER(c8, { PUTC(in); });
 REGISTER_SPECIAL_PRINTER("cstr", char *, {
-  if (!in)
-    in = "__NULLCSTR__";
+  in = in ?: "__NULLCSTR__";
   while (*in)
     PUTC(*in++);
 });
@@ -668,10 +667,10 @@ MAKE_PRINT_ARG_TYPE(i32);
 MAKE_PRINT_ARG_TYPE(u32);
   #endif
 
-  #define MAKE_PRINT_ARG(a)                                                \
-    ((struct print_arg){                                                   \
-        .ref = (fptr){sizeof(typeof(a)), (u8 *)REF(typeof(a), a)},         \
-        .name = fp_from(type_name_cstr < std::remove_cvref_t<typeof(a)>>()) \
+  #define MAKE_PRINT_ARG(a)                                               \
+    ((struct print_arg){                                                  \
+        .ref = (fptr){sizeof(typeof(a)), (u8 *)REF(typeof(a), a)},        \
+        .name = fp_from(type_name_cstr<std::remove_cvref_t<typeof(a)>>()) \
     }),
 #endif
 

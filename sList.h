@@ -212,9 +212,9 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
   })
 
   #define msList_header(s) (((sList_header *)(s)) - 1)
-  #define msList_deInit(allocator, s)                      \
-    do {                                                   \
-      sList_free(allocator, msList_header(s), sizeof(*s)); \
+  #define msList_deInit(allocator, s)                             \
+    do {                                                          \
+      if (s) sList_free(allocator, msList_header(s), sizeof(*s)); \
     } while (0)
   #define msList_ins(allocator, s, idx, val)                                                 \
     do {                                                                                     \
@@ -307,6 +307,16 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
       if (msList_cap(s) < (new_cap))                                                         \
         s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), new_cap)->buf; \
     } while (0)
+  #define msList_toOwned(allocator, s)                               \
+    ({                                                               \
+      usize c = msList_cap(s);                                       \
+      usize l = msList_len(s);                                       \
+      var_ _r = memcpy(msList_header(s), s, sizeof(*msList_vla(s))); \
+      s = nullptr;                                                   \
+      _r = aResize(allocator, _r, c * sizeof(*s), l * sizeof(*s));   \
+      _r;                                                            \
+    })
+
   // #include "tests.c"
   #if defined(MAKE_TEST_FN)
     #include "macros.h"
