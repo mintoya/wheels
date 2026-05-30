@@ -138,6 +138,10 @@ void cmdLine_printUsage(char *prog_name, cmdline_option *options) {
     println("\t{}:{}:\t{} \n", opt.name, type_str, opt.description ? opt.description : "");
   }
 }
+char **cmdLine_positionals(msHmap(cmdline_type) args) {
+  var_ v = cmdline_get(args, " p", char *);
+  return *(char ***)v;
+}
 // cmdline_option my_options[] = sentList(
 //     cmdline_option,
 //     {"--help", CMDARG_BOOLEAN, "Print help"},
