@@ -1,3 +1,4 @@
+// include in the main file, no guard
 #include "allocator.h"
 #include "macros.h"
 #include "mytypes.h"
@@ -65,11 +66,11 @@ msHmap(cmdline_type) cmdLine_parse(AllocatorV allocator, cmdline_option *options
       msList_push(allocator, positionals, (c8 *)args[i]);
   }
 
-  msHmap_set(result, " p", (cmdline_type)tu_of(cmdline_long, (c8 *)positionals));
+  msHmap_set(result, ((fptr){8, "\0\0\0\0\0\0\0\0"}), (cmdline_type)tu_of(cmdline_long, (c8 *)positionals));
   return result;
 }
 void cmdLine_deInit(AllocatorV allocator, msHmap(cmdline_type) a) {
-  cmdline_type *buffer = msHmap_get(a, " p");
+  cmdline_type *buffer = msHmap_get(a, ((fptr){8, "\0\0\0\0\0\0\0\0"}));
   assertMessage(buffer);
   tu_match(
       buffer[0],
@@ -80,7 +81,7 @@ void cmdLine_deInit(AllocatorV allocator, msHmap(cmdline_type) a) {
 }
 
 #define CMDLINE_GENERATE_MAIN(...)                                    \
-  extern int cmdline_main(msHmap(cmdline_type) args);                 \
+  extern int cmdline_main(cmdline_args args);                         \
   int main(int argc, char **argv) {                                   \
     var_ parsed = cmdLine_parse(stdAlloc, (__VA_ARGS__), argc, argv); \
     int result = cmdline_main(parsed);                                \
@@ -138,17 +139,9 @@ void cmdLine_printUsage(char *prog_name, cmdline_option *options) {
     println("\t{}:{}:\t{} \n", opt.name, type_str, opt.description ? opt.description : "");
   }
 }
-char **cmdLine_positionals(msHmap(cmdline_type) args) {
-  var_ v = cmdline_get(args, " p", char *);
+typedef msHmap(cmdline_type) cmdline_args;
+
+char **cmdLine_positionals(cmdline_args args) {
+  var_ v = cmdline_get(args, ((fptr){8, "\0\0\0\0\0\0\0\0"}), char *);
   return *(char ***)v;
 }
-// cmdline_option my_options[] = sentList(
-//     cmdline_option,
-//     {"--help", CMDARG_BOOLEAN, "Print help"},
-//     {"--count", CMDARG_INTEGER, "Number of items"}
-// );
-
-// CMDLINE_GENERATE_MAIN(stdAlloc, my_options)
-// int cmdline_main(msHmap(cmdline_type) args) {
-//   var_ t = cmdline_get(args, "--help", u32);
-// }
