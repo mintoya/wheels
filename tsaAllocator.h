@@ -16,20 +16,20 @@ void _tsa_free(AllocatorV allocator, void *ptr, usize size, char *file, usize li
 void *_tsa_resize(AllocatorV allocator, void *ptr, size_t old_size, size_t new_size, char *file, usize line);
 size_t _tsa_size(AllocatorV allocator, void *ptr);
 
-const My_allocator TSA_prototype[1] = {(My_allocator){
+static const My_allocator TSA_prototype[1] = {(My_allocator){
     .alloc = _tsa_alloc,
     .free = _tsa_free,
     .resize = _tsa_resize,
     .size = _tsa_size,
 }};
-AllocatorV TSA_init(AllocatorV underlying) {
+static inline AllocatorV TSA_init(AllocatorV underlying) {
   TSA_State *res = aCreate(underlying, TSA_State);
   memcpy(res->allocator, TSA_prototype, sizeof(res->allocator));
   res->underlying = underlying;
   mtx_init(res->mutex, mtx_plain);
   return res->allocator;
 }
-extern inline void TSA_deinit(AllocatorV allocator) {
+static inline void TSA_deinit(AllocatorV allocator) {
   TSA_State *ts = (typeof(ts))allocator;
   mtx_destroy(ts->mutex);
   var_ a = ts->underlying;

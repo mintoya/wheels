@@ -7,9 +7,20 @@
 #include "mytypes.h"
 #include "print.h"
 
+struct tracedata {
+  char *fn;
+  usize ln;
+  usize size;
+};
+typedef struct {
+  usize insize;
+  usize outsize;
+  struct tracedata trace;
+} allocationType;
 struct dbgAlloc_config {
   AllocatorV allocator;
   FILE *log;
+  fnptr_((allocationType *), void) on_call;
 };
 /**
  * `@param` **allocator**  allocator
@@ -46,11 +57,6 @@ int debugAllocatorDeInit(AllocatorV);
 #endif
 
 #if defined(MY_DEBUG_ALLOCATOR_C)
-struct tracedata {
-  char *fn;
-  usize ln;
-  usize size;
-};
 typedef struct {
   mHmap(void *, struct tracedata) map;
   AllocatorV actualAllocator;
@@ -217,6 +223,14 @@ void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln)
   if (internals->current > internals->max)
     internals->max = internals->current;
 
+  if (internals->config.on_call) {
+    allocationType t;
+    t.insize = 0;
+    t.outsize = size;
+    t.trace = data;
+    internals->config.on_call(&t);
+  }
+
   return res;
 }
 
@@ -224,10 +238,19 @@ void debugAllocator_free(AllocatorV allocator, void *ptr, usize size, char *fn, 
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
   struct tracedata *data = mHmap_get(internals->map, ptr);
+  struct tracedata datak = *data;
   assertMessage(data, "pointer not in allocator , from %lu %s", ln, fn);
   internals->current -= data->size;
   assertMessage(mHmap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
   (aFree)(realAllocator, ptr, data->size, fn, ln);
+
+  if (internals->config.on_call) {
+    allocationType t;
+    t.insize = size;
+    t.outsize = 0;
+    t.trace = datak;
+    internals->config.on_call(&t);
+  }
   mHmap_rem(internals->map, ptr);
 }
 void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize oldsize, usize newsize, char *fn, usize ln) {
@@ -259,6 +282,13 @@ void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize oldsize, usi
   if (internals->current > internals->max)
     internals->max = internals->current;
 
+  if (internals->config.on_call) {
+    allocationType t;
+    t.insize = oldsize;
+    t.outsize = newsize;
+    t.trace = da;
+    internals->config.on_call(&t);
+  }
   return res;
 }
 #endif // MY_DEBUG_ALLOCATOR_C

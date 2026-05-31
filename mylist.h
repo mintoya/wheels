@@ -47,7 +47,7 @@ List_getRef(const List *l, List_index_t i, size_t width) { return (i < l->length
  * @param init initial capacity
  */
 void List_makeNew(AllocatorV allocator, List *l, size_t bytes, List_index_t init);
-extern inline void List_resize(List *l, List_index_t newSize, size_t width) {
+static inline void List_resize(List *l, List_index_t newSize, size_t width) {
   newSize = newSize ? newSize : 1;
   if ((newSize > l->capacity || newSize < l->capacity / 8))
     return List_forceResize(l, newSize, width);
@@ -119,7 +119,7 @@ void *List_insertFromArr(List *l, const void *source, List_index_t length, List_
  * @param length element count
  * @return adress of first inserted element
  */
-extern inline void *List_appendFromArr(List *l, const void *source, List_index_t ammount, size_t width) {
+static inline void *List_appendFromArr(List *l, const void *source, List_index_t ammount, size_t width) {
   return List_insertFromArr(l, source, ammount, l->length, width);
 }
 
@@ -130,13 +130,13 @@ __attribute__((pure)) static inline List_index_t List_length(const List *l) { re
  * @param element :pointer to list element searched
  * @return length of list if it doesnt exist
  */
-extern inline List_index_t List_locate(const List *l, const void *element, size_t width);
-extern inline void List_remove(List *l, List_index_t i, size_t width);
+static inline List_index_t List_locate(const List *l, const void *element, size_t width);
+static inline void List_remove(List *l, List_index_t i, size_t width);
 /*
  * sets all bits in space reserved to 0
  * @param list
  */
-extern inline void List_zeroOut(List *l, size_t width);
+static inline void List_zeroOut(List *l, size_t width);
 List *List_deepCopy(List *l, size_t width);
 
 #ifdef __cplusplus
@@ -456,7 +456,7 @@ inline void List_zeroOut(List *l, size_t w) { memset(l->head, 0, w * l->capacity
 void List_insert(List *l, List_index_t i, void *element, size_t w) {
   List_insertFromArr(l, element, 1, i, w);
 }
-extern inline void List_remove(List *l, List_index_t i, size_t width) {
+static inline void List_remove(List *l, List_index_t i, size_t width) {
   if (i >= l->length)
     return;
   memmove(l->head + i * width, l->head + (i + 1) * width, (l->length - i - 1) * width);

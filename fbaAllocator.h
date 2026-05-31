@@ -9,7 +9,7 @@ void *_fba_alloc(AllocatorV allocator, usize size, char *, usize);
 void _fba_free(AllocatorV allocator, void *ptr, usize size, char *, usize);
 void *_fba_alloc_nullable(AllocatorV allocator, usize size);
 void _fba_print(AllocatorV allocator);
-const My_allocator FBA_prototype[1] = {
+static const My_allocator FBA_prototype[1] = {
     (My_allocator){
         .alloc = _fba_alloc,
         .free = _fba_free,
@@ -23,16 +23,16 @@ typedef struct {
   usize capacity, offset, count;
   u8 *buffer;
 } FBA_State;
-extern inline usize FBA_current(AllocatorV allocator) {
+static inline usize FBA_current(AllocatorV allocator) {
   FBA_State *f = (typeof(f))allocator;
   return f->offset;
 }
-extern inline void FBA_reset(AllocatorV allocator) {
+static inline void FBA_reset(AllocatorV allocator) {
   FBA_State *f = (typeof(f))allocator;
   f->offset = 0;
   // f->count = 0;
 }
-extern inline void FBA_init(u8 *buffer, usize size, FBA_State res[1]) {
+static inline void FBA_init(u8 *buffer, usize size, FBA_State res[1]) {
   assert(buffer == (typeof(buffer))lineup((uptr)buffer, alignof(myAlign)));
   memcpy(res->allocator, FBA_prototype, sizeof(res->allocator));
   res->capacity = size;

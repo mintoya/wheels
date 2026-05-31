@@ -19,6 +19,7 @@ typedef struct slice_u8 {
 static inline fptr fptr_CS(void *cstr) { return ((fptr){(usize)strlen((char *)cstr), (u8 *)cstr}); }
 static inline fptr fptr_CSP(const char *cstr) { return ((fptr){(usize)strlen((char *)cstr), (u8 *)cstr}); }
 static inline fptr fptr_fromPL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
+static inline fptr fptr_PL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
 static inline bool fptr_isEmpty(fptr f) {
   for (usize i = 0; i < f.len; i++)
     if (f.ptr[i])
