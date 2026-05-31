@@ -1,9 +1,7 @@
 #if !defined(TSA_ALLOCATOR_H)
   #define TSA_ALLOCATOR_H (1)
-  #include "allocator.h"
-  #include "mytypes.h"
-  #include <string.h>
-  #include <threads.h> // Using standard C11 threads for mtx_t
+  #include "../allocator.h"
+  #include <threads.h>
 
 typedef struct TSA_State {
   My_allocator allocator[1];

@@ -1,11 +1,7 @@
 #ifndef ARENA_ALLOCATOR_H
 #define ARENA_ALLOCATOR_H
-#include "allocator.h"
-#include "assertMessage.h"
-#include "macros.h"
-#include "mytypes.h"
-#include <stddef.h>
-#include <string.h>
+#include "../allocator.h"
+#include "../mytypes.h"
 
 typedef struct ArenaHead ArenaHead;
 typedef struct ArenaBuf ArenaBuf;
@@ -44,7 +40,6 @@ static void arena_cleanup_handler [[maybe_unused]] (My_allocator **arenaPtr) {
 #define Arena_scoped [[gnu::cleanup(arena_cleanup_handler)]] My_allocator
 
 #if defined(MAKE_TEST_FN)
-  #include "macros.h"
 MAKE_TEST_FN(arena_test, {
   AllocatorV arena = arena_new_ext(allocator, 1);
   defer { arena_cleanup(arena); };
@@ -75,7 +70,10 @@ MAKE_TEST_FN(arena_test, {
 #endif
 
 #if defined(ARENA_ALLOCATOR_C)
+#include "../assertMessage.h"
 #include "fbaAllocator.h"
+#include <stddef.h>
+#include <string.h>
 
 void my_arena_free(AllocatorV arena, voidptr ptr, usize size, char *, usize);
 voidptr my_arena_alloc(AllocatorV arena, usize size, char *, usize);

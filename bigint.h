@@ -1,9 +1,9 @@
 #if !defined(MY_BIGINT_H)
   #define MY_BIGINT_H (1)
-  #include "print.h"
-  #include "arenaAllocator.h"
+  #include "allocators/arenaAllocator.h"
   #include "macros.h"
   #include "mytypes.h"
+  #include "print.h"
   #include "sList.h"
 
 typedef unsigned int bigint_unit;

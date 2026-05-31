@@ -208,7 +208,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define _each_range_3(start, end, decl)                           \
     (                                                               \
         struct {                                                    \
-          __typeof_unqual__((start) + (end)) val, last;             \
+          __typeof_unqual__((start) + ((start) - (end))) val, last; \
           int change;                                               \
           int keep;                                                 \
         } _s = {                                                    \
@@ -225,7 +225,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define _each_range_4(start, end, inc, decl)                      \
     (                                                               \
         struct {                                                    \
-          __typeof_unqual__((start) + (end)) val, last;             \
+          __typeof_unqual__((start) + ((start) - (end))) val, last; \
           __typeof_unqual__(inc) change;                            \
           int keep;                                                 \
         } _s = {                                                    \

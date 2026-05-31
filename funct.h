@@ -1,5 +1,4 @@
 #include <threads.h>
-#include <time.h>
 #if !defined(MY_THREAD_MACORS_H)
   #define MY_THREAD_MACORS_H (1)
 
@@ -251,12 +250,12 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
 
   // #include "tests.c"
   #if defined(MAKE_TEST_FN)
-    #include "tsaAllocator.h"
+    #include "allocators/tsaAllocator.h"
 decfunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), nothing_t);
 deffunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), nothing_t, {
   var_ one_second = (struct timespec){1};
+  thrd_sleep(&one_second, nullptr);
   mutex_critical (int *x, mutex_lock, i[0]) {
-    thrd_sleep(&one_second, nullptr);
     x[0]++;
   } else unreachable();
 });

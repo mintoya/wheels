@@ -1,10 +1,6 @@
 #if !defined(FBA_ALLOCATOR_H)
   #define FBA_ALLOCATOR_H (1)
-  #include "allocator.h"
-  #include "mytypes.h"
-  #include "stdalign.h"
-  #include <assert.h>
-  #include <stddef.h>
+  #include "../allocator.h"
 void *_fba_alloc(AllocatorV allocator, usize size, char *, usize);
 void _fba_free(AllocatorV allocator, void *ptr, usize size, char *, usize);
 void *_fba_alloc_nullable(AllocatorV allocator, usize size);

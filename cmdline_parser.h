@@ -7,6 +7,8 @@
 #include "shmap.h"
 #include "stringList.h"
 #include "tu_macros.h"
+#include <stdcountof.h>
+#include <string.h>
 
 typedef struct {
   char *name;
@@ -24,6 +26,55 @@ tu_def(
     (cmdline_bool, bool),
     (cmdline_long, c8 *)
 );
+struct cmdline_roll_t {
+  i64 value;
+  char *failed;
+};
+struct cmdline_roll_t cmdline_roll(sentList_t(char) n) {
+  char *start = n;
+  usize len = strlen(n);
+  i64 neg = 1;
+  i64 res = 0;
+  enum { hex = 16,
+         bin = 2,
+         dec = 10 } base = dec;
+  if (len > 2) {
+    if (fptr_eq(fp("0x"), ((fptr){2, start}))) {
+      base = hex;
+      start += 2;
+      len -= 2;
+    } else if (fptr_eq(fp("0b"), ((fptr){2, start}))) {
+      base = bin;
+      start += 2;
+      len -= 2;
+    }
+  }
+  if (len > 0 && start[0] == '-') {
+    neg = -1;
+    start++;
+    len--;
+  }
+
+  foreach (var_ c, span(start, len)) {
+    switch (c[0]) {
+      case '0' ... '9': {
+        i64 add = c[0] - '0';
+        if (add > base) return ((struct cmdline_roll_t){.failed = "base conversion failure"});
+        res *= base;
+        res += add;
+      } break;
+      case 'a' ... 'f': {
+        i64 add = c[0] - 'a' + 10;
+        if (add > base) return ((struct cmdline_roll_t){.failed = "base conversion failure"});
+        res *= base;
+        res += add;
+      } break;
+      default:
+        return ((struct cmdline_roll_t){.failed = "character not part of any base"});
+    }
+  }
+  return ((struct cmdline_roll_t){res * neg});
+}
 msHmap(cmdline_type) cmdLine_parse(AllocatorV allocator, cmdline_option *options, int nargs, char **args) {
   var_ opts = sentList_vla(options);
   var_ result = msHmap_init(allocator, cmdline_type, countof(*opts) + 1);
@@ -43,14 +94,25 @@ msHmap(cmdline_type) cmdLine_parse(AllocatorV allocator, cmdline_option *options
           case CMDARG_INTEGER:
             if (i + 1 < nargs) {
               i++;
-              value = (cmdline_type)tu_of(cmdline_int, atoll(args[i]));
+              var_ toi = cmdline_roll(args[i]);
+              if (toi.failed) {
+                println("couldnt parse {} using {} , error : {}", opt.name, args[i], toi.failed);
+                exit(1);
+              } else value = (cmdline_type)tu_of(cmdline_int, toi.value);
+            } else {
+              println("{} requires an argument", opt.name);
+              exit(1);
             }
             break;
           case CMDARG_STRING:
             if (i + 1 < nargs) {
               i++;
               value = (cmdline_type)tu_of(cmdline_long, (c8 *)args[i]);
+            } else {
+              println("{} requires an argument", opt.name);
+              exit(1);
             }
+
             break;
           default:
             unreachable();
@@ -117,7 +179,7 @@ void cmdLine_deInit(AllocatorV allocator, msHmap(cmdline_type) a) {
   _res;                                                                      \
 })
 void cmdLine_printUsage(char *prog_name, cmdline_option *options) {
-  println("Usage: {} [options]...\n\n", prog_name);
+  println("Usage: {} [options]...\n", prog_name);
   println("Options:\n");
 
   var_ opts = sentList_vla(options);
@@ -136,7 +198,7 @@ void cmdLine_printUsage(char *prog_name, cmdline_option *options) {
         break;
     }
 
-    println("\t{}:{}:\t{} \n", opt.name, type_str, opt.description ? opt.description : "");
+    println("\t{}:{}:\t{}", opt.name, type_str, opt.description ? opt.description : "");
   }
 }
 typedef msHmap(cmdline_type) cmdline_args;

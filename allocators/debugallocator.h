@@ -1,11 +1,7 @@
 #ifndef MY_DEBUG_ALLOCATOR_H
 #define MY_DEBUG_ALLOCATOR_H
-#include "allocator.h"
-#include "assertMessage.h" // debug symbols
-#include "hhmap.h"
-#include "macros.h"
-#include "mytypes.h"
-#include "print.h"
+#include "../allocator.h"
+#include <stdio.h>
 
 struct tracedata {
   char *fn;
@@ -57,6 +53,12 @@ int debugAllocatorDeInit(AllocatorV);
 #endif
 
 #if defined(MY_DEBUG_ALLOCATOR_C)
+
+#include "../hhmap.h"
+#include "../macros.h"
+#include "../mytypes.h"
+#include "../print.h"
+
 typedef struct {
   mHmap(void *, struct tracedata) map;
   AllocatorV actualAllocator;
