@@ -59,7 +59,7 @@ NAMESPACE_STRUCT(
 );
   #if defined(MAKE_TEST_FN)
 
-MAKE_TEST_FN(vason_exact_memcmp_match, {
+MAKE_TEST_FN(vason_match, {
   vason_node root = vason_node_newTable(allocator);
   var_ rp = &root;
   defer { vason_node_freeRecursive(allocator, *rp); };

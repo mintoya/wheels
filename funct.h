@@ -1,4 +1,3 @@
-#include <threads.h>
 #if !defined(MY_THREAD_MACORS_H)
   #define MY_THREAD_MACORS_H (1)
 
@@ -9,7 +8,7 @@
   #include "allocator.h"
   #include "assertMessage.h"
 
-  #include "cpthreads/cpthreads.h"
+  #include "c11threads/c11threads.h"
   #include "macros.h"
   #include "mylist.h"
   #include "mytypes.h"

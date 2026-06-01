@@ -142,7 +142,7 @@ static const char *file_errors[] = {
     [6] = "NOT_WRITABLE",
 };
 
-  #if __has_include(<unistd.h>)
+  #if __has_include(<unistd.h>) && !__has_include(<windows.h>)
     // { posix
     #include <fcntl.h>
     #include <unistd.h>

@@ -935,12 +935,13 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
 }
 slice(c8) vason_tostr(AllocatorV allocator, vason_container c) {
   mList(c8) res = mList_init(allocator, c8);
-  defer { aFree(allocator, res, sizeof(mList(c8))); };
+  defer { msList_deInit(allocator, res); };
 
   vason_tostr_lesser(c, res);
 
-  aResize(allocator, mList_arr(res), sizeof(c8) * mList_cap(res), sizeof(c8) * mList_len(res));
-  slice(c8) result = (slice(c8))slice_stat(*mList_vla(res));
+  usize length = mList_len(res);
+  var_ s = mList_toOwned(allocator, res);
+  slice(c8) result = (slice(c8)){length, s};
   return result;
 }
 usize vason_container_footprint(vason_container c) {

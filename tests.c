@@ -1,4 +1,5 @@
 #pragma once
+#include <stdio.h>
 #include "allocator.h"
 #include "assertMessage.h"
 #include "macros.h"

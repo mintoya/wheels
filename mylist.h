@@ -464,18 +464,13 @@ static inline void List_remove(List *l, List_index_t i, size_t width) {
 }
 void List_forceResize(List *l, List_index_t newlength, size_t width) {
   uint8_t *newPlace =
-      (uint8_t *)aResize(l->allocator, l->head, l->length * width, newlength * width);
+      (uint8_t *)aResize(l->allocator, l->head, l->capacity * width, newlength * width);
   assertMessage(newPlace);
-  if (!newPlace) {
-    fprintf(stderr, "cant resize list");
-    abort();
-  } else {
-    l->head = newPlace;
-    l->capacity = newlength;
-    if (l->allocator->size)
-      l->capacity = l->allocator->size(l->allocator, l->head) / width;
-    l->length = (l->length < l->capacity) ? (l->length) : (l->capacity);
-  }
+  l->head = newPlace;
+  l->capacity = newlength;
+  if (l->allocator->size)
+    l->capacity = l->allocator->size(l->allocator, l->head) / width;
+  l->length = (l->length < l->capacity) ? (l->length) : (l->capacity);
   return;
 }
 List *List_fromArr(AllocatorV allocator, const void *source, size_t width, List_index_t length) {

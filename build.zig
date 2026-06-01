@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) void {
         .argv = &.{
             "git",
             "clone",
-            "https://github.com/Precisamento/cpthreads",
+            "https://github.com/jtsiomb/c11threads",
         },
     }) catch null;
     const target = b.standardTargetOptions(.{});
@@ -42,8 +42,22 @@ pub fn build(b: *std.Build) void {
         .language = .c,
     });
 
-    if (target.result.os.tag == .windows)
+    if (target.result.os.tag == .windows) {
         exe.root_module.linkSystemLibrary("dbghelp", .{});
+
+        exe.root_module.addCSourceFile(.{
+            .file = b.path("c11threads/c11threads_win32.c"),
+            .flags = &.{
+                "-g",
+                "-w",
+                "-std=c2y",
+                "-fdefer-ts",
+                "-fno-sanitize=vla-bound",
+                "-fsanitize=alignment",
+            },
+            .language = .c,
+        });
+    }
     exe.rdynamic = true;
 
     b.installArtifact(exe);
@@ -51,8 +65,8 @@ pub fn build(b: *std.Build) void {
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
 
-    if (b.args) |args|
-        run_cmd.addArgs(args);
+    // if (b.args) |args|
+    //     run_cmd.addArgs(args);
 
     const run_step = b.step("run", "Run the application");
     run_step.dependOn(&run_cmd.step);
