@@ -307,14 +307,15 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
       if (msList_cap(s) < (new_cap))                                                         \
         s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), new_cap)->buf; \
     } while (0)
-  #define msList_toOwned(allocator, s)                               \
-    ({                                                               \
-      usize c = msList_cap(s);                                       \
-      usize l = msList_len(s);                                       \
-      var_ _r = memcpy(msList_header(s), s, sizeof(*msList_vla(s))); \
-      s = nullptr;                                                   \
-      _r = aResize(allocator, _r, c * sizeof(*s), l * sizeof(*s));   \
-      _r;                                                            \
+  #define msList_toOwned(allocator, s)                                \
+    ({ /*TODO*/                                                       \
+       unreachable();                                                 \
+       usize c = msList_cap(s);                                       \
+       usize l = msList_len(s);                                       \
+       var_ _r = memcpy(msList_header(s), s, sizeof(*msList_vla(s))); \
+       s = nullptr;                                                   \
+       _r = aResize(allocator, _r, c * sizeof(*s), l * sizeof(*s));   \
+       _r;                                                            \
     })
 
   // #include "tests.c"

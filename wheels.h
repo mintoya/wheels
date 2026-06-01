@@ -39,12 +39,6 @@
 #endif
 #undef VASON_PARSER_C
 
-#if defined(MY_DEBUG_ALLOCATOR_H) || defined(WHEELS_INCLUDE_ALL)
-  #define MY_DEBUG_ALLOCATOR_C (1)
-  #include "allocators/debugallocator.h"
-#endif
-#undef MY_DEBUG_ALLOCATOR_C
-
 #if defined(MY_THREAD_MACORS_H) || defined(WHEELS_INCLUDE_ALL)
   #define MY_THREAD_MACORS_C (1)
   #include "funct.h"
@@ -69,23 +63,8 @@
 #endif
 #undef MY_LIST_C
 
-#if defined(TSA_ALLOCATOR_H) || defined(WHEELS_INCLUDE_ALL)
-  #define TSA_ALLOCATOR_C (1)
-  #include "allocators/tsaAllocator.h"
-#endif
-#undef TSA_ALLOCATOR_C
-
-#if defined(ARENA_ALLOCATOR_H) || defined(WHEELS_INCLUDE_ALL)
-  #define ARENA_ALLOCATOR_C (1)
-  #include "allocators/arenaAllocator.h"
-#endif
-#undef ARENA_ALLOCATOR_C
-
-#if defined(FBA_ALLOCATOR_H) || defined(WHEELS_INCLUDE_ALL)
-  #define FBA_ALLOCATOR_C (1)
-  #include "allocators/fbaAllocator.h"
-#endif
-#undef FBA_ALLOCATOR_H
+#include "allocators/wheels.h"
+#include "smallstreams/wheels.h"
 
 #if defined(MY_ALLOCATOR_H) || defined(WHEELS_INCLUDE_ALL)
   #define MY_ALLOCATOR_C (1)
@@ -97,5 +76,4 @@
   #define ASSERTMESSAGE_C (1)
   #include "assertMessage.h"
 #endif
-
 #undef ASSERTMESSAGE_C

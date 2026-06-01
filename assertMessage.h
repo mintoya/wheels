@@ -4,11 +4,119 @@
 #include "mytypes.h"
 #include <assert.h>
 #include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
 #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
 #define ASSERTMESSAGE_PRINTRESET "\x1b[0m"
 #define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"
+
+// {output macors
+// {int _am_write(void*,unsigned)
+#if defined(_WIN32) || defined(_WIN64)
+  #include <io.h>
+static inline int _am_write(const void *buf, unsigned len) {
+  return _write(2, buf, len);
+}
+#elif __has_include(<unistd.h>)
+  #include <unistd.h>
+static inline int _am_write(const void *buf, unsigned len) {
+  return (int)write(2, buf, (size_t)len);
+}
+#else
+static inline int _am_write(const void *buf, unsigned len) {
+  (void)buf;
+  (void)len;
+  return -1; // unsupported platform
+}
+#endif
+
+// }
+
+static inline void _am_puts(const char *s) {
+  if (!s) return;
+  unsigned n = 0;
+  while (s[n])
+    n++;
+  _am_write(s, n);
+}
+static inline void _am_putuint(unsigned v) {
+  char buf[20];
+  int i = sizeof(buf);
+  buf[--i] = '\0';
+  do {
+    buf[--i] = '0' + (char)(v % 10);
+    v /= 10;
+  } while (v);
+  _am_puts(buf + i);
+}
+// { format
+static inline void _am_write_char(char c) { _am_write(&c, 1); }
+
+static inline void _am_write_str(const char *s) {
+  s = s ?: "(nullstr)";
+  while (s)
+    _am_write(s++, 1);
+}
+static inline void _am_write_uint(unsigned long long v, int base, int upper) {
+  const char *digits = upper ? "0123456789ABCDEF" : "0123456789abcdef";
+  char buf[22];
+  int i = sizeof(buf) - 1;
+  buf[i] = '\0';
+  if (v == 0) {
+    buf[--i] = '0';
+  } else {
+    while (v) {
+      buf[--i] = digits[v % base];
+      v /= base;
+    }
+  }
+  _am_write_str(buf + i);
+}
+static inline void _am_write_int(long long v) {
+  if (v < 0) {
+    _am_write_char('-');
+    _am_write_uint((unsigned long long)-v, 10, 0);
+  } else {
+    _am_write_uint((unsigned long long)v, 10, 0);
+  }
+}
+static void _am_vfmt(const char *fmt, va_list ap) {
+  for (; *fmt; fmt++) {
+    if (*fmt != '%') {
+      _am_write_char(*fmt);
+      continue;
+    }
+    fmt++;
+    switch (*fmt) {
+      case 's':
+        _am_write_str(va_arg(ap, const char *));
+        break;
+      case 'c':
+        _am_write_char((char)va_arg(ap, int));
+        break;
+      case 'd':
+      case 'i':
+        _am_write_int((long long)va_arg(ap, int));
+        break;
+      case 'u':
+        _am_write_uint((unsigned long long)va_arg(ap, unsigned), 10, 0);
+        break;
+      case 'x':
+        _am_write_uint((unsigned long long)va_arg(ap, unsigned), 16, 0);
+        break;
+      case 'X':
+        _am_write_uint((unsigned long long)va_arg(ap, unsigned), 16, 1);
+        break;
+      case '%':
+        _am_write_char('%');
+        break;
+      default:
+        _am_write_char('%');
+        _am_write_char(*fmt);
+        break;
+    }
+  }
+}
+// }
+// }
 
 #ifndef assertMessage_no_backtrace
   #if __has_include(<execinfo.h>)
@@ -38,7 +146,7 @@ void __attribute__((noreturn)) _assertMessageFail(
     uint line,
     void *trace[5],
     uint traceLen,
-    const char *fmt,
+    const char *message,
     ...
 );
 
@@ -112,36 +220,30 @@ void __attribute__((noreturn)) _assertMessageFail(
     const char *fmt,
     ...
 ) {
-  fprintf(stderr, ASSERTMESSAGE_PRINTRED "\nmessage:\n");
-
+  _am_puts(ASSERTMESSAGE_PRINTRED "\nmessage:\n");
   va_list args;
   va_start(args, fmt);
-  vfprintf(stderr, fmt, args);
+  _am_vfmt(fmt, args);
   va_end(args);
-
-  fprintf(
-      stderr,
-      ASSERTMESSAGE_PRINTORANGE
-      "\nassert:\t%s\n"
-      "in fn :\t%s\n"
-      "file  :\t%s\n"
-      "line  :\t%d\n"
-      "\nfailed\n" ASSERTMESSAGE_PRINTRESET,
-      expr_str,
-      func,
-      file,
-      line
-  );
-  fflush(stderr);
+  _am_puts(ASSERTMESSAGE_PRINTORANGE "\nassert:\t");
+  _am_puts(expr_str);
+  _am_puts("\nin fn :\t");
+  _am_puts(func);
+  _am_puts("\nfile  :\t");
+  _am_puts(file);
+  _am_puts("\nline  :\t");
+  _am_putuint(line);
+  _am_puts("\n\nfailed\n" ASSERTMESSAGE_PRINTRESET);
 
 #ifndef assertMessage_no_backtrace
   char **syms = backtrace_symbols(trace, traceLen);
-
   if (syms) {
-    fprintf(stderr, ASSERTMESSAGE_PRINTRED "backtrace:\n==========================\n");
-    for (size_t i = 0; i < traceLen; i++)
-      fprintf(stderr, "%s\n", syms[i]);
-    fprintf(stderr, "==========================\n" ASSERTMESSAGE_PRINTRESET);
+    _am_puts(ASSERTMESSAGE_PRINTRED "backtrace:\n==========================\n");
+    for (size_t i = 0; i < traceLen; i++) {
+      _am_puts(syms[i]);
+      _am_puts("\n");
+    }
+    _am_puts("==========================\n" ASSERTMESSAGE_PRINTRESET);
   }
 #endif
   assertMessage_fail_ins();

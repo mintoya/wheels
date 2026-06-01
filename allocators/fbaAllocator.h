@@ -51,7 +51,6 @@ static inline void FBA_init(u8 *buffer, usize size, FBA_State res[1]) {
 #endif
 
 #ifdef FBA_ALLOCATOR_C
-  #include <stdio.h>
 void _fba_free(AllocatorV allocator, void *ptr, usize size, char *, usize) {
   size = aAlloc_align(size);
   FBA_State *f = (typeof(f))allocator;

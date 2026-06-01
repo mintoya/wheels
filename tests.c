@@ -3,7 +3,6 @@
 #include "assertMessage.h"
 #include "macros.h"
 #include "mytypes.h"
-#include "stdio.h"
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>

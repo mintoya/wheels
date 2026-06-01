@@ -402,6 +402,7 @@ RangeAdapter<CIterator, CastType> as_range(CIterator it) {
 
 //
 // spiral rule
+// just so i dont have to read types in a circle
 //
 
   #define fnptrof(in, out) typeof(out(*) in)
