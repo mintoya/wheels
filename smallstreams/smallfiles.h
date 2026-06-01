@@ -3,6 +3,18 @@
   #include "../allocator.h"
   #include "../smallstream.h"
 
+/* access :
+ *  read
+ *  write
+ * mode
+ *  create
+ *  doestn_exist
+ *  append
+ *  truncate
+ * status
+ *  nonblock
+ *  sync
+ */
 typedef struct {
   struct {
     struct {
@@ -139,6 +151,7 @@ struct file_stream {
   small_stream_vt vt[1];
   int fileno;
   usize file_len;
+  usize curr_pos;
   fileopenflags flags;
 };
 
@@ -147,18 +160,23 @@ sstream_c8 _file_sstream_getc(sstream stream) {
   if (!ptr->flags.access.read) return (sstream_c8){.err = 5};
   c8 result;
   var_ rr = read(ptr->fileno, &result, 1);
-  if (rr == 1) return (sstream_c8){.result = result};
-  if (rr == 0) return (sstream_c8){.err = 1}; // EOF
-  return (sstream_c8){.err = 3};
+  if (rr == 1) {
+    ptr->curr_pos += 1;
+    return (sstream_c8){.result = result};
+  }
+  if (!rr) return (sstream_c8){.err = 1}; // EOF
+  return (sstream_c8){.err = 4};
 }
-
 sstream_size _file_sstream_gets(sstream stream, fptr buffer) {
   assertMessage(buffer.len);
   struct file_stream *ptr = (typeof(ptr))stream;
   if (!ptr->flags.access.read) return (sstream_size){.err = 5};
   var_ rr = read(ptr->fileno, buffer.ptr, buffer.len);
-  if (rr >= 0) return (sstream_size){.result = (usize)rr};
-  return (sstream_size){.err = 3};
+  if (rr >= 0) {
+    ptr->curr_pos += (usize)rr;
+    return (sstream_size){.result = (usize)rr};
+  }
+  return (sstream_size){.err = 4};
 }
 
 sstream_errn _file_sstream_putc(sstream stream, u8 c) {
@@ -168,15 +186,15 @@ sstream_errn _file_sstream_putc(sstream stream, u8 c) {
   if (rr == 1) {
     if (ptr->flags.mode.append) {
       ptr->file_len += 1;
+      ptr->curr_pos = ptr->file_len;
     } else {
-      var_ off = lseek(ptr->fileno, 0, SEEK_CUR);
-      if (off > (off_t)ptr->file_len) ptr->file_len = (usize)off;
+      ptr->curr_pos += 1;
+      if (ptr->curr_pos > ptr->file_len) ptr->file_len = ptr->curr_pos;
     }
     return 0;
   }
   return 3;
 }
-
 sstream_errn _file_sstream_puts(sstream stream, fptr buffer) {
   struct file_stream *ptr = (typeof(ptr))stream;
   if (!ptr->flags.access.write) return 6;
@@ -184,27 +202,32 @@ sstream_errn _file_sstream_puts(sstream stream, fptr buffer) {
   if (rr >= 0) {
     if (ptr->flags.mode.append) {
       ptr->file_len += rr;
+      ptr->curr_pos = ptr->file_len;
     } else {
-      var_ off = lseek(ptr->fileno, 0, SEEK_CUR);
-      if (off > (off_t)ptr->file_len) ptr->file_len = (usize)off;
+      ptr->curr_pos += rr;
+      if (ptr->curr_pos > ptr->file_len) ptr->file_len = ptr->curr_pos;
     }
     if (rr == (ssize_t)buffer.len) return 0;
   }
-  return 3;
+  return 4;
 }
 
 sstream_size _file_sstream_tell(sstream stream) {
   struct file_stream *ptr = (typeof(ptr))stream;
   var_ rr = lseek(ptr->fileno, 0, SEEK_CUR);
+  assertMessage(rr == ptr->curr_pos, "%i != %i", (int)rr, (int)ptr->curr_pos);
   if (rr >= 0) return (sstream_size){.result = (usize)rr};
-  return (sstream_size){.err = 3};
+  return (sstream_size){.err = 4};
 }
 
 sstream_errn _file_sstream_seek(sstream stream, usize pos) {
   struct file_stream *ptr = (typeof(ptr))stream;
   var_ rr = lseek(ptr->fileno, (off_t)pos, SEEK_SET);
-  if (rr >= 0) return 0;
-  return 3;
+  if (rr >= 0) {
+    ptr->curr_pos = pos;
+    return 0;
+  }
+  return 4;
 }
 
 const char *_file_sstream_efromint(sstream stream, sstream_errn err) {
@@ -240,6 +263,7 @@ sstream file_stream_open(AllocatorV allocator, const char *const path, fileopenf
   if (flags.status.sync) flagint |= O_SYNC; // buffered
 
   int fd = flags.mode.create ? open(path, flagint, 0666) : open(path, flagint);
+  if (fd < 0) return nullptr;
   struct file_stream *result = aCreate(allocator, struct file_stream);
   memcpy(result[0].vt, &_file_vt, sizeof(_file_vt));
   result[0].vt->tell_max = &result[0].file_len;
@@ -247,6 +271,7 @@ sstream file_stream_open(AllocatorV allocator, const char *const path, fileopenf
   result[0].flags = flags;
   result[0].file_len = lseek(fd, 0, SEEK_END);
   lseek(fd, 0, SEEK_SET);
+  result->flags = flags;
 
   return (sstream)result;
 }
@@ -393,6 +418,7 @@ sstream file_stream_open(AllocatorV allocator, const char *const path, fileopenf
   if (handle != INVALID_HANDLE_VALUE && flags.mode.append && (access & FILE_APPEND_DATA)) {
     SetFilePointer(handle, 0, NULL, FILE_END);
   }
+  if (handle == INVALID_HANDLE_VALUE) return nullptr;
 
   struct file_stream *result = aCreate(allocator, struct file_stream);
   memcpy(result[0].vt, &_file_vt, sizeof(_file_vt));

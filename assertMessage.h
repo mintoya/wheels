@@ -4,6 +4,8 @@
 #include "mytypes.h"
 #include <assert.h>
 #include <stdarg.h>
+#include <stdcountof.h>
+#include <stdlib.h>
 #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
 #define ASSERTMESSAGE_PRINTRESET "\x1b[0m"
 #define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"
@@ -37,38 +39,25 @@ static inline void _am_puts(const char *s) {
     n++;
   _am_write(s, n);
 }
-static inline void _am_putuint(unsigned v) {
-  char buf[20];
-  int i = sizeof(buf);
-  buf[--i] = '\0';
-  do {
-    buf[--i] = '0' + (char)(v % 10);
-    v /= 10;
-  } while (v);
-  _am_puts(buf + i);
-}
 // { format
 static inline void _am_write_char(char c) { _am_write(&c, 1); }
 
 static inline void _am_write_str(const char *s) {
   s = s ?: "(nullstr)";
-  while (s)
+  while (s[0])
     _am_write(s++, 1);
 }
 static inline void _am_write_uint(unsigned long long v, int base, int upper) {
   const char *digits = upper ? "0123456789ABCDEF" : "0123456789abcdef";
-  char buf[22];
-  int i = sizeof(buf) - 1;
-  buf[i] = '\0';
-  if (v == 0) {
-    buf[--i] = '0';
-  } else {
-    while (v) {
-      buf[--i] = digits[v % base];
-      v /= base;
-    }
+  char buf[32];
+  buf[countof(buf) - 1] = 0;
+  char *p = buf + countof(buf) - 2;
+  while (v) {
+    p[0] = digits[v % base];
+    v /= base;
+    p--;
   }
-  _am_write_str(buf + i);
+  _am_write_str(p+1);
 }
 static inline void _am_write_int(long long v) {
   if (v < 0) {
@@ -232,7 +221,7 @@ void __attribute__((noreturn)) _assertMessageFail(
   _am_puts("\nfile  :\t");
   _am_puts(file);
   _am_puts("\nline  :\t");
-  _am_putuint(line);
+  _am_write_uint(line, 10, 0);
   _am_puts("\n\nfailed\n" ASSERTMESSAGE_PRINTRESET);
 
 #ifndef assertMessage_no_backtrace

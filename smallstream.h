@@ -93,29 +93,29 @@ static inline const char *_sGetErr(sstream stream, sstream_errn err) {
 
 c8(sGetcf)(sstream stream) {
   sstream_c8 res = (sGetc)(stream);
-  assertMessage(!res.err, "sGetc failed [{}: {}]", res.err, _sGetErr(stream, res.err));
+  assertMessage(!res.err, "sGetc failed [%u: %s]", res.err, _sGetErr(stream, res.err));
   return res.result;
 }
 usize(sGetsf)(sstream stream, fptr buffer) {
   sstream_size res = (sGets)(stream, buffer);
-  assertMessage(!res.err, "sGets failed [{}: {}]", res.err, _sGetErr(stream, res.err));
+  assertMessage(!res.err, "sGets failed [%u: %s]", res.err, _sGetErr(stream, res.err));
   return res.result;
 }
 void(sPutcf)(sstream stream, u8 ch) {
   sstream_errn err = (sPutc)(stream, ch);
-  assertMessage(!err, "sPutc failed [{}: {}]", err, _sGetErr(stream, err));
+  assertMessage(!err, "sPutc failed [%u: %s]", err, _sGetErr(stream, err));
 }
 void(sPutsf)(sstream stream, fptr buffer) {
   sstream_errn err = (sPuts)(stream, buffer);
-  assertMessage(!err, "sPuts failed [{}: {}]", err, _sGetErr(stream, err));
+  assertMessage(!err, "sPuts failed [%u: %s]", err, _sGetErr(stream, err));
 }
 usize(sTellf)(sstream stream) {
   sstream_size res = (sTell)(stream);
-  assertMessage(!res.err, "sTell failed [{}: {}]", res.err, _sGetErr(stream, res.err));
+  assertMessage(!res.err, "sTell failed [%u: %s]", res.err, _sGetErr(stream, res.err));
   return res.result;
 }
 void(sSeekf)(sstream stream, usize pos) {
   sstream_errn err = (sSeek)(stream, pos);
-  assertMessage(!err, "sSeek failed [{}: {}]", err, _sGetErr(stream, err));
+  assertMessage(!err, "sSeek failed [%u: %s]", err, _sGetErr(stream, err));
 }
 #endif
