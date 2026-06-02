@@ -935,7 +935,7 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
 }
 slice(c8) vason_tostr(AllocatorV allocator, vason_container c) {
   mList(c8) res = mList_init(allocator, c8);
-  defer { msList_deInit(allocator, res); };
+  defer { mList_deinit(res); };
 
   vason_tostr_lesser(c, res);
 

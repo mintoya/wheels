@@ -1,12 +1,14 @@
-#include "../arenaAllocator.h"
+#include "../allocators/arenaAllocator.h"
 #include "../funct.h"
 #include "../print.h"
 #include <stdatomic.h>
 #include <stddefer.h>
-#include <threads.h>
+
+#include "../thread_help.h"
 
 // 1. The Dependent Sub-Task
 // This just simulates some work that a parent task needs done.
+decfunction(inner_task, ((int, id)), int);
 deffunction(inner_task, ((int, id)), int, {
   println("inner task thread : {}", thrd_current());
   println("  -> Inner task {} is executing!", id);
@@ -14,6 +16,7 @@ deffunction(inner_task, ((int, id)), int, {
   return id * 10;
 });
 typedef struct mtxtpoolmutex_recursive *poolptr;
+decfunction(outer_task, ((AllocatorV, alloc), (poolptr, pool), (int, id)), int);
 deffunction(outer_task, ((AllocatorV, alloc), (poolptr, pool), (int, id)), int, {
   println(
       "outer task thread : {}\n"
@@ -32,7 +35,7 @@ deffunction(outer_task, ((AllocatorV, alloc), (poolptr, pool), (int, id)), int, 
   return res;
 });
 
-#include "../debugallocator.h"
+#include "../allocators/debugallocator.h"
 
 int main(void) {
   println("main thread : {}", thrd_current());

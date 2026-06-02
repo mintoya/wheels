@@ -57,7 +57,7 @@ static inline void _am_write_uint(unsigned long long v, int base, int upper) {
     v /= base;
     p--;
   }
-  _am_write_str(p+1);
+  _am_write_str(p + 1);
 }
 static inline void _am_write_int(long long v) {
   if (v < 0) {
@@ -83,17 +83,23 @@ static void _am_vfmt(const char *fmt, va_list ap) {
         break;
       case 'd':
       case 'i':
-        _am_write_int((long long)va_arg(ap, int));
+        _am_write_int((longlong)va_arg(ap, int));
         break;
       case 'u':
-        _am_write_uint((unsigned long long)va_arg(ap, unsigned), 10, 0);
+        _am_write_uint((ulonglong)va_arg(ap, unsigned), 10, 0);
         break;
       case 'x':
-        _am_write_uint((unsigned long long)va_arg(ap, unsigned), 16, 0);
+        _am_write_uint((ulonglong)va_arg(ap, unsigned), 16, 0);
         break;
       case 'X':
-        _am_write_uint((unsigned long long)va_arg(ap, unsigned), 16, 1);
+        _am_write_uint((ulonglong)va_arg(ap, unsigned), 16, 1);
         break;
+      case 'z': {
+        if (fmt[1] == 'u') {
+          fmt++;
+          _am_write_uint(va_arg(ap, usize), 10, 0);
+        }
+      } break;
       case '%':
         _am_write_char('%');
         break;

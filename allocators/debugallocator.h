@@ -9,8 +9,8 @@ struct tracedata {
   usize size;
 };
 typedef struct {
-  usize insize;
-  usize outsize;
+  usize insize, outsize;
+  void *iptr, *optr;
   struct tracedata trace;
 } allocationType;
 struct dbgAlloc_config {
@@ -228,6 +228,8 @@ void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln)
   if (internals->config.on_call) {
     allocationType t;
     t.insize = 0;
+    t.iptr = nullptr;
+    t.optr = res;
     t.outsize = size;
     t.trace = data;
     internals->config.on_call(&t);
@@ -249,6 +251,8 @@ void debugAllocator_free(AllocatorV allocator, void *ptr, usize size, char *fn, 
   if (internals->config.on_call) {
     allocationType t;
     t.insize = size;
+    t.iptr = ptr;
+    t.optr = nullptr;
     t.outsize = 0;
     t.trace = datak;
     internals->config.on_call(&t);
@@ -289,6 +293,8 @@ void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize oldsize, usi
     t.insize = oldsize;
     t.outsize = newsize;
     t.trace = da;
+    t.iptr = ptr;
+    t.optr = res;
     internals->config.on_call(&t);
   }
   return res;

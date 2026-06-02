@@ -1,6 +1,6 @@
 #pragma once
-#include <stdio.h>
 #include "allocator.h"
+#include "allocators/debugallocator.h"
 #include "assertMessage.h"
 #include "macros.h"
 #include "mytypes.h"
@@ -49,32 +49,52 @@ void segv_handler(int sig) {
   longjmp(test_jump_env, 1);
 }
 
+void onalloc(allocationType *t) {
+  printf("\t%p %zu -> %p %zu : %zu %s\n", t->iptr, t->insize, t->optr, t->outsize, t->trace.ln, t->trace.fn);
+}
 int main(void) {
   signal(SIGSEGV, segv_handler);
   signal(SIGABRT, segv_handler); // sent by my assert depending on #defines
-  signal(SIGILL, segv_handler);  // sent by my assert depending on #defines
-  usize failCount = 0;
+  signal(SIGILL, segv_handler);
+  // sent by my assert depending on #defines
+
+  volatile usize failCount = 0; // Marked volatile to survive longjmp
 
   foreach (var_ test, vla(*VLAP(testList, testCount))) {
     current_test = test.name;
     printf("test %s: {\n", test.name);
     fflush(stdout);
+
+    AllocatorV testAlloc = debugAllocator(.allocator = stdAlloc, .on_call = onalloc);
+    volatile bool failed = false;
+
     if (!setjmp(test_jump_env)) {
-      int res = test.function(stdAlloc);
+      int res = test.function(testAlloc);
       printf("}\n");
-      bool failed = false;
+
       if (res) {
         printf(ASSERTMESSAGE_PRINTRED "test %s failed with %i\n" ASSERTMESSAGE_PRINTRESET, test.name, res);
         fflush(stdout);
-        failed = 1;
+        failed = true;
       }
-      failCount += failed;
+
     } else {
-      failCount++;
+      failed = true;
     }
+
+    int leaks = debugAllocatorDeInit(testAlloc);
+    if (leaks && !failed) {
+      printf(ASSERTMESSAGE_PRINTRED "test %s failed: leaked %i allocation(s)\n" ASSERTMESSAGE_PRINTRESET, test.name, leaks);
+      fflush(stdout);
+      failed = true;
+    }
+    failCount += failed;
   }
-  printf("%lu tests failed out of %lu", failCount, testCount);
+
+  printf("%zu tests failed out of %zu\n", failCount, testCount);
   aFree(stdAlloc, testList, testCount * sizeof(*testList));
+
+  return failCount > 0 ? 1 : 0;
 }
 #define WHEELS_INCLUDE_ALL (1)
 #include "wheels.h"

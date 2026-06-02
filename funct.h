@@ -8,11 +8,11 @@
   #include "allocator.h"
   #include "assertMessage.h"
 
-  #include "c11threads/c11threads.h"
   #include "macros.h"
   #include "mylist.h"
   #include "mytypes.h"
   #include "stdatomic.h"
+  #include "thread_help.h"
 
 //
 // mutex
@@ -259,22 +259,25 @@ deffunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), nothing_t, 
   } else unreachable();
 });
 MAKE_TEST_FN(thread_function, {
-  var_ tsa = TSA_init(allocator);
-  defer { TSA_deinit(tsa); };
+    var_ tsa = TSA_init(allocator);
+    defer { TSA_deinit(tsa); };
 
-  mutex(int, mutex_plain) integer = mutex_initW(int, mutex_plain, 0);
+    mutex(int, mutex_plain) integer = mutex_initW(int, mutex_plain, 0);
 
-  typedef typeof(thrdfunction_call(tsa, inc_integer_test, (&integer))) ifuture;
-  var_ list = mList_init(tsa, ifuture);
+    typedef typeof(thrdfunction_call(tsa, inc_integer_test, (&integer))) ifuture;
+    var_ list = mList_init(tsa, ifuture);
+    defer { mList_deinit(list); };
 
-  foreach (var_ j, range(0, 5))
-    mList_push(list, thrdfunction_call(tsa, inc_integer_test, (&integer)));
-  while (mList_len(list))
-    thrdfunction_await(tsa, mList_pop(list));
-  mutex_deInit(integer);
-  if (integer.data != 5) return 1;
-  return 0;
-})
+    foreach (var_ j, range(0, 5))
+    mList_push(list, thrdfunction_call(tsa, inc_integer_test, (&integer)));
+
+    while (mList_len(list))
+    thrdfunction_await(tsa, mList_pop(list));
+
+    mutex_deInit(integer);
+    if (integer.data != 5) return 1;
+    return 0;
+});
   #endif
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
