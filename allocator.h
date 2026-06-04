@@ -14,9 +14,7 @@ __attribute__((const)) static inline uptr lineup(uptr u, usize a) { return (u + 
 // an allocated pointer should be uncheaged when passed trought this function
 __attribute__((const)) static inline uptr aAlloc_align(uptr unaligned) {
   return lineup(
-      unaligned, alignof(myAlign) > sizeof(usize)
-                     ? alignof(myAlign)
-                     : sizeof(usize)
+      unaligned, alignof(myAlign) > sizeof(usize) ? alignof(myAlign) : sizeof(usize)
   );
 }
 
@@ -89,7 +87,12 @@ void(aFree)(AllocatorV allocator, void *oldptr, usize size, char *file, usize li
     memset(_res, 0, sizeof(type) * _count);                                \
     _res;                                                                  \
   })
-
+#define aValue(allocator, value) ({              \
+  var_ _rse = aCreate(allocator, typeof(value)); \
+  _rse[0] = value;                               \
+  _rse;                                          \
+})
+// #define aDestroy(allocator , value )
 #if defined(__cplusplus)
 #endif
 

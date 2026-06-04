@@ -48,9 +48,9 @@ static inline int fptr_cmp(const slice(T) a, const slice(T2) b) {
   return fptr_cmp(toFptr(a), toFptr(b));
 }
   #endif
-static inline char fptr_eq(fptr a, fptr b) {
-  return !fptr_cmp(a, b);
-}
+
+static inline char fptr_eq(fptr a, fptr b) { return !fptr_cmp(a, b); }
+static inline fptr fptr_fptr(fptr f) { return f; };
 static inline umax fptr_hash(fptr f) {
   umax hash = 5381;
   for (usize i = 0; i < f.len; i++) {
@@ -91,11 +91,6 @@ constexpr fptr nullFptr = {0, nullptr};
 
   #ifndef __cplusplus
 
-    #define fp_fromT(struct)      \
-      ((fptr){                    \
-          .ptr = (u8 *)&(struct), \
-          .len = sizeof(struct),  \
-      })
     #define is_comparr(x) \
       (!__builtin_types_compatible_p(__typeof__(x), __typeof__(&(x)[0])))
 
@@ -105,8 +100,7 @@ constexpr fptr nullFptr = {0, nullptr};
           char *: is_comparr(arr)                  \
               ? (fptr){sizeof(arr) - 1, (u8 *)arr} \
               : fptr_CS(arr),                      \
-          fptr: arr,                               \
-          default: (fptr){sizeof(arr), (u8 *)&arr} \
+          fptr: arr                                \
       )
 
   #else
@@ -147,4 +141,11 @@ inline fptr fp_from(const char (&s)[N]) {
 }
   #endif
   #define fp fp_from
+
+  #define fptr_eq(a, b) ({                                \
+    (fptr_eq)(                                            \
+        _Generic(a, fptr: fptr_fptr, char *: fptr_CS)(a), \
+        _Generic(b, fptr: fptr_fptr, char *: fptr_CS)(b)  \
+    );                                                    \
+  })
 #endif // FPTR_H

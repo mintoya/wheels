@@ -170,7 +170,25 @@ sliceDef(c8);
 #define slice_free(allocator, slice) \
   aFree(allocator, (slice).ptr, (sizeof(*(slice).ptr)) * (slice).len);
 
-#define sentList_t(type) typeof(type *)
+#define slice_ij(slice, tup)                 \
+  ({                                         \
+    usize _st = TUPLE_EXPAND_A(tup);         \
+    usize _et = TUPLE_EXPAND_B(tup);         \
+    _st = _st > slice.len ? slice.len : _st; \
+    _et = _et > slice.len ? slice.len : _et; \
+    _et = _et < _st ? _st : _et;             \
+    (typeof(slice)){                         \
+        _et - _st,                           \
+        slice.ptr + _st,                     \
+    };                                       \
+  }),
+
+#define slice_split(slice, ...)                \
+  (typeof(slice)[]) {                          \
+    APPLY_N_WITH(slice_ij, slice, __VA_ARGS__) \
+  }
+
+#define sentList_t(type) typeof(/*sentinel termintated list*/ type *)
 #define sentList(type, ...) \
   (type[]) { __VA_OPT__(__VA_ARGS__, )(type){0} }
 #define sentList_vla(list) ({var_ _list = list; VLAP(_list, sentList_length(_list, sizeof(*_list))); })

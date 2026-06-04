@@ -52,8 +52,8 @@
       __auto_type namedec = item.type;      \
       __VA_ARGS__                           \
     } break;
-  #define tu_of(type, value) \
-    {.tag = TU_TAG(type), .type = (value)}
+  #define tu_of(type, ...) \
+    {.tag = TU_TAG(type), .type = (type)__VA_ARGS__}
   #define tu_is(type, item) (item.tag == TU_TAG(type))
   #define tu_or(type, item, other, ...) \
     ({                                  \
