@@ -179,8 +179,9 @@ void cmdLine_deInit(AllocatorV allocator, msHmap(cmdline_type) a) {
   _res;                                                                      \
 })
 void cmdLine_printUsage(char *prog_name, cmdline_option *options) {
-  println("Usage: {} [options]...\n", prog_name);
-  println("Options:\n");
+  println();
+  println("Usage: {} [options]...", prog_name);
+  println("Options:");
 
   var_ opts = sentList_vla(options);
 
@@ -198,7 +199,7 @@ void cmdLine_printUsage(char *prog_name, cmdline_option *options) {
         break;
     }
 
-    println("\t{}:{}:\t{}", opt.name, type_str, opt.description ? opt.description : "");
+    println("  {}:{}:\t{}", opt.name, type_str, opt.description ? opt.description : "");
   }
 }
 typedef msHmap(cmdline_type) cmdline_args;

@@ -98,9 +98,10 @@ static void sn_print(
   loc->len += length;
 }
 
-static struct {
+typedef struct {
   msHmap(printerFunction) data;
-} PrinterSingleton;
+} PrinterSingleton_t;
+extern PrinterSingleton_t PrinterSingleton;
 
 static void PrinterSingleton_init() {
   PrinterSingleton.data = msHmap_init(stdAlloc, printerFunction, 32);
@@ -749,7 +750,7 @@ __attribute__((constructor(205))) static void printer_post_initfn() {
 #define MY_PRINTER_C (1)
 #endif
 #ifdef MY_PRINTER_C
-
+PrinterSingleton_t PrinterSingleton = {};
 inline fptr printer_arg_until(char delim, fptr string) {
   usize i = 0;
   u8 *ptr = (u8 *)string.ptr;
