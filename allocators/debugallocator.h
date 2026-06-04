@@ -129,7 +129,7 @@ AllocatorV debugAllocatorInit(struct dbgAlloc_config config) {
   AllocatorV allocator = config.allocator;
   Debug_allocator_block *res = aCreate(allocator, Debug_allocator_block);
   res->internals[0] = (debugAllocatorInternals){
-      .map = mHmap_init(allocator, void *, struct tracedata, 0, 32),
+      .map = mHmap_init(allocator, void *, struct tracedata, 32),
       .actualAllocator = allocator,
       .config = config,
       .max = 0,

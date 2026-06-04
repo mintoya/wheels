@@ -1,9 +1,8 @@
 #if !defined(MY_BIGINT_H)
   #define MY_BIGINT_H (1)
-  #include "allocators/arenaAllocator.h"
+
   #include "macros.h"
   #include "mytypes.h"
-  #include "print.h"
   #include "sList.h"
 
 typedef unsigned int bigint_unit;
@@ -53,16 +52,18 @@ struct bigint_div_t {
 bigint_unit bigint_estimate_q(bigint rem, bigint b);
 struct bigint_div_t bigint_div(AllocatorV allocator, bigint a1, bigint b1);
 
-// NAMESPACE_STRUCT(
-//     BInt,
-//     (add, &bigint_add),
-//     (sub, &bigint_sub),
-//     (mul, &bigint_mul),
-//     (div, &bigint_div),
-//     (from, &bigint_from),
-//     (negate, &bigint_negate),
-//     (negetive, &bigint_negetive),
-// );
+NAMESPACE_STRUCT(
+    BInt,
+    (add, &bigint_add),
+    (sub, &bigint_sub),
+    (mul, &bigint_mul),
+    (div, &bigint_div),
+    (from, &bigint_from),
+    (negate, &bigint_negate),
+    (negetive, &bigint_negetive),
+);
+
+  #if defined(MY_PRINTER_H)
 REGISTER_PRINTER(bigint, {
   args = printer_arg_trim(args);
   bool debug = fptr_eq(args, fp("dbg"));
@@ -143,6 +144,7 @@ REGISTER_PRINTER(bigint, {
       PUTS("0");
   }
 });
+  #endif
   #define bigint_stack(...)                                     \
     (struct {                                                   \
       sList_header head[1];                                     \
@@ -160,6 +162,9 @@ REGISTER_PRINTER(bigint, {
   #define MY_BIGINT_C (1)
 #endif
 #if defined(MY_BIGINT_C)
+
+  #include "allocators/arenaAllocator.h"
+
 bool bigint_ckd_add(bigint_unit *res, bigint_unit a, bigint_unit b) {
   static_assert((bigint_unit) ~(bigint_unit)0 > 0, "must be unsigned ");
   *res = a + b;

@@ -3,12 +3,8 @@
 #include "macros.h"
 #include "mytypes.h"
 #include "print.h"
-#include "sList.h"
 #include "shmap.h"
-#include "stringList.h"
 #include "tu_macros.h"
-#include <stdcountof.h>
-#include <string.h>
 
 typedef struct {
   char *name;

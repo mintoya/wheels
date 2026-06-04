@@ -1,12 +1,13 @@
 #if !defined(HMAP_H)
   #define HMAP_H (1)
+
 typedef struct HMap HMap;
   #include "allocator.h"
   #include "assertMessage.h"
   #include "fptr.h"
   #include "mytypes.h"
   #include "sList.h"
-  #include <assert.h>
+
 /**
  * Creates a new hash map
  * @param kSize size of key type
@@ -23,7 +24,6 @@ HMap *HMap_new(
     u32 kSize,
     u32 vSize,
     AllocatorV allocator,
-    usize metaSize,
     usize maxHash
 );
 /**
@@ -41,7 +41,6 @@ void HMap_manage(
     usize kSize,
     usize vSize,
     AllocatorV allocator,
-    u32 metaSize,
     u32 maxHash
 );
 /**
@@ -245,24 +244,23 @@ static inline void mHmap_cleanup_handler(mHmap<K, V> *map) {
 
     #define mHmap_scoped(Ta, Tb) [[gnu::cleanup(HMap_cleanup_handler)]] mHmap(Ta, Tb)
 
-    #define mHmap_init_length(allocator, keytype, valtype, bucketcount, maxHash, ...) ( \
-        (mHmap(keytype, valtype))HMap_new(                                              \
-            ({                                                                          \
-              struct T {                                                                \
-                keytype a;                                                              \
-                valtype b;                                                              \
-              };                                                                        \
-              offsetof(struct T, b);                                                    \
-            }),                                                                         \
-            sizeof(valtype),                                                            \
-            allocator,                                                                  \
-            bucketcount,                                                                \
-            maxHash                                                                     \
-        )                                                                               \
+    #define mHmap_init_length(allocator, keytype, valtype, maxHash, ...) ( \
+        (mHmap(keytype, valtype))HMap_new(                                 \
+            ({                                                             \
+              struct T {                                                   \
+                keytype a;                                                 \
+                valtype b;                                                 \
+              };                                                           \
+              offsetof(struct T, b);                                       \
+            }),                                                            \
+            sizeof(valtype),                                               \
+            allocator,                                                     \
+            ((void)ASSERT_EXPR(maxHash != 0, ""), maxHash)                 \
+        )                                                                  \
     )
     // optional bucket count argument
     #define mHmap_init(allocator, keytype, valtype, ...) \
-      mHmap_init_length(allocator, keytype, valtype __VA_OPT__(, __VA_ARGS__), 32, 32)
+      mHmap_init_length(allocator, keytype, valtype __VA_OPT__(, __VA_ARGS__), 32)
     #define mHmap_deinit(map) ({ HMap_free((HMap *)map); })
 
     #define mHmap_set(map, key, val)                       \
@@ -396,47 +394,23 @@ static inline int HMap_test_structure(mHmap(int, int) map) {
 
   return 0;
 }
-MAKE_TEST_FN(HMap_basic_test, {
-  mHmap(int, int) map = mHmap_init(allocator, int, int, 500, 0);
-  return HMap_test_structure(map);
-});
 MAKE_TEST_FN(HMap_open_test, {
-  mHmap(int, int) map = mHmap_init(allocator, int, int, 0, 500);
-  return HMap_test_structure(map);
-});
-MAKE_TEST_FN(HMap_basic_test_loaded, {
-  mHmap(int, int) map = mHmap_init(allocator, int, int, 1, 0);
+  mHmap(int, int) map = mHmap_init(allocator, int, int, 500);
   return HMap_test_structure(map);
 });
 MAKE_TEST_FN(HMap_open_test_loaded, {
-  mHmap(int, int) map = mHmap_init(allocator, int, int, 0, 1);
+  mHmap(int, int) map = mHmap_init(allocator, int, int, 1);
   return HMap_test_structure(map);
 });
-MAKE_TEST_FN(HMap_transform_basic_test, {
-  mHmap(int, int) map = mHmap_init(allocator, int, int, 8);
-  var_ mapp = &map;
-  defer { mHmap_deinit(*mapp); };
-
-  for (int i = 0; i < 100; i++)
-    mHmap_set(map, i, i * 3);
-
-  HMap_manage((HMap **)&map, sizeof(int), sizeof(int), allocator, 128, 0);
-
-  for (int i = 0, *v; (v = mHmap_get(map, i), i < 100); i++)
-    if (!v || *v != i * 3)
-      return 1;
-
-  return 0;
-});
 MAKE_TEST_FN(HMap_transform_open_test, {
-  mHmap(int, int) map = mHmap_init(allocator, int, int, 0);
+  mHmap(int, int) map = mHmap_init(allocator, int, int);
   var_ mapp = &map;
   defer { mHmap_deinit(*mapp); };
 
   for (int i = 0; i < 100; i++)
     mHmap_set(map, i, i * 3);
 
-  HMap_manage((HMap **)&map, sizeof(int), sizeof(int), allocator, 0, 128);
+  HMap_manage((HMap **)&map, sizeof(int), sizeof(int), allocator, 128);
 
   for (int i = 0, *v; (v = mHmap_get(map, i), i < 100); i++)
     if (!v || *v != i * 3)
@@ -459,32 +433,21 @@ typedef struct HMap {
   AllocatorV allocator;
   u32 keysize;
   u32 valsize;
-  usize maxHash;  // only used for 1d mode
-  usize metaSize; // only used for 2d mode
+  usize maxHash;
   // usize
   sList_header *storage[/*metasize*/];
 } HMap;
 usize HMap_getKeySize(const HMap *map) { return map->keysize; }
 usize HMap_getValSize(const HMap *map) { return map->valsize; }
-u32 HMap_getMetaSize(const HMap *map) { return map->metaSize; }
 u32 HMap_getHLen(const HMap *map) { return map->storage[1]->length; }
 inline u32 HMap_getBucketSize(const HMap *map, u32 idx) { return map->storage[idx][0].length; }
 void *HMap_getCoord(const HMap *map, u32 bucket, u32 index) {
-  if (map->metaSize) {
-    if (bucket >= map->metaSize)
-      return nullptr;
-    sList_header *ll = map->storage[bucket];
-    if (!ll || index >= ll->length) // was index > ll->length
-      return nullptr;
-    return (u8 *)ll->buf + (map->valsize + map->keysize) * index;
-  } else {
-    if (bucket != 0)
-      return nullptr;
-    sList_header *ll = map->storage[0];
-    if (!ll || index >= ll->length) // was index > ll->length
-      return nullptr;
-    return (u8 *)ll->buf + (map->valsize + map->keysize) * index;
-  }
+  if (bucket != 0)
+    return nullptr;
+  sList_header *ll = map->storage[0];
+  if (!ll || index >= ll->length)
+    return nullptr;
+  return (u8 *)ll->buf + (map->valsize + map->keysize) * index;
 }
 
 static inline umax HMap_hash(const fptr str) {
@@ -516,38 +479,23 @@ static inline umax HMap_hash(const fptr str) {
   return hash;
 }
 
-HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, usize metaSize, usize maxHash) {
+HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, usize maxHash) {
   assertMessage(kSize && vSize && allocator);
-  if (!metaSize) {
-    assertMessage(maxHash);
-    usize totalSize = sizeof(HMap) + 2 * sizeof(sList_header);
-    HMap *hm = (typeof(hm))aAlloc(allocator, totalSize);
-    *hm = (HMap){
-        .allocator = allocator,
-        .keysize = kSize,
-        .valsize = vSize,
-        .maxHash = maxHash,
-        .metaSize = 0,
-    };
-    hm->storage[0] = sList_new(allocator, hm->maxHash, kSize + vSize);
-    hm->storage[1] = sList_new(allocator, hm->maxHash, sizeof(u8));
+  assertMessage(maxHash);
+  usize totalSize = sizeof(HMap) + 2 * sizeof(sList_header);
+  HMap *hm = (typeof(hm))aAlloc(allocator, totalSize);
+  *hm = (HMap){
+      .allocator = allocator,
+      .keysize = kSize,
+      .valsize = vSize,
+      .maxHash = maxHash,
+  };
+  hm->storage[0] = sList_new(allocator, hm->maxHash, kSize + vSize);
+  hm->storage[1] = sList_new(allocator, hm->maxHash, sizeof(u8));
 
-    hm->storage[0] = sList_appendFromArr(allocator, hm->storage[0], kSize + vSize, NULL, hm->maxHash);
-    hm->storage[1] = sList_appendFromArr(allocator, hm->storage[1], sizeof(u8), NULL, hm->maxHash);
-    return hm;
-  } else {
-    usize totalSize = sizeof(HMap) + metaSize * sizeof(sList_header);
-    HMap *hm = (typeof(hm))aAlloc(allocator, totalSize);
-    *hm = (HMap){
-        .allocator = allocator,
-        .keysize = kSize,
-        .valsize = vSize,
-        .metaSize = metaSize,
-    };
-    foreach (var_ s, span(hm->storage, hm->metaSize))
-      s[0] = sList_new(allocator, 2, kSize + vSize);
-    return hm;
-  }
+  hm->storage[0] = sList_appendFromArr(allocator, hm->storage[0], kSize + vSize, NULL, hm->maxHash);
+  hm->storage[1] = sList_appendFromArr(allocator, hm->storage[1], sizeof(u8), NULL, hm->maxHash);
+  return hm;
 }
 
 struct HMap_inner_item HMap_get_inner_zero(const HMap *map, usize idx) {
@@ -560,27 +508,20 @@ struct HMap_inner_item HMap_get_inner_zero(const HMap *map, usize idx) {
 }
 
 void HMap_free(HMap *hm) {
-  if (!hm->metaSize) {
-    usize totalSize = sizeof(HMap) + 2 * sizeof(sList_header);
-    defer { aFree(hm->allocator, hm, totalSize); };
-    sList_free(hm->allocator, hm->storage[0], hm->keysize + hm->valsize);
-    sList_free(hm->allocator, hm->storage[1], sizeof(u8));
-  } else {
-    usize totalSize = sizeof(HMap) + hm->metaSize * sizeof(sList_header);
-    defer { aFree(hm->allocator, hm, totalSize); };
-    foreach (var_ v, vla(*VLAP(hm->storage, hm->metaSize))) {
-      sList_free(hm->allocator, v, hm->keysize + hm->valsize);
-    };
-  }
+  var_ allocator = hm->allocator;
+  usize totalSize = sizeof(HMap) + 2 * sizeof(sList_header);
+  defer { aFree(allocator, hm, totalSize); };
+  sList_free(allocator, hm->storage[0], hm->keysize + hm->valsize);
+  sList_free(allocator, hm->storage[1], sizeof(u8));
 }
 
 __attribute__((const, always_inline)) void *LesserList_getref(const usize elw, const sList_header *hll, u32 idx) {
   return (u8 *)(hll->buf) + idx * (elw);
 }
 
-void HMap_manage(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u32 metaSize, u32 maxHash) {
+void HMap_manage(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u32 maxHash) {
   assertMessage(last && *last);
-  assertMessage(metaSize || maxHash);
+  assertMessage(maxHash);
 
   HMap *oldMap = *last;
   if (kSize == 0)
@@ -589,7 +530,7 @@ void HMap_manage(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u3
     vSize = oldMap->valsize;
   if (allocator == nullptr)
     allocator = oldMap->allocator;
-  HMap *newMap = HMap_new(kSize, vSize, allocator, metaSize, maxHash);
+  HMap *newMap = HMap_new(kSize, vSize, allocator, maxHash);
 
   var_ tembBuf = aCreate(allocator, u8, newMap->keysize + newMap->valsize);
   defer { aFree(allocator, tembBuf, newMap->keysize + newMap->valsize); };
@@ -600,79 +541,20 @@ void HMap_manage(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u3
   usize keyCopySize = (oldMap->keysize < kSize) ? oldMap->keysize : kSize;
   usize valCopySize = (oldMap->valsize < vSize) ? oldMap->valsize : vSize;
 
-  if (!oldMap->metaSize) {
-    for (usize i = 0; i < oldMap->storage[0]->length; i++) {
-      u8 flag = ((u8 *)oldMap->storage[1]->buf)[i];
-      if (flag != 1)
-        continue; // skip empty (0) and deleted (2)
-      struct HMap_inner_item it = HMap_get_inner_zero(oldMap, i);
-      memset(tempKey, 0, kSize);
-      memcpy(tempKey, it.key, keyCopySize);
-      memset(tempVal, 0, vSize);
-      memcpy(tempVal, it.val, valCopySize);
-      HMap_set(newMap, tempKey, tempVal);
-    }
-  } else {
-    for (usize i = 0; i < oldMap->metaSize; i++) {
-      for (usize j = 0; j < HMap_getBucketSize(oldMap, i); j++) {
-        u8 *oldKey = (u8 *)HMap_getCoord(oldMap, i, j);
-        u8 *oldVal = oldKey + oldMap->keysize;
-        if (!oldKey)
-          continue;
-        memset(tempKey, 0, kSize);
-        memcpy(tempKey, oldKey, keyCopySize);
-        memset(tempVal, 0, vSize);
-        memcpy(tempVal, oldVal, valCopySize);
-        HMap_set(newMap, tempKey, tempVal);
-      }
-    }
+  for (usize i = 0; i < oldMap->storage[0]->length; i++) {
+    u8 flag = ((u8 *)oldMap->storage[1]->buf)[i];
+    if (flag != 1)
+      continue; // skip empty (0) and deleted (2)
+    struct HMap_inner_item it = HMap_get_inner_zero(oldMap, i);
+    memset(tempKey, 0, kSize);
+    memcpy(tempKey, it.key, keyCopySize);
+    memset(tempVal, 0, vSize);
+    memcpy(tempVal, it.val, valCopySize);
+    HMap_set(newMap, tempKey, tempVal);
   }
 
   HMap_free(oldMap);
   *last = newMap;
-}
-
-void *HMap_set_normal(HMap *map, const void *key, const void *val) {
-  const usize elw = map->keysize + map->valsize;
-  if (!key)
-    return nullptr;
-  u32 lindex = (u32)(HMap_hash(fptr_fromPL(key, map->keysize)) % map->metaSize);
-  sList_header **list = map->storage + lindex;
-  u32 listindex = 0;
-  u8 *place = nullptr;
-  for (; listindex < list[0]->length; listindex++) {
-    place = (u8 *)LesserList_getref(elw, list[0], listindex);
-    if (!memcmp(place, key, map->keysize))
-      break;
-  }
-  if (listindex == list[0]->length) {
-    list[0] = sList_append(map->allocator, list[0], elw, NULL);
-    place = (u8 *)LesserList_getref(elw, list[0], list[0]->length - 1);
-  }
-  memcpy(place, key, map->keysize);
-  val ? (void)memcpy(place + map->keysize, val, map->valsize)
-      : (void)sList_remove(list[0], elw, listindex);
-  return val ? place + map->keysize : nullptr;
-}
-void *HMap_get_normal(const HMap *map, const void *key) {
-  if (!key)
-    return nullptr;
-
-  const usize elw = map->keysize + map->valsize;
-  u32 lindex = (u32)(HMap_hash(fptr_fromPL(key, map->keysize)) % map->metaSize);
-  sList_header *const *hll = &(map->storage[lindex]);
-
-  u32 listindex = 0;
-  u8 *place = nullptr;
-  for (; listindex < hll[0]->length; listindex++) {
-    place = (u8 *)LesserList_getref(elw, *hll, listindex);
-    if (!memcmp(place, key, map->keysize)) {
-      break;
-    }
-  }
-  if (listindex == hll[0]->length)
-    return nullptr;
-  return place + map->keysize;
 }
 
 void *HMap_get_open(const HMap *map, const void *key) {
@@ -718,46 +600,24 @@ void *HMap_set_open(HMap *map, const void *key, const void *val) {
 }
 
 void *HMap_set(HMap *map, const void *key, const void *val) {
-  if (map->metaSize)
-    return HMap_set_normal(map, key, val);
-  else
-    return HMap_set_open(map, key, val);
+  return HMap_set_open(map, key, val);
 }
 void *HMap_get(const HMap *map, const void *key) {
-  if (map->metaSize)
-    return HMap_get_normal(map, key);
-  else
-    return HMap_get_open(map, key);
+  return HMap_get_open(map, key);
 }
 u32 HMap_count(const HMap *map) {
   u32 i = 0;
-  if (map->metaSize) {
-    foreach (var_ v, vla(*VLAP(map->storage, map->metaSize))) {
-      i += v->length;
-    }
-  } else {
-    foreach (var_ v, vla(*VLAP(map->storage[1]->buf, map->storage[1]->length)))
-      i += v == 1;
-  }
+  foreach (var_ v, vla(*VLAP(map->storage[1]->buf, map->storage[1]->length)))
+    i += v == 1;
   return i;
 }
 u8 HMap_load(const HMap *map) {
-  u32 count = HMap_count(map), cap = map->metaSize ?: map->maxHash;
+  u32 cap = map->maxHash;
+  u32 count = HMap_count(map);
   u32 load = (count * 100) / cap;
   return load < 0xff ? load : 0xff;
 }
 
-usize HMap_footprint(const HMap *map) {
-  usize res = 0;
-  usize elementSize = map->keysize + map->valsize;
-
-  res += sizeof(HMap);
-  res += sizeof(*(map->storage)) * map->metaSize;
-  res += elementSize;
-  foreach (var_ v, vla(*VLAP(map->storage, map->metaSize)))
-    res += (elementSize)*v->length;
-  return res;
-}
 bool HMap_getSet(HMap *map, const void *key, void *val) {
   assertMessage(key && val);
 
@@ -805,13 +665,7 @@ HMap_both HMap_getBoth(HMap *map, const void *key) {
 }
 
 void HMap_clear(HMap *map) {
-  if (!map->metaSize) {
-    memset(map->storage[1]->buf, 0, map->storage[1]->length * sizeof(u8));
-  } else {
-    foreach (var_ v, vla(*VLAP(map->storage, map->metaSize))) {
-      v->length = 0;
-    };
-  }
+  memset(map->storage[1]->buf, 0, map->storage[1]->length * sizeof(u8));
 }
 
 //
@@ -819,29 +673,16 @@ void HMap_clear(HMap *map) {
 //
 
 bool HMapIterator_valid(const struct HMapIterator_struct_inner *it) {
-  if (it->map->metaSize) {
-    return it->bucket_idx < it->map->metaSize &&
-           it->element_idx < it->map->storage[it->bucket_idx]->length;
-  } else {
-    usize len = HMap_getHLen(it->map); // must match macro’s length
-    return it->element_idx < len &&
-           ((u8 *)it->map->storage[1]->buf)[it->element_idx] == 1;
-  }
+  usize len = HMap_getHLen(it->map); // must match macro’s length
+  return it->element_idx < len &&
+         ((u8 *)it->map->storage[1]->buf)[it->element_idx] == 1;
 }
 void HMapIterator_next(struct HMapIterator_struct_inner *it) {
   it->element_idx++;
-  if (it->map->metaSize) {
-    while (it->bucket_idx < it->map->metaSize &&
-           it->element_idx >= it->map->storage[it->bucket_idx]->length) {
-      it->bucket_idx++;
-      it->element_idx = 0;
-    }
-  } else {
-    usize len = HMap_getHLen(it->map);
-    while (it->element_idx < len &&
-           ((u8 *)it->map->storage[1]->buf)[it->element_idx] != 1) {
-      it->element_idx++;
-    }
+  usize len = HMap_getHLen(it->map);
+  while (it->element_idx < len &&
+         ((u8 *)it->map->storage[1]->buf)[it->element_idx] != 1) {
+    it->element_idx++;
   }
   it->current = HMap_getCoord(it->map, it->bucket_idx, it->element_idx);
 }
@@ -857,88 +698,14 @@ inline struct HMapIterator_struct HMapIterator(const HMap *map) {
       .valid = HMapIterator_valid,
   };
 
-  if (map->metaSize) {
-    while (it.state[0].bucket_idx < map->metaSize &&
-           map->storage[it.state[0].bucket_idx]->length == 0) {
-      it.state[0].bucket_idx++;
-    }
-  } else {
-    usize len = HMap_getHLen(map);
-    while (it.state[0].element_idx < len &&
-           ((u8 *)map->storage[1]->buf)[it.state[0].element_idx] != 1) {
-      it.state[0].element_idx++;
-    }
+  usize len = HMap_getHLen(map);
+  while (it.state[0].element_idx < len &&
+         ((u8 *)map->storage[1]->buf)[it.state[0].element_idx] != 1) {
+    it.state[0].element_idx++;
   }
 
   it.state[0].current = HMap_getCoord(map, it.state[0].bucket_idx, it.state[0].element_idx);
   return it;
 }
 
-static inline u8 HMap_guess_load(const HMap *map) {
-  if (map->metaSize) {
-    // 2D Mode: Sample the first two buckets.
-    u32 b0 = HMap_getBucketSize(map, 0);
-    u32 b1 = map->metaSize > 1 ? HMap_getBucketSize(map, 1) : 0;
-
-    u32 est_load = (b0 + b1) * 50;
-    return est_load < 0xff ? est_load : 0xff;
-  }
-
-  // 1D Open Addressing Mode: Sample up to the first 32 flags
-  u32 cap = map->maxHash;
-  if (!cap)
-    return 0;
-
-  u32 sample_size = cap < 32 ? cap : 32;
-  u32 count = 0;
-  u8 *flags = (u8 *)map->storage[1]->buf;
-
-  for (u32 i = 0; i < sample_size; i++) {
-    if (flags[i] == 1)
-      count++;
-  }
-
-  u32 est_load = (count * 100) / sample_size;
-  return est_load < 0xff ? est_load : 0xff;
-}
-void HMap_manage_linear(HMap **last) {
-  assertMessage((**last).maxHash);
-  HMap *map = *last;
-  usize newCap = map->maxHash * 2;
-  usize elw = map->keysize + map->valsize;
-
-  // 1. Grab old buffers
-  sList_header *oldData = map->storage[0];
-  sList_header *oldFlags = map->storage[1];
-  usize oldLen = oldData->length;
-
-  // 2. Expand capacity and plug new lists directly into the existing wrapper
-  map->maxHash = newCap;
-  map->storage[0] = sList_new(map->allocator, newCap, elw);
-  map->storage[1] = sList_new(map->allocator, newCap, sizeof(u8));
-
-  map->storage[0] =
-      sList_appendFromArr(map->allocator, map->storage[0], elw, NULL, newCap);
-  map->storage[1] = sList_appendFromArr(map->allocator, map->storage[1], sizeof(u8), NULL, newCap);
-
-  // 3. Blast the old elements into the new slots
-  u8 *old_f = (u8 *)oldFlags->buf;
-  u8 *old_d = (u8 *)oldData->buf;
-
-  for (usize i = 0; i < oldLen; i++) {
-    if (old_f[i] == 1) {
-      u8 *key = old_d + (i * elw);
-      u8 *val = key + map->keysize;
-
-      // Since maxHash is updated, this natively slots them into the expanded
-      // bounds
-      HMap_set_open(map, key, val);
-    }
-  }
-
-  // 4. Drop the old lists (you can axe these if your allocator is pure
-  // arena-based)
-  sList_free(map->allocator, oldData, elw);
-  sList_free(map->allocator, oldFlags, sizeof(u8));
-}
 #endif // HMap_C

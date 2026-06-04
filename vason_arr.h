@@ -6,8 +6,6 @@
   #include "mylist.h"
   #include "mytypes.h"
   #include "sList.h"
-  #include <assert.h>
-  #include <stdarg.h>
 typedef usize vason_index;
 typedef struct {
   vason_index start, end;
@@ -487,7 +485,7 @@ bool vason_container_eq(vason_container a, vason_container b) {
     case vason_STRING: {
       slice(c8) as = vason_container_asString(a);
       slice(c8) bs = vason_container_asString(b);
-      return fptr_eq((fptr){as.len, (u8 *)as.ptr}, (fptr){bs.len, (u8 *)bs.ptr});
+      return fptr_eq(((fptr){as.len, (u8 *)as.ptr}), ((fptr){bs.len, (u8 *)bs.ptr}));
     }
 
     case vason_INVALID:

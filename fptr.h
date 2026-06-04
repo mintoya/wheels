@@ -2,7 +2,6 @@
 #if !defined(FPTR_H)
   #define FPTR_H (1)
   #include "mytypes.h"
-  #include <stdalign.h>
   #include <stdbool.h>
   #include <stddef.h>
   #include <string.h>
@@ -21,9 +20,8 @@ static inline fptr fptr_CSP(const char *cstr) { return ((fptr){(usize)strlen((ch
 static inline fptr fptr_fromPL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
 static inline fptr fptr_PL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
 static inline bool fptr_isEmpty(fptr f) {
-  for (usize i = 0; i < f.len; i++)
-    if (f.ptr[i])
-      return false;
+  foreach (var_ i, span(f.ptr, f.len))
+    if (i[0]) return false;
   return true;
 }
 static inline bool fptr_isNull(fptr f) {

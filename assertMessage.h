@@ -2,10 +2,8 @@
 #define ASSERTMESSAGE_H
 #include "macros.h"
 #include "mytypes.h"
-#include <assert.h>
 #include <stdarg.h>
-#include <stdcountof.h>
-#include <stdlib.h>
+
 #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
 #define ASSERTMESSAGE_PRINTRESET "\x1b[0m"
 #define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"

@@ -1,12 +1,6 @@
 #ifndef MY_ALLOCATOR_H
 #define MY_ALLOCATOR_H
 #include "mytypes.h"
-#include <stdalign.h>
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 
 #define MY_ALLOCATOR_STRICTEST
 
@@ -78,6 +72,7 @@ void *(aResize)(AllocatorV allocator, void *oldptr, size_t oldsize, size_t newsi
 void(aFree)(AllocatorV allocator, void *oldptr, usize size, char *file, usize line);
 
 #include "macros.h"
+#include <string.h>
 #define aCreate(allocator, type, ...)                                      \
   /* optional count argument, defaults to 1*/                              \
   DIAGNOSTIC_PUSH("-Weverything")                                          \

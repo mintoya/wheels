@@ -1,6 +1,0 @@
-CompileFlags:
-  Add:
-    - -std=c2y
-    - -w
-    - -isystem C:\Users\siisi\scoop\apps\zig\current\lib\libc\include\any-windows-any
-    - -isystem C:\Users\siisi\scoop\apps\zig\current\lib\libc\include
