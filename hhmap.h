@@ -64,12 +64,6 @@ void *HMap_get(const HMap *hm, const void *key);
 void *HMap_set(HMap *map, const void *key, const void *val);
 /**
  * @param hm map
- * @param bucket bucket index
- * @return length of bucket[bucket]
- */
-u32 HMap_getBucketSize(const HMap *hm, u32 bucket);
-/**
- * @param hm map
  * @return bucket count
  */
 u32 HMap_getMetaSize(const HMap *);
@@ -81,7 +75,7 @@ u32 HMap_getHLen(const HMap *map);
  * @param index index inside bucket
  * @return pointer to key, get the val by adding your padding
  */
-void *HMap_getCoord(const HMap *hm, u32 bucket, u32 index);
+void *HMap_getCoord(const HMap *hm, u32 index);
 /**
  * @param hm map
  * @return total keys and vals
@@ -136,7 +130,6 @@ void *HMap_fget_ns(HMap *map, const fptr key);
 struct HMapIterator_struct_inner {
   const HMap *map;
   const void *current;
-  u32 bucket_idx;
   u32 element_idx;
 };
 bool HMapIterator_valid(const struct HMapIterator_struct_inner *it);
@@ -433,18 +426,18 @@ typedef struct HMap {
   AllocatorV allocator;
   u32 keysize;
   u32 valsize;
+
   usize maxHash;
-  // usize
-  sList_header *storage[/*metasize*/];
+  usize count;
+
+  sList_header *flags;
+  sList_header *data;
 } HMap;
 usize HMap_getKeySize(const HMap *map) { return map->keysize; }
 usize HMap_getValSize(const HMap *map) { return map->valsize; }
-u32 HMap_getHLen(const HMap *map) { return map->storage[1]->length; }
-inline u32 HMap_getBucketSize(const HMap *map, u32 idx) { return map->storage[idx][0].length; }
-void *HMap_getCoord(const HMap *map, u32 bucket, u32 index) {
-  if (bucket != 0)
-    return nullptr;
-  sList_header *ll = map->storage[0];
+u32 HMap_getHLen(const HMap *map) { return map->flags->length; }
+void *HMap_getCoord(const HMap *map, u32 index) {
+  sList_header *ll = map->data;
   if (!ll || index >= ll->length)
     return nullptr;
   return (u8 *)ll->buf + (map->valsize + map->keysize) * index;
@@ -482,37 +475,35 @@ static inline umax HMap_hash(const fptr str) {
 HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, usize maxHash) {
   assertMessage(kSize && vSize && allocator);
   assertMessage(maxHash);
-  usize totalSize = sizeof(HMap) + 2 * sizeof(sList_header);
-  HMap *hm = (typeof(hm))aAlloc(allocator, totalSize);
+  HMap *hm = (typeof(hm))aCreate(allocator, HMap);
   *hm = (HMap){
       .allocator = allocator,
       .keysize = kSize,
       .valsize = vSize,
       .maxHash = maxHash,
+      .count = 0,
   };
-  hm->storage[0] = sList_new(allocator, hm->maxHash, kSize + vSize);
-  hm->storage[1] = sList_new(allocator, hm->maxHash, sizeof(u8));
+  hm->data = sList_new(allocator, hm->maxHash, kSize + vSize);
+  hm->flags = sList_new(allocator, hm->maxHash, sizeof(u8));
 
-  hm->storage[0] = sList_appendFromArr(allocator, hm->storage[0], kSize + vSize, NULL, hm->maxHash);
-  hm->storage[1] = sList_appendFromArr(allocator, hm->storage[1], sizeof(u8), NULL, hm->maxHash);
+  hm->data = sList_appendFromArr(allocator, hm->data, kSize + vSize, NULL, hm->maxHash);
+  hm->flags = sList_appendFromArr(allocator, hm->flags, sizeof(u8), NULL, hm->maxHash);
   return hm;
+}
+void HMap_free(HMap *hm) {
+  var_ allocator = hm->allocator;
+  defer { aFree(allocator, hm, sizeof(*hm)); };
+  sList_free(allocator, hm->data, hm->keysize + hm->valsize);
+  sList_free(allocator, hm->flags, sizeof(u8));
 }
 
 struct HMap_inner_item HMap_get_inner_zero(const HMap *map, usize idx) {
-  assertMessage(idx < map->storage[0]->length);
+  assertMessage(idx < map->data->length);
   struct HMap_inner_item res = {};
-  res.flag = ((u8 *)(map->storage[1]->buf)) + idx;
-  res.key = ((u8 *)(map->storage[0]->buf)) + idx * (map->keysize + map->valsize);
+  res.flag = ((u8 *)(map->flags->buf)) + idx;
+  res.key = ((u8 *)(map->data->buf)) + idx * (map->keysize + map->valsize);
   res.val = (void *)((u8 *)res.key + map->keysize);
   return res;
-}
-
-void HMap_free(HMap *hm) {
-  var_ allocator = hm->allocator;
-  usize totalSize = sizeof(HMap) + 2 * sizeof(sList_header);
-  defer { aFree(allocator, hm, totalSize); };
-  sList_free(allocator, hm->storage[0], hm->keysize + hm->valsize);
-  sList_free(allocator, hm->storage[1], sizeof(u8));
 }
 
 __attribute__((const, always_inline)) void *LesserList_getref(const usize elw, const sList_header *hll, u32 idx) {
@@ -541,8 +532,8 @@ void HMap_manage(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u3
   usize keyCopySize = (oldMap->keysize < kSize) ? oldMap->keysize : kSize;
   usize valCopySize = (oldMap->valsize < vSize) ? oldMap->valsize : vSize;
 
-  for (usize i = 0; i < oldMap->storage[0]->length; i++) {
-    u8 flag = ((u8 *)oldMap->storage[1]->buf)[i];
+  for (usize i = 0; i < oldMap->data->length; i++) {
+    u8 flag = ((u8 *)oldMap->flags->buf)[i];
     if (flag != 1)
       continue; // skip empty (0) and deleted (2)
     struct HMap_inner_item it = HMap_get_inner_zero(oldMap, i);
@@ -557,60 +548,54 @@ void HMap_manage(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u3
   *last = newMap;
 }
 
-void *HMap_get_open(const HMap *map, const void *key) {
+void *HMap_get(const HMap *map, const void *key) {
   if (!key)
     return nullptr;
   u32 lindex = (u32)(HMap_hash(fptr_fromPL(key, map->keysize)) % map->maxHash);
-  if (lindex >= map->storage[0]->length)
+  if (lindex >= map->data->length)
     return nullptr;
   struct HMap_inner_item it = HMap_get_inner_zero(map, lindex);
   while (it.flag[0] && memcmp(it.key, key, map->keysize)) {
     lindex++;
-    if (lindex < map->storage[0]->length)
+    if (lindex < map->data->length)
       it = HMap_get_inner_zero(map, lindex);
     else
       break;
   }
-  if (lindex == map->storage[0]->length)
+  if (lindex == map->data->length)
     return nullptr;
   return it.flag[0] == 1 ? it.val : nullptr;
 }
-void *HMap_set_open(HMap *map, const void *key, const void *val) {
+void *HMap_set(HMap *map, const void *key, const void *val) {
   if (!key)
     return nullptr;
+
   u32 lindex = (u32)(HMap_hash(fptr_fromPL(key, map->keysize)) % map->maxHash);
   struct HMap_inner_item it = HMap_get_inner_zero(map, lindex);
   while (it.flag[0] && memcmp(it.key, key, map->keysize)) {
     lindex++;
-    if (lindex < map->storage[0]->length)
+    if (lindex < map->data->length)
       it = HMap_get_inner_zero(map, lindex);
     else
       break;
   }
-  if (lindex == map->storage[0]->length) {
-    map->storage[0] = sList_append(map->allocator, map->storage[0], map->keysize + map->valsize, NULL);
-    map->storage[1] = sList_append(map->allocator, map->storage[1], sizeof(u8), NULL);
+  if (lindex == map->data->length) {
+    map->data = sList_append(map->allocator, map->data, map->keysize + map->valsize, NULL);
+    map->flags = sList_append(map->allocator, map->flags, sizeof(u8), NULL);
     it = HMap_get_inner_zero(map, lindex);
   }
   memcpy(it.key, key, map->keysize);
   if (val)
     memcpy(it.val, val, map->valsize);
+  u8 before = it.flag[0] == 1;
   memcpy(it.flag, REF(u8, (u8)(val ? 1 : 2)), sizeof(u8));
+  u8 after = it.flag[0] == 1;
+  if (before && !after) map->count--;
+  else if (!before && after) map->count++;
   return it.val;
 }
 
-void *HMap_set(HMap *map, const void *key, const void *val) {
-  return HMap_set_open(map, key, val);
-}
-void *HMap_get(const HMap *map, const void *key) {
-  return HMap_get_open(map, key);
-}
-u32 HMap_count(const HMap *map) {
-  u32 i = 0;
-  foreach (var_ v, vla(*VLAP(map->storage[1]->buf, map->storage[1]->length)))
-    i += v == 1;
-  return i;
-}
+u32 HMap_count(const HMap *map) { return map->count; }
 u8 HMap_load(const HMap *map) {
   u32 cap = map->maxHash;
   u32 count = HMap_count(map);
@@ -665,7 +650,8 @@ HMap_both HMap_getBoth(HMap *map, const void *key) {
 }
 
 void HMap_clear(HMap *map) {
-  memset(map->storage[1]->buf, 0, map->storage[1]->length * sizeof(u8));
+  memset(map->flags->buf, 0, map->flags->length * sizeof(u8));
+  map->count = 0;
 }
 
 //
@@ -675,23 +661,22 @@ void HMap_clear(HMap *map) {
 bool HMapIterator_valid(const struct HMapIterator_struct_inner *it) {
   usize len = HMap_getHLen(it->map); // must match macro’s length
   return it->element_idx < len &&
-         ((u8 *)it->map->storage[1]->buf)[it->element_idx] == 1;
+         ((u8 *)it->map->flags->buf)[it->element_idx] == 1;
 }
 void HMapIterator_next(struct HMapIterator_struct_inner *it) {
   it->element_idx++;
   usize len = HMap_getHLen(it->map);
   while (it->element_idx < len &&
-         ((u8 *)it->map->storage[1]->buf)[it->element_idx] != 1) {
+         ((u8 *)it->map->flags->buf)[it->element_idx] != 1) {
     it->element_idx++;
   }
-  it->current = HMap_getCoord(it->map, it->bucket_idx, it->element_idx);
+  it->current = HMap_getCoord(it->map, it->element_idx);
 }
 inline struct HMapIterator_struct HMapIterator(const HMap *map) {
   struct HMapIterator_struct it = {
       .state = {{
           .map = map,
           .current = NULL,
-          .bucket_idx = 0,
           .element_idx = 0,
       }},
       .next = HMapIterator_next,
@@ -700,11 +685,11 @@ inline struct HMapIterator_struct HMapIterator(const HMap *map) {
 
   usize len = HMap_getHLen(map);
   while (it.state[0].element_idx < len &&
-         ((u8 *)map->storage[1]->buf)[it.state[0].element_idx] != 1) {
+         ((u8 *)map->flags->buf)[it.state[0].element_idx] != 1) {
     it.state[0].element_idx++;
   }
 
-  it.state[0].current = HMap_getCoord(map, it.state[0].bucket_idx, it.state[0].element_idx);
+  it.state[0].current = HMap_getCoord(map, it.state[0].element_idx);
   return it;
 }
 
