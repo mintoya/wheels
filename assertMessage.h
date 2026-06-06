@@ -150,7 +150,7 @@ void __attribute__((noreturn)) _assertMessageFail(
     #endif
 
     #define assertMessage(expr, ...)            \
-      do {                                      \
+      ({                                        \
         DIAGNOSTIC_PUSH("-Wunknown-attributes") \
         if_unlikely (!(expr)) {                 \
           DIAGNOSTIC_POP()                      \
@@ -166,17 +166,20 @@ void __attribute__((noreturn)) _assertMessageFail(
               "" __VA_ARGS__                    \
           );                                    \
         }                                       \
-      } while (0)
+        0;                                      \
+      })
   #else
     #include <assert.h>
-    #define assertMessage(bool, ...) assert(bool)
+    #define assertMessage(bool, ...) ({ assert(bool);0; })
   #endif
 #else
-  #define assertMessage(expr, ...)      \
-    if (__builtin_expect(!(expr), 0)) { \
-      assertMessage_fail_ins();         \
-    }
+  #define assertMessage(expr, ...)                  \
+    ({                                              \
+      if_unlikely (!expr) assertMessage_fail_ins(); \
+      0;                                            \
+    })
 #endif
+
 #define assertOnce(...)           \
   do {                            \
                                   \

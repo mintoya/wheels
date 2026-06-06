@@ -187,6 +187,7 @@ sliceDef(c8);
   (typeof(slice)[]) {                          \
     APPLY_N_WITH(slice_ij, slice, __VA_ARGS__) \
   }
+#define slice_last(slice) ({var_ _slice = slice;assertMessage(_slice.len); _slice.ptr[_slice.len -1 ]; })
 
 #define sentList_t(type) typeof(/*sentinel termintated list*/ type *)
 #define sentList(type, ...) \

@@ -370,6 +370,9 @@ RangeAdapter<CIterator, CastType> as_range(CIterator it) {
 
   #define if_likely(...) if (__builtin_expect(!!(__VA_ARGS__), 1))
   #define if_unlikely(...) if (__builtin_expect(!!(__VA_ARGS__), 0))
+  #define if_decl(decl, init)                                         \
+    for (struct { int keep; __typeof__(init) val; } _s = {1, (init)}; _s.keep && _s.val; _s.keep = 0) \
+      for (decl = _s.val; _s.keep; _s.keep = 0)
 
 //
 // pipe

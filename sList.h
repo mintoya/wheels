@@ -22,18 +22,17 @@ typedef struct sList_header {
 } sList_header;
 
 static inline sList_header *sList_new(AllocatorV allocator, usize initLen, usize width) {
-    assertMessage(initLen && width);
-    sList_header *res = (typeof(res))aAlloc(allocator, sizeof(sList_header) + initLen * width);
+  assertMessage(initLen && width);
+  sList_header *res = (typeof(res))aAlloc(allocator, sizeof(sList_header) + initLen * width);
   *res = (typeof(*res)){};
-    if (allocator->size) {
-        usize s = allocator->size(allocator, res);
-        res->capacity = (s - sizeof(sList_header)) / width;
-     
-  }
-  else     res->capacity = initLen;
-    res->length = 0;
-    res->isStack = 0;
-    return res;
+  if (allocator->size) {
+    usize s = allocator->size(allocator, res);
+    res->capacity = (s - sizeof(sList_header)) / width;
+
+  } else res->capacity = initLen;
+  res->length = 0;
+  res->isStack = 0;
+  return res;
 }
 static inline sList_header *sList_realloc(AllocatorV allocator, sList_header *header, usize width, usize newsize) {
   assertMessage(header && header->capacity);
