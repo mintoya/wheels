@@ -4,6 +4,9 @@
   #include "fptr.h"
   #include "macros.h"
   #include "mytypes.h"
+  #if !defined(_Nullable)
+    #define _Nullable
+  #endif
 
 typedef u32 sstream_errn;
 typedef struct {

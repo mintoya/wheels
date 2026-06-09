@@ -38,8 +38,6 @@ HMap *HMap_new(
  */
 void HMap_manage(
     HMap **last,
-    usize kSize,
-    usize vSize,
     AllocatorV allocator,
     u32 maxHash
 );
@@ -510,15 +508,14 @@ __attribute__((const, always_inline)) void *LesserList_getref(const usize elw, c
   return (u8 *)(hll->buf) + idx * (elw);
 }
 
-void HMap_manage(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u32 maxHash) {
+void HMap_manage(HMap **last, AllocatorV allocator, u32 maxHash) {
   assertMessage(last && *last);
   assertMessage(maxHash);
 
-  HMap *oldMap = *last;
-  if (kSize == 0)
-    kSize = oldMap->keysize;
-  if (vSize == 0)
-    vSize = oldMap->valsize;
+  var_ oldMap = *last;
+  var_ kSize = oldMap->keysize;
+  var_ vSize = oldMap->valsize;
+
   if (allocator == nullptr)
     allocator = oldMap->allocator;
   HMap *newMap = HMap_new(kSize, vSize, allocator, maxHash);
@@ -529,20 +526,13 @@ void HMap_manage(HMap **last, usize kSize, usize vSize, AllocatorV allocator, u3
   var_ tempKey = tembBuf;
   var_ tempVal = tembBuf + newMap->keysize;
 
-  usize keyCopySize = (oldMap->keysize < kSize) ? oldMap->keysize : kSize;
-  usize valCopySize = (oldMap->valsize < vSize) ? oldMap->valsize : vSize;
-
-  for (usize i = 0; i < oldMap->data->length; i++) {
-    u8 flag = ((u8 *)oldMap->flags->buf)[i];
-    if (flag != 1)
-      continue; // skip empty (0) and deleted (2)
-    struct HMap_inner_item it = HMap_get_inner_zero(oldMap, i);
-    memset(tempKey, 0, kSize);
-    memcpy(tempKey, it.key, keyCopySize);
-    memset(tempVal, 0, vSize);
-    memcpy(tempVal, it.val, valCopySize);
-    HMap_set(newMap, tempKey, tempVal);
-  }
+  foreach (var_ i, range(0, oldMap->data->length))
+    if (((u8 *)oldMap->flags->buf)[i] == 1) {
+      struct HMap_inner_item it = HMap_get_inner_zero(oldMap, i);
+      memcpy(tempKey, it.key, kSize);
+      memcpy(tempVal, it.val, vSize);
+      HMap_set(newMap, tempKey, tempVal);
+    }
 
   HMap_free(oldMap);
   *last = newMap;

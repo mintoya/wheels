@@ -187,7 +187,20 @@ sliceDef(c8);
   (typeof(slice)[]) {                          \
     APPLY_N_WITH(slice_ij, slice, __VA_ARGS__) \
   }
-#define slice_last(slice) ({var_ _slice = slice;assertMessage(_slice.len); _slice.ptr[_slice.len -1 ]; })
+
+#define SLICE_CUT_HELPER(slice, prev, curr, ...) \
+  slice_ij(slice, (prev, curr))                  \
+      __VA_OPT__(SLICE_CUT_HELPER_INVOKE PARENTHESIS_HELPER(slice, curr, __VA_ARGS__))
+
+#define SLICE_CUT_HELPER_INVOKE() SLICE_CUT_HELPER
+
+#define slice_cut(slice, ...)                                                       \
+  (typeof(slice)[]) {                                                               \
+    MACRO_EXPAND(SLICE_CUT_HELPER(slice, 0, __VA_ARGS__ __VA_OPT__(, )(slice).len)) \
+  }
+
+#define slice_last(slice) ({var_ _slice = slice; _slice.ptr[_slice.len -1 ]; })
+#define slice_first(slice) ({var_ _slice = slice; _slice.ptr[0]; })
 
 #define sentList_t(type) typeof(/*sentinel termintated list*/ type *)
 #define sentList(type, ...) \
