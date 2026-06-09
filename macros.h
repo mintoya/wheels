@@ -182,10 +182,6 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define VA_SWITCH(default_val, ...) \
     ID_CONCAT(VA_SWITCH_IMPL_, VA_SWITCH_EMPTY(__VA_ARGS__))(default_val __VA_OPT__(, ) __VA_ARGS__)
 
-  #define types_eq(T1, T2) \
-    _Generic((*((T1 *)NULL)), T2: true, default: false)
-  #define UNQUAL(...) __typeof__(1 ? (__VA_ARGS__) : (__VA_ARGS__))
-
 //
 // loops
 //
@@ -409,5 +405,12 @@ RangeAdapter<CIterator, CastType> as_range(CIterator it) {
   #define fnptr_(in, out) fnptrof(in, out)
   #define ptr_(T) ptrof(T)
   #define arr_(T, ...) arrof(T, __VA_ARGS__)
+//
+// type stuff
+//
+  #define types_eq(T1, T2) \
+    _Generic((*((T1 *)NULL)), T2: true, default: false)
+  #define UNQUAL(...) __typeof__(1 ? (__VA_ARGS__) : (__VA_ARGS__))
+  #define itypeof(struct, member) typeof(((struct *)0)->member)
 
 #endif
