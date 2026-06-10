@@ -401,7 +401,7 @@ MAKE_TEST_FN(HMap_transform_open_test, {
   for (int i = 0; i < 100; i++)
     mHmap_set(map, i, i * 3);
 
-  HMap_manage((HMap **)&map, sizeof(int), sizeof(int), allocator, 128);
+  HMap_manage((HMap **)&map, allocator, 128);
 
   for (int i = 0, *v; (v = mHmap_get(map, i), i < 100); i++)
     if (!v || *v != i * 3)
