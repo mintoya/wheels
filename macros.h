@@ -1,7 +1,7 @@
 #if !defined(MY_MACROS_H)
 
   #if !defined(__cplusplus)
-    #define REF(type, value) ((type[1]){value})
+    #define REF(type, ...) ((type[1]){__VA_ARGS__})
     #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
     #else
       #define nullptr ((void *)0)
@@ -412,5 +412,6 @@ RangeAdapter<CIterator, CastType> as_range(CIterator it) {
     _Generic((*((T1 *)NULL)), T2: true, default: false)
   #define UNQUAL(...) __typeof__(1 ? (__VA_ARGS__) : (__VA_ARGS__))
   #define itypeof(struct, member) typeof(((struct *)0)->member)
+  #define ptrstype(ptr) typeof(*((typeof(ptr))NULL))
 
 #endif

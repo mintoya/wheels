@@ -75,6 +75,7 @@ static_assert(sizeof(ssize_t) == sizeof(usize), "ssize and usize have to be the 
 #endif
 typedef ssize_t isize;
 typedef uintptr_t uptr;
+typedef ptrdiff_t iptr;
 
 #if !defined(__cplusplus)
   #ifndef thread_local

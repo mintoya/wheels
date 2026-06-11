@@ -683,4 +683,5 @@ inline struct HMapIterator_struct HMapIterator(const HMap *map) {
   return it;
 }
 
+u32 HMap_getMetaSize(const HMap *map) { return map->maxHash; }
 #endif // HMap_C
