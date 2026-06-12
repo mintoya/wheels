@@ -195,13 +195,19 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
   #define msList_init(allocator, T, ...) \
     SLIST_INIT_HELPER(allocator, T __VA_OPT__(, __VA_ARGS__), 2)
 
-  #define msList_stackBuffer(buffer) \
-    ({\
-     (void)countof((buffer){});\
-     struct {              \
-         sList_header header[1];     \
-         typeof(buffer) list;                \
-       }_r ;_r; })
+  #define msList_stackBuffer(buffer)                         \
+    (struct {                                                \
+      sList_header header[1];                                \
+      typeof(typeof(((buffer){})[0])[countof(buffer)]) list; \
+    }) {                                                     \
+      {                                                      \
+        {                                                    \
+          .capacity = countof(buffer),                       \
+          .isStack = true,                                   \
+          .length = 0,                                       \
+        }                                                    \
+      }                                                      \
+    }
 
   #define msList_initBuffer(buffer) ({                                   \
     (void)sizeof(int[_Generic(buffer, typeof(buffer): 1, default: -1)]); \

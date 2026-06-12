@@ -36,13 +36,31 @@ static inline void FBA_init(u8 *buffer, usize size, FBA_State res[1]) {
   res->count = 0;
   res->buffer = (u8 *)buffer;
 }
-  #define FBA_static(size) ({                                                             \
-    static max_align_t _buffer[(((size) + sizeof(FBA_State))) / sizeof(max_align_t) + 1]; \
-    static FBA_State _res = {};                                                           \
-    if (!_res.capacity)                                                                   \
-      FBA_init(_buffer, sizeof(_buffer), &_res);                                          \
-    _res.allocator;                                                                       \
-  })
+
+  #define fba_buffer(buffer)  \
+    ((struct {                \
+      FBA_State s[1];         \
+      typeof(u8 buffer) buff; \
+    }){})
+  #define fba_initBuffer(buffer)                           \
+    (FBA_init(buffer.buff, sizeof(buffer.buff), buffer.s), \
+     buffer.s->allocator)
+static inline AllocatorV fba_new(AllocatorV allocator, usize size) {
+  typedef struct {
+    FBA_State s[1];
+    alignas(myAlign) u8 x[];
+  } fbuffer;
+  var_ r = (fbuffer *)aAlloc(allocator, size + sizeof(fbuffer));
+  FBA_init(r->x, size, r->s);
+  return r->s->allocator;
+}
+static inline AllocatorV fba_del(AllocatorV allocator, AllocatorV fba) {
+  typedef struct {
+    FBA_State s[1];
+    alignas(myAlign) u8 x[];
+  } fbuffer;
+  aFree(allocator, fba, sizeof(fbuffer) + ((fbuffer *)fba)->s->capacity);
+}
 
 #endif // FBA_ALLOCATOR_H
 
@@ -75,7 +93,7 @@ void *_fba_alloc_nullable(AllocatorV allocator, usize size) {
 
 void *_fba_alloc(AllocatorV allocator, usize size, char *, usize) {
   void *res = _fba_alloc_nullable(allocator, size);
-  assert(res);
+  assert(res && "buffer probably ran out of space");
   return res;
 }
 
