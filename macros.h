@@ -1,7 +1,7 @@
 #if !defined(MY_MACROS_H)
 
   #if !defined(__cplusplus)
-    #define REF(type, ...) ((type[1]){__VA_ARGS__})
+    #define REF_1(type, ...) ((type[1]){__VA_ARGS__})
     #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
     #else
       #define nullptr ((void *)0)
@@ -10,7 +10,7 @@
   #else
 template <typename T>
 static T *TEMPORARY_REF_UB(T &&v) { return &v; }
-    #define REF(type, value) TEMPORARY_REF_UB((type){value})
+    #define REF_1(type, value) TEMPORARY_REF_UB((type){value})
 template <class To, class From>
 To bit_cast_func(const From &src) noexcept {
   To dst;
@@ -20,6 +20,10 @@ To bit_cast_func(const From &src) noexcept {
     #define bitcast(to, from) (bit_cast_func<to>(from))
     #define typeof(...) __typeof__(__VA_ARGS__)
   #endif
+
+  #define REF_INDIRECT(type, ...) REF_1(type, __VA_ARGS__)
+  #define REF(x, ...) REF_INDIRECT(VA_SWITCH(typeof(x), typeof(x) __VA_OPT__(, __VA_ARGS__)))
+
   #define ID_CONCAT_IM(a, b) a##b
   #define ID_CONCAT(a, b) ID_CONCAT_IM(a, b)
 

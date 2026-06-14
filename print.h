@@ -177,7 +177,7 @@ __attribute__((destructor(201))) static void printerDeInit() {
 #define PUTC(character)                               \
   do {                                                \
     ASSERT_EXPR(types_eq(c8, typeof(character)), ""); \
-    put(REF(c8, character), _arb, 1, 0);              \
+    put(REF(character), _arb, 1, 0);                  \
   } while (0)
 
 #define REGISTER_PRINTER(T, ...)                                 \
@@ -225,13 +225,13 @@ __attribute__((destructor(201))) static void printerDeInit() {
   REGISTER_SPECIAL_PRINTER_NEEDID(UNIQUE_PRINTER_FN, str, type, __VA_ARGS__)
 #define USETYPEPRINTER(T, val) \
   GETTYPEPRINTERFN(T)(put, (fptr){sizeof(T), (u8 *)(void *)REF(T, val)}, nullFptr, _arb)
-#define USENAMEDPRINTER(strname, val)                                                                  \
-  print_f_helper(                                                                                      \
-      (struct print_arg){.ref = ((fptr){sizeof(val), (u8 *)REF(typeof(val), val)}), .name = nullFptr}, \
-      printer_arg_trim(printer_arg_until(':', fp_from(strname))),                                      \
-      put,                                                                                             \
-      printer_arg_after(':', fp_from(strname)),                                                        \
-      _arb                                                                                             \
+#define USENAMEDPRINTER(strname, val)                                                     \
+  print_f_helper(                                                                         \
+      (struct print_arg){.ref = ((fptr){sizeof(val), (u8 *)REF(val)}), .name = nullFptr}, \
+      printer_arg_trim(printer_arg_until(':', fp_from(strname))),                         \
+      put,                                                                                \
+      printer_arg_after(':', fp_from(strname)),                                           \
+      _arb                                                                                \
   );
 #define USENAMEDPRINTER_WA(strname, args, val)                                                         \
   print_f_helper(                                                                                      \
@@ -670,7 +670,7 @@ MAKE_PRINT_ARG_TYPE(u32);
 
   #define MAKE_PRINT_ARG(a)                                               \
     ((struct print_arg){                                                  \
-        .ref = (fptr){sizeof(typeof(a)), (u8 *)REF(typeof(a), a)},        \
+        .ref = (fptr){sizeof(typeof(a)), (u8 *)REF(a)},                   \
         .name = fp_from(type_name_cstr<std::remove_cvref_t<typeof(a)>>()) \
     }),
 #endif
