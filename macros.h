@@ -413,5 +413,6 @@ RangeAdapter<CIterator, CastType> as_range(CIterator it) {
   #define UNQUAL(...) __typeof__(1 ? (__VA_ARGS__) : (__VA_ARGS__))
   #define itypeof(struct, member) typeof(((struct *)0)->member)
   #define ptrstype(ptr) typeof(*((typeof(ptr))NULL))
+  #define isArray(ptrable) _Generic(&ptrable, typeof(ptrable[0])(*)[]: 1, default: 0)
 
 #endif

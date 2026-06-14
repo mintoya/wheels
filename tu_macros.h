@@ -67,6 +67,14 @@
     assert(tu_is(type, item_eval) && "unexpected type"); \
     item_eval.type;                                      \
   })
+  #define tu_catch(type, item, ...) ({      \
+    var_ item_eval = item;                  \
+    if_unlikely (!tu_is(type, item_eval)) { \
+      __VA_ARGS__;                          \
+      abort(1);                             \
+    };                                      \
+    item_eval.type;                         \
+  })
 
   #define TU_MATCH(item)                                         \
     for (struct { typeof(item) _eval; int _once; } _tu = {(item), 1}; _tu._once; _tu._once = 0) \

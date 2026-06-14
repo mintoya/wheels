@@ -226,7 +226,7 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
     } while (0)
   #define msList_ins(allocator, s, idx, val)                                                 \
     do {                                                                                     \
-      typeof(*s) _val = val;                                                                 \
+      typeof(*s) _val = (typeof(*s))val;                                                     \
       s = (typeof(s))sList_insert(allocator, msList_header(s), sizeof(*s), idx, &_val)->buf; \
     } while (0);
 
@@ -239,7 +239,7 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
     do {                                                                                                          \
       if_unlikely (msList_len(s) == msList_cap(s))                                                                \
         s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), SLIST_GROW_EQ(msList_len(s)))->buf; \
-      (s)[msList_len(s)++] = (val);                                                                               \
+      (s)[msList_len(s)++] = ((typeof(*s))val);                                                                   \
     } while (0)
 
   #define msList_insArr(allocator, s, place, vla)                     \
