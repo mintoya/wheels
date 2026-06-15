@@ -21,8 +21,8 @@ To bit_cast_func(const From &src) noexcept {
     #define typeof(...) __typeof__(__VA_ARGS__)
   #endif
 
-  #define REF_INDIRECT(type, ...) REF_1(type, __VA_ARGS__)
-  #define REF(x, ...) REF_INDIRECT(VA_SWITCH(typeof(x), typeof(x) __VA_OPT__(, __VA_ARGS__)))
+  #define REF_INDIRECT(one, ...) REF_1 one
+  #define REF(x, ...) REF_INDIRECT(__VA_OPT__((x, __VA_ARGS__), )(typeof(x), x))
 
   #define ID_CONCAT_IM(a, b) a##b
   #define ID_CONCAT(a, b) ID_CONCAT_IM(a, b)
@@ -179,6 +179,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define STR_H(...) #__VA_ARGS__
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
 
+// TODO overcomplicated
   #define VA_SWITCH_FIRST(first, ...) first
   #define VA_SWITCH_EMPTY(...) VA_SWITCH_FIRST(__VA_OPT__(0, ) 1, ~)
   #define VA_SWITCH_IMPL_0(default_val, ...) __VA_ARGS__
