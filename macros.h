@@ -111,7 +111,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 // pragmas
 //
 
-  #if !defined(__GNUC__)
+  #if defined(__GNUC__)
     #define PRAGMA_MAKE_STR(...) #__VA_ARGS__
     #define MAKE_PRAGMA(warning) _Pragma(PRAGMA_MAKE_STR(GCC diagnostic ignored warning))
     #define DIAGNOSTIC_PUSH(...)     \
@@ -144,7 +144,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
     #define CONST_EXPR constexpr
-  #elif defined(__cpp_constexpr) // C++ fallback
+  #elif defined(__cpp_constexpr)
     #define CONST_EXPR constexpr
   #else
     #define CONST_EXPR static const
@@ -194,6 +194,9 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define _each_vla(vla, decl) \
     _each_pair(_i, vla, decl)
+
+  #define _each_vlap(vla, decl) \
+    _each_pair(_i, *vla, decl)
 
   #define _each_range_3(start, end, decl)                           \
     (                                                               \
@@ -263,6 +266,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define _im_each_pair(...) /* */_each_pair(__VA_ARGS__,
   #define _im_each_vla(...) /*  */_each_vla(__VA_ARGS__,
+  #define _im_each_vlap(...) /*  */_each_vlap(__VA_ARGS__,
   #define _im_each_span(...) /* */_each_span(__VA_ARGS__ ,
   #define _im_each_range(...) /**/_each_range(__VA_ARGS__ ,
   #define _im_each_iter(...) /* */_each_iter(__VA_ARGS__ ,

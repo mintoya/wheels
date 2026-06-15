@@ -71,7 +71,7 @@
     var_ item_eval = item;                  \
     if_unlikely (!tu_is(type, item_eval)) { \
       __VA_ARGS__;                          \
-      abort(1);                             \
+      abort();                              \
     };                                      \
     item_eval.type;                         \
   })
