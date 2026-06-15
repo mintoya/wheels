@@ -179,13 +179,8 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define STR_H(...) #__VA_ARGS__
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
 
-// TODO overcomplicated
-  #define VA_SWITCH_FIRST(first, ...) first
-  #define VA_SWITCH_EMPTY(...) VA_SWITCH_FIRST(__VA_OPT__(0, ) 1, ~)
-  #define VA_SWITCH_IMPL_0(default_val, ...) __VA_ARGS__
-  #define VA_SWITCH_IMPL_1(default_val) default_val
-  #define VA_SWITCH(default_val, ...) \
-    ID_CONCAT(VA_SWITCH_IMPL_, VA_SWITCH_EMPTY(__VA_ARGS__))(default_val __VA_OPT__(, ) __VA_ARGS__)
+  #define VA_SWITCH_SEL(a, ...) REM_PAREN a
+  #define VA_SWITCH(first, ...) VA_SWITCH_SEL(__VA_OPT__((__VA_ARGS__), )(first))
 
 //
 // loops
