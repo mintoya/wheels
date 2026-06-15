@@ -111,7 +111,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 // pragmas
 //
 
-  #if defined(__GNUC__)
+  #if !defined(__GNUC__)
     #define PRAGMA_MAKE_STR(...) #__VA_ARGS__
     #define MAKE_PRAGMA(warning) _Pragma(PRAGMA_MAKE_STR(GCC diagnostic ignored warning))
     #define DIAGNOSTIC_PUSH(...)     \
