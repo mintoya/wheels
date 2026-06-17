@@ -223,6 +223,7 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
   #define msList_deInit(allocator, s)                             \
     do {                                                          \
       if (s) sList_free(allocator, msList_header(s), sizeof(*s)); \
+      /*s = nullptr;*/                                            \
     } while (0)
   #define msList_ins(allocator, s, idx, val)                                                 \
     do {                                                                                     \

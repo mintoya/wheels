@@ -31,6 +31,7 @@ void bigint_add_ip(AllocatorV allocator, bigint *a, bigint b, isize shift);
 
 void bigint_sub_ip(AllocatorV allocator, bigint *a, bigint b, isize shift);
 bigint bigint_from(AllocatorV allocator, i64 i);
+bigint bigint_fromBits(AllocatorV alloc, void *ptr, usize bitcount, bool signmask);
 bigint bigint_cs(AllocatorV allocator, u8 base, cstr str);
 bigint bigint_negate(AllocatorV allocator, bigint i);
 bigint bigint_add(AllocatorV allocator, bigint a, bigint b);
@@ -53,12 +54,26 @@ bigint_unit bigint_estimate_q(bigint rem, bigint b);
 struct bigint_div_t bigint_div(AllocatorV allocator, bigint a1, bigint b1);
 
 NAMESPACE_STRUCT(
+    BInt_from,
+    (cstr, &bigint_cs),
+    (i64, &bigint_from),
+    (bits, &bigint_fromBits),
+);
+NAMESPACE_STRUCT(
+    BInt_advanced,
+    (add_ip, &bigint_add_ip),
+    (sub_ip, &bigint_sub_ip),
+);
+NAMESPACE_STRUCT(
     BInt,
+    (advanced, BInt_advanced),
     (add, &bigint_add),
     (sub, &bigint_sub),
     (mul, &bigint_mul),
     (div, &bigint_div),
-    (from, &bigint_from),
+    (trim, &bigint_trim),
+    (expand, &bigint_expand),
+    (from, BInt_from),
     (negate, &bigint_negate),
     (negetive, &bigint_negetive),
 );
@@ -103,39 +118,44 @@ REGISTER_PRINTER(bigint, {
       r;
     });
 
-    struct {
-      sList_header h[1];
-      bigint_unit u[2];
-    } hundred = {{2, 2}, {base.modu, 0}};
+    var_ hb = msList_stackBuffer(bigint_unit[2]);
+    var_ hundred = msList_initBuffer(hb);
+    defer { msList_deInit(stdAlloc, hundred); };
+    msList_push(stdAlloc, hundred, base.modu);
 
     if (bigint_cmp(in, NULL)) {
       msList(c8) digits = msList_init(stdAlloc, c8);
       defer { msList_deInit(stdAlloc, digits); };
 
       while (bigint_cmp(in, NULL)) {
-        var_ dig_big = bigint_div(stdAlloc, in, (bigint)(hundred.h->buf));
+        var_ dig_big = bigint_div(stdAlloc, in, (bigint)(hundred));
         defer {
           msList_deInit(stdAlloc, dig_big.mod);
           msList_deInit(stdAlloc, dig_big.div);
         };
         var_ dig = bigint_get(dig_big.mod, 0);
-
         bool is_last = !bigint_cmp(dig_big.div, NULL);
-
-        if (is_last) {
+        if (is_last)
           while (dig > 0) {
-            msList_ins(stdAlloc, digits, 0, (c8)(dig % 10 + '0'));
+            msList_push(stdAlloc, digits, (c8)(dig % 10 + '0'));
             dig /= 10;
           }
-        } else {
+        else
           for (usize i = 0; i < base.digits; i++) {
-            msList_ins(stdAlloc, digits, 0, (c8)(dig % 10 + '0'));
+            msList_push(stdAlloc, digits, (c8)(dig % 10 + '0'));
             dig /= 10;
           }
-        }
 
         msList_header(in)->length = msList_header(dig_big.div)->length;
         memcpy(in, dig_big.div, sizeof(*msList_vla(dig_big.div)));
+      }
+
+      usize len = msList_len(digits);
+      c8 *str = *msList_vla(digits);
+      for (usize i = 0; i < len / 2; i++) {
+        c8 tmp = str[i];
+        str[i] = str[len - 1 - i];
+        str[len - 1 - i] = tmp;
       }
 
       msList_push(stdAlloc, digits, 0);
@@ -145,17 +165,6 @@ REGISTER_PRINTER(bigint, {
   }
 });
   #endif
-  #define bigint_stack(...)                                     \
-    (struct {                                                   \
-      sList_header head[1];                                     \
-      bigint_unit units[countof((bigint_unit[]){__VA_ARGS__})]; \
-    }){                                                         \
-        .head = {{                                              \
-            .length = countof((bigint_unit[]){__VA_ARGS__}),    \
-            .capacity = countof((bigint_unit[]){__VA_ARGS__}),  \
-        }},                                                     \
-        .units = {__VA_ARGS__}                                  \
-    }.units
 
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
@@ -176,7 +185,9 @@ struct bigint_ckdt bigint_ckd_add_struct(bigint_unit a, bigint_unit b) {
   return res;
 }
 bool bigint_negetive(bigint i) {
-  return i ? !!(i[msList_len(i) - 1] & ((((bigint_unit)-1) >> 1) + 1)) : 0;
+  if (!i) return 0;
+  if (!msList_len(i)) return 0;
+  return !!(i[msList_len(i) - 1] & ((((bigint_unit)-1) >> 1) + 1));
 }
 bigint_unit bigint_get(bigint b, usize idx) {
   bigint_unit u = bigint_negetive(b) ? -1 : 0;
@@ -239,7 +250,7 @@ void bigint_expand(AllocatorV allocator, bigint *b, usize len) {
   bigint_unit u = 0;
   if (bigint_negetive(b[0]))
     u = (bigint_unit)-1;
-  while (len >= msList_len(*b))
+  while (len > msList_len(*b))
     msList_push(allocator, *b, u);
 }
 bigint bigint_copy(AllocatorV allocator, bigint b) {
@@ -456,7 +467,7 @@ struct bigint_div_t bigint_div(AllocatorV allocator, bigint a1, bigint b1) {
   var_ rem = bigint_from(allocator, 0);
 
   isize len_a = (isize)bigint_digits(a);
-  for (isize i = len_a - 1; i >= 0; --i) {
+  foreach (isize i, range(len_a - 1, -1)) {
     bigint_shrl(allocator, &rem, 1);
     rem[0] = a[i];
     bigint_trim(&rem);
@@ -535,5 +546,26 @@ bigint bigint_cs(AllocatorV allocator, u8 base, char *str) {
   if (negetive)
     bigint_negate_ip(allocator, &b);
   return b;
+}
+// create a bigint from a specified bitcount
+// assumes that a byte is 8 bits
+bigint bigint_fromBits(AllocatorV alloc, void *ptr, const usize bitcount, bool sigmask) {
+  const usize unit_bits = sizeof(bigint_unit) * 8;
+
+  usize units = (bitcount + unit_bits - 1) / unit_bits;
+
+  var_ res = msList_init(alloc, bigint_unit, units ?: 1);
+  if (!units) return res;
+  memset(res, 0, units * sizeof(bigint_unit));
+
+  foreach (var_ i, range(0, bitcount)) {
+    if (((u8 *)ptr)[i / 8] & (1u << (i % 8)))
+      res[i / unit_bits] |= (bigint_unit)1 << (i % unit_bits);
+  }
+  if (((u8 *)ptr)[(bitcount - 1) / 8] & (1u << ((bitcount - 1) % 8)))
+    foreach (var_ i, range(bitcount, units * unit_bits))
+      res[i / unit_bits] |= ((bigint_unit)1 & sigmask) << (i % unit_bits);
+  msList_len(res) = units;
+  return res;
 }
 #endif
