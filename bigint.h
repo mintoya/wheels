@@ -1,6 +1,7 @@
 #if !defined(MY_BIGINT_H)
   #define MY_BIGINT_H (1)
 
+  #include "fptr.h"
   #include "macros.h"
   #include "mytypes.h"
   #include "sList.h"
@@ -33,6 +34,7 @@ void bigint_sub_ip(AllocatorV allocator, bigint *a, bigint b, isize shift);
 bigint bigint_from(AllocatorV allocator, i64 i);
 bigint bigint_fromBits(AllocatorV alloc, void *ptr, usize bitcount, bool signmask);
 bigint bigint_cs(AllocatorV allocator, u8 base, cstr str);
+bigint bigint_fptr(AllocatorV allocator, u8 base, fptr str);
 bigint bigint_negate(AllocatorV allocator, bigint i);
 bigint bigint_add(AllocatorV allocator, bigint a, bigint b);
 bigint bigint_sub(AllocatorV allocator, bigint a, bigint b);
@@ -56,6 +58,7 @@ struct bigint_div_t bigint_div(AllocatorV allocator, bigint a1, bigint b1);
 NAMESPACE_STRUCT(
     BInt_from,
     (cstr, &bigint_cs),
+    (fptr, &bigint_fptr),
     (i64, &bigint_from),
     (bits, &bigint_fromBits),
 );
@@ -542,6 +545,51 @@ bigint bigint_cs(AllocatorV allocator, u8 base, char *str) {
 
     b = prod;
     str++;
+  }
+  if (negetive)
+    bigint_negate_ip(allocator, &b);
+  return b;
+}
+bigint bigint_fptr(AllocatorV allocator, u8 base, fptr str) {
+  assertMessage(base <= 32);
+
+  bool negetive = str.len > 0 && str.ptr[0] == '-';
+  str = negetive ? slice_split(str, (1, -1))[0] : str;
+  bigint b = bigint_from(allocator, 0);
+
+  struct {
+    sList_header head[1];
+    bigint_unit units[1];
+  } container = {
+      .head = {{1, 1}},
+      .units = {},
+  };
+  bigint add = container.units;
+
+  while (str.len) {
+    u8 nm = 0;
+    switch (*str.ptr) {
+      case '0' ... '9': {
+        nm = (*str.ptr) - '0';
+      } break;
+      case 'a' ... 'z': {
+        nm = (*str.ptr) - 'a' + 10;
+      } break;
+      case ' ':
+      case '\'': // delimiters
+        break;
+      default:
+        assertMessage(false, "character not supported for conversion: %c", *str.ptr);
+    }
+    assertMessage(nm < base, "char %c out of range for base %i", *str.ptr, (int)base);
+    var_ prod = bigint_mul_single(allocator, &b, base);
+    add[0] = nm;
+    bigint_add_ip(allocator, &prod, add, 0);
+
+    msList_deInit(allocator, b);
+
+    b = prod;
+    str = slice_split(str, (1, -1))[0];
   }
   if (negetive)
     bigint_negate_ip(allocator, &b);

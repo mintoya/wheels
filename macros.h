@@ -182,6 +182,9 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define VA_SWITCH_SEL(a, ...) REM_PAREN a
   #define VA_SWITCH(first, ...) VA_SWITCH_SEL(__VA_OPT__((__VA_ARGS__), )(first))
 
+  #define VA_SWITCH_REMP_HELPER(...) REM_PAREN __VA_ARGS__
+  #define VA_SWITCH_REMP(first, ...) VA_SWITCH_REMP_HELPER(VA_SWITCH_SEL(__VA_OPT__((__VA_ARGS__), )(first)))
+
 //
 // loops
 //
@@ -271,21 +274,6 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define _im_each_range(...) /**/_each_range(__VA_ARGS__ ,
   #define _im_each_iter(...) /* */_each_iter(__VA_ARGS__ ,
 
-  #define each(decl, generator)                          \
-    /**/                                                 \
-    /* generators*/                                      \
-    /*  vla(array) takes array and uses countof*/        \
-    /*  range(start,end,inc?) adds inc to start*/        \
-    /*  iter(iterator struct)*/                          \
-    /*    layout :*/                                     \
-    /*    {*/                                            \
-    /*      state [1] / ptr : state of iterator*/        \
-    /*        current : used to deduce decl*/            \
-    /*      valid : function pointer called with state*/ \
-    /*      next  : used to increment*/                  \
-    /*    }*/                                            \
-    /**/                                                 \
-_im_each_ ## generator decl )
   #define foreach(decl, generator)                       \
     /**/                                                 \
     /* generators*/                                      \
@@ -301,6 +289,7 @@ _im_each_ ## generator decl )
     /*    }*/                                            \
     /**/                                                 \
 for _im_each_ ## generator decl )
+
   #if defined(__cplusplus)
 template <typename CIterator, typename CastType = void>
 struct RangeAdapter {
@@ -370,9 +359,12 @@ RangeAdapter<CIterator, CastType> as_range(CIterator it) {
 
   #define if_likely(...) if (__builtin_expect(!!(__VA_ARGS__), 1))
   #define if_unlikely(...) if (__builtin_expect(!!(__VA_ARGS__), 0))
-  #define if_decl(decl, init)                                         \
-    for (struct { int keep; __typeof__(init) val; } _s = {1, (init)}; _s.keep && _s.val; _s.keep = 0) \
-      for (decl = _s.val; _s.keep; _s.keep = 0)
+  #define if_decl(decl, init)         \
+    for (struct { int keep; __typeof__(init) val; } _s = {1, (init)}; \
+         _s.keep;                     \
+         _s.keep = 0)                 \
+      if (_s.val)                     \
+        for (decl = _s.val; _s.keep; _s.keep = 0)
 
 //
 // pipe
@@ -396,6 +388,20 @@ RangeAdapter<CIterator, CastType> as_range(CIterator it) {
 
   #define P$_ONE(in, ...) MACRO_EXPAND(P$_FOLD(in, __VA_ARGS__))
   #define P$(in, ...) P$_ONE(in __VA_OPT__(, __VA_ARGS__), $)
+
+  #define MAX$_HELP(b)           \
+    ({                           \
+      var_ b_eval = b;           \
+      (b_eval > $ ? $ : b_eval); \
+    })
+  #define MIN$_HELP(b)           \
+    ({                           \
+      var_ b_eval = b;           \
+      (b_eval < $ ? $ : b_eval); \
+    })
+
+  #define MIN$(first, ...) P$(first, APPLY_N_C(MIN$_HELP __VA_OPT__(, __VA_ARGS__)))
+  #define MAX$(first, ...) P$(first, APPLY_N_C(MAX$_HELP __VA_OPT__(, __VA_ARGS__)))
 
 //
 // spiral rule

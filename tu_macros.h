@@ -75,82 +75,9 @@
     };                                      \
     item_eval.type;                         \
   })
+  #define if_tu_is(variable, type, value)                                                 \
+    if (tu_is(type, value))                                                            \
+      for (struct {type tv;bool keep; } tu_check_ = {value.type, 1}; tu_check_.keep; tu_check_.keep = 0) \
+        for (variable = tu_check_.tv; tu_check_.keep; tu_check_.keep = 0)
 
-  #define TU_MATCH(item)                                         \
-    for (struct { typeof(item) _eval; int _once; } _tu = {(item), 1}; _tu._once; _tu._once = 0) \
-      switch ((int)_tu._eval.tag)
-
-  // 2. Prepend a break to terminate the PREVIOUS case, insert the case label,
-  //    and use a 2-tier decrementing loop to safely scope the inner payload.
-  //    (This preserves 'namedec' directly while handling user 'break;' correctly)
-  #define TU_OF(type, namedec)          \
-    break;                              \
-    case TU_TAG(type):                  \
-      for (int _once2 = 1; _once2 > 0;) \
-        for (__auto_type namedec = _tu._eval.type; _once2--;)
-
-  // 3. Fallback case using the same prepended break trick
-  #define TU_OTHER \
-    break;         \
-    default:
-// example
-/*
-  #include "bigint.h"
-int main(void) {
-  // create tagged union of integer types
-  // 'u8' first means the type of the tag thi
-
-  //  this is the only way to pack it
-  typedef struct __attribute__((packed)) integer integer;
-  // after that tuples of type names and actual types
-  // will be created as typedefs
-  tu_def(
-      (integer, u8),
-
-      (u_8, u8),
-      (u_16, u16),
-      (u_32, u32),
-      (u_64, u64),
-
-      (i_8, i8),
-      (i_16, i16),
-      (i_32, i32),
-      (i_64, i64),
-
-      (big, bigint),
-  );
-  {
-    int i = sizeof(integer);
-  }
-
-  integer u8 = tu_of(u_8, 5);
-  integer b = tu_of(big, bigint_cs(stdAlloc, 10, "1 005 600 000"));
-
-  tu_is(u_8, u8); // true
-  tu_is(i_8, u8); // false
-  // v here is the type u_8, the assert  will fail if this is false
-  var_ v = tu_assert(u_8, u8);
-  // v here is the type u_8, it will be 5 if u8 isnt
-  var_ v2 = tu_or(u_8, u8, 5);
-  // match
-  tu_match(
-      b,
-      of(u_8, i, { i++; }),
-      of(u_16, i, {}),
-      otherwise({}),
-  );
-  tu_match(
-      b,
-      case (u_8, i, {}),
-      case (u_16, i, {}),
-      default({}), // this will execute
-  );
-  // same as
-  TU_MATCH(b) {
-    TU_OF(u_8, i) {}
-    TU_OF(u_16, i) {}
-    TU_OTHER {}
-  }
-}
-*/
 #endif // MY_TAGGED_UNIONS_H
