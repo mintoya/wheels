@@ -64,7 +64,6 @@
     println("Usage: {} [options]...", prog_name); \
     println("Options:");                          \
     APPLY_N(cmd_arg_usage_print, __VA_ARGS__)     \
-    exit(1);                                      \
   }
 #define cmd_main(nargs, args, ...)                                                        \
   int _cmd_main_inner(int _nargss, char **_argss, APPLY_N_C(cmd_arg_param, __VA_ARGS__)); \
@@ -73,7 +72,7 @@
     char *args_new[nargsp] = {};                                                          \
     int nargs_new = 0;                                                                    \
     APPLY_N(cmd_arg_decl, __VA_ARGS__);                                                   \
-    for (int i = 1; i < nargsp; ++i) {                                                    \
+    for (int i = 0; i < nargsp; ++i) {                                                    \
       char *arg = argsp[i];                                                               \
       APPLY_N(cmd_arg_parse, __VA_ARGS__)                                                 \
       args_new[nargs_new++] = arg;                                                        \
