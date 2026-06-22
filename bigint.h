@@ -512,14 +512,8 @@ bigint bigint_cs(AllocatorV allocator, u8 base, char *str) {
   str = negetive ? str + 1 : str;
   bigint b = bigint_from(allocator, 0);
 
-  struct {
-    sList_header head[1];
-    bigint_unit units[1];
-  } container = {
-      .head = {{1, 1}},
-      .units = {},
-  };
-  bigint add = container.units;
+  var_ sb = msList_stackBuffer(bigint_unit[1]);
+  bigint add = msList_initBuffer(sb);
 
   while (*str) {
     u8 nm = 0;
@@ -539,6 +533,7 @@ bigint bigint_cs(AllocatorV allocator, u8 base, char *str) {
     assertMessage(nm < base, "char %c out of range for base %i", *str, (int)base);
     var_ prod = bigint_mul_single(allocator, &b, base);
     add[0] = nm;
+    msList_len(add) = 1;
     bigint_add_ip(allocator, &prod, add, 0);
 
     msList_deInit(allocator, b);
@@ -557,14 +552,8 @@ bigint bigint_fptr(AllocatorV allocator, u8 base, fptr str) {
   str = negetive ? slice_split(str, (1, -1))[0] : str;
   bigint b = bigint_from(allocator, 0);
 
-  struct {
-    sList_header head[1];
-    bigint_unit units[1];
-  } container = {
-      .head = {{1, 1}},
-      .units = {},
-  };
-  bigint add = container.units;
+  var_ sb = msList_stackBuffer(bigint_unit[1]);
+  bigint add = msList_initBuffer(sb);
 
   while (str.len) {
     u8 nm = 0;
@@ -584,6 +573,7 @@ bigint bigint_fptr(AllocatorV allocator, u8 base, fptr str) {
     assertMessage(nm < base, "char %c out of range for base %i", *str.ptr, (int)base);
     var_ prod = bigint_mul_single(allocator, &b, base);
     add[0] = nm;
+    msList_len(add) = 1;
     bigint_add_ip(allocator, &prod, add, 0);
 
     msList_deInit(allocator, b);
