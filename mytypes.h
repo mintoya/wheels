@@ -60,7 +60,7 @@ typedef struct myAlign {
     void *_vp;
     usize _us;
     ldouble _ld;
-    void (*_fp)(void);
+    void (*_fp)(void *);
   };
 } myAlign;
 

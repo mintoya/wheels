@@ -25,7 +25,7 @@
 
 #define cmd_arg_parse(tuple)                                                                     \
   {                                                                                              \
-    char *_f[] = (char *[]){REM_PAREN cmd_arg_flags(tuple), nullptr};                            \
+    char **_f = (char *[]){REM_PAREN cmd_arg_flags(tuple), nullptr};                            \
     bool _matched = false;                                                                       \
     for (int _j = 0; _f[_j]; ++_j) {                                                             \
       if (fptr_eq(arg, _f[_j])) {                                                                \
@@ -47,7 +47,7 @@
 
 #define cmd_arg_usage_print(tuple)                                    \
   {                                                                   \
-    char *_f[] = (char *[]){REM_PAREN cmd_arg_flags(tuple), nullptr}; \
+    char **_f = (char *[]){REM_PAREN cmd_arg_flags(tuple), nullptr}; \
     fputs("\t", stdout);                                              \
     for (usize _j = 0; _f[_j]; ++_j) {                                \
       if (_j) fputs(",", stdout);                                     \
@@ -65,19 +65,31 @@
     println("Options:");                          \
     APPLY_N(cmd_arg_usage_print, __VA_ARGS__)     \
   }
-#define cmd_main(nargs, args, ...)                                                        \
-  int _cmd_main_inner(int _nargss, char **_argss, APPLY_N_C(cmd_arg_param, __VA_ARGS__)); \
-  cmd_define_usage(__VA_ARGS__);                                                          \
-  int main(int nargsp, char *argsp[]) {                                                   \
-    char *args_new[nargsp] = {};                                                          \
-    int nargs_new = 0;                                                                    \
-    APPLY_N(cmd_arg_decl, __VA_ARGS__);                                                   \
-    for (int i = 0; i < nargsp; ++i) {                                                    \
-      char *arg = argsp[i];                                                               \
-      APPLY_N(cmd_arg_parse, __VA_ARGS__)                                                 \
-      args_new[nargs_new++] = arg;                                                        \
-    }                                                                                     \
-    char *ars[] = (char *[]){APPLY_N_C(TUPLE_GET_4, __VA_ARGS__)};                        \
-    return _cmd_main_inner(nargs_new, args_new, APPLY_N_C(cmd_arg_name, __VA_ARGS__));    \
-  }                                                                                       \
-  int _cmd_main_inner(nargs, args, APPLY_N_C(cmd_arg_param, __VA_ARGS__))
+#define cmd_main(nargs, args, ...)                                 \
+  int _cmd_main_inner(                                             \
+      int _nargss,                                                 \
+      char **_argss __VA_OPT__(                                    \
+          , APPLY_N_C(cmd_arg_param, __VA_ARGS__)                  \
+      )                                                            \
+  );                                                               \
+  cmd_define_usage(__VA_ARGS__);                                   \
+  int main(int nargsp, char *argsp[]) {                            \
+    char *args_new[nargsp] = {};                                   \
+    int nargs_new = 0;                                             \
+    APPLY_N(cmd_arg_decl, __VA_ARGS__);                            \
+    for (int i = 0; i < nargsp; ++i) {                             \
+      char *arg = argsp[i];                                        \
+      APPLY_N(cmd_arg_parse, __VA_ARGS__)                          \
+      args_new[nargs_new++] = arg;                                 \
+    }                                                              \
+    char **ars = (char *[]){APPLY_N_C(TUPLE_GET_4, __VA_ARGS__)}; \
+    return _cmd_main_inner(                                        \
+        nargs_new,                                                 \
+        args_new                                                   \
+            __VA_OPT__(, APPLY_N_C(cmd_arg_name, __VA_ARGS__))     \
+    );                                                             \
+  }                                                                \
+  int _cmd_main_inner(                                             \
+      nargs,                                                       \
+      args __VA_OPT__(, APPLY_N_C(cmd_arg_param, __VA_ARGS__))     \
+  )

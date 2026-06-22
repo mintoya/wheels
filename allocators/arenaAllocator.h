@@ -196,6 +196,7 @@ void *my_arena_alloc(AllocatorV arena, usize size, char *filename, usize ln) {
       b = b->next;
     }
   } while (!res);
+  assert(!((uptr)res % alignof(myAlign)));
   return res;
 }
 usize arena_countBlocks(AllocatorV arena) {

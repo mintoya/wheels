@@ -392,12 +392,12 @@ RangeAdapter<CIterator, CastType> as_range(CIterator it) {
   #define MAX$_HELP(b)           \
     ({                           \
       var_ b_eval = b;           \
-      (b_eval > $ ? $ : b_eval); \
+      (b_eval < $ ? $ : b_eval); \
     })
   #define MIN$_HELP(b)           \
     ({                           \
       var_ b_eval = b;           \
-      (b_eval < $ ? $ : b_eval); \
+      (b_eval > $ ? $ : b_eval); \
     })
 
   #define MIN$(first, ...) P$(first, APPLY_N_C(MIN$_HELP __VA_OPT__(, __VA_ARGS__)))

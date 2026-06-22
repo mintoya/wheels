@@ -26,7 +26,7 @@ static inline usize FBA_current(AllocatorV allocator) {
 static inline void FBA_reset(AllocatorV allocator) {
   FBA_State *f = (typeof(f))allocator;
   f->offset = 0;
-  // f->count = 0;
+  f->count = 0;
 }
 static inline void FBA_init(u8 *buffer, usize size, FBA_State res[1]) {
   assert(buffer == (typeof(buffer))lineup((uptr)buffer, alignof(myAlign)));
@@ -54,12 +54,12 @@ static inline AllocatorV fba_new(AllocatorV allocator, usize size) {
   FBA_init(r->x, size, r->s);
   return r->s->allocator;
 }
-static inline AllocatorV fba_del(AllocatorV allocator, AllocatorV fba) {
+static inline void fba_del(AllocatorV allocator, AllocatorV fba) {
   typedef struct {
     FBA_State s[1];
     alignas(myAlign) u8 x[];
   } fbuffer;
-  aFree(allocator, fba, sizeof(fbuffer) + ((fbuffer *)fba)->s->capacity);
+  aFree(allocator, (void *)fba, sizeof(fbuffer) + ((fbuffer *)fba)->s->capacity);
 }
 
 #endif // FBA_ALLOCATOR_H
@@ -70,24 +70,22 @@ static inline AllocatorV fba_del(AllocatorV allocator, AllocatorV fba) {
 
 #ifdef FBA_ALLOCATOR_C
 void _fba_free(AllocatorV allocator, void *ptr, usize size, char *, usize) {
-  size = aAlloc_align(size);
   FBA_State *f = (typeof(f))allocator;
-  assert("ptr is outside buffer" && (u8 *)ptr >= (u8 *)f->buffer);
-  assert("ptr is outside buffer" && (u8 *)ptr < (u8 *)f->buffer + f->offset);
-  if (((u8 *)ptr + size) == f->offset + f->buffer)
-    f->offset -= size;
   f->count--;
   if (!f->count)
     f->offset = 0;
 }
 void *_fba_alloc_nullable(AllocatorV allocator, usize size) {
   FBA_State *f = (typeof(f))allocator;
+  assert(!((uptr)f->buffer % alignof(myAlign)));
   size = aAlloc_align(size);
   if (f->offset + size > f->capacity)
     return nullptr;
+  assert(!(f->offset % alignof(myAlign)));
   void *res = f->buffer + f->offset;
   f->offset += size;
   f->count++;
+  assert(!((uptr)res % alignof(myAlign)));
   return res;
 }
 
