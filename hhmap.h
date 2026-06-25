@@ -121,6 +121,8 @@ bool HMap_fget(HMap *map, const fptr key, void *val);
  */
 void *HMap_fget_ns(HMap *map, const fptr key);
 
+umax HMap_hash(const fptr str);
+u32 HMap_getMetaSize(const HMap *map);
 //
 // iterator
 //
@@ -320,6 +322,18 @@ static inline void mHmap_cleanup_handler(mHmap<K, V> *map) {
     })
     #define mHmap_clear(map) HMap_clear((HMap *)map)
   #endif
+  #define HMAP_GROWTH_FACTOR 3
+  #define mHmap_setManaged(map, load, key, value) ({ \
+    if_unlikely (HMap_load((HMap *)map) >= load) {   \
+      HMap_manage(                                   \
+          (HMap **)&map,                             \
+          nullptr,                                   \
+          HMap_getMetaSize((HMap *)map) *            \
+              HMAP_GROWTH_FACTOR                     \
+      );                                             \
+    };                                               \
+    mHmap_set(map, key, value);                      \
+  })
 
   // #include "tests.c"
   #if defined(MAKE_TEST_FN)
@@ -441,7 +455,7 @@ void *HMap_getCoord(const HMap *map, u32 index) {
   return (u8 *)ll->buf + (map->valsize + map->keysize) * index;
 }
 
-static inline umax HMap_hash(const fptr str) {
+umax HMap_hash(const fptr str) {
   umax hash = 5381;
 
   if (str.len == sizeof(umax)) {
