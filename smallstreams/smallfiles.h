@@ -40,86 +40,86 @@ void file_stream_close(AllocatorV allocator, sstream stream);
   #if defined(MAKE_TEST_FN)
 
 MAKE_TEST_FN(file_stream_write_read, {
-    const char *test_file = "test_stream_wr.txt";
-    fileopenflags wflags = {0};
-    wflags.access.write = 1;
-    wflags.mode.create = 1;
-    wflags.mode.truncate = 1;
+  const char *test_file = "test_stream_wr.txt";
+  fileopenflags wflags = {0};
+  wflags.access.write = 1;
+  wflags.mode.create = 1;
+  wflags.mode.truncate = 1;
 
-    sstream wstream = file_stream_open(allocator, test_file, wflags);
-    if (!wstream) return 1;
+  sstream wstream = file_stream_open(allocator, test_file, wflags);
+  if (!wstream) return 1;
 
-    const char *data = "testing data";
-    fptr wbuf = {.ptr = (void *)data, .len = 12};
-    
-  sPutsf(wstream, wbuf);
-    sPutcf(wstream, '!');
-    
-  if (sTellf(wstream) != 13) return 1;
-    file_stream_close(allocator, wstream);
+  const char *data = "testing data";
+  fptr wbuf = {.ptr = (void *)data, .len = 12};
 
-    fileopenflags rflags = {0};
-    rflags.access.read = 1;
+  sPutsf(wstream, wbuf);
+  sPutcf(wstream, '!');
 
-    sstream rstream = file_stream_open(allocator, test_file, rflags);
-    if (!rstream) return 1;
+  if (sTellf(wstream) != 13) return 1;
+  file_stream_close(allocator, wstream);
 
-    char read_buffer[16] = {0};
-    fptr rbuf = {.ptr = read_buffer, .len = 12};
-    
-  usize bytes_read = sGetsf(rstream, rbuf);
-    if (bytes_read != 12) return 1;
-    if (memcmp(read_buffer, "testing data", 12)) return 1;
+  fileopenflags rflags = {0};
+  rflags.access.read = 1;
 
-    c8 last = sGetcf(rstream);
-    if (last != '!') return 1;
+  sstream rstream = file_stream_open(allocator, test_file, rflags);
+  if (!rstream) return 1;
 
-    file_stream_close(allocator, rstream);
-    remove(test_file);
-    return 0;
+  char read_buffer[16] = {0};
+  fptr rbuf = {.ptr = read_buffer, .len = 12};
+
+  usize bytes_read = sGetsf(rstream, rbuf);
+  if (bytes_read != 12) return 1;
+  if (memcmp(read_buffer, "testing data", 12)) return 1;
+
+  c8 last = sGetcf(rstream);
+  if (last != '!') return 1;
+
+  file_stream_close(allocator, rstream);
+  remove(test_file);
+  return 0;
 });
 
 MAKE_TEST_FN(file_stream_seek_append, {
-    const char *test_file = "test_stream_seek.txt";
-    fileopenflags wflags = {0};
-    wflags.access.write = 1;
-    wflags.access.read = 1;
-    wflags.mode.create = 1;
-    wflags.mode.truncate = 1;
+  const char *test_file = "test_stream_seek.txt";
+  fileopenflags wflags = {0};
+  wflags.access.write = 1;
+  wflags.access.read = 1;
+  wflags.mode.create = 1;
+  wflags.mode.truncate = 1;
 
-    sstream stream = file_stream_open(allocator, test_file, wflags);
-    if (!stream) return 1;
+  sstream stream = file_stream_open(allocator, test_file, wflags);
+  if (!stream) return 1;
 
-    sPutsf(stream, (fptr){.ptr = "AABBCC", .len = 6});
-    sSeekf(stream, 2);
-    sPutsf(stream, (fptr){.ptr = "DD", .len = 2});
-    
-  if (sTellf(stream) != 4) return 1;
+  sPutsf(stream, (fptr){.ptr = "AABBCC", .len = 6});
+  sSeekf(stream, 2);
+  sPutsf(stream, (fptr){.ptr = "DD", .len = 2});
 
-    sSeekf(stream, 0);
-    char buf[8] = {0};
-    sGetsf(stream, (fptr){.ptr = buf, .len = 6});
-    if (memcmp(buf, "AADDCC", 6)) return 1;
+  if (sTellf(stream) != 4) return 1;
 
-    file_stream_close(allocator, stream);
+  sSeekf(stream, 0);
+  char buf[8] = {0};
+  sGetsf(stream, (fptr){.ptr = buf, .len = 6});
+  if (memcmp(buf, "AADDCC", 6)) return 1;
 
-    fileopenflags aflags = {0};
-    aflags.access.write = 1;
-    aflags.access.read = 1;
-    aflags.mode.append = 1;
+  file_stream_close(allocator, stream);
 
-    sstream astream = file_stream_open(allocator, test_file, aflags);
-    if (!astream) return 1;
+  fileopenflags aflags = {0};
+  aflags.access.write = 1;
+  aflags.access.read = 1;
+  aflags.mode.append = 1;
 
-    sPutsf(astream, (fptr){.ptr = "EE", .len = 2});
-    
-  sSeekf(astream, 0);
-    sGetsf(astream, (fptr){.ptr = buf, .len = 8});
-    if (memcmp(buf, "AADDCCEE", 8)) return 1;
+  sstream astream = file_stream_open(allocator, test_file, aflags);
+  if (!astream) return 1;
 
-    file_stream_close(allocator, astream);
-    remove(test_file);
-    return 0;
+  sPutsf(astream, (fptr){.ptr = "EE", .len = 2});
+
+  sSeekf(astream, 0);
+  sGetsf(astream, (fptr){.ptr = buf, .len = 8});
+  if (memcmp(buf, "AADDCCEE", 8)) return 1;
+
+  file_stream_close(allocator, astream);
+  remove(test_file);
+  return 0;
 });
 
   #endif
