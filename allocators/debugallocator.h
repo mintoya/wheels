@@ -16,7 +16,7 @@ typedef struct {
 struct dbgAlloc_config {
   AllocatorV allocator;
   FILE *log;
-  fnptr_((allocationType *), void) on_call;
+  fnptrof((allocationType *), void) on_call;
 };
 /**
  * `@param` **allocator**  allocator
@@ -128,6 +128,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(print_debug_stats, "dbga-stats", struct debugSta
 AllocatorV debugAllocatorInit(struct dbgAlloc_config config) {
   AllocatorV allocator = config.allocator;
   Debug_allocator_block *res = aCreate(allocator, Debug_allocator_block);
+
   res->internals[0] = (debugAllocatorInternals){
       .map = mHmap_init(allocator, void *, struct tracedata, 32),
       .actualAllocator = allocator,
@@ -215,6 +216,7 @@ void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln)
           .fn = fn,
           .ln = ln,
       };
+
   assertMessage(
       !mHmap_get(internals->map, res),
       "allocator allocated buisy memory"
@@ -249,6 +251,7 @@ void debugAllocator_free(AllocatorV allocator, void *ptr, usize size, char *fn, 
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
   struct tracedata *data = mHmap_get(internals->map, ptr);
+
   struct tracedata datak = *data;
   assertMessage(data, "pointer not in allocator , from %lu %s", ln, fn);
   internals->current -= data->size;

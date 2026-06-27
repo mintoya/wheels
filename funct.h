@@ -155,7 +155,7 @@ typedef struct thread_info {
 
 typedef struct basic_closure_t {
   void *arg;
-  fnptr_((void *), void) fn;
+  fnptrof((void *), void) fn;
 } basic_closure_t;
 typedef struct tpoolNode_t {
   struct {

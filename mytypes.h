@@ -171,23 +171,49 @@ sliceDef(c8);
 #define slice_free(allocator, slice) \
   aFree(allocator, (slice).ptr, (sizeof(*(slice).ptr)) * (slice).len);
 
-#define slice_ij(slice, tup)                 \
-  ({                                         \
-    usize _st = TUPLE_EXPAND_A(tup);         \
-    usize _et = TUPLE_EXPAND_B(tup);         \
-    _st = _st > slice.len ? slice.len : _st; \
-    _et = _et > slice.len ? slice.len : _et; \
-    _et = _et < _st ? _st : _et;             \
-    (typeof(slice)){                         \
-        _et - _st,                           \
-        slice.ptr + _st,                     \
-    };                                       \
-  }),
+#if defined __cplusplus
+template <typename T, usize size>
+struct slice_array {
+  T items[size];
+  T &operator[](usize idx) { return items[idx]; };
+};
+  #define GET_INT(...) "a"
+  #define ARRAY_COUNT(...) (sizeof(APPLY_N(GET_INT, __VA_ARGS__)) - 1)
+  #define slice_ij(slice, tup)                     \
+    ([&]() -> decltype(slice) {                    \
+      usize _st = TUPLE_EXPAND_A(tup);             \
+      usize _et = TUPLE_EXPAND_B(tup);             \
+      _st = _st > (slice).len ? (slice).len : _st; \
+      _et = _et > (slice).len ? (slice).len : _et; \
+      _et = _et < _st ? _st : _et;                 \
+      return (typeof_unqual(slice)){               \
+          _et - _st,                               \
+          (slice).ptr + _st                        \
+      };                                           \
+    }())
 
-#define slice_split(slice, ...)                \
-  (typeof(slice)[]) {                          \
-    APPLY_N_WITH(slice_ij, slice, __VA_ARGS__) \
-  }
+  #define slice_split(slice, ...)                            \
+    (slice_array<typeof(slice), ARRAY_COUNT(__VA_ARGS__)>) { \
+      APPLY_N_WITH_C(slice_ij, slice, __VA_ARGS__)           \
+    }
+#else
+  #define slice_split(slice, ...)                \
+    (typeof(slice)[]) {                          \
+      APPLY_N_WITH(slice_ij, slice, __VA_ARGS__) \
+    }
+  #define slice_ij(slice, tup)                 \
+    ({                                         \
+      usize _st = TUPLE_EXPAND_A(tup);         \
+      usize _et = TUPLE_EXPAND_B(tup);         \
+      _st = _st > slice.len ? slice.len : _st; \
+      _et = _et > slice.len ? slice.len : _et; \
+      _et = _et < _st ? _st : _et;             \
+      (typeof(slice)){                         \
+          _et - _st,                           \
+          slice.ptr + _st,                     \
+      };                                       \
+    }),
+#endif
 
 #define SLICE_CUT_HELPER(slice, prev, curr, ...) \
   slice_ij(slice, (prev, curr))                  \

@@ -287,7 +287,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(_slice_c8_printerfn, "slice(c8)", slice(c8), {
 
 REGISTER_PRINTER(c8, { PUTC(in); });
 REGISTER_SPECIAL_PRINTER("cstr", char *, {
-  in = in ?: (char*)"__NULLCSTR__";
+  in = in ?: (char *)"__NULLCSTR__";
   while (*in)
     PUTC(*in++);
 });
@@ -410,7 +410,7 @@ REGISTER_PRINTER(i32, {
   USETYPEPRINTER(isize, (isize)in);
 });
 REGISTER_PRINTER(fptr, {
-  const c32 hex_chars[17] = U"0123456789abcdef";
+  const c32 hex_chars[17] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 0};
   char cut0s = 0;
   char useLength = 0;
   if (fptr_eq(fp_from("length"), printer_arg_trim(args)))
@@ -668,10 +668,10 @@ MAKE_PRINT_ARG_TYPE(i32);
 MAKE_PRINT_ARG_TYPE(u32);
   #endif
 
-  #define MAKE_PRINT_ARG(a)                                               \
-    ((struct print_arg){                                                  \
-        .ref = (fptr){sizeof(typeof(a)), (u8 *)REF(a)},                   \
-        .name = fp_from(type_name_cstr<std::remove_cvref_t<typeof(a)>>()) \
+  #define MAKE_PRINT_ARG(a)                                 \
+    ((struct print_arg){                                    \
+        .ref = (fptr){sizeof(typeof(a)), (u8 *)REF(a)},     \
+        .name = fp_from(type_name_cstr<typeof_unqual(a)>()) \
     }),
 #endif
 

@@ -18,7 +18,6 @@ To bit_cast_func(const From &src) noexcept {
   return dst;
 }
     #define bitcast(to, from) (bit_cast_func<to>(from))
-    #define typeof(...) __typeof__(__VA_ARGS__)
   #endif
 
   #define REF_INDIRECT(one, ...) REF_1 one
@@ -106,6 +105,12 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define APPLY_N_WITH_HELPER(macro, captured, arg, ...) macro(captured, arg) \
       __VA_OPT__(APPLY_N_WITH_HELPER_INVOKE PARENTHESIS_HELPER(macro, captured, __VA_ARGS__))
   #define APPLY_N_WITH_HELPER_INVOKE() APPLY_N_WITH_HELPER
+
+  #define APPLY_N_WITH_C(macro, captured, ...) \
+    __VA_OPT__(MACRO_EXPAND(APPLY_N_WITH_HELPER_C(macro, captured, __VA_ARGS__)))
+  #define APPLY_N_WITH_HELPER_C(macro, captured, arg, ...) macro(captured, arg) \
+      __VA_OPT__(, APPLY_N_WITH_HELPER_INVOKE_C PARENTHESIS_HELPER(macro, captured, __VA_ARGS__))
+  #define APPLY_N_WITH_HELPER_INVOKE_C() APPLY_N_WITH_HELPER
 
 //
 // pragmas
@@ -408,21 +413,62 @@ RangeAdapter<CIterator, CastType> as_range(CIterator it) {
 // just so i dont have to read types in a circle
 //
 
-  #define fnptrof(in, out) typeof(out(*) in)
-  #define ptrof(T) typeof(T *)
-  #define arrof(T, ...) typeof(typeof(T)[__VA_ARGS__])
+  #if defined __cplusplus
+    #include <type_traits>
+template <typename T>
+using ptrof_t = T *;
+template <typename Ret, typename... Args>
+using fnptrof_t = Ret (*)(Args...);
+template <typename T, size_t len>
+using arrof_t = T[len];
 
-  #define fnptr_(in, out) fnptrof(in, out)
-  #define ptr_(T) ptrof(T)
-  #define arr_(T, ...) arrof(T, __VA_ARGS__)
+    #define fnptrof(in, out) fnptrof_t<out, REM_PAREN in>
+    #define ptrof(T) ptrof_t<T>
+    // #define arrof(T, ...) arrof_t<T, __VA_ARGS__>
+    #define arrof(T, ...) typeof(typeof(T)[__VA_ARGS__])
+  #else
+    #define fnptrof(in, out) typeof(out(*) in)
+    #define ptrof(T) typeof(typeof(T) *)
+    #define arrof(T, ...) typeof(typeof(T)[__VA_ARGS__])
+  #endif
+
 //
 // type stuff
 //
+
+  #if defined(__cplusplus)
+    #include <type_traits>
+
+    #ifndef typeof
+      #define typeof(x) __typeof__(x)
+    #endif
+
+    #ifndef typeof_unqual
+      #if __cplusplus >= 202002L
+        #define typeof_unqual(x) std::remove_cvref_t<__typeof__(x)>
+
+      #elif __cplusplus >= 201402L
+        #define typeof_unqual(x) std::remove_cv_t<std::remove_reference_t<__typeof__(x)>>
+
+      #else
+        #define typeof_unqual(x) typename std::remove_cv<typename std::remove_reference<__typeof__(x)>::type>::type
+      #endif
+    #endif
+
+  #else
+    // C23 / GNU C extensions
+    #ifndef typeof
+      #define typeof(x) __typeof__(x)
+    #endif
+
+    #ifndef typeof_unqual
+      #define typeof_unqual(x) __typeof_unqual__(x)
+    #endif
+  #endif
   #define types_eq(T1, T2) \
     _Generic((*((T1 *)NULL)), T2: true, default: false)
   #define UNQUAL(...) __typeof__(1 ? (__VA_ARGS__) : (__VA_ARGS__))
   #define itypeof(struct, member) typeof(((struct *)0)->member)
   #define ptrstype(ptr) typeof(*((typeof(ptr))NULL))
   #define isArray(ptrable) _Generic(&ptrable, typeof(ptrable[0])(*)[]: 1, default: 0)
-
 #endif

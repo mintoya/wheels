@@ -76,14 +76,14 @@ void(aFree)(AllocatorV allocator, void *oldptr, usize size, char *file, usize li
 
 #include "macros.h"
 #include <string.h>
-#define aCreate(allocator, type, ...)                                      \
-  /* optional count argument, defaults to 1*/                              \
-  DIAGNOSTIC_PUSH("-Weverything")                                          \
-  *(type(*)[(__VA_OPT__(1) + 0) ? __VA_ARGS__ + 0 : 1]) DIAGNOSTIC_POP()({ \
-    size_t _count = VA_SWITCH(1, __VA_ARGS__);                             \
-    type *_res = ((type *)(aAlloc(allocator, sizeof(type) * _count)));     \
-    memset(_res, 0, sizeof(type) * _count);                                \
-    _res;                                                                  \
+#define aCreate(allocator, type, ...)                                              \
+  /* optional count argument, defaults to 1*/                                      \
+  DIAGNOSTIC_PUSH("-Weverything")                                                  \
+  *(typeof(type)(*)[(__VA_OPT__(1) + 0) ? __VA_ARGS__ + 0 : 1]) DIAGNOSTIC_POP()({ \
+    size_t _count = VA_SWITCH(1, __VA_ARGS__);                                     \
+    type *_res = ((type *)(aAlloc(allocator, sizeof(type) * _count)));             \
+    memset(_res, 0, sizeof(type) * _count);                                        \
+    _res;                                                                          \
   })
 #define aValue(allocator, value) ({              \
   var_ _rse = aCreate(allocator, typeof(value)); \

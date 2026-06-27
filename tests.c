@@ -97,4 +97,7 @@ int main(void) {
   return failCount > 0 ? 1 : 0;
 }
 #define WHEELS_INCLUDE_ALL (1)
+#if !defined __cplusplus
+  #include "funct.h"
+#endif
 #include "wheels.h"

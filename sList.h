@@ -195,25 +195,39 @@ static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, 
   #define msList_init(allocator, T, ...) \
     SLIST_INIT_HELPER(allocator, T __VA_OPT__(, __VA_ARGS__), 2)
 
-  #define msList_stackBuffer(buffer)                         \
-    (struct {                                                \
-      sList_header header[1];                                \
-      typeof(typeof(((buffer){})[0])[countof(buffer)]) list; \
-    }) {                                                     \
-      {                                                      \
-        {                                                    \
-          .capacity = countof(buffer),                       \
-          .isStack = true,                                   \
-          .length = 0,                                       \
-        }                                                    \
-      }                                                      \
-    }
+  #if defined __cplusplus
+template <typename T>
+struct msList_stackBuffer_t {
+  sList_header header[1];
+  T list;
+
+  constexpr msList_stackBuffer_t()
+      : header{{.isStack = true, .capacity = countof(list), .length = 0}} {}
+};
+
+    #define msList_stackBuffer(buffer) \
+      msList_stackBuffer_t<buffer>()
+  #else
+    #define msList_stackBuffer(buffer)                         \
+      (struct {                                                \
+        sList_header header[1];                                \
+        typeof(typeof(((buffer){})[0])[countof(buffer)]) list; \
+      }) {                                                     \
+        {                                                      \
+          {                                                    \
+            .capacity = countof(buffer),                       \
+            .isStack = true,                                   \
+            .length = 0,                                       \
+          }                                                    \
+        }                                                      \
+      }
+  #endif
 
   #define msList_initBuffer(buffer) ({                                   \
     (void)sizeof(int[_Generic(buffer, typeof(buffer): 1, default: -1)]); \
     buffer.header[0] = (typeof(buffer.header[0])){                       \
-        .capacity = countof(buffer.list),                                \
         .isStack = true,                                                 \
+        .capacity = countof(buffer.list),                                \
         .length = 0,                                                     \
     };                                                                   \
     buffer.list;                                                         \

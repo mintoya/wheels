@@ -21,16 +21,16 @@ typedef struct {
 typedef struct small_stream_vt small_stream_vt;
 typedef const small_stream_vt *const sstream;
 
-typedef fnptr_((sstream /*              */), sstream_c8) sstream_getc;
-typedef fnptr_((sstream, fptr /*        */), sstream_size) sstream_gets;
+typedef fnptrof((sstream /*              */), sstream_c8) sstream_getc;
+typedef fnptrof((sstream, fptr /*        */), sstream_size) sstream_gets;
 
-typedef fnptr_((sstream, u8 /*          */), sstream_errn) sstream_putc;
-typedef fnptr_((sstream, fptr /*        */), sstream_errn) sstream_puts;
+typedef fnptrof((sstream, u8 /*          */), sstream_errn) sstream_putc;
+typedef fnptrof((sstream, fptr /*        */), sstream_errn) sstream_puts;
 
-typedef fnptr_((sstream /*              */), sstream_size) sstream_tell;
-typedef fnptr_((sstream, usize /*       */), sstream_errn) sstream_seek;
+typedef fnptrof((sstream /*              */), sstream_size) sstream_tell;
+typedef fnptrof((sstream, usize /*       */), sstream_errn) sstream_seek;
 
-typedef fnptr_((sstream, sstream_errn /**/), const char *) __attribute__((pure)) sstream_sterr;
+typedef fnptrof((sstream, sstream_errn /**/), const char *) __attribute__((pure)) sstream_sterr;
 
 typedef const struct small_stream_vt {
   struct /*reading*/ {

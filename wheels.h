@@ -39,7 +39,8 @@
 #endif
 #undef VASON_PARSER_C
 
-#if defined(MY_THREAD_MACORS_H) || defined(WHEELS_INCLUDE_ALL)
+// #if defined(MY_THREAD_MACORS_H) || defined(WHEELS_INCLUDE_ALL)
+#if defined(MY_THREAD_MACORS_H)
   #define MY_THREAD_MACORS_C (1)
   #include "funct.h"
 #endif

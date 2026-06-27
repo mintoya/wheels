@@ -155,7 +155,7 @@ struct HMap_inner_item {
 
 struct HMap_inner_item HMap_get_inner_zero(const HMap *map, usize idx);
 
-  #define mHmap(Ta, Tb) typeof(typeof(Tb(**)(HMap *, Ta)))
+  #define mHmap(Ta, Tb) ptrof(fnptrof((HMap *, Ta), Tb))
 
   #define mHmap_scoped(Ta, Tb) [[gnu::cleanup(HMap_cleanup_handler)]] mHmap(Ta, Tb)
 

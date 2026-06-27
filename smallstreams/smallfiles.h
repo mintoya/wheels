@@ -49,8 +49,8 @@ MAKE_TEST_FN(file_stream_write_read, {
   sstream wstream = file_stream_open(allocator, test_file, wflags);
   if (!wstream) return 1;
 
-  const char *data = "testing data";
-  fptr wbuf = {.ptr = (void *)data, .len = 12};
+  const u8 *data = (u8 *)"testing data";
+  fptr wbuf = {.ptr = (u8 *)data, .len = 12};
 
   sPutsf(wstream, wbuf);
   sPutcf(wstream, '!');
@@ -64,7 +64,7 @@ MAKE_TEST_FN(file_stream_write_read, {
   sstream rstream = file_stream_open(allocator, test_file, rflags);
   if (!rstream) return 1;
 
-  char read_buffer[16] = {0};
+  u8 read_buffer[16] = {0};
   fptr rbuf = {.ptr = read_buffer, .len = 12};
 
   usize bytes_read = sGetsf(rstream, rbuf);
@@ -90,14 +90,14 @@ MAKE_TEST_FN(file_stream_seek_append, {
   sstream stream = file_stream_open(allocator, test_file, wflags);
   if (!stream) return 1;
 
-  sPutsf(stream, (fptr){.ptr = "AABBCC", .len = 6});
+  sPutsf(stream, fp("AABBCC"));
   sSeekf(stream, 2);
-  sPutsf(stream, (fptr){.ptr = "DD", .len = 2});
+  sPutsf(stream, fp("DD"));
 
   if (sTellf(stream) != 4) return 1;
 
   sSeekf(stream, 0);
-  char buf[8] = {0};
+  u8 buf[8] = {0};
   sGetsf(stream, (fptr){.ptr = buf, .len = 6});
   if (memcmp(buf, "AADDCC", 6)) return 1;
 
@@ -111,7 +111,7 @@ MAKE_TEST_FN(file_stream_seek_append, {
   sstream astream = file_stream_open(allocator, test_file, aflags);
   if (!astream) return 1;
 
-  sPutsf(astream, (fptr){.ptr = "EE", .len = 2});
+  sPutsf(astream, fp("EE"));
 
   sSeekf(astream, 0);
   sGetsf(astream, (fptr){.ptr = buf, .len = 8});
