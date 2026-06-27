@@ -440,29 +440,29 @@ using arrof_t = T[len];
     #include <type_traits>
 
     #ifndef typeof
-      #define typeof(x) __typeof__(x)
+      #define typeof(...) __typeof__(__VA_ARGS__)
     #endif
 
     #ifndef typeof_unqual
       #if __cplusplus >= 202002L
-        #define typeof_unqual(x) std::remove_cvref_t<__typeof__(x)>
+        #define typeof_unqual(...) std::remove_cvref_t<__typeof__(__VA_ARGS__)>
 
       #elif __cplusplus >= 201402L
-        #define typeof_unqual(x) std::remove_cv_t<std::remove_reference_t<__typeof__(x)>>
+        #define typeof_unqual(...) std::remove_cv_t<std::remove_reference_t<__typeof__(__VA_ARGS__)>>
 
       #else
-        #define typeof_unqual(x) typename std::remove_cv<typename std::remove_reference<__typeof__(x)>::type>::type
+        #define typeof_unqual(...) typename std::remove_cv<typename std::remove_reference<__typeof__(__VA_ARGS__)>::type>::type
       #endif
     #endif
 
   #else
     // C23 / GNU C extensions
     #ifndef typeof
-      #define typeof(x) __typeof__(x)
+      #define typeof(...) __typeof__(__VA_ARGS__)
     #endif
 
     #ifndef typeof_unqual
-      #define typeof_unqual(x) __typeof_unqual__(x)
+      #define typeof_unqual(...) __typeof_unqual__(__VA_ARGS__)
     #endif
   #endif
   #define types_eq(T1, T2) \
