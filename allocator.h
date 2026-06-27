@@ -194,7 +194,7 @@ void(aFree)(AllocatorV allocator, void *oldptr, usize size, char *file, usize li
   (allocator)->free(allocator, oldptr, size, file, line);
 }
 void *default_alloc(const My_allocator *allocator, size_t s, char *, usize) {
-  var_ res = aligned_alloc(alignof(myAlign), aAlloc_align(s));
+  var_ res = malloc(aAlloc_align(s));
   assertMessage(!((uptr)res % alignof(myAlign)), "%i", (uptr)res % alignof(myAlign));
   return res;
 }

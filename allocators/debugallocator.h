@@ -220,6 +220,13 @@ void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln)
       "allocator allocated buisy memory"
   );
   mHmap_set(internals->map, res, data);
+  if (HMap_load((HMap *)internals->map) > 75) {
+    HMap_manage(
+        (HMap **)&internals->map,
+        nullptr,
+        HMap_getMetaSize((HMap *)internals->map) * 2
+    );
+  }
   internals->current += size;
 
   if (internals->current > internals->max)

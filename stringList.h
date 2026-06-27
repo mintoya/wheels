@@ -296,7 +296,7 @@ fptr(stringList_push)(stringList *sl, fptr ptr) {
     }
   } else {
     offset = sl->len;
-    if (offset + ptr.len + vlq_len > sl->len) {
+    if (offset + ptr.len + vlq_len > sl->cap) {
       sl->buff = (vlength *)aResize(sl->allocator, sl->buff, sl->len, offset + offset / 2 + ptr.len + vlq_len + 10);
       sl->cap = sl->allocator->size
                     ? sl->allocator->size(sl->allocator, sl->buff)

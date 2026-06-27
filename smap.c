@@ -160,62 +160,51 @@ int main(void) {
   {
     var_ local = debugAllocator(.allocator = stdAlloc);
     defer {
-      println("{dbga-stats}", debugAllocator_stats(local));
       debugAllocatorDeInit(local);
     };
 
-    mSmap_scoped(int) m1 = mSmap_init(local, int, ITERS / 2);
+    mSmap_scoped(int) m1 = mSmap_init(local, int, ITERS);
 
     clock_t start = clock();
 
-    for (int i = 0; i < ITERS; i++) {
-      char buf[32];
-      snprintf(buf, sizeof(buf), "key_%d", i);
-      mSmap_set(m1, buf, i);
-    }
+    for (int i = 0; i < ITERS; i++)
+      mSmap_set(m1, ((fptr){sizeof(i), (u8 *)&i}), i);
 
     for (int i = 0; i < ITERS; i++) {
-      char buf[32];
-      snprintf(buf, sizeof(buf), "key_%d", i);
-
-      var_ val = mSmap_get(m1, buf);
+      var_ val = mSmap_get(m1, ((fptr){sizeof(i), (u8 *)&i}));
       if (!val) println("mSmap missing key: {}", i);
     }
 
     clock_t end = clock();
-    println("mSmap Time : {} ms", (double)(end - start) / CLOCKS_PER_SEC * 1000.0);
+    println("mSmap Time : {f128} ms", (f128)(end - start) / CLOCKS_PER_SEC * 1000.0);
+    println("{dbga-stats}", debugAllocator_stats(local));
   }
 
   println("\n=== msHmap (Packed Strings) ===");
   {
     var_ local = debugAllocator(.allocator = stdAlloc);
     defer {
-      println("{dbga-stats}", debugAllocator_stats(local));
       debugAllocatorDeInit(local);
     };
-
-    msHmap(int) m2 = msHmap_init(local, int, ITERS / 2);
+    // var_ local_arena = arena_new_ext(local, 1024);
+    // defer {arena_cleanup(local_arena);};
+    // msHmap(int) m2 = msHmap_init(local_arena, int, ITERS);
+    msHmap(int) m2 = msHmap_init(local, int, ITERS);
     defer { msHmap_deinit(m2); };
 
     clock_t start = clock();
 
-    for (int i = 0; i < ITERS; i++) {
-      char buf[32];
-      snprintf(buf, sizeof(buf), "key_%d", i);
-      msHmap_set(m2, buf, i);
-    }
+    for (int i = 0; i < ITERS; i++)
+      msHmap_set(m2, ((fptr){sizeof(i), (u8 *)&i}), i);
 
     for (int i = 0; i < ITERS; i++) {
-
-      char buf[32];
-      snprintf(buf, sizeof(buf), "key_%d", i);
-
-      var_ val = msHmap_get(m2, buf);
+      var_ val = msHmap_get(m2, ((fptr){sizeof(i), (u8 *)&i}));
       if (!val) println("mSmap missing key: {}", i);
     }
 
     clock_t end = clock();
-    println("msHmap Time : {} ms", (double)(end - start) / CLOCKS_PER_SEC * 1000.0);
+    println("msHmap Time : {f128} ms", (f128)(end - start) / CLOCKS_PER_SEC * 1000.0);
+    println("{dbga-stats}", debugAllocator_stats(local));
   }
 
   return 0;
