@@ -287,7 +287,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(_slice_c8_printerfn, "slice(c8)", slice(c8), {
 
 REGISTER_PRINTER(c8, { PUTC(in); });
 REGISTER_SPECIAL_PRINTER("cstr", char *, {
-  in = in ?: "__NULLCSTR__";
+  in = in ?: (char*)"__NULLCSTR__";
   while (*in)
     PUTC(*in++);
 });

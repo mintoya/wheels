@@ -159,7 +159,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define NAMESPACEF_H(tuple) TUPLE_EXPAND_B(tuple),
   #define NAMESPACEF(...) APPLY_N(NAMESPACEF_H, __VA_ARGS__)
   #define NAMESPACE_STRUCT(name, ...) \
-    typedef struct {                  \
+    typedef struct name##_t {         \
       NAMESPACEN(__VA_ARGS__)         \
     } name##_t;                       \
     CONST_EXPR name##_t name = (name##_t){NAMESPACEF(__VA_ARGS__)};

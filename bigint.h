@@ -8,7 +8,7 @@
 
 typedef unsigned int bigint_unit;
 typedef msList(bigint_unit) bigint;
-typedef typeof(*((bigint)NULL)) bigint_unit;
+typedef ptrstype(bigint) bigint_unit;
 
 bool bigint_ckd_add(bigint_unit *res, bigint_unit a, bigint_unit b);
 struct bigint_ckdt {
@@ -26,11 +26,11 @@ void bigint_expand(AllocatorV allocator, bigint *b, usize len);
 bigint bigint_copy(AllocatorV allocator, bigint b);
 
 void bigint_negate_ip(AllocatorV allocator, bigint *i);
+
 void bigint_add_ip_flag(AllocatorV allocator, bigint *a, bigint b, bool negate, isize shift);
-
 void bigint_add_ip(AllocatorV allocator, bigint *a, bigint b, isize shift);
-
 void bigint_sub_ip(AllocatorV allocator, bigint *a, bigint b, isize shift);
+
 bigint bigint_from(AllocatorV allocator, i64 i);
 bigint bigint_fromBits(AllocatorV alloc, void *ptr, usize bitcount, bool signmask);
 bigint bigint_cs(AllocatorV allocator, u8 base, cstr str);
@@ -170,6 +170,7 @@ REGISTER_PRINTER(bigint, {
   #endif
 
 #endif
+
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
   #define MY_BIGINT_C (1)
 #endif

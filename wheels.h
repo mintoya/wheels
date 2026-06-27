@@ -7,7 +7,7 @@
   #define MY_BIGINT_C (1)
   #include "bigint.h"
 #endif
-#undef MY_BIGINT_H
+#undef MY_BIGINT_C
 
 #if defined(MY_PRINTER_H) || defined(WHEELS_INCLUDE_ALL)
   #define MY_PRINTER_C (1)
