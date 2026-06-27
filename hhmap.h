@@ -243,17 +243,16 @@ struct HMap_inner_item HMap_get_inner_zero(const HMap *map, usize idx);
         ?: ({ mHmap_set(sh, key, val); mHmap_get(sh, key); });                         \
   })
   #define mHmap_clear(map) HMap_clear((HMap *)map)
-  #define HMAP_GROWTH_FACTOR 3
-  #define mHmap_setManaged(map, load, key, value) ({ \
-    if_unlikely (HMap_load((HMap *)map) >= load) {   \
-      HMap_manage(                                   \
-          (HMap **)&map,                             \
-          nullptr,                                   \
-          HMap_getMetaSize((HMap *)map) *            \
-              HMAP_GROWTH_FACTOR                     \
-      );                                             \
-    };                                               \
-    mHmap_set(map, key, value);                      \
+  #define mHmap_setManaged(map, load, growth_factor, key, value) ({ \
+    if_unlikely (HMap_load((HMap *)map) >= load) {                  \
+      HMap_manage(                                                  \
+          (HMap **)&map,                                            \
+          nullptr,                                                  \
+          HMap_getMetaSize((HMap *)map) *                           \
+              growth_factor                                         \
+      );                                                            \
+    };                                                              \
+    mHmap_set(map, key, value);                                     \
   })
 
   // #include "tests.c"

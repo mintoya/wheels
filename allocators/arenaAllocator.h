@@ -1,3 +1,4 @@
+#include <stdio.h>
 #if !defined ARENA_ALLOCATOR_H
   #define ARENA_ALLOCATOR_H (1)
   #include "../allocator.h"
@@ -17,7 +18,6 @@ usize arena_footprint(AllocatorV allocator);
 #if defined(ARENA_ALLOCATOR_C)
 
   #include "../mylist.h"
-  #include <stdlib.h>
 typedef struct {
   usize capacity, occupied, count;
   u8 *ptr;
@@ -90,6 +90,7 @@ usize arena_totalMem(AllocatorV allocator) {
   var_ vla = mList_vla(data->buffers);
   foreach (var_ block, range(vla[0], vla[1]))
     size += block->capacity;
+  return size;
 }
 usize arena_footprint(AllocatorV allocator) {
   var_ data = ((ArenaAllocator_data *)allocator);
@@ -99,11 +100,12 @@ usize arena_footprint(AllocatorV allocator) {
     size += block->capacity;
   size += sizeof(List);
   size += mList_len(data->buffers) * sizeof(mList_arr(data->buffers)[0]);
+  return size;
 }
 
 void *_arena_alloc(AllocatorV allocator, usize size, char *file, usize line) {
   var_ data = ((ArenaAllocator_data *)allocator);
-  size = aAlloc_align(size);
+  size = lineup(size, alignof(myAlign));
 
   assertMessage(mList_len(data->buffers));
   var_ len = mList_len(data->buffers);
@@ -115,6 +117,7 @@ void *_arena_alloc(AllocatorV allocator, usize size, char *file, usize line) {
     if (current->occupied + size > current->capacity) {
       foreach (var_ block, range(vla[0], vla[1])) {
         current = block;
+        assertMessage(current->occupied % alignof(myAlign) == 0);
         if (current->occupied + size <= current->capacity) goto found;
       }
       mList_push(
@@ -141,15 +144,16 @@ void *_arena_alloc(AllocatorV allocator, usize size, char *file, usize line) {
 void _arena_free(AllocatorV allocator, void *ptr, usize size, char *file, usize line) {
   var_ data = ((ArenaAllocator_data *)allocator);
   var_ vla = mList_vla(data->buffers);
-  foreach (var_ block, range(vla[1] - 1, vla[0] - 1)) {
+  assertMessage(!((uptr)ptr % alignof(myAlign)));
+  foreach (var_ block, range(vla[0], vla[1])) {
     if ((u8 *)ptr >= block->ptr && (u8 *)ptr < block->ptr + block->capacity) {
       assertMessage(block->count, "double free?");
       assertMessage(block->occupied, "double free?");
       block->count--;
-      if (!block->count) {
+      if (!block->count)
         block->occupied = 0;
-        // qsort(mList_arr(block->buffers),mList_len(block->buffers), sizeof(mList_arr(block->buffers)[0]), )
-      }
+      else if (block->ptr + block->occupied == ptr)
+        block->occupied -= size;
       return;
     }
   }

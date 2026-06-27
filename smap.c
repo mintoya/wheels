@@ -2,6 +2,7 @@
 #include "allocators/arenaAllocator.h"
 #include "allocators/debugallocator.h"
 #include "fptr.h"
+#include "hhmap.h"
 #include "macros.h"
 #include "mytypes.h"
 #include "print.h"
@@ -27,7 +28,7 @@ typedef struct {
 } stringmap;
 
 stringmap *stringmap_new(AllocatorV allocator, usize vlen, usize mhash) {
-  var_ arena = arena_new_ext(allocator, 128);
+  var_ arena = arena_new_ext(allocator, 1024);
   var_ list = msList_init(arena, mapitem, mhash);
   msList_pushVla(arena, list, VLAP((mapitem *)nullptr, mhash));
   return aValue(
@@ -153,7 +154,7 @@ static inline void stringmap_cleanup_handler(void *vv) {
 #define mSmap_rem(map, key) \
   _Generic((key), char *: stringmap_setCs, const char *: stringmap_setCs, fptr: stringmap_set)((stringmap *)map, key, nullptr)
 
-#define ITERS 50000
+#define ITERS 100000
 
 int main(void) {
   println("=== mSmap (Arena Allocation) ===");
@@ -163,7 +164,7 @@ int main(void) {
       debugAllocatorDeInit(local);
     };
 
-    mSmap_scoped(int) m1 = mSmap_init(local, int, ITERS);
+    mSmap_scoped(int) m1 = mSmap_init(local, int, ITERS * 2);
 
     clock_t start = clock();
 
@@ -182,14 +183,15 @@ int main(void) {
 
   println("\n=== msHmap (Packed Strings) ===");
   {
-    var_ local = debugAllocator(.allocator = stdAlloc);
+    var_ locala = debugAllocator(.allocator = stdAlloc);
     defer {
-      debugAllocatorDeInit(local);
+      debugAllocatorDeInit(locala);
     };
-    // var_ local_arena = arena_new_ext(local, 1024);
-    // defer {arena_cleanup(local_arena);};
-    // msHmap(int) m2 = msHmap_init(local_arena, int, ITERS);
-    msHmap(int) m2 = msHmap_init(local, int, ITERS);
+    var_ local = arena_new_ext(stdAlloc, 1024);
+    defer {
+      arena_cleanup(local);
+    };
+    msHmap(int) m2 = msHmap_init(local, int, ITERS * 2);
     defer { msHmap_deinit(m2); };
 
     clock_t start = clock();
@@ -199,7 +201,7 @@ int main(void) {
 
     for (int i = 0; i < ITERS; i++) {
       var_ val = msHmap_get(m2, ((fptr){sizeof(i), (u8 *)&i}));
-      if (!val) println("mSmap missing key: {}", i);
+      if (!val) println("msHmap missing key: {}", i);
     }
 
     clock_t end = clock();
