@@ -105,28 +105,50 @@ extern AllocatorV stdAlloc;
 #include "assertMessage.h"
 #include <stdio.h>
 #include <stdlib.h>
-void *(aAlloc)(AllocatorV allocator, size_t size, char *file, usize line) {
+
 #ifdef MY_ALLOCATOR_STRICTEST
-  size = aAlloc_align(size);
+static inline void check_size(size_t size, char *file, usize line) {
   assertMessage(size, "allocators cant allocate nothing : %s,%zu", file, line);
-#endif
-  void *res = (allocator)->alloc(allocator, size, file, line);
-#ifdef MY_ALLOCATOR_STRICTEST
-  assertMessage(res, "allocators cant return null");
-  if (((uptr)res % alignof(myAlign))) {
+}
+
+static inline void check_realloc_ptr(void *oldptr, char *file, usize line) {
+  assertMessage(oldptr, "tried to reallocate a null pointer : %s,%zu", file, line);
+}
+
+static inline void check_free_ptr(void *oldptr, char *file, usize line) {
+  assertMessage(oldptr, "tried to free a null pointer", file, line);
+}
+
+static inline void check_result(AllocatorV allocator, usize request_size, void *res) {
+  if (!res || ((uptr)res % alignof(myAlign))) {
     fprintf(
         stdout,
-        "a:%p\n"
-        "f:%p\n"
-        "r:%p\n"
-        "s:%p\n",
+        "requested : %zu\n"
+        "allocator:\n"
+        "\ta:%p\n"
+        "\tf:%p\n"
+        "\tr:%p\n"
+        "\ts:%p\n",
+        request_size,
         allocator->alloc,
         allocator->free,
         allocator->resize,
         allocator->size
     );
+    assertMessage(res, "allocators cant return null");
     assertMessage(false, "wrong alignment out of allocator %zu", (uptr)res);
   }
+}
+#endif
+
+void *(aAlloc)(AllocatorV allocator, size_t size, char *file, usize line) {
+#ifdef MY_ALLOCATOR_STRICTEST
+  size = aAlloc_align(size);
+  check_size(size, file, line);
+#endif
+  void *res = (allocator)->alloc(allocator, size, file, line);
+#ifdef MY_ALLOCATOR_STRICTEST
+  check_result(allocator, size, res);
 #endif
   return res;
 }
@@ -134,51 +156,20 @@ void *(aResize)(AllocatorV allocator, void *oldptr, usize oldsize, size_t newsiz
 #ifdef MY_ALLOCATOR_STRICTEST
   oldsize = aAlloc_align(oldsize);
   newsize = aAlloc_align(newsize);
-  assertMessage(newsize, "allocators cant allocate nothing : %s,%zu", file, line);
-  assertMessage(oldptr, "allocators cant reallocate nothing");
+  check_size(newsize, file, line);
+  check_realloc_ptr(oldptr, file, line);
 #endif
   void *res;
   if (allocator->resize) {
 
     void *result = (allocator)->resize(allocator, oldptr, oldsize, newsize, file, line);
 #ifdef MY_ALLOCATOR_STRICTEST
-    assertMessage(result, "allocators cant return null, r");
-    res = result;
-    if (((uptr)res % alignof(myAlign))) {
-      fprintf(
-          stdout,
-          "a:%p\n"
-          "f:%p\n"
-          "r:%p\n"
-          "s:%p\n",
-          allocator->alloc,
-          allocator->free,
-          allocator->resize,
-          allocator->size
-      );
-      assertMessage(false, "wrong alignment out of allocator %zu", (uptr)res);
-    }
+    check_result(allocator, newsize, result);
 #endif
+    res = result;
   } else {
 
-    void *result = (void *)allocator->alloc(allocator, newsize, file, line);
-#ifdef MY_ALLOCATOR_STRICTEST
-    assertMessage(result, "allocators cant return null, r");
-    if (((uptr)result % alignof(myAlign))) {
-      fprintf(
-          stdout,
-          "a:%p\n"
-          "f:%p\n"
-          "r:%p\n"
-          "s:%p\n",
-          allocator->alloc,
-          allocator->free,
-          allocator->resize,
-          allocator->size
-      );
-      assertMessage(false, "wrong alignment out of allocator %zu", (uptr)res);
-    }
-#endif
+    void *result = aAlloc(allocator, newsize);
     usize size = oldsize < newsize ? oldsize : newsize;
     memcpy(result, oldptr, size);
     allocator->free(allocator, oldptr, oldsize, file, line);
@@ -189,10 +180,11 @@ void *(aResize)(AllocatorV allocator, void *oldptr, usize oldsize, size_t newsiz
 void(aFree)(AllocatorV allocator, void *oldptr, usize size, char *file, usize line) {
 #ifdef MY_ALLOCATOR_STRICTEST
   size = aAlloc_align(size);
-  assertMessage(oldptr, "allocators dont deal with null: %s %zu", file, line);
+  check_free_ptr(oldptr, file, line);
 #endif
   (allocator)->free(allocator, oldptr, size, file, line);
 }
+
 void *default_alloc(const My_allocator *allocator, size_t s, char *, usize) {
   var_ res = malloc(aAlloc_align(s));
   assertMessage(!((uptr)res % alignof(myAlign)), "%i", (uptr)res % alignof(myAlign));
