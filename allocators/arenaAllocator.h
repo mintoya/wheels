@@ -1,4 +1,3 @@
-#include <stdio.h>
 #if !defined ARENA_ALLOCATOR_H
   #define ARENA_ALLOCATOR_H (1)
   #include "../allocator.h"
@@ -9,7 +8,18 @@ usize arena_countBlocks(AllocatorV allocator);
 void arena_cleanup(AllocatorV allocator);
 usize arena_totalMem(AllocatorV allocator);
 usize arena_footprint(AllocatorV allocator);
-
+// #include "../tests.c"
+  #if defined(MAKE_TEST_FN)
+MAKE_TEST_FN(arena_test, {
+  var_ arena = arena_new_ext(allocator, 100);
+  defer { arena_cleanup(arena); };
+  var_ u8s = aCreate(arena, u8, 1000);
+  var_ i = aCreate(arena, int);
+  if ((uptr)u8s % alignof(myAlign)) return 1;
+  if ((uptr)i % alignof(myAlign)) return 2;
+  return 0;
+});
+  #endif
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
   #define ARENA_ALLOCATOR_C (1)
@@ -56,12 +66,6 @@ AllocatorV arena_new_ext(AllocatorV allocator, usize blocksize) {
   memcpy(result->vt, _arena_prototype, sizeof(result->vt));
   result->buffers = mList_init(allocator, ArenaAllocator_buffer);
   mList_push(result->buffers, arena_newBlock(allocator, blocksize));
-  mList_arr(result->buffers)[0].ptr = aCreate(allocator, u8, blocksize);
-  mList_arr(result->buffers)[0].capacity =
-      allocator->size
-          ? allocator->size(allocator, mList_arr(result->buffers)[0].ptr)
-          : blocksize;
-
   return result->vt;
 }
 void arena_cleanup(AllocatorV allocator) {
