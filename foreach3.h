@@ -28,13 +28,14 @@
     }                                               \
 )
 
-#define FOREACH_range_increase(is) (is._current += is._increment)
-#define FOREACH_range_valid(is)  \
-  ({                             \
-    if (!is._started)            \
-      is._current = is._initial; \
-    is._started = 1;             \
-    is._current < is._final;     \
+#define FOREACH_range_increase(is) \
+  (is._final > is._initial ? (is._current += is._increment) : (is._current -= is._increment))
+#define FOREACH_range_valid(is)                                                      \
+  ({                                                                                 \
+    if (!is._started)                                                                \
+      is._current = is._initial;                                                     \
+    is._started = 1;                                                                 \
+    is._final > is._initial ? (is._current < is._final) : (is._current > is._final); \
   })
 #define FOREACH_range_cast(is) (is._current)
 
