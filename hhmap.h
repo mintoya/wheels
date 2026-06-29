@@ -195,12 +195,47 @@ struct HMap_inner_item HMap_get_inner_zero(const HMap *map, usize idx);
       );                                                 \
     } while (0)
 
-  #define mHmap_iterator(map, keyType) \
-    HMapIterator((HMap *)map),         \
-        typeof(({  struct {                            \
-          keyType key;                                 \
-          typeof((*map)((HMap *)NULL, (keyType){})) val; \
-        } _;  _; })) *
+//{iterator
+
+  #define FOREACH_HMap_init(map) (        \
+      typeof(HMapIterator(map).state[0]), \
+      HMapIterator(map).state[0]          \
+  )
+  #define FOREACH_HMap_increase(is) HMapIterator_next(&is)
+  #define FOREACH_HMap_valid(is) HMapIterator_valid(&is)
+  #define FOREACH_HMap_cast(is) \
+    (is.current)
+
+  #define FOREACH_HMap_iter    \
+    (                          \
+        FOREACH_HMap_init,     \
+        FOREACH_HMap_increase, \
+        FOREACH_HMap_valid,    \
+        FOREACH_HMap_cast)
+
+  #define FOREACH_mHmap_init(map, keytype) (       \
+      struct {                                     \
+        struct HMapIterator_struct_inner _iter[1]; \
+        keytype kt[0];                             \
+        typeof(map) m[0];                          \
+      },                                           \
+      {{HMapIterator((HMap *)map).state[0]}}       \
+  )
+  #define FOREACH_mHmap_increase(is) HMapIterator_next(is._iter)
+  #define FOREACH_mHmap_valid(is) HMapIterator_valid(is._iter)
+  #define FOREACH_mHmap_cast(is)                            \
+    ((struct mHmap_iterator_item {                          \
+       const typeof(is.kt[0]) key;                          \
+       typeof((**is.m)(nullptr, (typeof(is.kt[0])){})) val; \
+     } *)is._iter->current)
+
+  #define FOREACH_mHmap_iter    \
+    (                           \
+        FOREACH_mHmap_init,     \
+        FOREACH_mHmap_increase, \
+        FOREACH_mHmap_valid,    \
+        FOREACH_mHmap_cast)
+//}
 
   #define mHmap_rem(map, key)                                  \
     do {                                                       \
@@ -270,7 +305,7 @@ static inline int HMap_test_structure(mHmap(int, int) map) {
       return 1;
   }
   int array[100] = {};
-  foreach (var_ it, iter(mHmap_iterator(map, int))) {
+  foreach (var_ it, mHmap_iter(map, int)) {
     array[it->key] = 1;
     if (it->val != it->key * 2)
       return 1;
@@ -299,10 +334,10 @@ static inline int HMap_test_structure(mHmap(int, int) map) {
 
   usize acount = HMap_count((HMap *)map);
   usize bcount = 0;
-  foreach (var_ v, iter(mHmap_iterator(map, int)))
+  foreach (var_ v, mHmap_iter(map, int))
     bcount++;
   usize ccount = 0;
-  foreach (var_ v, iter(HMapIterator((HMap *)map)))
+  foreach (var_ v, HMap_iter((HMap *)map))
     ccount++;
 
   if (acount != bcount || acount != ccount) {

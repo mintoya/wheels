@@ -577,7 +577,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(mHmap_printer_generic, "mHmap", HMap *, {
     PUTS("__");
   } else {
     PUTS("{");
-    foreach (var_ sp, iter(HMapIterator(in))) {
+    foreach (var_ sp, HMap_iter(in)) {
       kprinter.function(
           put, (fptr){HMap_getKeySize(in), (u8 *)sp}, nullFptr, _arb
       );

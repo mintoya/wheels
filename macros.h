@@ -1,5 +1,9 @@
 #if !defined(MY_MACROS_H)
-
+  #include <stdint.h>
+  #if defined __cplusplus
+    #include <cstdint>
+using size_t = std::size_t;
+  #endif
   #if !defined(__cplusplus)
     #define REF_1(type, ...) ((type[1]){__VA_ARGS__})
     #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
@@ -193,107 +197,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 //
 // loops
 //
-
-  #define _each_pair(_i, vla, decl) \
-    (size_t _i = 0, _keep = 1;      \
-     _keep && _i < countof(vla);    \
-     _keep = !_keep, _i++) /**/     \
-        for (decl = (vla)[_i]; _keep; _keep = !_keep)
-
-  #define _each_vla(vla, decl) \
-    _each_pair(_i, vla, decl)
-
-  #define _each_vlap(vla, decl) \
-    _each_pair(_i, *vla, decl)
-
-  #define _each_range_3(start, end, decl)                           \
-    (                                                               \
-        struct {                                                    \
-          __typeof_unqual__((start) + ((start) - (end))) val, last; \
-          int change;                                               \
-          int keep;                                                 \
-        } _s = {                                                    \
-            .val = (start),                                         \
-            .last = (end),                                          \
-            .change = (_s.val < _s.last ? 1 : -1),                  \
-            .keep = 1,                                              \
-        };                                                          \
-        _s.keep &&                                             /**/ \
-        (_s.change < 0 ? _s.val > _s.last : _s.val < _s.last); /**/ \
-        _s.keep = !_s.keep, _s.val += _s.change)               /**/ \
-        for (decl = _s.val; _s.keep; _s.keep = !_s.keep)
-
-  #define _each_range_4(start, end, inc, decl)                      \
-    (                                                               \
-        struct {                                                    \
-          __typeof_unqual__((start) + ((start) - (end))) val, last; \
-          __typeof_unqual__(inc) change;                            \
-          int keep;                                                 \
-        } _s = {                                                    \
-            .val = (start),                                         \
-            .last = (end),                                          \
-            .change = (inc),                                        \
-            .keep = 1,                                              \
-        };                                                          \
-        _s.keep &&                                             /**/ \
-        (_s.change < 0 ? _s.val > _s.last : _s.val < _s.last); /**/ \
-        _s.keep = !_s.keep, _s.val += _s.change)               /**/ \
-        for (decl = _s.val; _s.keep; _s.keep = !_s.keep, _s.change = (inc))
-
-  #define _each_span(start, len, decl)  \
-    (struct {                           \
-          __typeof_unqual__((start) + (len)) val, last;     \
-          int keep; } _s = {                  \
-         (start),                       \
-         (start) + len,                 \
-         1,                             \
-     };                                 \
-     _s.keep &&                    /**/ \
-     _s.val < _s.last;             /**/ \
-     _s.keep = !_s.keep, _s.val++) /**/ \
-        for (decl = _s.val; _s.keep; _s.keep = !_s.keep)
-
-  #define _each_iter_2(init, decl)         \
-    (                                      \
-        struct { __typeof_unqual__(init) x; int keep; } _s = {(init), 1};       \
-        _s.keep && _s.x.valid(_s.x.state); \
-        _s.keep = !_s.keep, _s.x.next(_s.x.state)) for (decl = _s.x.state->current; _s.keep; _s.keep = !_s.keep)
-  #define _each_iter_3(init, cast, decl)   \
-    (                                      \
-        struct { __typeof_unqual__(init) x; int keep; } _s = {(init), 1};       \
-        _s.keep && _s.x.valid(_s.x.state); \
-        _s.keep = !_s.keep, _s.x.next(_s.x.state)) for (decl = (cast)_s.x.state->current; _s.keep; _s.keep = !_s.keep)
-
-  #define _each_iter_sel(_1, _2, _3, NAME, ...) NAME
-  #define _each_iter(...) \
-    _each_iter_sel(__VA_ARGS__, _each_iter_3, _each_iter_2)(__VA_ARGS__)
-
-  #define _each_range_sel(_1, _2, _3, _4, NAME, ...) NAME
-  #define _each_range(...) \
-    _each_range_sel(__VA_ARGS__, _each_range_4, _each_range_3)(__VA_ARGS__)
-
-  #define _im_each_pair(...) /* */_each_pair(__VA_ARGS__,
-  #define _im_each_vla(...) /*  */_each_vla(__VA_ARGS__,
-  #define _im_each_vlap(...) /*  */_each_vlap(__VA_ARGS__,
-  #define _im_each_span(...) /* */_each_span(__VA_ARGS__ ,
-  #define _im_each_range(...) /**/_each_range(__VA_ARGS__ ,
-  #define _im_each_iter(...) /* */_each_iter(__VA_ARGS__ ,
-
-  #define foreach(decl, generator)                       \
-    /**/                                                 \
-    /* generators*/                                      \
-    /*  vla(array) takes array and uses countof*/        \
-    /*  range(start,end,inc?) adds inc to start*/        \
-    /*  iter(iterator struct)*/                          \
-    /*    layout :*/                                     \
-    /*    {*/                                            \
-    /*      state [1] / ptr : state of iterator*/        \
-    /*        current : used to deduce decl*/            \
-    /*      valid : function pointer called with state*/ \
-    /*      next  : used to increment*/                  \
-    /*    }*/                                            \
-    /**/                                                 \
-for _im_each_ ## generator decl )
+  #include "foreach3.h"
 
   #if defined(__cplusplus)
 template <typename CIterator, typename CastType = void>

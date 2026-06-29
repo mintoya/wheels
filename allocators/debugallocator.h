@@ -87,7 +87,7 @@ MAKE_TEST_FN(debug_allocator_test, {
   debugAllocatorInternals *internals = ((debugAllocatorInternals *)debug->arb);
   int n1 = HMap_count((HMap *)internals->map);
   int n2 = 0;
-  foreach (var_ kv, iter(HMapIterator((HMap *)internals->map)))
+  foreach (var_ kv, HMap_iter((HMap *)internals->map))
     n2++;
   int n = debugAllocatorDeInit(debug);
   if (n != allocations || n1 != allocations || n2 != n1) {
@@ -165,7 +165,7 @@ int debugAllocatorDeInit(AllocatorV allocator) {
     print_wfO(fileprint, out, "leaked {} bytes\n", internals->current);
   }
 
-  foreach (var_ kv, iter(mHmap_iterator(internals->map, void *))) {
+  foreach (var_ kv, mHmap_iter(internals->map, void *)) {
     leaks++;
     if (out) {
       print_wfO(
@@ -199,7 +199,7 @@ int debugAllocatorDeInit(AllocatorV allocator) {
 struct debugStats debugAllocator_clear(AllocatorV allocator) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   var_ res = debugAllocator_stats(allocator);
-  foreach (var_ kv, iter(mHmap_iterator(internals->map, void *)))
+  foreach (var_ kv, mHmap_iter(internals->map, void *))
     aFree(internals->actualAllocator, (void *)kv->key, kv->val.size);
   mHmap_clear(internals->map);
   return res;

@@ -60,7 +60,7 @@ int main(void) {
 
   volatile usize failCount = 0; // Marked volatile to survive longjmp
 
-  foreach (var_ test, vla(*VLAP(testList, testCount))) {
+  foreach (var_ test, vlap(VLAP(testList, testCount))) {
     current_test = test.name;
     printf("test %s: {\n", test.name);
     fflush(stdout);
