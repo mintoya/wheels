@@ -22,8 +22,8 @@
     {                                               \
         ._initial = (start),                        \
         ._final = (end),                            \
-        ._current = 0,                              \
         ._started = 0,                              \
+        ._current = 0,                              \
         ._increment = (VA_SWITCH(1, __VA_ARGS__)),  \
     }                                               \
 )
@@ -56,8 +56,8 @@
     },                                              \
     {                                               \
         ._initial = (start),                        \
-        ._current = 0,                              \
         ._len = (length),                           \
+        ._current = 0,                              \
         ._increment = (VA_SWITCH(1, __VA_ARGS__)),  \
     }                                               \
 )
@@ -75,12 +75,12 @@
 //{vla(vla)
 #define FOREACH_vla_init(vla) (           \
     struct {                              \
-      typeof(vla[0]) *_ptr;               \
+      typeof(({ vla[0]; })) *_ptr;        \
       size_t _length;                     \
       size_t _current;                    \
     },                                    \
     ({                                    \
-      var_ _vla_eval = &vla;              \
+      var_ _vla_eval = &(vla);            \
       (typeof(_foreach_._foreach_)){      \
           ._ptr = *_vla_eval,             \
           ._length = countof(*_vla_eval), \
@@ -107,33 +107,7 @@
       FOREACH_vla_valid,    \
       FOREACH_vla_cast)
 //}
-//{iter(vla)
-#define FOREACH_iter_init(vla) (          \
-    struct {                              \
-      typeof(vla[0]) *_ptr;               \
-      size_t _length;                     \
-      size_t _current;                    \
-    },                                    \
-    ({                                    \
-      var_ _vla_eval = &vla;              \
-      (typeof(_foreach_._foreach_)){      \
-          ._ptr = *_vla_eval,             \
-          ._length = countof(*_vla_eval), \
-          ._current = 0,                  \
-      };                                  \
-    })                                    \
-)
-#define FOREACH_iter_increase(is) (is._current++)
-#define FOREACH_iter_valid(is) (is._current < is._length)
-#define FOREACH_iter_cast(is) (*(is._current + is._ptr))
-
-#define FOREACH_iter         \
-  (                          \
-      FOREACH_iter_init,     \
-      FOREACH_iter_increase, \
-      FOREACH_iter_valid,    \
-      FOREACH_iter_cast)
-//}
+//
 
 //
 //
@@ -160,8 +134,8 @@
         MACRO_EXPAND(FOREACH_getInit_struct FOREACH_getInit FOREACH_##generator)              \
         _foreach_;                                                                            \
       } _foreach_ = {                                                                         \
+          .cond = 1,                                                                          \
           ._foreach_ = MACRO_EXPAND(FOREACH_getInit_set FOREACH_getInit FOREACH_##generator), \
-          .cond = 1                                                                           \
       };                                                                                      \
       MACRO_EXPAND(/**/                                                                       \
                    FOREACH_getCheck FOREACH_##generator                                       \
@@ -179,6 +153,7 @@
         _foreach_.cond;                                                                       \
         _foreach_.cond = !_foreach_.cond)
 #define foreach(decl, generator) FOREACH(decl, generator)
+
 #define EACH3(declaration, generator)                                                         \
   (                                                                                           \
       struct {                                                                                \
@@ -186,8 +161,8 @@
         MACRO_EXPAND(FOREACH_getInit_struct FOREACH_getInit FOREACH_##generator)              \
         _foreach_;                                                                            \
       } _foreach_ = {                                                                         \
+          .cond = 1,                                                                          \
           ._foreach_ = MACRO_EXPAND(FOREACH_getInit_set FOREACH_getInit FOREACH_##generator), \
-          .cond = 1                                                                           \
       };                                                                                      \
       MACRO_EXPAND(/**/                                                                       \
                    FOREACH_getCheck FOREACH_##generator                                       \

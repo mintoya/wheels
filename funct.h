@@ -44,17 +44,31 @@ typedef struct {
   )
 // clang-format on
 
-  #define mutex(T, mtx_T)        \
-    /*valid mtx_T values:     */ \
-    /*  mutex_plain           */ \
-    /*  mutex_recursive       */ \
-    /*  mutex_timed           */ \
-    /*  mutex_recursive_timed */ \
-    struct mtx##T##mtx_T {       \
-      mtx_t mtx[1];              \
-      mtx_T kind[0];             \
-      T data;                    \
-    }
+  #if !defined __cplusplus
+    #define mutex(T, mtx_T)        \
+      /*valid mtx_T values:     */ \
+      /*  mutex_plain           */ \
+      /*  mutex_recursive       */ \
+      /*  mutex_timed           */ \
+      /*  mutex_recursive_timed */ \
+      struct mtx##T##mtx_T {       \
+        mtx_t mtx[1];              \
+        mtx_T kind[0];             \
+        T data;                    \
+      }
+  #else
+
+template <typename T>
+struct mutex_outer {
+  template <typename Mtx_t>
+  struct mtx_inner {
+    mtx_t mtx[1];
+    Mtx_t kind[0];
+    T data;
+  };
+};
+    #define mutex(T, mtx_T) mutex_outer<T>::mtx_inner<mtx_T>
+  #endif
 
   #define mutex_init(mutex) \
     (mtx_init(mutex.mtx, mutex_toEnum((mutex).kind[0])))
@@ -247,9 +261,8 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
     _r->result;                                                                       \
   })
 
-  // #include "tests.c"
-  #if defined(MAKE_TEST_FN)
-    #include "allocators/tsaAllocator.h"
+  #include "allocators/tsaAllocator.h"
+  #include "tests.h"
 decfunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), nothing_t);
 deffunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), nothing_t, {
   var_ one_second = (struct timespec){1};
@@ -258,7 +271,7 @@ deffunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), nothing_t, 
     x[0]++;
   } else unreachable();
 });
-MAKE_TEST_FN(thread_function, {
+test_fn(thread_function) {
   var_ tsa = TSA_init(allocator);
   defer { TSA_deinit(tsa); };
 
@@ -277,8 +290,7 @@ MAKE_TEST_FN(thread_function, {
   mutex_deInit(integer);
   if (integer.data != 5) return 1;
   return 0;
-});
-  #endif
+}
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
   #define MY_THREAD_MACORS_C (1)

@@ -341,14 +341,12 @@ struct msList_stackBuffer_t {
        _r;                                                            \
     })
 
-  // #include "tests.c"
-  #if defined(MAKE_TEST_FN)
-    #include "macros.h"
+  #include "macros.h"
+  #include "tests.h"
 
-MAKE_TEST_FN(msList_push_pop, {
+test_fn(msList_push_pop) {
   var_ lbuf = msList_stackBuffer(int[25]);
   msList(int) list = msList_initBuffer(lbuf);
-  // msList(int) list = msList_init(allocator,int);
   defer { msList_deInit(allocator, list); };
   foreach (usize i, range(0, 50))
     msList_push(allocator, list, i * i);
@@ -356,11 +354,10 @@ MAKE_TEST_FN(msList_push_pop, {
     if (list[i] != i * i)
       return 1;
   return 0;
-});
-MAKE_TEST_FN(msList_push_pop2, {
+}
+test_fn(msList_push_pop2) {
   var_ lbuf = msList_stackBuffer(int[25]);
   msList(int) list = msList_initBuffer(lbuf);
-  // msList(int) list = msList_init(nullptr,int);
   defer { msList_deInit(nullptr, list); };
   foreach (usize i, range(0, 22))
     msList_push(nullptr, list, i * i);
@@ -368,8 +365,8 @@ MAKE_TEST_FN(msList_push_pop2, {
     if (list[i] != i * i)
       return 1;
   return 0;
-});
-MAKE_TEST_FN(msList_push_pop3, {
+}
+test_fn(msList_push_pop3) {
   msList(int) list = msList_init(allocator, int);
   defer { msList_deInit(allocator, list); };
   foreach (usize i, range(0, 22))
@@ -378,9 +375,8 @@ MAKE_TEST_FN(msList_push_pop3, {
     if (list[i] != i * i)
       return 1;
   return 0;
-});
-
-MAKE_TEST_FN(msList_insert_remove, {
+}
+test_fn(msList_insert_remove) {
   msList(int) list = msList_init(allocator, int);
   defer { msList_deInit(allocator, list); };
 
@@ -406,9 +402,8 @@ MAKE_TEST_FN(msList_insert_remove, {
     return 1;
 
   return 0;
-});
-
-MAKE_TEST_FN(msList_array_operations, {
+}
+test_fn(msList_array_operations) {
   msList(int) list = msList_init(allocator, int);
   defer { msList_deInit(allocator, list); };
 
@@ -429,9 +424,8 @@ MAKE_TEST_FN(msList_array_operations, {
     return 3;
 
   return 0;
-});
-
-MAKE_TEST_FN(msList_capacity_and_padding, {
+}
+test_fn(msList_capacity_and_padding) {
   msList(int) list = msList_init(allocator, int);
   defer { msList_deInit(allocator, list); };
 
@@ -452,9 +446,8 @@ MAKE_TEST_FN(msList_capacity_and_padding, {
     return 1;
 
   return 0;
-});
-
-MAKE_TEST_FN(msList_vla_cast, {
+}
+test_fn(msList_vla_cast) {
   msList(int) list = msList_init(allocator, int);
   defer { msList_deInit(allocator, list); };
 
@@ -469,7 +462,6 @@ MAKE_TEST_FN(msList_vla_cast, {
   if (msList_len(list) != 6)
     return 1;
   return 0;
-});
+}
 
-  #endif
 #endif // SHORT_LIST_H

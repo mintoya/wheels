@@ -127,19 +127,14 @@ u32 HMap_getMetaSize(const HMap *map);
 // iterator
 //
 
-struct HMapIterator_struct_inner {
+struct HMapIterator_struct {
   const HMap *map;
   const void *current;
   u32 element_idx;
 };
-bool HMapIterator_valid(const struct HMapIterator_struct_inner *it);
-void HMapIterator_next(struct HMapIterator_struct_inner *it);
-struct HMapIterator_struct {
-  struct HMapIterator_struct_inner state[1];
-  typeof(&HMapIterator_valid) valid;
-  typeof(&HMapIterator_next) next;
-};
-extern inline struct HMapIterator_struct HMapIterator(const HMap *map);
+bool HMapIterator_valid(const struct HMapIterator_struct *it);
+void HMapIterator_next(struct HMapIterator_struct *it);
+struct HMapIterator_struct HMapIterator(const HMap *map);
 
 static inline void HMap_cleanup_handler(void *vv) {
   HMap **v = (HMap **)vv;
@@ -197,9 +192,9 @@ struct HMap_inner_item HMap_get_inner_zero(const HMap *map, usize idx);
 
 //{iterator
 
-  #define FOREACH_HMap_init(map) (        \
-      typeof(HMapIterator(map).state[0]), \
-      HMapIterator(map).state[0]          \
+  #define FOREACH_HMap_init(map) ( \
+      typeof(HMapIterator(map)),   \
+      HMapIterator(map)            \
   )
   #define FOREACH_HMap_increase(is) HMapIterator_next(&is)
   #define FOREACH_HMap_valid(is) HMapIterator_valid(&is)
@@ -213,21 +208,20 @@ struct HMap_inner_item HMap_get_inner_zero(const HMap *map, usize idx);
         FOREACH_HMap_valid,    \
         FOREACH_HMap_cast)
 
-  #define FOREACH_mHmap_init(map, keytype) (       \
-      struct {                                     \
-        struct HMapIterator_struct_inner _iter[1]; \
-        keytype kt[0];                             \
-        typeof(map) m[0];                          \
-      },                                           \
-      {{HMapIterator((HMap *)map).state[0]}}       \
+  #define FOREACH_mHmap_init(map, keytype) (                  \
+      struct {                                                \
+        struct HMapIterator_struct _iter[1];                  \
+        struct {                                              \
+          keytype key;                                        \
+          typeof((*map)(nullptr, (*(keytype *)nullptr))) val; \
+        } item_type[0];                                       \
+      },                                                      \
+      {{HMapIterator((HMap *)map)}}                           \
   )
   #define FOREACH_mHmap_increase(is) HMapIterator_next(is._iter)
   #define FOREACH_mHmap_valid(is) HMapIterator_valid(is._iter)
-  #define FOREACH_mHmap_cast(is)                            \
-    ((struct mHmap_iterator_item {                          \
-       const typeof(is.kt[0]) key;                          \
-       typeof((**is.m)(nullptr, (typeof(is.kt[0])){})) val; \
-     } *)is._iter->current)
+  #define FOREACH_mHmap_cast(is) \
+    ((typeof(is.item_type[0]) *)is._iter->current)
 
   #define FOREACH_mHmap_iter    \
     (                           \
@@ -290,9 +284,8 @@ struct HMap_inner_item HMap_get_inner_zero(const HMap *map, usize idx);
     mHmap_set(map, key, value);                                     \
   })
 
-  // #include "tests.c"
-  #if defined(MAKE_TEST_FN)
-    #include "macros.h"
+  #include "macros.h"
+  #include "tests.h"
 static inline int HMap_test_structure(mHmap(int, int) map) {
   defer { mHmap_deinit(map); };
 
@@ -310,10 +303,9 @@ static inline int HMap_test_structure(mHmap(int, int) map) {
     if (it->val != it->key * 2)
       return 1;
   }
-  foreach (var_ i, vla(*VLAP(array, 100))) {
+  foreach (var_ i, vla(array))
     if (!i)
       return 1;
-  }
   for (int i = 0; i < 100; i++)
     mHmap_set(map, i, i * i);
 
@@ -354,15 +346,15 @@ static inline int HMap_test_structure(mHmap(int, int) map) {
 
   return 0;
 }
-MAKE_TEST_FN(HMap_open_test, {
+test_fn(HMap_open_test) {
   mHmap(int, int) map = mHmap_init(allocator, int, int, 500);
   return HMap_test_structure(map);
-});
-MAKE_TEST_FN(HMap_open_test_loaded, {
+}
+test_fn(HMap_open_test_loaded) {
   mHmap(int, int) map = mHmap_init(allocator, int, int, 1);
   return HMap_test_structure(map);
-});
-MAKE_TEST_FN(HMap_transform_open_test, {
+}
+test_fn(HMap_transform_open_test) {
   mHmap(int, int) map = mHmap_init(allocator, int, int);
   var_ mapp = &map;
   defer { mHmap_deinit(*mapp); };
@@ -377,8 +369,7 @@ MAKE_TEST_FN(HMap_transform_open_test, {
       return 1;
 
   return 0;
-});
-  #endif
+}
 
 #endif // HMap_H
 
@@ -396,13 +387,13 @@ typedef struct HMap {
 
   usize maxHash;
   usize count;
-
-  sList_header *flags;
+  msList(u8) flags;
   sList_header *data;
 } HMap;
+u32 HMap_getMetaSize(const HMap *map) { return map->maxHash; }
 usize HMap_getKeySize(const HMap *map) { return map->keysize; }
 usize HMap_getValSize(const HMap *map) { return map->valsize; }
-u32 HMap_getHLen(const HMap *map) { return map->flags->length; }
+u32 HMap_getHLen(const HMap *map) { return msList_len(map->flags); }
 void *HMap_getCoord(const HMap *map, u32 index) {
   sList_header *ll = map->data;
   if (!ll || index >= ll->length)
@@ -451,23 +442,23 @@ HMap *HMap_new(u32 kSize, u32 vSize, AllocatorV allocator, usize maxHash) {
       .count = 0,
   };
   hm->data = sList_new(allocator, hm->maxHash, kSize + vSize);
-  hm->flags = sList_new(allocator, hm->maxHash, sizeof(u8));
+  hm->flags = msList_init(allocator, u8, hm->maxHash);
 
   hm->data = sList_appendFromArr(allocator, hm->data, kSize + vSize, NULL, hm->maxHash);
-  hm->flags = sList_appendFromArr(allocator, hm->flags, sizeof(u8), NULL, hm->maxHash);
+  msList_pushArr(allocator, hm->flags, *VLAP((u8 *)nullptr, hm->maxHash));
   return hm;
 }
 void HMap_free(HMap *hm) {
   var_ allocator = hm->allocator;
   defer { aFree(allocator, hm, sizeof(*hm)); };
   sList_free(allocator, hm->data, hm->keysize + hm->valsize);
-  sList_free(allocator, hm->flags, sizeof(u8));
+  msList_deInit(allocator, hm->flags);
 }
 
 struct HMap_inner_item HMap_get_inner_zero(const HMap *map, usize idx) {
   assertMessage(idx < map->data->length);
   struct HMap_inner_item res = {};
-  res.flag = ((u8 *)(map->flags->buf)) + idx;
+  res.flag = ((u8 *)(map->flags)) + idx;
   res.key = ((u8 *)(map->data->buf)) + idx * (map->keysize + map->valsize);
   res.val = (void *)((u8 *)res.key + map->keysize);
   return res;
@@ -496,7 +487,7 @@ void HMap_manage(HMap **last, AllocatorV allocator, u32 maxHash) {
   var_ tempVal = tembBuf + newMap->keysize;
 
   foreach (var_ i, range(0, oldMap->data->length))
-    if (((u8 *)oldMap->flags->buf)[i] == 1) {
+    if (((u8 *)oldMap->flags)[i] == 1) {
       struct HMap_inner_item it = HMap_get_inner_zero(oldMap, i);
       memcpy(tempKey, it.key, kSize);
       memcpy(tempVal, it.val, vSize);
@@ -540,7 +531,7 @@ void *HMap_set(HMap *map, const void *key, const void *val) {
   }
   if (lindex == map->data->length) {
     map->data = sList_append(map->allocator, map->data, map->keysize + map->valsize, NULL);
-    map->flags = sList_append(map->allocator, map->flags, sizeof(u8), NULL);
+    msList_push(map->allocator, map->flags, 0);
     it = HMap_get_inner_zero(map, lindex);
   }
   memcpy(it.key, key, map->keysize);
@@ -609,7 +600,7 @@ HMap_both HMap_getBoth(HMap *map, const void *key) {
 }
 
 void HMap_clear(HMap *map) {
-  memset(map->flags->buf, 0, map->flags->length * sizeof(u8));
+  memset(map->flags, 0, msList_len(map->flags) * sizeof(u8));
   map->count = 0;
 }
 
@@ -617,40 +608,35 @@ void HMap_clear(HMap *map) {
 // iterator
 //
 
-bool HMapIterator_valid(const struct HMapIterator_struct_inner *it) {
+bool HMapIterator_valid(const struct HMapIterator_struct *it) {
   usize len = HMap_getHLen(it->map); // must match macro’s length
   return it->element_idx < len &&
-         ((u8 *)it->map->flags->buf)[it->element_idx] == 1;
+         ((u8 *)it->map->flags)[it->element_idx] == 1;
 }
-void HMapIterator_next(struct HMapIterator_struct_inner *it) {
+void HMapIterator_next(struct HMapIterator_struct *it) {
   it->element_idx++;
   usize len = HMap_getHLen(it->map);
   while (it->element_idx < len &&
-         ((u8 *)it->map->flags->buf)[it->element_idx] != 1) {
+         ((u8 *)it->map->flags)[it->element_idx] != 1) {
     it->element_idx++;
   }
   it->current = HMap_getCoord(it->map, it->element_idx);
 }
-inline struct HMapIterator_struct HMapIterator(const HMap *map) {
+struct HMapIterator_struct HMapIterator(const HMap *map) {
   struct HMapIterator_struct it = {
-      .state = {{
-          .map = map,
-          .current = NULL,
-          .element_idx = 0,
-      }},
-      .next = HMapIterator_next,
-      .valid = HMapIterator_valid,
+      .map = map,
+      .current = NULL,
+      .element_idx = 0,
   };
 
   usize len = HMap_getHLen(map);
-  while (it.state[0].element_idx < len &&
-         ((u8 *)map->flags->buf)[it.state[0].element_idx] != 1) {
-    it.state[0].element_idx++;
+  while (it.element_idx < len &&
+         ((u8 *)map->flags)[it.element_idx] != 1) {
+    it.element_idx++;
   }
 
-  it.state[0].current = HMap_getCoord(map, it.state[0].element_idx);
+  it.current = HMap_getCoord(map, it.element_idx);
   return it;
 }
 
-u32 HMap_getMetaSize(const HMap *map) { return map->maxHash; }
 #endif // HMap_C

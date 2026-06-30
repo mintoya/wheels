@@ -104,9 +104,9 @@ struct strList {
 };
   #endif
 
-  #if defined(MAKE_TEST_FN)
+  #include "tests.h"
 
-MAKE_TEST_FN(test_stringList_manipulation, {
+test_fn(test_stringList_manipulation) {
   stringList *sl = stringList_new(allocator, 4);
   defer { stringList_free(sl); };
 
@@ -136,8 +136,8 @@ MAKE_TEST_FN(test_stringList_manipulation, {
     return 1;
 
   return 0;
-})
-MAKE_TEST_FN(test_stringList_churn, {
+}
+test_fn(test_stringList_churn) {
   usize ITERS = 100;
   stringList *sl = stringList_new(allocator, 1024);
   defer { stringList_free(sl); };
@@ -171,8 +171,7 @@ MAKE_TEST_FN(test_stringList_churn, {
          (size_t)msList_len(sl->flist));
 
   return 0;
-})
-  #endif
+}
 #endif
 
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0

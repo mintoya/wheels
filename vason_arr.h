@@ -267,8 +267,8 @@ NAMESPACE_STRUCT(
     (get, Vason_getters),
 );
 
-  #if defined(MAKE_TEST_FN)
-MAKE_TEST_FN(vason_parser_immediate, {
+  #include "tests.h"
+test_fn(vason_parser_immediate) {
   const char text[] = "{ foo : bar, numbers : [1, 2] }";
   slice(c8) input = (slice(c8)){(usize)strlen(text), (c8 *)text};
 
@@ -304,8 +304,8 @@ MAKE_TEST_FN(vason_parser_immediate, {
     return 8;
 
   return 0;
-});
-MAKE_TEST_FN(vason_parser_lazy, {
+}
+test_fn(vason_parser_lazy) {
   const char text[] = "{ foo : bar, numbers : [1, 2] }";
   slice(c8) input = (slice(c8)){(usize)strlen(text), (c8 *)text};
 
@@ -341,8 +341,7 @@ MAKE_TEST_FN(vason_parser_lazy, {
     return 8;
 
   return 0;
-});
-  #endif // tests
+}
 #endif
 
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0

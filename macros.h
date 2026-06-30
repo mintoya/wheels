@@ -1,7 +1,8 @@
 #if !defined(MY_MACROS_H)
-  #include <stdint.h>
+  // #include <stdint.h>
   #if defined __cplusplus
     #include <cstdint>
+    #include <iterator>
 using size_t = std::size_t;
   #endif
   #if !defined(__cplusplus)

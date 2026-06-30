@@ -57,9 +57,8 @@ NAMESPACE_STRUCT(
     (stringify, &vason_node_toStr),
     (asContainer, &vason_node_toContainer),
 );
-  #if defined(MAKE_TEST_FN)
 
-MAKE_TEST_FN(vason_match, {
+test_fn(vason_match) {
   vason_node root = vason_node_newTable(allocator);
   var_ rp = &root;
   defer { vason_node_freeRecursive(allocator, *rp); };
@@ -101,9 +100,7 @@ MAKE_TEST_FN(vason_match, {
   if (!vason_container_eq(a, b))
     return 1;
   return 0;
-});
-
-  #endif
+}
 #endif
 
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0

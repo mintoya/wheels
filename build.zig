@@ -27,7 +27,7 @@ pub fn build(b: *std.Build) void {
         []const u8,
         "file",
         "which file to run",
-    ) orelse "tests.c";
+    ) orelse "tests.h";
 
     exe.root_module.addCSourceFile(.{
         .file = b.path(cfile),

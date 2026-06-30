@@ -77,9 +77,9 @@ static inline isize sHmap_get(const sHmap *sh, const fptr k, usize v_width) {
   if (!*list_ptr)
     return -1;
 
-  foreach (var_ entry, vla(*msList_vla(*list_ptr)))
-    if (fptr_eq(stringList_get(sh->strings, entry.kidx), k))
-      return entry.vidx;
+  foreach (var_ entry, span(*list_ptr, msList_len(*list_ptr)))
+    if (fptr_eq(stringList_get(sh->strings, entry->kidx), k))
+      return entry->vidx;
   return -1;
 }
 static inline isize sHmap_get_cs(const sHmap *sh, const char *key, usize v_width) {
@@ -110,18 +110,20 @@ static inline void shMap_free(sHmap *map) {
 }
 static inline usize sHmap_footprint(const sHmap *map) {
   usize res = stringList_footprint(map->strings);
-  foreach (var_ list, vla(*VLAP(map->buckets, map->num_buckets)))
-    if (list)
-      res += sizeof(*msList_vla(list));
+  foreach (var_ list, span(map->buckets, map->num_buckets))
+    if (*list)
+      res += sizeof(*msList_vla(*list));
   return res;
 }
 static inline usize sHmap_countCollisions(const sHmap *map) {
   usize res = 0;
-  foreach (var_ list, vla(*VLAP(map->buckets, map->num_buckets)))
+  foreach (var_ listp, span(map->buckets, map->num_buckets)) {
+    var_ list = *listp;
     if (list) {
       var_ l = msList_len(list);
       res += l ? l - 1 : 0;
     }
+  }
   return res;
 }
 static inline AllocatorV sHmap_allocator(const sHmap *map) {
@@ -263,8 +265,8 @@ using msHmap_t = T (**)(sHmap *);
       temp_ ? temp_ : (msHmap_set(sh, key, val), msHmap_get(sh, key)); \
     })
 
-  #if defined(MAKE_TEST_FN)
-MAKE_TEST_FN(test_shmap_generic_values, {
+  #include "tests.h"
+test_fn(test_shmap_generic_values) {
   msHmap(int) sm = msHmap_init(allocator, int);
   defer { msHmap_deinit(sm); };
 
@@ -285,8 +287,8 @@ MAKE_TEST_FN(test_shmap_generic_values, {
     return 1;
 
   return 0;
-});
-MAKE_TEST_FN(test_shmap_struct_values, {
+}
+test_fn(test_shmap_struct_values) {
   typedef struct {
     float x, y;
   } Pos;
@@ -300,6 +302,6 @@ MAKE_TEST_FN(test_shmap_struct_values, {
     return 1;
 
   return 0;
-});
-  #endif
+}
+
 #endif

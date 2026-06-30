@@ -71,9 +71,8 @@ typedef struct {
   debugAllocatorInternals internals[1];
 } Debug_allocator_block;
 
-// #include "tests.c"
-#if defined(MAKE_TEST_FN)
-MAKE_TEST_FN(debug_allocator_test, {
+#include "../tests.h"
+test_fn(debug_allocator_test) {
   usize allocations = 10;
   AllocatorV debug = debugAllocator(
       allocator = allocator,
@@ -95,8 +94,7 @@ MAKE_TEST_FN(debug_allocator_test, {
     return 2;
   }
   return 0;
-});
-#endif
+}
 
 void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln);
 void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize oldsize, usize newsize, char *fn, usize ln);

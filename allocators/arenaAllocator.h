@@ -8,18 +8,20 @@ usize arena_countBlocks(AllocatorV allocator);
 void arena_cleanup(AllocatorV allocator);
 usize arena_totalMem(AllocatorV allocator);
 usize arena_footprint(AllocatorV allocator);
-// #include "../tests.c"
-  #if defined(MAKE_TEST_FN)
-MAKE_TEST_FN(arena_test, {
+  #include "../tests.h"
+test_fn(arena_test) {
   var_ arena = arena_new_ext(allocator, 100);
   defer { arena_cleanup(arena); };
-  var_ u8s = aCreate(arena, u8, 1000);
-  var_ i = aCreate(arena, int);
+  var_ u8s = &aCreate(arena, u8, 200);
+  var_ i32s = &aCreate(arena, int);
+  foreach (var_ i32, vla(*u8s))
+    i32 *= i32;
+  foreach (var_ i32, vla(*i32s))
+    i32 *= i32;
   if ((uptr)u8s % alignof(myAlign)) return 1;
-  if ((uptr)i % alignof(myAlign)) return 2;
+  if ((uptr)i32s % alignof(myAlign)) return 2;
   return 0;
-});
-  #endif
+}
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
   #define ARENA_ALLOCATOR_C (1)

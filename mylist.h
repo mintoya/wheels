@@ -243,8 +243,28 @@ List *List_deepCopy(List *l, size_t width);
   _res;                                                                             \
 })
 
-#if defined(MAKE_TEST_FN)
-MAKE_TEST_FN(mlist_tests, {
+#define FOREACH_mList_init(list) ( \
+    struct {                       \
+      typeof(list) _list;          \
+      size_t _current;             \
+    },                             \
+    {list, 0}                      \
+)
+#define FOREACH_mList_increase(is) (is._current++)
+#define FOREACH_mList_valid(is) (is._current < mList_len(is._list))
+#define FOREACH_mList_cast(is) (*(is._current + mList_arr(is._list)))
+
+#define FOREACH_mList_iter    \
+  (                           \
+      FOREACH_mList_init,     \
+      FOREACH_mList_increase, \
+      FOREACH_mList_valid,    \
+      FOREACH_mList_cast)
+//
+// test functions
+//
+#include "tests.h"
+test_fn(mlist_tests) {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deinit(list); };
 
@@ -255,14 +275,13 @@ MAKE_TEST_FN(mlist_tests, {
     if (mList_arr(list)[i] != i * i)
       return 1;
 
-  // remove every even number
   foreach (usize i, range(0, 25))
     mList_rem(list, i);
 
   if (mList_len(list) != 25)
     return 1;
 
-  foreach (var_ v, vla(*mList_vla(list)))
+  foreach (var_ v, mList_iter(list))
     if (!(v % 2))
       return 1;
 
@@ -277,22 +296,24 @@ MAKE_TEST_FN(mlist_tests, {
       return 1;
 
   return 0;
-});
-MAKE_TEST_FN(mlist_vla_cast, {
+}
+test_fn(mlist_vla_cast) {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deinit(list); };
   mList_push(list, 7);
   mList_push(list, 8);
   mList_push(list, 9);
-  int *arr = aCreate(allocator, int, 3);
-  defer { aFree(allocator, arr, 3); };
-  memcpy(arr, mList_arr(list), 3 * sizeof(int));
-  mList_pushArr(list, *VLAP(arr, 3));
+  var_ arr = &aCreate(allocator, int, 3);
+  defer { aFree(allocator, arr, sizeof(*arr)); };
+  memcpy(arr, mList_arr(list), sizeof(*arr));
+  mList_pushArr(list, *arr);
   if (mList_len(list) != 6)
     return 1;
+  if (memcmp(mList_arr(list), arr, sizeof(*arr))) return 2;
+  if (memcmp(mList_arr(list), mList_arr(list) + 3, sizeof(*arr))) return 3;
   return 0;
-});
-#endif
+}
+
 #endif // MY_LIST_H
 
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0

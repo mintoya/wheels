@@ -281,8 +281,8 @@ REGISTER_SPECIAL_PRINTER_NEEDID(_void_ptr_printerfn, "ptr", void *, {
   }
 });
 REGISTER_SPECIAL_PRINTER_NEEDID(_slice_c8_printerfn, "slice(c8)", slice(c8), {
-  foreach (c8 c, vla(*slice_vla(in)))
-    PUTC(c);
+  foreach (c8 *c, span(in.ptr, in.len))
+    PUTC(*c);
 });
 
 REGISTER_PRINTER(c8, { PUTC(in); });
@@ -577,6 +577,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(mHmap_printer_generic, "mHmap", HMap *, {
     PUTS("__");
   } else {
     PUTS("{");
+
     foreach (var_ sp, HMap_iter(in)) {
       kprinter.function(
           put, (fptr){HMap_getKeySize(in), (u8 *)sp}, nullFptr, _arb

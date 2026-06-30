@@ -37,9 +37,9 @@ typedef struct {
 
 sstream file_stream_open(AllocatorV allocator, const char *const path, fileopenflags flags);
 void file_stream_close(AllocatorV allocator, sstream stream);
-  #if defined(MAKE_TEST_FN)
+  #include "../tests.h"
 
-MAKE_TEST_FN(file_stream_write_read, {
+test_fn(file_stream_write_read) {
   const char *test_file = "test_stream_wr.txt";
   fileopenflags wflags = {0};
   wflags.access.write = 1;
@@ -50,7 +50,7 @@ MAKE_TEST_FN(file_stream_write_read, {
   if (!wstream) return 1;
 
   const u8 *data = (u8 *)"testing data";
-  fptr wbuf = {.ptr = (u8 *)data, .len = 12};
+  fptr wbuf = (fptr){12, (u8 *)data};
 
   sPutsf(wstream, wbuf);
   sPutcf(wstream, '!');
@@ -65,7 +65,7 @@ MAKE_TEST_FN(file_stream_write_read, {
   if (!rstream) return 1;
 
   u8 read_buffer[16] = {0};
-  fptr rbuf = {.ptr = read_buffer, .len = 12};
+  fptr rbuf = {12, read_buffer};
 
   usize bytes_read = sGetsf(rstream, rbuf);
   if (bytes_read != 12) return 1;
@@ -77,9 +77,9 @@ MAKE_TEST_FN(file_stream_write_read, {
   file_stream_close(allocator, rstream);
   remove(test_file);
   return 0;
-});
+}
 
-MAKE_TEST_FN(file_stream_seek_append, {
+test_fn(file_stream_seek_append) {
   const char *test_file = "test_stream_seek.txt";
   fileopenflags wflags = {0};
   wflags.access.write = 1;
@@ -98,7 +98,7 @@ MAKE_TEST_FN(file_stream_seek_append, {
 
   sSeekf(stream, 0);
   u8 buf[8] = {0};
-  sGetsf(stream, (fptr){.ptr = buf, .len = 6});
+  sGetsf(stream, (fptr){6, buf});
   if (memcmp(buf, "AADDCC", 6)) return 1;
 
   file_stream_close(allocator, stream);
@@ -114,15 +114,14 @@ MAKE_TEST_FN(file_stream_seek_append, {
   sPutsf(astream, fp("EE"));
 
   sSeekf(astream, 0);
-  sGetsf(astream, (fptr){.ptr = buf, .len = 8});
+  sGetsf(astream, (fptr){8, buf});
   if (memcmp(buf, "AADDCCEE", 8)) return 1;
 
   file_stream_close(allocator, astream);
   remove(test_file);
   return 0;
-});
+}
 
-  #endif
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
   #define MY_FILES_C (1)
