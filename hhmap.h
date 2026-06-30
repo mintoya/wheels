@@ -309,8 +309,6 @@ static inline int HMap_test_structure(mHmap(int, int) map) {
   for (int i = 0; i < 100; i++)
     mHmap_set(map, i, i * i);
 
-  printf("map load : %i \n", (int)HMap_load((HMap *)map));
-
   for (int i = 0; i < 100; i++) {
     int *v = mHmap_get(map, i);
     if (!v || *v != i * i)
@@ -332,10 +330,8 @@ static inline int HMap_test_structure(mHmap(int, int) map) {
   foreach (var_ v, HMap_iter((HMap *)map))
     ccount++;
 
-  if (acount != bcount || acount != ccount) {
-    printf("%i  , %i , %i", acount, bcount, ccount);
+  if (acount != bcount || acount != ccount)
     return 1;
-  }
 
   mHmap_clear(map);
   for (int i = 0; i < 100; i++) {

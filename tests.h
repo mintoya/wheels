@@ -73,7 +73,7 @@ int main(void) {
     var_ result = testList->fn(testAlloc);
     int leaked = debugAllocatorDeInit(testAlloc);
     printf(
-        "[%s%s] test : %s , code : %i\n",
+        "[%s%s] %s\t: %i\n",
         result
             ? test_RED "FAIL" test_RESET
             : test_GREEN "PASS" test_RESET,
