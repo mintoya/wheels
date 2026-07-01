@@ -1,0 +1,232 @@
+#if !defined M_HXMAP_H
+  #define M_HXMAP_H
+  #include "allocator.h"
+  #include "assertMessage.h"
+  #include "macros.h"
+  #include "mytypes.h"
+
+typedef enum : u64 {
+  EMPTY = 0,
+  OCCUPIED = 1,
+  LEFT = 2,
+} mflag;
+typedef struct hxmap {
+  AllocatorV allocator;
+  u32 ksize, vsize;
+  usize count, cap;
+  const fnptrof((const void *key), u64) hfn;
+  const fnptrof((const void *a, const void *b), i8) cmp;
+  struct {
+    u64 ohash : sizeof(u64) * 8 - 2;
+    mflag flag : 2;
+  } *flags;
+  u8 *keys;
+  u8 *vals;
+} hxmap;
+hxmap *hxmap_new(
+    AllocatorV allocator,
+    usize ksize,
+    usize vsize,
+    usize cap,
+    itypeof(hxmap, hfn) hashfn,
+    itypeof(hxmap, cmp) cmpfn
+);
+void hxmap_free(hxmap *map);
+void *hxmap_set(
+    hxmap *m,
+    void *key,
+    void *val
+);
+void *hxmap_get(
+    const hxmap *m,
+    void *key
+);
+void hxmap_manage(
+    hxmap *map,
+    u8 scale
+);
+#endif
+
+#if defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0
+  #define M_HXMAP_C (1)
+#endif
+
+#if defined M_HXMAP_C
+hxmap *hxmap_new(
+    AllocatorV allocator,
+    usize ksize,
+    usize vsize,
+    usize cap,
+    itypeof(hxmap, hfn) hashfn,
+    itypeof(hxmap, cmp) cmpfn
+) {
+  assertMessage(allocator);
+  assertMessage(ksize);
+  assertMessage(vsize);
+  assertMessage(cap);
+  var_ res = ((hxmap){
+      .allocator = allocator,
+      .ksize = ksize,
+      .vsize = vsize,
+      .count = 0,
+      .cap = cap,
+      .hfn = hashfn,
+      .cmp = cmpfn,
+      .flags = aCreate(allocator, ptrstype(itypeof(hxmap, flags)), cap),
+      .keys = aCreate(allocator, u8, cap * ksize),
+      .vals = aCreate(allocator, u8, cap * vsize),
+  });
+  var_ resp = aCreate(allocator, typeof(res));
+  memcpy(resp, &res, sizeof(res));
+  return resp;
+}
+void hxmap_free(hxmap *map) {
+  var_ allocator = map->allocator;
+  aFree(allocator, map->flags, sizeof(*map->flags) * map->cap);
+  aFree(allocator, map->keys, map->ksize * map->cap);
+  aFree(allocator, map->vals, map->vsize * map->cap);
+  aFree(allocator, map, sizeof(*map));
+}
+inline i8 hxmap_base_cmp(const hxmap *m, const void *a, const void *b) {
+  if (m->cmp) return m->cmp(a, b);
+  int mc = memcmp(a, b, m->ksize);
+  return mc < 0 ? -1 : mc > 0 ? 1
+                              : 0;
+}
+inline u64 hxmap_base_hash(const hxmap *m, const void *a) {
+  if (m->hfn) return m->hfn(a);
+  u8(*bytes)[m->ksize] = (typeof(bytes))a;
+  switch (sizeof(*bytes)) {
+    case sizeof(u64):
+      return *(u64 *)bytes;
+    case sizeof(u32):
+      return *(u32 *)bytes;
+    case sizeof(u16):
+      return *(u16 *)bytes;
+    case sizeof(u8):
+      return *(u8 *)bytes;
+    default: {
+      u64 hash = 0xcbf29ce484222325ULL;
+      foreach (var_ b, vla(*bytes)) {
+        hash ^= b;
+        hash *= 0x100000001b3ULL;
+      }
+      return hash;
+    } break;
+  }
+}
+
+void hxmap_manage(
+    hxmap *map,
+    u8 scale
+) {
+
+  var_ oc = map->cap;
+  var_ nc = map->cap * scale;
+
+  var_ nv = aCreate(map->allocator, u8, map->vsize * nc);
+  var_ nk = aCreate(map->allocator, u8, map->ksize * nc);
+  var_ nf = aCreate(map->allocator, ptrstype(itypeof(hxmap, flags)), nc);
+
+  var_ ov = map->vals;
+  var_ ok = map->keys;
+  var_ of = map->flags;
+  defer {
+    aFree(map->allocator, ov, map->vsize * oc);
+    aFree(map->allocator, ok, map->ksize * oc);
+    aFree(map->allocator, of, sizeof(*of) * oc);
+  };
+
+  map->cap = nc;
+  map->vals = nv;
+  map->keys = nk;
+  map->flags = nf;
+
+  var_ ks = map->ksize;
+  var_ vs = map->vsize;
+
+  foreach (usize i, range(0, oc))
+    if (of[i].flag == OCCUPIED) {
+      u64 hx = of[i].ohash;
+      var_ idx = hx % nc;
+
+      while (nf[idx].flag == OCCUPIED) {
+        idx++;
+        if (idx >= nc) idx = 0;
+      }
+
+      nf[idx].flag = OCCUPIED;
+      nf[idx].ohash = hx;
+      memcpy(nk + (ks * idx), ok + (ks * i), ks);
+      memcpy(nv + (vs * idx), ov + (vs * i), vs);
+    }
+}
+void *hxmap_set(
+    hxmap *m,
+    void *key,
+    void *val
+) {
+  if (!key) return nullptr;
+
+  if_unlikely (m->count * 4 >= m->cap * 3) hxmap_manage(m, 2);
+
+  var_ hx = hxmap_base_hash(m, key) & (~(u64)0 >> 2);
+  var_ cap = m->cap;
+  var_ ks = m->ksize;
+  var_ vs = m->vsize;
+  var_ idx = hx % cap;
+  var_ target_idx = cap;
+
+  while (m->flags[idx].flag != EMPTY) {
+    if (m->flags[idx].flag == LEFT) {
+      if (target_idx == cap) target_idx = idx;
+    } else if (
+        m->flags[idx].flag == OCCUPIED &&
+        m->flags[idx].ohash == hx &&
+        !hxmap_base_cmp(m, m->keys + (ks * idx), key)
+    ) {
+      if (val)
+        return memcpy(m->vals + (vs * idx), val, vs);
+      else {
+        m->count--;
+        m->flags[idx].flag = LEFT;
+        return nullptr;
+      }
+    }
+    idx++;
+    if (idx >= cap) idx = 0;
+  }
+
+  if (!val) return nullptr;
+  m->count++;
+
+  if (target_idx != cap) idx = target_idx;
+
+  m->flags[idx].flag = OCCUPIED;
+  m->flags[idx].ohash = hx;
+  memcpy(m->keys + (ks * idx), key, ks);
+  return memcpy(m->vals + (vs * idx), val, vs);
+}
+void *hxmap_get(
+    const hxmap *m,
+    void *key
+) {
+  assertMessage(key);
+
+  var_ hx = hxmap_base_hash(m, key) & (~(u64)0 >> 2);
+  var_ cap = m->cap;
+  var_ ks = m->ksize;
+  var_ idx = hx % cap;
+
+  while (m->flags[idx].flag == OCCUPIED) {
+    if (
+        m->flags[idx].ohash == hx &&
+        !hxmap_base_cmp(m, m->keys + (ks * idx), key)
+    )
+      return m->vals + (m->vsize * idx);
+    idx++;
+    if (idx >= cap) idx = 0;
+  }
+  return nullptr;
+}
+#endif
