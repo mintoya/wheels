@@ -1,5 +1,5 @@
-#if !defined M_HXMAP_H
-  #define M_HXMAP_H
+#if !defined MY_HXMAP_H
+  #define MY_HXMAP_H
   #include "allocator.h"
   #include "assertMessage.h"
   #include "macros.h"
@@ -12,7 +12,7 @@ typedef enum : u64 {
 } mflag;
 typedef struct hxmap {
   AllocatorV allocator;
-  u32 ksize, vsize;
+  const u32 ksize, vsize;
   usize count, cap;
   const fnptrof((const void *key), u64) hfn;
   const fnptrof((const void *a, const void *b), i8) cmp;
@@ -45,13 +45,21 @@ void hxmap_manage(
     hxmap *map,
     u8 scale
 );
+void *hxmap_val_key(
+    const hxmap *map,
+    void *val
+);
+
+  #define mxMap(K, V) ptrof(fnptrof((hxmap *, ptrof(K)), V))
+  #define mxMap_valType(map) typeof((*map)(nullptr, nullptr))
+
 #endif
 
 #if defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0
-  #define M_HXMAP_C (1)
+  #define MY_HXMAP_C (1)
 #endif
 
-#if defined M_HXMAP_C
+#if defined MY_HXMAP_C
 hxmap *hxmap_new(
     AllocatorV allocator,
     usize ksize,
@@ -228,5 +236,12 @@ void *hxmap_get(
     if (idx >= cap) idx = 0;
   }
   return nullptr;
+}
+void *hxmap_val_key(
+    const hxmap *map,
+    void *val
+) {
+  usize idx = (map->vals - (u8 *)val) / map->vsize;
+  return map->keys + (idx * map->ksize);
 }
 #endif
