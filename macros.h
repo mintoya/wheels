@@ -184,7 +184,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define EQUAL_ANY(expr, ...) (APPLY_N((expr) == EQUAL_ANY_HELPER, __VA_ARGS__) 0)
   #define EQUAL_ALL_HELPER(a) a &&
   #define EQUAL_ALL(expr, ...) (APPLY_N((expr) == EQUAL_ALL_HELPER, __VA_ARGS__) 1)
-  #define ASSERT_EXPR(cond, msg) \
+  #define ASSERT_EXPR(cond, ...) \
     ((void)((int)sizeof(char[1 - 2 * !(cond)])))
   #define STR_H(...) #__VA_ARGS__
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)

@@ -679,17 +679,16 @@ MAKE_PRINT_ARG_TYPE(u32);
 volatile static thread_local bool print_f_shouldFlush = 1;
 void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *);
 
-#define print_wfO(printerfn, arb, fmt, ...)                                    \
-  do {                                                                         \
-    struct print_arg eval_print_[] = {                                         \
-        __VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){}) \
-    };                                                                         \
-    print_f(                                                                   \
-        printerfn,                                                             \
-        arb,                                                                   \
-        fmt,                                                                   \
-        eval_print_                                                            \
-    );                                                                         \
+#define print_wfO(printerfn, arb, fmt, ...)                                        \
+  do {                                                                             \
+    print_f(                                                                       \
+        printerfn,                                                                 \
+        arb,                                                                       \
+        fmt,                                                                       \
+        (struct print_arg[]){                                                      \
+            __VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){}) \
+        }                                                                          \
+    );                                                                             \
   } while (0)
 
 #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
@@ -713,12 +712,11 @@ static slice(c8) vsn_print_fn(AllocatorV allocator, char *fmt, struct print_arg 
   return sn_slice_result;
 }
 #define snprint(allocator, fmt, ...) ({                                                            \
-  struct print_arg eval_print_sn[countof((                                                         \
+  vsn_print_fn(                                                                                    \
+      allocator,                                                                                   \
+      (char *)fmt,                                                                                 \
       (struct print_arg[]){__VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){})} \
-  ))] = {                                                                                          \
-      __VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){})                       \
-  };                                                                                               \
-  vsn_print_fn(allocator, (char *)fmt, eval_print_sn);                                             \
+  );                                                                                               \
 })
 #define print_(fmt, ...) print_wfO(fileprint, stdout, fmt, __VA_ARGS__)
 #define println_(fmt, ...) print(fmt "\n", __VA_ARGS__)

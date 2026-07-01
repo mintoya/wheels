@@ -14,8 +14,8 @@ typedef struct hxmap {
   AllocatorV allocator;
   const u32 ksize, vsize;
   usize count, cap;
-  const fnptrof((const void *key), u64) hfn;
-  const fnptrof((const void *a, const void *b), i8) cmp;
+  const fnptrof((const void *), u64) hfn;
+  const fnptrof((const void *, const void *), i8) cmp;
   struct {
     u64 ohash : sizeof(u64) * 8 - 2;
     mflag flag : 2;
@@ -51,9 +51,29 @@ void *hxmap_val_key(
 );
 
   #define mxMap(K, V) ptrof(fnptrof((hxmap *, ptrof(K)), V))
-  #define mxMap_valType(map) typeof((*map)(nullptr, nullptr))
+  #define mxMap_valType(map) typeof((*map)(((hxmap *)0), nullptr))
+  #define mxMap_defaults(...) VA_SWITCH_REMP((0, 0, 0)__VA_OPT__(, (__VA_ARGS__)))
+  #define mxMap_init(allocator, K, V, ...) (mxMap(K, V)) hxmap_new(allocator, sizeof(K), sizeof(V), mxMap_defaults(__VA_ARGS__))
+  #define mxMap_set(map, key, val) ({                                  \
+    var_ _k = key;                                                     \
+    var_ _v = val;                                                     \
+    ASSERT_EXPR(types_eq(typeof(map), mxMap(typeof(_k), typeof(_v)))); \
+    (ptrof(mxMap_valType(map))) hxmap_set((hxmap *)map, &_k, &_v);     \
+  })
+  #define mxMap_rem(map, key) ({                                               \
+    var_ _k = key;                                                             \
+    ASSERT_EXPR(types_eq(typeof(map), mxMap(typeof(_k), mxMap_valType(map)))); \
+    (ptrof(mxMap_valType(map))) hxmap_set((hxmap *)map, &_k, nullptr);         \
+  })
+  #define mxMap_get(map, key) ({                                               \
+    var_ _k = key;                                                             \
+    ASSERT_EXPR(types_eq(typeof(map), mxMap(typeof(_k), mxMap_valType(map)))); \
+    (ptrof(mxMap_valType(map))) hxmap_get((hxmap *)map, &_k);                  \
+  })
+  #define mxMap_deinit(map) hxmap_free(((void)(sizeof(typeof(mxMap_valType(map)))), (hxmap *)map))
 
 #endif
+#include "hhmap.h"
 
 #if defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0
   #define MY_HXMAP_C (1)
@@ -68,14 +88,14 @@ hxmap *hxmap_new(
     itypeof(hxmap, hfn) hashfn,
     itypeof(hxmap, cmp) cmpfn
 ) {
+  cap = cap ?: 8;
   assertMessage(allocator);
   assertMessage(ksize);
   assertMessage(vsize);
-  assertMessage(cap);
   var_ res = ((hxmap){
       .allocator = allocator,
-      .ksize = ksize,
-      .vsize = vsize,
+      .ksize = (u32)ksize,
+      .vsize = (u32)vsize,
       .count = 0,
       .cap = cap,
       .hfn = hashfn,

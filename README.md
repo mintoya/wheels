@@ -18,9 +18,8 @@ Some wheels im reinventing
   mList_push(list, 7);
   // null since the list isnt that long
   int *elem = mList_get(list, 10);
-  for_each_((var_ v, mList_vla(list)),{
+  foreach (var_ i,mList_iter(list))
     println("{}", v);
-  })
 ```
 # shortList 
 - the other dynamic list
@@ -44,7 +43,7 @@ Some wheels im reinventing
 ```c
   mHmap(int, int) map = mHmap_init(localArena, int, int ,8); 
   // hashmap with 8 separate chaining arrays and
-  mHmap(int, int) map = mHmap_init(localArena, int, int ,0 ,8);
+  var_ map = mHmap_init(localArena, int, int ,0 ,8);
   // hashmap with a maximum hash of 8 and linear probing
   mHmap_set(map, 1, 1);
   mHmap_set(map, 2, 4);
@@ -53,9 +52,8 @@ Some wheels im reinventing
   // null since key doesnt exist
   // also in the map otherwise
   int *six = mHmap_get(map, 6);
-  mHmap_foreach(map, int, key, int, val, {
-    println("{} -> {}", key, val);
-  });
+  foreach(var_ mapitem , mHmap_iter(map))
+    println("{} -> {}", mapitem->key, mapitem->val);
 ```
  # stringList.h
  - metadata array + char array for array of arbitrary size elements 
@@ -91,7 +89,7 @@ Some wheels im reinventing
 - fptr  : prints as hex bytes
 - isize : wrapper around usize
 - usize : main integer printer
-- f128  : no f64 yet for windows reasons, prints in scientific notation
+- f128  : no f64 yet for windows reasons
  ```c
     #include "print.h"
     #include "wheels.h"
