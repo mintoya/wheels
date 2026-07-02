@@ -16,6 +16,7 @@ typedef struct slice_u8 {
   #endif
 
 static inline fptr fptr_CS(void *cstr) { return ((fptr){(usize)strlen((char *)cstr), (u8 *)cstr}); }
+
 static inline fptr fptr_CSP(const char *cstr) { return ((fptr){(usize)strlen((char *)cstr), (u8 *)cstr}); }
 static inline fptr fptr_fromPL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
 static inline fptr fptr_PL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
@@ -24,6 +25,7 @@ static inline bool fptr_isEmpty(fptr f) {
     if (i[0]) return false;
   return true;
 }
+
 static inline bool fptr_isNull(fptr f) {
   return f.len == 0 && f.ptr == 0;
 }
@@ -59,6 +61,12 @@ static inline umax fptr_hash(fptr f) {
   return hash;
 }
 
+  #define fptr_CS(x) _Generic( \
+      x,                       \
+      fptr: fptr_fptr,         \
+      char *: fptr_CS          \
+  )(x)
+
   #ifdef __cplusplus
 static bool operator==(const fptr &a, const fptr &b) { return fptr_eq(a, b); }
 static bool operator!=(const fptr &a, const fptr &b) { return !fptr_eq(a, b); }
@@ -89,13 +97,14 @@ constexpr fptr nullFptr = {0, nullptr};
 
   #ifndef __cplusplus
 
-    #define is_comparr(x) \
-      (!__builtin_types_compatible_p(__typeof__(x), __typeof__(&(x)[0])))
+  // #define isarray(x) \
+  //   (!__builtin_types_compatible_p(__typeof__(x), __typeof__(&(x)[0])))
 
     #define fp_from(arr)              \
       _Generic(                       \
           arr,                        \
           fptr: (arr),                \
+          char *: (fptr_CS(arr)),     \
           default: (fptr){            \
               .len = sizeof(arr) - 1, \
               .ptr = (u8 *)_Generic(  \
