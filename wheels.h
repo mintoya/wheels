@@ -64,6 +64,12 @@
 #endif
 #undef MY_HXMAP_C
 
+#if defined(SXMAP_H) || defined(WHEELS_INCLUDE_ALL)
+  #define SXMAP_C (1)
+  #include "smap.h"
+#endif
+#undef SXMAP_C
+
 #if defined(MY_LIST_H) || defined(WHEELS_INCLUDE_ALL)
   #define MY_LIST_C (1)
   #include "mylist.h"

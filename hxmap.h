@@ -43,7 +43,7 @@ void *hxmap_get(
 );
 void hxmap_manage(
     hxmap *map,
-    u8 scale
+    i8 scale
 );
 void *hxmap_val_key(
     const hxmap *map,
@@ -95,7 +95,7 @@ void *hxmap_val_key(
       is._idx < ((hxmap *)is._m)->cap;                                                             \
     })
   #define FOREACH_hxmap_cast(is)                                             \
-    ((struct {void *key, *val}){                                             \
+    ((struct { void *key, *val; }){                                          \
         .key = ((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize), \
         .val = ((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize), \
     })
@@ -180,11 +180,13 @@ static inline u64 hxmap_base_hash(const hxmap *m, const void *a) {
 
 void hxmap_manage(
     hxmap *map,
-    u8 scale
+    i8 scale
 ) {
 
+  assert(scale > 0);
   var_ oc = map->cap;
   var_ nc = map->cap * scale;
+  // var_ nc = scale < 0 ? map->cap / (-scale) : map->cap * scale;
 
   var_ nv = aCreate(map->allocator, u8, map->vsize * nc);
   var_ nk = aCreate(map->allocator, u8, map->ksize * nc);
