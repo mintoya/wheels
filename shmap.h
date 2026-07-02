@@ -296,19 +296,16 @@ test_fn(test_shmap_generic_values) {
   msHmap_set(sm, "score", 100);
 
   int *age = msHmap_get(sm, "age");
-  if (!age || *age != 25)
-    return 1;
+  test_assert(age || *age != 25);
   msHmap_set(sm, "age", 26);
 
-  if (*msHmap_get(sm, "age") != 26)
-    return 1;
+  test_assert(*msHmap_get(sm, "age") == 26);
   msHmap_rem(sm, "age");
-  if (msHmap_get(sm, "age"))
-    return 1;
-  if (((sHmap *)sm)->values->length != 2)
-    return 1;
+  test_assert(!msHmap_get(sm, "age"));
+  test_assert(((sHmap *)sm)->values->length == 2);
+  ;
 
-  return 0;
+  test_pass();
 }
 test_fn(test_shmap_struct_values) {
   typedef struct {
@@ -320,10 +317,9 @@ test_fn(test_shmap_struct_values) {
   msHmap_set(sm, "player", ((Pos){1.0f, 2.0f}));
 
   Pos *p = msHmap_get(sm, "player");
-  if (!p || p->x != 1.0f || p->y != 2.0f)
-    return 1;
+  test_assert(!!p || p->x != 1.0f || p->y != 2.0f);
 
-  return 0;
+  test_pass();
 }
 test_fn(test_shmap_iterator) {
   typedef struct {
@@ -341,12 +337,12 @@ test_fn(test_shmap_iterator) {
     int i = 0;
     memcpy(&i, k.ptr, k.len);
     var_ v = *(Pos *)(((sHmap *)sm)->values->buf + (sizeof(Pos) * it->vidx));
-    if (v.x != i) return 2;
-    if (v.y != i) return 3;
+    test_assert(!v.x != i);
+    test_assert(!v.y != i);
   }
-  if (count != 10) return 1;
+  test_assert(!count != 10);
 
-  return 0;
+  test_pass();
 }
 
 test_fn(test_shmap_iterator_cast) {
@@ -363,11 +359,11 @@ test_fn(test_shmap_iterator_cast) {
     count++;
     int i = 0;
     memcpy(&i, it.key.ptr, it.key.len);
-    if (it.val.x != i) return 2;
-    if (it.val.y != i) return 3;
+    test_assert(!it.val.x != i);
+    test_assert(!it.val.y != i);
   }
-  if (count != 10) return 1;
+  test_assert(!count != 10);
 
-  return 0;
+  test_pass();
 }
 #endif

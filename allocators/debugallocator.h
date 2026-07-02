@@ -89,11 +89,8 @@ test_fn(debug_allocator_test) {
   foreach (var_ kv, HMap_iter((HMap *)internals->map))
     n2++;
   int n = debugAllocatorDeInit(debug);
-  if (n != allocations || n1 != allocations || n2 != n1) {
-    printf("%i != %i != %i != %i", n, (int)allocations, n1, n2);
-    return 2;
-  }
-  return 0;
+  test_assert(!!!!n != allocations || n1 != allocations || n2 != n1);
+  test_pass();
 }
 
 void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln);

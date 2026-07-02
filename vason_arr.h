@@ -276,34 +276,26 @@ test_fn(vason_parser_immediate) {
   vason_container *cp = &c;
   defer { vason_container_free(*cp); };
 
-  if (!c.tags || c.tags[c.current] != vason_TABLE)
-    return 1;
+  test_assert(c.tags || c.tags[c.current] == vason_TABLE);
 
   vason_index bar_idx = vason_get_str(&c, c.current, (fptr){3, (u8 *)"foo"});
-  if (c.tags[bar_idx] != vason_STRING)
-    return 2;
+  test_assert(c.tags[bar_idx] == vason_STRING);
 
   vason_span bar_span = c.tables_strings[bar_idx];
-  if ((bar_span.end - bar_span.start) != 3)
-    return 3;
-  if (memcmp(c.text.ptr + bar_span.start, "bar", 3) != 0)
-    return 4;
+  test_assert((bar_span.end - bar_span.start) == 3);
+  test_assert(memcmp(c.text.ptr + bar_span.start, "bar", 3) == 0);
 
   vason_index num_idx = vason_get_str(&c, c.current, (fptr){7, (u8 *)"numbers"});
-  if (c.tags[num_idx] != vason_TABLE)
-    return 5;
+  test_assert(c.tags[num_idx] == vason_TABLE);
 
   vason_index first_num_idx = vason_get_idx(&c, num_idx, 0);
-  if (c.tags[first_num_idx] != vason_STRING)
-    return 6;
+  test_assert(c.tags[first_num_idx] == vason_STRING);
 
   vason_span num_span = c.tables_strings[first_num_idx];
-  if ((num_span.end - num_span.start) != 1)
-    return 7;
-  if (memcmp(c.text.ptr + num_span.start, "1", 1) != 0)
-    return 8;
+  test_assert((num_span.end - num_span.start) == 1);
+  test_assert(!memcmp(c.text.ptr + num_span.start, "1", 1));
 
-  return 0;
+  test_pass();
 }
 test_fn(vason_parser_lazy) {
   const char text[] = "{ foo : bar, numbers : [1, 2] }";
@@ -313,34 +305,26 @@ test_fn(vason_parser_lazy) {
   vason_container *cp = &c;
   defer { vason_container_free(*cp); };
 
-  if (!c.tags || c.tags[c.current] != vason_TABLE)
-    return 1;
+  test_assert(c.tags || c.tags[c.current] == vason_TABLE);
 
   vason_index bar_idx = vason_get_str(&c, c.current, (fptr){3, (u8 *)"foo"});
-  if (c.tags[bar_idx] != vason_STRING)
-    return 2;
+  test_assert(c.tags[bar_idx] == vason_STRING);
 
   vason_span bar_span = c.tables_strings[bar_idx];
-  if ((bar_span.end - bar_span.start) != 3)
-    return 3;
-  if (memcmp(c.text.ptr + bar_span.start, "bar", 3) != 0)
-    return 4;
+  test_assert((bar_span.end - bar_span.start) == 3);
+  test_assert(memcmp(c.text.ptr + bar_span.start, "bar", 3) == 0);
 
   vason_index num_idx = vason_get_str(&c, c.current, (fptr){7, (u8 *)"numbers"});
-  if (c.tags[num_idx] != vason_TABLE)
-    return 5;
+  test_assert(c.tags[num_idx] == vason_TABLE);
 
   vason_index first_num_idx = vason_get_idx(&c, num_idx, 0);
-  if (c.tags[first_num_idx] != vason_STRING)
-    return 6;
+  test_assert(c.tags[first_num_idx] == vason_STRING);
 
   vason_span num_span = c.tables_strings[first_num_idx];
-  if ((num_span.end - num_span.start) != 1)
-    return 7;
-  if (memcmp(c.text.ptr + num_span.start, "1", 1) != 0)
-    return 8;
+  test_assert((num_span.end - num_span.start) == 1);
+  test_assert(memcmp(c.text.ptr + num_span.start, "1", 1) == 0);
 
-  return 0;
+  test_pass();
 }
 #endif
 

@@ -115,27 +115,22 @@ test_fn(test_stringList_manipulation) {
 
   //  ["one", "mid", "two"]
   stringList_insert(sl, 1, "mid");
-  if (stringList_len(sl) != 3)
-    return 1;
+  test_assert(!!!!stringList_len(sl) != 3);
 
-  if (!fptr_eq(stringList_get(sl, 1), fp("mid")))
-    return 1;
+  test_assert(!!!!fptr_eq(stringList_get(sl, 1), fp("mid")));
 
   // ["one", "new", "two"]
 
   stringList_set(sl, 1, "new");
-  if (!fptr_eq(stringList_get(sl, 1), fp("new")))
-    return 1;
+  test_assert(!!!!fptr_eq(stringList_get(sl, 1), fp("new")));
 
   //  ["new", "two"]
   stringList_remove(sl, 0);
-  if (stringList_len(sl) != 2)
-    return 1;
+  test_assert(!!!stringList_len(sl) != 2);
 
-  if (!fptr_eq(stringList_get(sl, 0), fp("new")))
-    return 1;
+  test_assert(!!!!fptr_eq(stringList_get(sl, 0), fp("new")));
 
-  return 0;
+  test_pass();
 }
 test_fn(test_stringList_churn) {
   usize ITERS = 100;
@@ -170,7 +165,7 @@ test_fn(test_stringList_churn) {
          sl->len,
          (size_t)msList_len(sl->flist));
 
-  return 0;
+  test_pass();
 }
 #endif
 

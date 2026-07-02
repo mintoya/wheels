@@ -72,8 +72,42 @@ void *hxmap_val_key(
   })
   #define mxMap_deinit(map) hxmap_free(((void)(sizeof(typeof(mxMap_valType(map)))), (hxmap *)map))
 
+//{hxmap(map)
+
+  #define FOREACH_hxmap_init(map_ptr) ( \
+      struct {                          \
+        typeof(map_ptr) _m;             \
+        size_t _idx;                    \
+      },                                \
+      ({                                \
+        var_ _map_eval = map_ptr;       \
+        (typeof(_foreach_._foreach_)){  \
+            ._m = _map_eval,            \
+            ._idx = 0,                  \
+        };                              \
+      })                                \
+  )
+  #define FOREACH_hxmap_increase(is) (is._idx++)
+  #define FOREACH_hxmap_valid(is)                                                                  \
+    ({                                                                                             \
+      while (is._idx < ((hxmap *)is._m)->cap && ((hxmap *)is._m)->flags[is._idx].flag != OCCUPIED) \
+        is._idx++;                                                                                 \
+      is._idx < ((hxmap *)is._m)->cap;                                                             \
+    })
+  #define FOREACH_hxmap_cast(is)                                             \
+    ((struct {void *key, *val}){                                             \
+        .key = ((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize), \
+        .val = ((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize), \
+    })
+
+  #define FOREACH_hxmap_iter    \
+    (                           \
+        FOREACH_hxmap_init,     \
+        FOREACH_hxmap_increase, \
+        FOREACH_hxmap_valid,    \
+        FOREACH_hxmap_cast)
+//}
 #endif
-#include "hhmap.h"
 
 #if defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0
   #define MY_HXMAP_C (1)
@@ -115,13 +149,13 @@ void hxmap_free(hxmap *map) {
   aFree(allocator, map->vals, map->vsize * map->cap);
   aFree(allocator, map, sizeof(*map));
 }
-inline i8 hxmap_base_cmp(const hxmap *m, const void *a, const void *b) {
+static inline i8 hxmap_base_cmp(const hxmap *m, const void *a, const void *b) {
   if (m->cmp) return m->cmp(a, b);
   int mc = memcmp(a, b, m->ksize);
   return mc < 0 ? -1 : mc > 0 ? 1
                               : 0;
 }
-inline u64 hxmap_base_hash(const hxmap *m, const void *a) {
+static inline u64 hxmap_base_hash(const hxmap *m, const void *a) {
   if (m->hfn) return m->hfn(a);
   u8(*bytes)[m->ksize] = (typeof(bytes))a;
   switch (sizeof(*bytes)) {

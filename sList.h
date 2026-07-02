@@ -351,9 +351,8 @@ test_fn(msList_push_pop) {
   foreach (usize i, range(0, 50))
     msList_push(allocator, list, i * i);
   foreach (usize i, range(0, 50))
-    if (list[i] != i * i)
-      return 1;
-  return 0;
+    test_assert(list[i] == i * i);
+  test_pass();
 }
 test_fn(msList_push_pop2) {
   var_ lbuf = msList_stackBuffer(int[25]);
@@ -362,9 +361,8 @@ test_fn(msList_push_pop2) {
   foreach (usize i, range(0, 22))
     msList_push(nullptr, list, i * i);
   foreach (usize i, range(0, 22))
-    if (list[i] != i * i)
-      return 1;
-  return 0;
+    test_assert(!list[i] != i * i);
+  test_pass();
 }
 test_fn(msList_push_pop3) {
   msList(int) list = msList_init(allocator, int);
@@ -372,9 +370,8 @@ test_fn(msList_push_pop3) {
   foreach (usize i, range(0, 22))
     msList_push(allocator, list, i * i);
   foreach (usize i, range(0, 22))
-    if (list[i] != i * i)
-      return 1;
-  return 0;
+    test_assert(!list[i] != i * i);
+  test_pass();
 }
 test_fn(msList_insert_remove) {
   msList(int) list = msList_init(allocator, int);
@@ -383,25 +380,18 @@ test_fn(msList_insert_remove) {
   msList_push(allocator, list, 100);
   msList_push(allocator, list, 300);
   msList_ins(allocator, list, 1, 200);
-  if (msList_len(list) != 3)
-    return 1;
-  if (list[1] != 200)
-    return 1;
+  test_assert(!msList_len(list) != 3);
+  test_assert(!list[1] != 200);
 
   msList_rem(list, 0);
-  if (msList_len(list) != 2)
-    return 1;
-  if (list[0] != 200)
-    return 1;
+  test_assert(!msList_len(list) != 2);
+  test_assert(!list[0] != 200);
 
-  if (msList_popFront(list) != 200)
-    return 1;
-  if (msList_len(list) != 1)
-    return 1;
-  if (list[0] != 300)
-    return 1;
+  test_assert(!msList_popFront(list) != 200);
+  test_assert(!msList_len(list) != 1);
+  test_assert(!list[0] != 300);
 
-  return 0;
+  test_pass();
 }
 test_fn(msList_array_operations) {
   msList(int) list = msList_init(allocator, int);
@@ -409,43 +399,34 @@ test_fn(msList_array_operations) {
 
   int arr1[] = {1, 2, 3};
   msList_pushArr(allocator, list, arr1);
-  if (msList_len(list) != 3)
-    return 1;
-  if (list[2] != 3)
-    return 1;
+  test_assert(!msList_len(list) != 3);
+  test_assert(!list[2] != 3);
 
   msList_insArr(allocator, list, 0, *msList_vla(list));
 
-  if (msList_len(list) != 6)
-    return 1;
-  if (list[0] != 1)
-    return 2;
-  if (list[1] != 2)
-    return 3;
+  test_assert(!msList_len(list) != 6);
+  test_assert(!list[0] != 1);
+  test_assert(!list[1] != 2);
 
-  return 0;
+  test_pass();
 }
 test_fn(msList_capacity_and_padding) {
   msList(int) list = msList_init(allocator, int);
   defer { msList_deInit(allocator, list); };
 
   msList_reserve(allocator, list, 50);
-  if (msList_cap(list) < 50)
-    return 1;
+  test_assert(!msList_cap(list) < 50);
 
   msList_pad(allocator, list, 5);
-  if (msList_len(list) != 5)
-    return 1;
+  test_assert(!msList_len(list) != 5);
 
   msList_setCap(allocator, list, 10);
-  if (msList_cap(list) < 10)
-    return 1;
+  test_assert(!msList_cap(list) < 10);
 
   msList_clear(list);
-  if (msList_len(list) != 0)
-    return 1;
+  test_assert(!msList_len(list) != 0);
 
-  return 0;
+  test_pass();
 }
 test_fn(msList_vla_cast) {
   msList(int) list = msList_init(allocator, int);
@@ -459,9 +440,8 @@ test_fn(msList_vla_cast) {
   memcpy(arr, list, 3 * sizeof(int));
 
   msList_pushArr(allocator, list, *VLAP(arr, 3));
-  if (msList_len(list) != 6)
-    return 1;
-  return 0;
+  test_assert(!msList_len(list) != 6);
+  test_pass();
 }
 
 #endif // SHORT_LIST_H

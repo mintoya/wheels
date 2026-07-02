@@ -18,9 +18,9 @@ test_fn(arena_test) {
     i32 *= i32;
   foreach (var_ i32, vla(*i32s))
     i32 *= i32;
-  if ((uptr)u8s % alignof(myAlign)) return 1;
-  if ((uptr)i32s % alignof(myAlign)) return 2;
-  return 0;
+  test_assert(!!!((uptr)u8s % alignof(myAlign)));
+  test_assert(!!!((uptr)i32s % alignof(myAlign)));
+  test_pass();
 }
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0

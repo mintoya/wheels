@@ -1,53 +1,77 @@
 #if defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0
   #define MY_TEST_FRAMEWORK_C (1)
 #endif
-
+#include <stddef.h>
 #if !defined MY_TEST_FRAMEWORK_H && !defined MY_TEST_FRAMEWORK_C
+typedef struct {
+  size_t result;
+} test_result;
   #include "allocator.h"
   #include "macros.h"
   #define MY_TEST_FRAMEWORK_H (1)
-  #define test_fn(name)                  \
-    [[maybe_unused]] int ID_CONCAT(      \
-        ID_CONCAT(                       \
-            testing_function__, __LINE__ \
-        ),                               \
-        __COUNTER__                      \
+  #define test_fn(name)                                \
+    [[maybe_unused, nodiscard]] test_result ID_CONCAT( \
+        ID_CONCAT(                                     \
+            testing_function__, __LINE__               \
+        ),                                             \
+        __COUNTER__                                    \
     )(AllocatorV allocator)
+  #define test_assert(...)              \
+    do {                                \
+      if (!(__VA_ARGS__)) {             \
+        return (test_result){__LINE__}; \
+      }                                 \
+    } while (0)
+  #define test_pass() \
+    return (test_result){0}
 #elif defined MY_TEST_FRAMEWORK_C && MY_TEST_FRAMEWORK_C == (1)
   #undef MY_TEST_FRAMEWORK_C
   #define MY_TEST_FRAMEWORK_C (2)
+typedef struct {
+  size_t result;
+} test_result;
   #include "allocator.h"
   #include "macros.h"
 
+  #define test_assert(...)              \
+    do {                                \
+      if (!(__VA_ARGS__)) {             \
+        return (test_result){__LINE__}; \
+      }                                 \
+    } while (0)
+  #define test_pass() \
+    return (test_result){0}
+
 struct testNode {
   c8 *testname;
-  fnptrof((AllocatorV), int) fn;
+  fnptrof((AllocatorV), test_result) fn;
   struct testNode *next;
-} *testList = nullptr;
+}
+    *testList = nullptr;
 
-  #define test_fn(name)                   \
-    int name(AllocatorV);                 \
-    [[gnu::constructor]] static void      \
-    name##testfunctoin##_register(void) { \
-      static struct testNode thisNode =   \
-          (typeof(thisNode)){             \
-              .testname = (char *)#name,  \
-              .fn = name,                 \
-          };                              \
-      thisNode.next = testList;           \
-      testList = &thisNode;               \
-    }                                     \
-    int name(AllocatorV allocator)
+  #define test_fn(name)                         \
+    [[nodiscard]] test_result name(AllocatorV); \
+    [[gnu::constructor]] static void            \
+    name##testfunctoin##_register(void) {       \
+      static struct testNode thisNode =         \
+          (typeof(thisNode)){                   \
+              .testname = (char *)#name,        \
+              .fn = name,                       \
+          };                                    \
+      thisNode.next = testList;                 \
+      testList = &thisNode;                     \
+    }                                           \
+    [[nodiscard]] test_result name(AllocatorV allocator)
 
 test_fn(always_pass) {
   var_ memory = &aCreate(allocator, int, 5);
   aFree(allocator, memory, sizeof(*memory));
-  return 0;
+  test_pass();
 }
-test_fn(always_fail) { return 1; }
+test_fn(always_fail) { test_assert(false); }
 test_fn(always_leak) {
   aCreate(allocator, int);
-  return 0;
+  test_pass();
 }
 
   #include "stdio.h"
@@ -73,16 +97,17 @@ int main(void) {
     var_ result = testList->fn(testAlloc);
     int leaked = debugAllocatorDeInit(testAlloc);
     printf(
-        "[%s%s] %s\t: %i\n",
-        result
+        "[%s%s] %s\t: ",
+        result.result
             ? test_RED "FAIL" test_RESET
             : test_GREEN "PASS" test_RESET,
         leaked ? test_RED ",LEAK" test_RESET : "",
-        testList->testname,
-        result
+        testList->testname
     );
+    if (result.result) printf("line : %zu\n", result.result);
+    else printf("\n");
     fflush(stdout);
-    pass += !result && !leaked;
+    pass += !(result.result) && !leaked;
     testList = testList->next;
   }
   printf("%zu tests out of %zu passed", pass, count);

@@ -288,8 +288,8 @@ test_fn(thread_function) {
     thrdfunction_await(tsa, mList_pop(list));
 
   mutex_deInit(integer);
-  if (integer.data != 5) return 1;
-  return 0;
+  test_assert(!!!!integer.data != 5);
+  test_pass();
 }
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0

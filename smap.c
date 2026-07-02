@@ -3,93 +3,99 @@
 #include "fptr.h"
 #include "hxmap.h"
 #include "macros.h"
+#include "mytypes.h"
 #include "print.h"
-#include <time.h>
+#include <string.h>
 typedef struct {
   hxmap map[1];
-} smap;
-i8 fptr_cmpfn(const void *a, const void *b) {
-  return fptr_cmp(*(const fptr *)a, *(const fptr *)b);
+  AllocatorV stringArena;
+} sxmap;
+
+u64 hashfptr(const void *a) { return fptr_hash(*(fptr *)a); }
+i8 cmpfptr(const void *a, const void *b) { return fptr_cmp(*(fptr *)a, *(fptr *)b); }
+sxmap *smap_new(AllocatorV allocator, u32 vsize, usize cap, usize arenaSize) {
+  var_ res = aCreate(allocator, sxmap);
+  var_ m =
+      hxmap_new(
+          allocator,
+          sizeof(fptr),
+          vsize,
+          cap,
+          hashfptr,
+          cmpfptr
+      );
+  defer { aFree(allocator, m, sizeof(*m)); };
+  memcpy(
+      res->map, m, sizeof(hxmap)
+  );
+  res->stringArena = arena_new_ext(allocator, arenaSize);
+  return res;
 }
-u64 fptr_hashfn(const void *f) { return fptr_hash(*(fptr *)f); }
-
-static inline fptr smap_alloc_key(AllocatorV arena, const fptr key) {
-  var_ new_ptr = (u8 *)aAlloc(arena, key.len);
-  if (new_ptr)
-    memcpy(new_ptr, key.ptr, key.len);
-  return (fptr){key.len, new_ptr};
+void smap_free(sxmap *map) {
+  var_ allocator = map->map->allocator;
+  arena_cleanup(map->stringArena);
+  aFree(allocator, map->map->flags, sizeof(*map->map->flags) * map->map->cap);
+  aFree(allocator, map->map->keys, map->map->ksize * map->map->cap);
+  aFree(allocator, map->map->vals, map->map->vsize * map->map->cap);
+  aFree(allocator, map, sizeof(*map));
 }
+void *smap_set(sxmap *map, fptr k, void *b) {
+  if (!k.len) return nullptr;
+  if (!b) return hxmap_set(map->map, &k, nullptr);
+  var_ copy = P$(
+      hxmap_get(map->map, &k),
+      ({
+        $
+            ? *(fptr *)hxmap_val_key(map->map, $)
+            : (fptr){k.len, memcpy(aCreate(map->stringArena, u8, k.len), k.ptr, k.len)};
+      })
+  );
+  return hxmap_set(map->map, &copy, b);
+}
+void *smap_get(sxmap *map, fptr k) { return hxmap_get(map->map, &k); }
+// {sxmap(map)
+#define FOREACH_sxmap_cast(is)                                                        \
+  ((struct {fptr key;void *val }){                                                                      \
+      .key = *(fptr *)(((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize)), \
+      .val = ((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize),            \
+  })
 
-static inline fptr smap_pass_key(fptr key) { return key; }
+#define FOREACH_sxmap_iter    \
+  (                           \
+      FOREACH_hxmap_init,     \
+      FOREACH_hxmap_increase, \
+      FOREACH_hxmap_valid,    \
+      FOREACH_sxmap_cast)
+//}
 
-// Natively typed, preserving the fptr signature
-#define smap(V) mxMap(fptr, V)
-
-// Create the arena and immediately use it to initialize the mxMap
-#define smap_init(alloc, V, ...) ({                                                \
-  var_ _arena = arena_new_ext(alloc, 4096);                                        \
-  mxMap_init(_arena, fptr, V, VA_SWITCH(8, __VA_ARGS__), fptr_hashfn, fptr_cmpfn); \
-})
-
-// Pull the arena right back out of the map for string allocation
-#define smap_set(map, key, val) ({ \
-  mxMap_set(map, key, val);        \
-})
-
-#define smap_get(map, key) ({ \
-  mxMap_get(map, key);        \
-})
-
-#define smap_rem(map, key) ({                                                                                    \
-  var_ _k = _Generic((key), fptr: smap_pass_key, char *: smap_pass_key_cs, const char *: smap_pass_key_cs)(key); \
-  mxMap_rem(map, _k);                                                                                            \
-})
-
-#define smap_deinit(map)                     \
-  do {                                       \
-    var_ _arena = ((hxmap *)map)->allocator; \
-    mxMap_deinit(map);                       \
-    arena_cleanup(_arena);                   \
-  } while (0)
-
-#define ITERS 10 * 1000
-int main(void) {
-
-  char *strs[ITERS];
-  for (var_ ptr = (char **)&strs[0]; ptr < (char **)&strs[ITERS]; ptr++)
-    *ptr = (char *)snprint(stdAlloc, "integer {}", (usize)(ptr - (char **)strs)).ptr;
-  var_ allocator = debugAllocator(.allocator = stdAlloc);
-  var_ c = clock();
-  {
-    defer {
-      var_ diff = clock() - c;
-      println("shmap time : {u32}", diff);
-      println("{dbga-stats}", debugAllocator_stats(allocator));
-      debugAllocatorDeInit(allocator);
-      allocator = debugAllocator(.allocator = stdAlloc);
-    };
-    msHmap(int) imap = msHmap_init(allocator, int, 16);
-    defer { msHmap_deinit(imap); };
-    foreach (var_ i, range(0, ITERS))
-      msHmap_set(imap, fp(strs[i]), i);
-    foreach (var_ i, range(0, ITERS))
-      assert(*msHmap_get(imap, fp(strs[i])) == i);
+test_fn(smap_tests) {
+  var_ map = smap_new(allocator, sizeof(int), 8, 1024);
+  defer { smap_free(map); };
+  foreach (int i, range(0, 50)) {
+    var_ str = snprint(allocator, "integer {}", i);
+    defer { slice_free(allocator, str); };
+    smap_set(map, bitcast(fptr, str), &i);
   }
-  c = clock();
-  {
-    defer {
-      var_ diff = clock() - c;
-      println("sxmap time : {u32}", diff);
-      println("{dbga-stats}", debugAllocator_stats(allocator));
-      debugAllocatorDeInit(allocator);
-      allocator = debugAllocator(.allocator = stdAlloc);
-    };
-    smap(int) imap = smap_init(allocator, int, 16);
-    defer { smap_deinit(imap); };
-    foreach (var_ i, range(0, ITERS))
-      assert(*smap_set(imap, fp(strs[i]), i) == i);
-    foreach (var_ i, range(0, ITERS))
-      assert(*smap_get(imap, fp(strs[i])) == i);
+  foreach (int i, range(0, 50)) {
+    var_ str = snprint(allocator, "integer {}", i);
+    defer { slice_free(allocator, str); };
+    assert(*(int *)smap_get(map, bitcast(fptr, str)) == i);
+    if (i % 2) smap_set(map, bitcast(fptr, str), nullptr);
   }
+  foreach (int i, range(0, 50)) {
+    var_ str = snprint(allocator, "integer {}", i);
+    defer { slice_free(allocator, str); };
+    if (!(i % 2))
+      test_assert(!!!!*(int *)smap_get(map, bitcast(fptr, str)) == i);
+    else
+      test_assert(!!!!smap_get(map, bitcast(fptr, str)));
+  }
+
+  foreach (var_ item, sxmap_iter(map)) {
+    var_ k = item.key;
+    var_ v = *(int *)item.val;
+    println("{slice(c8)} -> {}", k, v);
+  }
+  test_pass();
 }
 #include "wheels.h"

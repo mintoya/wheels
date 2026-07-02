@@ -286,7 +286,7 @@ struct HMap_inner_item HMap_get_inner_zero(const HMap *map, usize idx);
 
   #include "macros.h"
   #include "tests.h"
-static inline int HMap_test_structure(mHmap(int, int) map) {
+static inline test_result HMap_test_structure(mHmap(int, int) map) {
   defer { mHmap_deinit(map); };
 
   for (int i = 0; i < 100; i++)
@@ -294,33 +294,28 @@ static inline int HMap_test_structure(mHmap(int, int) map) {
 
   for (int i = 0; i < 100; i++) {
     int *v = mHmap_get(map, i);
-    if (!v || *v != i * 2)
-      return 1;
+    test_assert((v || *v != i * 2));
   }
   int array[100] = {};
   foreach (var_ it, mHmap_iter(map, int)) {
     array[it->key] = 1;
-    if (it->val != it->key * 2)
-      return 1;
+    test_assert((it->val == it->key * 2));
   }
   foreach (var_ i, vla(array))
-    if (!i)
-      return 1;
+    test_assert(!!i);
   for (int i = 0; i < 100; i++)
     mHmap_set(map, i, i * i);
 
   for (int i = 0; i < 100; i++) {
     int *v = mHmap_get(map, i);
-    if (!v || *v != i * i)
-      return 1;
+    test_assert(!!v || *v != i * i);
   }
 
   for (int i = 0; i < 100; i++)
     if (i % 2)
       mHmap_rem(map, i);
   for (int i = 0; i < 100; i++)
-    if (!((!!mHmap_get(map, i)) ^ i % 2))
-      return 1;
+    test_assert(!!((!!mHmap_get(map, i)) ^ i % 2));
 
   usize acount = HMap_count((HMap *)map);
   usize bcount = 0;
@@ -330,17 +325,15 @@ static inline int HMap_test_structure(mHmap(int, int) map) {
   foreach (var_ v, HMap_iter((HMap *)map))
     ccount++;
 
-  if (acount != bcount || acount != ccount)
-    return 1;
+  test_assert(!acount != bcount || acount != ccount);
 
   mHmap_clear(map);
   for (int i = 0; i < 100; i++) {
     int *v = mHmap_get(map, i);
-    if (v)
-      return 2;
+    test_assert(!v);
   }
 
-  return 0;
+  test_pass();
 }
 test_fn(HMap_open_test) {
   mHmap(int, int) map = mHmap_init(allocator, int, int, 500);
@@ -361,10 +354,9 @@ test_fn(HMap_transform_open_test) {
   HMap_manage((HMap **)&map, allocator, 128);
 
   for (int i = 0, *v; (v = mHmap_get(map, i), i < 100); i++)
-    if (!v || *v != i * 3)
-      return 1;
+    test_assert(v || *v != i * 3);
 
-  return 0;
+  test_pass();
 }
 
 #endif // HMap_H

@@ -97,9 +97,9 @@ test_fn(vason_match) {
       result
   );
   defer { vason_container_free(b); };
-  if (!vason_container_eq(a, b))
-    return 1;
-  return 0;
+  test_assert(vason_container_eq(a, b));
+
+  test_pass();
 }
 #endif
 
