@@ -62,24 +62,10 @@ fptr stringList_get(const stringList *, usize);
 fptr stringList_push(stringList *, fptr);
 fptr stringList_set(stringList *, usize, fptr);
 fptr stringList_insert(stringList *, usize, fptr);
-static inline fptr stringList_push_chars(stringList *sl, const char *cstr) {
-  return stringList_push(sl, fptr_CSP(cstr));
-}
-static inline fptr stringList_set_chars(stringList *sl, usize idx, const char *cstr) {
-  return stringList_set(sl, idx, fptr_CSP(cstr));
-}
-static inline fptr stringList_insert_chars(stringList *sl, usize idx, const char *cstr) {
-  return stringList_insert(sl, idx, fptr_CSP(cstr));
-}
 
-  #define stringList_push(stringlist, ptr) \
-    _Generic((ptr), char *: stringList_push_chars, const char *: stringList_push_chars, fptr: (stringList_push), const fptr: (stringList_push))(stringlist, ptr)
-  #define stringList_set(stringlist, idx, ptr) \
-    _Generic((ptr), char *: stringList_set_chars, const char *: stringList_set_chars, fptr: (stringList_set), const fptr: (stringList_set))(stringlist, idx, ptr)
-  #define stringList_insert(stringlist, idx, ptr)                                                                                                        \
-    _Generic((ptr), char *: stringList_insert_chars, const char *: stringList_insert_chars, fptr: (stringList_insert), const fptr: (stringList_insert))( \
-        stringlist, idx, ptr                                                                                                                             \
-    )
+  #define stringList_push(stringlist, ptr) stringList_push(stringlist, fp(ptr))
+  #define stringList_set(stringlist, idx, ptr) stringList_set(stringlist, idx, fp(ptr))
+  #define stringList_insert(stringlist, idx, ptr) stringList_insert(stringlist, idx, fp(ptr))
 
 inline stringList *stringList_copy(AllocatorV allocator, stringList *sl) {
   stringList *res = stringList_new(allocator, sl->len > 10 ? sl->len : 10);

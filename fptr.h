@@ -92,15 +92,19 @@ constexpr fptr nullFptr = {0, nullptr};
     #define is_comparr(x) \
       (!__builtin_types_compatible_p(__typeof__(x), __typeof__(&(x)[0])))
 
-    #define fp_from(arr)                           \
-      _Generic(                                    \
-          arr,                                     \
-          char *: is_comparr(arr)                  \
-              ? (fptr){sizeof(arr) - 1, (u8 *)arr} \
-              : fptr_CS(arr),                      \
-          fptr: arr                                \
+    #define fp_from(arr)              \
+      _Generic(                       \
+          arr,                        \
+          fptr: (arr),                \
+          default: (fptr){            \
+              .len = sizeof(arr) - 1, \
+              .ptr = (u8 *)_Generic(  \
+                  (arr),              \
+                  fptr: "",           \
+                  char *: (arr)       \
+              )                       \
+          }                           \
       )
-
   #else
     #include <cstring>
     #include <string>

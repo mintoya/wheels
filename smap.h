@@ -21,22 +21,9 @@ void *smap_get(sxmap *map, fptr k);
   #define msxmap_init(allocator, V, ...) (msxmap(V)) smap_new(allocator, sizeof(V), msxmap_defaults(__VA_ARGS__))
   #define msxmap_deinit(map) ((void)sizeof(msxmap_iType(map)), smap_free((sxmap *)map))
 
-  #define msxmap_toKey(key) _Generic( \
-      key,                            \
-      fptr: (key),                    \
-      default: (fptr){                \
-          .len = sizeof(key) - 1,     \
-          .ptr = (u8 *)_Generic(      \
-              (key),                  \
-              fptr: "",               \
-              default: (key)          \
-          )                           \
-      }                               \
-  )
-
-  #define msxmap_set(map, k, v) smap_set((sxmap *)map, msxmap_toKey(k), REF(msxmap_iType(map), v))
-  #define msxmap_rem(map, k) smap_set((sxmap *)map, msxmap_toKey(k), nullptr)
-  #define msxmap_get(map, k) (ptrof(msxmap_iType(map))) smap_get((sxmap *)map, msxmap_toKey(k))
+  #define msxmap_set(map, k, v) smap_set((sxmap *)map, fp(k), REF(msxmap_iType(map), v))
+  #define msxmap_rem(map, k) smap_set((sxmap *)map, fp(k), nullptr)
+  #define msxmap_get(map, k) (ptrof(msxmap_iType(map))) smap_get((sxmap *)map, fp(k))
 msxmap(int) j;
   // {sxmap(map)
   #define FOREACH_sxmap_cast(is)                                                        \
