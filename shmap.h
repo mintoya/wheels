@@ -72,7 +72,7 @@ static inline void *sHmap_set(sHmap *sh, const fptr key, void *val_ptr) {
   return sList_getRef(sh->values, sh->vwidth, sh->values->length - 1);
 }
 static inline void *sHmap_set_cs(sHmap *sh, const char *key, void *val_ptr) {
-  return sHmap_set(sh, fptr_CS((void *)key), val_ptr);
+  return sHmap_set(sh, fptr_CS((char *)key), val_ptr);
 }
 static inline isize sHmap_get(const sHmap *sh, const fptr k, usize v_width) {
   umax hash = fptr_hash(k);
@@ -88,7 +88,7 @@ static inline isize sHmap_get(const sHmap *sh, const fptr k, usize v_width) {
   return -1;
 }
 static inline isize sHmap_get_cs(const sHmap *sh, const char *key, usize v_width) {
-  return sHmap_get(sh, fptr_CS((void *)key), v_width);
+  return sHmap_get(sh, fptr_CS((char *)key), v_width);
 }
 static inline sHmap *shMap_new(AllocatorV allocator, usize size, usize buckets) {
   sHmap *res = (typeof(res))aAlloc(
