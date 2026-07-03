@@ -264,6 +264,9 @@ RangeAdapter<CIterator, CastType> as_range(CIterator it) {
 //
 
   #define var_ __auto_type
+  #if defined __cplusplus
+    #define __auto_type auto
+  #endif
 
 //
 // expect

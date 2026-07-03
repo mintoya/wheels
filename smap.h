@@ -123,7 +123,7 @@ void *smap_set(sxmap *map, fptr k, void *b) {
       ({
         $
             ? *(fptr *)hxmap_val_key(map->map, $)
-            : (fptr){k.len, memcpy(aCreate(map->stringArena, u8, k.len), k.ptr, k.len)};
+            : (fptr){k.len, (u8*)memcpy(aCreate(map->stringArena, u8, k.len), k.ptr, k.len)};
       })
   );
   return hxmap_set(map->map, &copy, b);

@@ -89,7 +89,7 @@ int main(void) {
   while (testList) {
     AllocatorV testAlloc = debugAllocator(
             .allocator = stdAlloc,
-  #if defined(LOG_ALOCATIONS)
+  #if defined(LOG_ALLOCATIONS)
             .on_call = onalloc
   #endif
     );

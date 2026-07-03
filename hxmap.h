@@ -106,7 +106,54 @@ void *hxmap_val_key(
         FOREACH_hxmap_increase, \
         FOREACH_hxmap_valid,    \
         FOREACH_hxmap_cast)
-//}
+  //}
+  #include "tests.h"
+test_fn(hxmap_tests) {
+  var_ map = mxMap_init(allocator, u32, u64);
+
+  u32 k1 = 42;
+  u64 v1 = 100;
+  mxMap_set(map, k1, v1);
+
+  var_ r1 = mxMap_get(map, k1);
+  test_assert(r1);
+  test_assert(*r1 == 100);
+  test_assert(((hxmap *)map)->count == 1);
+
+  u64 v2 = 200;
+  mxMap_set(map, k1, v2);
+  var_ r2 = mxMap_get(map, k1);
+  test_assert(r2);
+  test_assert(*r2 == 200);
+  test_assert(((hxmap *)map)->count == 1);
+
+  u32 k2 = 99;
+  var_ r3 = mxMap_get(map, k2);
+  test_assert(!r3);
+
+  mxMap_rem(map, k1);
+  var_ r4 = mxMap_get(map, k1);
+  test_assert(!r4);
+  test_assert(((hxmap *)map)->count == 0);
+
+  for (u32 i = 0; i < 1000; i++) {
+    u64 val = i * 10;
+    mxMap_set(map, i, val);
+  }
+
+  test_assert(((hxmap *)map)->count == 1000);
+  test_assert(((hxmap *)map)->cap > 1000);
+
+  foreach(u32 i , range(0 , 1000)){
+    var_ r = mxMap_get(map, i);
+    test_assert(r);
+    test_assert(*r == i * 10);
+  }
+
+  mxMap_deinit(map);
+
+  test_pass();
+}
 #endif
 
 #if defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0
