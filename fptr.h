@@ -61,12 +61,6 @@ static inline umax fptr_hash(fptr f) {
   return hash;
 }
 
-  #define fptr_CS(x) _Generic( \
-      x,                       \
-      fptr: fptr_fptr,         \
-      char *: fptr_CS          \
-  )(x)
-
   #ifdef __cplusplus
 static bool operator==(const fptr &a, const fptr &b) { return fptr_eq(a, b); }
 static bool operator!=(const fptr &a, const fptr &b) { return !fptr_eq(a, b); }
@@ -100,19 +94,24 @@ constexpr fptr nullFptr = {0, nullptr};
   // #define isarray(x) \
   //   (!__builtin_types_compatible_p(__typeof__(x), __typeof__(&(x)[0])))
 
-    #define fp_from(arr)              \
-      _Generic(                       \
-          arr,                        \
-          fptr: (arr),                \
-          char *: (fptr_CS(arr)),     \
-          default: (fptr){            \
-              .len = sizeof(arr) - 1, \
-              .ptr = (u8 *)_Generic(  \
-                  (arr),              \
-                  fptr: "",           \
-                  char *: (arr)       \
-              )                       \
-          }                           \
+    #define fp_cstr(x) (          \
+        (isArray(x)               \
+             ? (fptr){            \
+                   sizeof(x) - 1, \
+                   (u8 *)x,       \
+               }                  \
+             : (fptr){            \
+                   strlen(x),     \
+                   (u8 *)x,       \
+               })                 \
+    )
+    #define fp_c8sl(x) ((fptr){x.len, (u8 *)x.ptr})
+    #define fp_from(arr)        \
+      match_type(               \
+          arr,                  \
+          (fptr, ),             \
+          (slice(c8), fp_c8sl), \
+          (char *, fp_cstr),    \
       )
   #else
     #include <cstring>

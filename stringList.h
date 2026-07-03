@@ -91,7 +91,6 @@ struct strList {
   #endif
 
   #include "tests.h"
-
 test_fn(test_stringList_manipulation) {
   stringList *sl = stringList_new(allocator, 4);
   defer { stringList_free(sl); };
@@ -101,20 +100,20 @@ test_fn(test_stringList_manipulation) {
 
   //  ["one", "mid", "two"]
   stringList_insert(sl, 1, "mid");
-  test_assert(!!!!stringList_len(sl) != 3);
+  test_assert(stringList_len(sl) == 3);
 
-  test_assert(!!!!fptr_eq(stringList_get(sl, 1), fp("mid")));
+  test_assert(fptr_eq(stringList_get(sl, 1), fp("mid")));
 
   // ["one", "new", "two"]
 
   stringList_set(sl, 1, "new");
-  test_assert(!!!!fptr_eq(stringList_get(sl, 1), fp("new")));
+  test_assert(fptr_eq(stringList_get(sl, 1), fp("new")));
 
   //  ["new", "two"]
   stringList_remove(sl, 0);
-  test_assert(!!!stringList_len(sl) != 2);
+  test_assert(stringList_len(sl) == 2);
 
-  test_assert(!!!!fptr_eq(stringList_get(sl, 0), fp("new")));
+  test_assert(fptr_eq(stringList_get(sl, 0), fp("new")));
 
   test_pass();
 }

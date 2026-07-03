@@ -1,3 +1,4 @@
+#include <stdio.h>
 #if defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0
   #define MY_TEST_FRAMEWORK_C (1)
 #endif

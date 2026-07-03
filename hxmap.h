@@ -144,7 +144,7 @@ test_fn(hxmap_tests) {
   test_assert(((hxmap *)map)->count == 1000);
   test_assert(((hxmap *)map)->cap > 1000);
 
-  foreach(u32 i , range(0 , 1000)){
+  foreach (u32 i, range(0, 1000)) {
     var_ r = mxMap_get(map, i);
     test_assert(r);
     test_assert(*r == i * 10);
@@ -329,12 +329,12 @@ void *hxmap_get(
   var_ ks = m->ksize;
   var_ idx = hx % cap;
 
-  while (m->flags[idx].flag == OCCUPIED) {
+  while (m->flags[idx].flag != EMPTY) {
     if (
+        m->flags[idx].flag == OCCUPIED &&
         m->flags[idx].ohash == hx &&
         !hxmap_base_cmp(m, m->keys + (ks * idx), key)
-    )
-      return m->vals + (m->vsize * idx);
+    ) return m->vals + (m->vsize * idx);
     idx++;
     if (idx >= cap) idx = 0;
   }
@@ -344,7 +344,7 @@ void *hxmap_val_key(
     const hxmap *map,
     void *val
 ) {
-  usize idx = (map->vals - (u8 *)val) / map->vsize;
+  usize idx = ((u8 *)val - map->vals) / map->vsize;
   return map->keys + (idx * map->ksize);
 }
 #endif

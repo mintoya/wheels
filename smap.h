@@ -5,7 +5,6 @@
   #include "hxmap.h"
   #include "macros.h"
   #include "mytypes.h"
-  #include "print.h"
 typedef struct {
   hxmap map[1];
   AllocatorV stringArena;
@@ -52,31 +51,28 @@ msxmap(int) j;
         FOREACH_hxmap_increase, \
         FOREACH_hxmap_valid,    \
         FOREACH_msxmap_cast)
-  //}
+//}
+  #include "print.h"
   #include "tests.h"
-test_fn(smap_tests) {
+test_fn(smap_test) {
   var_ map = msxmap_init(allocator, int);
   defer { msxmap_deinit(map); };
+  char buffer[sizeof("integer ") + 10];
   foreach (int i, range(0, 50)) {
-    var_ str = snprint(allocator, "integer {}", i);
-    defer { slice_free(allocator, str); };
-    msxmap_set(map, bitcast(fptr, str), i);
+    var_ str = ((fptr){snprintf(buffer, sizeof(buffer), "integer %i", i), (u8 *)buffer});
+    msxmap_set(map, str, i);
   }
   foreach (int i, range(0, 50)) {
-    var_ str = snprint(allocator, "integer {}", i);
-    defer { slice_free(allocator, str); };
-    test_assert(*msxmap_get(map, bitcast(fptr, str)) == i);
-    if (i % 2) msxmap_rem(map, bitcast(fptr, str));
+    var_ str = ((fptr){snprintf(buffer, sizeof(buffer), "integer %i", i), (u8 *)buffer});
+    var_ m = msxmap_get(map, str);
+    test_assert(*m == i);
+    if (i % 2) msxmap_rem(map, str);
   }
   foreach (int i, range(0, 50)) {
-    var_ str = snprint(allocator, "integer {}", i);
-    defer { slice_free(allocator, str); };
-    if (!(i % 2))
-      test_assert(*msxmap_get(map, bitcast(fptr, str)) == i);
-    else
-      test_assert(!msxmap_get(map, bitcast(fptr, str)));
+    var_ str = ((fptr){snprintf(buffer, sizeof(buffer), "integer %i", i), (u8 *)buffer});
+    if (!(i % 2)) test_assert(*msxmap_get(map, str) == i);
+    else test_assert(!msxmap_get(map, str));
   }
-
   test_pass();
 }
 
@@ -123,7 +119,7 @@ void *smap_set(sxmap *map, fptr k, void *b) {
       ({
         $
             ? *(fptr *)hxmap_val_key(map->map, $)
-            : (fptr){k.len, (u8*)memcpy(aCreate(map->stringArena, u8, k.len), k.ptr, k.len)};
+            : (fptr){k.len, (u8 *)memcpy(aCreate(map->stringArena, u8, k.len), k.ptr, k.len)};
       })
   );
   return hxmap_set(map->map, &copy, b);

@@ -380,7 +380,11 @@ using arrof_t = T[len];
   #define UNQUAL(...) __typeof__(1 ? (__VA_ARGS__) : (__VA_ARGS__))
   #define itypeof(struct, member) typeof(((struct *)0)->member)
   #define ptrstype(ptr) typeof(*((typeof(ptr))NULL))
-  #define isArray(ptrable) _Generic(&ptrable, typeof(ptrable[0])(*)[]: 1, default: 0)
+  #define isArray(ptrable) _Generic( \
+      (typeof(ptrable) *)0,          \
+      typeof((ptrable)[0])(*)[]: 1,  \
+      default: 0                     \
+  )
   #include "macros/match_type.h"
   #include "macros/tu_macros.h"
 #endif
