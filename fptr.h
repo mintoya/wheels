@@ -94,17 +94,21 @@ constexpr fptr nullFptr = {0, nullptr};
   // #define isarray(x) \
   //   (!__builtin_types_compatible_p(__typeof__(x), __typeof__(&(x)[0])))
 
-    #define fp_cstr(x) (          \
-        (isArray(x)               \
-             ? (fptr){            \
-                   sizeof(x) - 1, \
-                   (u8 *)x,       \
-               }                  \
-             : (fptr){            \
-                   strlen(x),     \
-                   (u8 *)x,       \
-               })                 \
-    )
+    #if __has_builtin(__builtin_strlen)
+      #define fp_cstr(x) (                 \
+          (fptr){                          \
+              __builtin_strlen((char *)x), \
+              (u8 *)x,                     \
+          }                                \
+      )
+    #else
+      #define fp_cstr(x) (       \
+          (fptr){                \
+              strlen((char *)x), \
+              (u8 *)x,           \
+          }                      \
+      )
+    #endif
     #define fp_c8sl(x) ((fptr){x.len, (u8 *)x.ptr})
     #define fp_from(arr)        \
       match_type(               \
