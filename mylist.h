@@ -1,6 +1,5 @@
 #ifndef MY_LIST_H
 #define MY_LIST_H
-#include "assertMessage.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -91,20 +90,6 @@ __attribute__((always_inline)) static inline void List_set(List *l, List_index_t
 }
 
 /**
- * inserts element into list
- * @param l list
- * @param i index to insert
- * @param element pointer to value
- */
-void List_insert(List *l, List_index_t i, void *element, size_t width);
-/**
- * create list from array
- * @param allocator allocator
- * @param length element count
- * @reutrn new list
- */
-List *List_fromArr(AllocatorV, const void *source, size_t size, List_index_t length);
-/**
  * inserts list into list
  * @param l list
  * @param source pointer to values
@@ -112,6 +97,15 @@ List *List_fromArr(AllocatorV, const void *source, size_t size, List_index_t len
  * @return adress of first inserted element
  */
 void *List_insertFromArr(List *l, const void *source, List_index_t length, List_index_t location, size_t width);
+/**
+ * inserts element into list
+ * @param l list
+ * @param i index to insert
+ * @param element pointer to value
+ */
+static inline void List_insert(List *l, List_index_t i, void *element, size_t w) {
+  List_insertFromArr(l, element, 1, i, w);
+}
 /**
  * inserts elements into list
  * @param l list
@@ -127,17 +121,10 @@ __attribute__((pure)) static inline List_index_t List_length(const List *l) { re
 /*
  * searches for a value which has an identical value to element
  * @param list
- * @param element :pointer to list element searched
- * @return length of list if it doesnt exist
+ * @param index :index to be removed
+ * @param width :item width
  */
-static inline List_index_t List_locate(const List *l, const void *element, size_t width);
-static inline void List_remove(List *l, List_index_t i, size_t width);
-/*
- * sets all bits in space reserved to 0
- * @param list
- */
-static inline void List_zeroOut(List *l, size_t width);
-List *List_deepCopy(List *l, size_t width);
+void List_remove(List *l, List_index_t i, size_t width);
 
 #define mList(T) ptrof(fnptrof((List *), T))
 
@@ -315,7 +302,6 @@ test_fn(mlist_vla_cast) {
 
 #if defined(MY_LIST_C)
 
-// all bytes list owns
 void List_makeNew(AllocatorV allocator, List *l, size_t width, List_index_t initialSize) {
   l->length = 0;
   l->allocator = allocator;
@@ -324,56 +310,20 @@ void List_makeNew(AllocatorV allocator, List *l, size_t width, List_index_t init
                     ? allocator->size(allocator, l->head) / width
                     : initialSize;
 }
-inline List_index_t List_locate(const List *l, const void *element, size_t width) {
-  List_index_t i = 0;
-  if (element) {
-    for (; i < l->length; i++) {
-      if (!memcmp(element, List_getRef(l, i, width), width))
-        return i;
-    }
-  } else {
-    for (; i < l->length; i++) {
-      if (memchr(List_getRef(l, i, width), 0, width))
-        return i;
-    }
-  }
-  return i;
-}
-inline void List_zeroOut(List *l, size_t w) { memset(l->head, 0, w * l->capacity); }
-void List_insert(List *l, List_index_t i, void *element, size_t w) {
-  List_insertFromArr(l, element, 1, i, w);
-}
-static inline void List_remove(List *l, List_index_t i, size_t width) {
-  if (i >= l->length)
-    return;
+void List_remove(List *l, List_index_t i, size_t width) {
+  if (i >= l->length) return;
   memmove(l->head + i * width, l->head + (i + 1) * width, (l->length - i - 1) * width);
   l->length--;
 }
 void List_forceResize(List *l, List_index_t newlength, size_t width) {
-  uint8_t *newPlace =
-      (uint8_t *)aResize(l->allocator, l->head, l->capacity * width, newlength * width);
-  assertMessage(newPlace);
-  l->head = newPlace;
+  l->head = (uint8_t *)aResize(l->allocator, l->head, l->capacity * width, newlength * width);
   l->capacity = newlength;
   if (l->allocator->size)
     l->capacity = l->allocator->size(l->allocator, l->head) / width;
   l->length = (l->length < l->capacity) ? (l->length) : (l->capacity);
-  return;
-}
-List *List_fromArr(AllocatorV allocator, const void *source, size_t width, List_index_t length) {
-  List *res = (List *)aAlloc(allocator, sizeof(List));
-  width = width;
-  res->length = length;
-  res->capacity = length;
-  res->allocator = allocator;
-  res->head = (uint8_t *)aAlloc(allocator, length * width);
-  if (res && res->head && source)
-    memcpy(res->head, source, length * width);
-  return res;
 }
 void *List_insertFromArr(List *l, const void *source, List_index_t length, List_index_t location, size_t width) {
-  if (location > l->length)
-    return l;
+  if (location > l->length) return l;
 
   bool inlist =
       (u8 *)source >= l->head &&
@@ -381,8 +331,7 @@ void *List_insertFromArr(List *l, const void *source, List_index_t length, List_
 
   usize need = l->length + (inlist ? 2 * length : length);
   u8 *obuf = l->head;
-  if (l->capacity < need)
-    List_resize(l, need, width);
+  if (l->capacity < need) List_resize(l, need, width);
 
   if (inlist) {
     source = (u8 *)source - obuf + l->head;
@@ -393,14 +342,11 @@ void *List_insertFromArr(List *l, const void *source, List_index_t length, List_
   u8 *dest = l->head + location * width;
   memmove(dest + length * width, dest, (l->length - location) * width);
 
-  if (source)
-    memcpy(dest, source, length * width);
-  else
-    memset(dest, 0, length * width);
+  if (source) memcpy(dest, source, length * width);
+  else memset(dest, 0, length * width);
 
   l->length += length;
   return l;
 }
 
-List *List_deepCopy(List *l, size_t width) { return List_fromArr(l->allocator, l->head, width, l->length); }
 #endif
