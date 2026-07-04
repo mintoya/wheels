@@ -379,7 +379,8 @@ using arrof_t = T[len];
     _Generic((*((T1 *)NULL)), T2: true, default: false)
   #define UNQUAL(...) __typeof__(1 ? (__VA_ARGS__) : (__VA_ARGS__))
   #define itypeof(struct, member) typeof(((struct *)0)->member)
-  #define ptrstype(ptr) typeof(*((typeof(ptr))NULL))
+  #define ptrstype(ptr) typeof(*((typeof(ptr))nullptr))
+  #define arrstype(arr) typeof((*(typeof(arr) *)nullptr)[0])
   #define isArray(ptrable) _Generic( \
       (typeof(ptrable) *)0,          \
       typeof((ptrable)[0])(*)[]: 1,  \
