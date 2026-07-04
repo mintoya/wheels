@@ -70,12 +70,6 @@
 #endif
 #undef SXMAP_C
 
-#if defined(MY_LIST_H) || defined(WHEELS_INCLUDE_ALL)
-  #define MY_LIST_C (1)
-  #include "mylist.h"
-#endif
-#undef MY_LIST_C
-
 #include "allocators/wheels.h"
 #include "smallstreams/wheels.h"
 
@@ -90,3 +84,9 @@
   #include "assertMessage.h"
 #endif
 #undef ASSERTMESSAGE_C
+
+#if defined(MY_LIST_H) || defined(WHEELS_INCLUDE_ALL)
+  #define MY_LIST_C (1)
+  #include "mylist.h"
+#endif
+#undef MY_LIST_C

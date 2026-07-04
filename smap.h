@@ -52,7 +52,6 @@ msxmap(int) j;
         FOREACH_hxmap_valid,    \
         FOREACH_msxmap_cast)
 //}
-  #include "print.h"
   #include "tests.h"
 test_fn(smap_test) {
   var_ map = msxmap_init(allocator, int);

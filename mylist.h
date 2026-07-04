@@ -1,14 +1,14 @@
-#ifndef MY_LIST_H
-#define MY_LIST_H
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#if !defined MY_LIST_H
+  #define MY_LIST_H (1)
+  #include <stddef.h>
+  #include <stdint.h>
+  #include <stdlib.h>
+  #include <string.h>
 
-#ifndef LIST_GROW_EQ
-  #define LIST_GROW_EQ(uint) (uint + uint / 2 + 1)
-#endif
-#include "allocator.h"
+  #if !defined LIST_GROW_EQ
+    #define LIST_GROW_EQ(uint) (uint + uint / 2 + 1)
+  #endif
+  #include "allocator.h"
 
 typedef size_t List_index_t;
 typedef struct List {
@@ -126,131 +126,131 @@ __attribute__((pure)) static inline List_index_t List_length(const List *l) { re
  */
 void List_remove(List *l, List_index_t i, size_t width);
 
-#define mList(T) ptrof(fnptrof((List *), T))
+  #define mList(T) ptrof(fnptrof((List *), T))
 
-#include "macros.h"
+  #include "macros.h"
 
-#define MLIST_INIT_HELPER(allocator, T, initLength, ...) ((mList(T))List_newInitL(allocator, sizeof(T), initLength))
-#define mList_init(allocator, T, ...) \
-  MLIST_INIT_HELPER(allocator, T __VA_OPT__(, __VA_ARGS__), 2)
+  #define MLIST_INIT_HELPER(allocator, T, initLength, ...) ((mList(T))List_newInitL(allocator, sizeof(T), initLength))
+  #define mList_init(allocator, T, ...) \
+    MLIST_INIT_HELPER(allocator, T __VA_OPT__(, __VA_ARGS__), 2)
 
-#define mList_iType(list) typeof((*list)(NULL))
-#define mList_deinit(list)                              \
-  do {                                                  \
-    List_free((List *)list, sizeof(mList_iType(list))); \
-  } while (0)
+  #define mList_iType(list) typeof((*list)(NULL))
+  #define mList_deinit(list)                              \
+    do {                                                  \
+      List_free((List *)list, sizeof(mList_iType(list))); \
+    } while (0)
 
-#define mList_arr(list) (((mList_iType(list) *)(((List *)(list))->head)))
-#define mList_len(list) (((List *)(list))->length)
-#define mList_cap(list) (((List *)(list))->capacity)
-#define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
-#define mList_allocator(list) ({ ((List *)(list))->allocator; })
-#define mList_push(list, val)                        \
-  do {                                               \
-    if_unlikely (mList_len(list) >= mList_cap(list)) \
-      List_resize(                                   \
-          (List *)list,                              \
-          LIST_GROW_EQ(mList_len(list)),             \
-          sizeof(mList_iType(list))                  \
-      );                                             \
-    mList_arr(list)[mList_len(list)++] = (val);      \
-  } while (0)
+  #define mList_arr(list) (((mList_iType(list) *)(((List *)(list))->head)))
+  #define mList_len(list) (((List *)(list))->length)
+  #define mList_cap(list) (((List *)(list))->capacity)
+  #define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
+  #define mList_allocator(list) ({ ((List *)(list))->allocator; })
+  #define mList_push(list, val)                        \
+    do {                                               \
+      if_unlikely (mList_len(list) >= mList_cap(list)) \
+        List_resize(                                   \
+            (List *)list,                              \
+            LIST_GROW_EQ(mList_len(list)),             \
+            sizeof(mList_iType(list))                  \
+        );                                             \
+      mList_arr(list)[mList_len(list)++] = (val);      \
+    } while (0)
 
-#define mList_pop(list) ({            \
-  mList_arr(list)[--mList_len(list)]; \
-})
-#define mList_last(l) (mList_arr(l)[mList_len(l) - 1])
-#define mList_popFront(list)                       \
-  ({                                               \
-    mList_iType(list) result = mList_arr(list)[0]; \
-    mList_rem(list, 0);                            \
-    result;                                        \
+  #define mList_pop(list) ({            \
+    mList_arr(list)[--mList_len(list)]; \
   })
-#define mList_ins(list, index, val)                          \
-  do {                                                       \
-    mList_iType(list) value = val;                           \
-    List_insert((List *)list, index, &value, sizeof(value)); \
-  } while (0)
-#define mList_rem(list, index)                                   \
-  do {                                                           \
-    List_remove((List *)list, index, sizeof(mList_iType(list))); \
-  } while (0)
-#define mList_setCap(list, capacity) \
-  do {                               \
-    List_forceResize(                \
-        (List *)(list),              \
-        capacity,                    \
-        sizeof(mList_iType(list))    \
-    );                               \
-  } while (0)
-#define mList_reserve(list, capacity)                                 \
-  do {                                                                \
-    List_resize((List *)(list), capacity, sizeof(mList_iType(list))); \
-  } while (0)
-#define mList_pushArr(list, vla)                                  \
-  do {                                                            \
-    ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), ""); \
-    List_appendFromArr(                                           \
-        (List *)list,                                             \
-        vla,                                                      \
-        sizeof(vla) / sizeof(vla[0]),                             \
-        sizeof(vla[0])                                            \
-    );                                                            \
-  } while (0)
-#define mList_insArr(list, position, vla)                                                          \
-  do {                                                                                             \
-    ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), "");                                  \
-    List_insertFromArr((List *)list, vla, sizeof(vla) / sizeof(vla[0]), position, sizeof(vla[0])); \
-  } while (0)
-#define mList_pad(list, ammount)  \
-  do {                            \
-    List_appendFromArr(           \
-        (List *)list,             \
-        NULL,                     \
-        ammount,                  \
-        sizeof(mList_iType(list)) \
-    );                            \
-  } while (0)
-#define mList_clear(list)       \
-  do {                          \
-    ((List *)list)->length = 0; \
-  } while (0)
+  #define mList_last(l) (mList_arr(l)[mList_len(l) - 1])
+  #define mList_popFront(list)                       \
+    ({                                               \
+      mList_iType(list) result = mList_arr(list)[0]; \
+      mList_rem(list, 0);                            \
+      result;                                        \
+    })
+  #define mList_ins(list, index, val)                          \
+    do {                                                       \
+      mList_iType(list) value = val;                           \
+      List_insert((List *)list, index, &value, sizeof(value)); \
+    } while (0)
+  #define mList_rem(list, index)                                   \
+    do {                                                           \
+      List_remove((List *)list, index, sizeof(mList_iType(list))); \
+    } while (0)
+  #define mList_setCap(list, capacity) \
+    do {                               \
+      List_forceResize(                \
+          (List *)(list),              \
+          capacity,                    \
+          sizeof(mList_iType(list))    \
+      );                               \
+    } while (0)
+  #define mList_reserve(list, capacity)                                 \
+    do {                                                                \
+      List_resize((List *)(list), capacity, sizeof(mList_iType(list))); \
+    } while (0)
+  #define mList_pushArr(list, vla)                                  \
+    do {                                                            \
+      ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), ""); \
+      List_appendFromArr(                                           \
+          (List *)list,                                             \
+          vla,                                                      \
+          sizeof(vla) / sizeof(vla[0]),                             \
+          sizeof(vla[0])                                            \
+      );                                                            \
+    } while (0)
+  #define mList_insArr(list, position, vla)                                                          \
+    do {                                                                                             \
+      ASSERT_EXPR(types_eq(typeof(vla[0]), mList_iType(list)), "");                                  \
+      List_insertFromArr((List *)list, vla, sizeof(vla) / sizeof(vla[0]), position, sizeof(vla[0])); \
+    } while (0)
+  #define mList_pad(list, ammount)  \
+    do {                            \
+      List_appendFromArr(           \
+          (List *)list,             \
+          NULL,                     \
+          ammount,                  \
+          sizeof(mList_iType(list)) \
+      );                            \
+    } while (0)
+  #define mList_clear(list)       \
+    do {                          \
+      ((List *)list)->length = 0; \
+    } while (0)
 
-#define mList_toOwned(alloc, list) ({                                               \
-  AllocatorV _alloc = alloc;                                                        \
-  mList_iType(list) *_res = nullptr;                                                \
-  if (_alloc == mList_allocator(list)) {                                            \
-    _res = mList_arr(list);                                                         \
-  } else {                                                                          \
-    _res = aCreate(_alloc, mList_iType(list), mList_len(list));                     \
-    memcpy(_res, mList_arr(list), mList_len(list) * sizeof(*_res));                 \
-    aFree(mList_allocator(list), mList_arr(list), mList_cap(list) * sizeof(*_res)); \
-  }                                                                                 \
-  ((List *)list)->head = nullptr;                                                   \
-  _res;                                                                             \
-})
+  #define mList_toOwned(alloc, list) ({                                               \
+    AllocatorV _alloc = alloc;                                                        \
+    mList_iType(list) *_res = nullptr;                                                \
+    if (_alloc == mList_allocator(list)) {                                            \
+      _res = mList_arr(list);                                                         \
+    } else {                                                                          \
+      _res = aCreate(_alloc, mList_iType(list), mList_len(list));                     \
+      memcpy(_res, mList_arr(list), mList_len(list) * sizeof(*_res));                 \
+      aFree(mList_allocator(list), mList_arr(list), mList_cap(list) * sizeof(*_res)); \
+    }                                                                                 \
+    ((List *)list)->head = nullptr;                                                   \
+    _res;                                                                             \
+  })
 
-#define FOREACH_mList_init(list) ( \
-    struct {                       \
-      typeof(list) _list;          \
-      size_t _current;             \
-    },                             \
-    {list, 0}                      \
-)
-#define FOREACH_mList_increase(is) (is._current++)
-#define FOREACH_mList_valid(is) (is._current < mList_len(is._list))
-#define FOREACH_mList_cast(is) (*(is._current + mList_arr(is._list)))
+  #define FOREACH_mList_init(list) ( \
+      struct {                       \
+        typeof(list) _list;          \
+        size_t _current;             \
+      },                             \
+      {list, 0}                      \
+  )
+  #define FOREACH_mList_increase(is) (is._current++)
+  #define FOREACH_mList_valid(is) (is._current < mList_len(is._list))
+  #define FOREACH_mList_cast(is) (*(is._current + mList_arr(is._list)))
 
-#define FOREACH_mList_iter    \
-  (                           \
-      FOREACH_mList_init,     \
-      FOREACH_mList_increase, \
-      FOREACH_mList_valid,    \
-      FOREACH_mList_cast)
-//
-// test functions
-//
-#include "tests.h"
+  #define FOREACH_mList_iter    \
+    (                           \
+        FOREACH_mList_init,     \
+        FOREACH_mList_increase, \
+        FOREACH_mList_valid,    \
+        FOREACH_mList_cast)
+  //
+  // test functions
+  //
+  #include "tests.h"
 test_fn(mlist_tests) {
   mList(int) list = mList_init(allocator, int);
   defer { mList_deinit(list); };
@@ -297,11 +297,10 @@ test_fn(mlist_vla_cast) {
 #endif // MY_LIST_H
 
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-#define MY_LIST_C (1)
+  #define MY_LIST_C (1)
 #endif
 
 #if defined(MY_LIST_C)
-
 void List_makeNew(AllocatorV allocator, List *l, size_t width, List_index_t initialSize) {
   l->length = 0;
   l->allocator = allocator;
@@ -348,5 +347,4 @@ void *List_insertFromArr(List *l, const void *source, List_index_t length, List_
   l->length += length;
   return l;
 }
-
 #endif

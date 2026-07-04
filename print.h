@@ -6,7 +6,8 @@
 #include "fptr.h"
 #include "macros.h"
 #include "mytypes.h"
-#include "shmap.h"
+#include "hhmap.h"
+#include "smap.h"
 #include <locale.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -99,18 +100,18 @@ static void sn_print(
 }
 
 typedef struct {
-  msHmap(printerFunction) data;
+  msxmap(printerFunction) data;
 } PrinterSingleton_t;
 extern PrinterSingleton_t PrinterSingleton;
 
 static void PrinterSingleton_init() {
-  PrinterSingleton.data = msHmap_init(stdAlloc, printerFunction, 32);
+  PrinterSingleton.data = msxmap_init(stdAlloc, printerFunction);
 }
 static void PrinterSingleton_deInit() {
-  msHmap_deinit(PrinterSingleton.data);
+  msxmap_deinit(PrinterSingleton.data);
 }
 static void PrinterSingleton_append(fptr name, printerFunction function) {
-  msHmap_set(PrinterSingleton.data, name, function);
+  msxmap_set(PrinterSingleton.data, name, function);
 }
 
 static printerFunction PrinterSingleton_get(fptr name) {
@@ -125,16 +126,11 @@ static printerFunction PrinterSingleton_get(fptr name) {
   }
   lasttick = !lasttick;
 
-  var_ val = sHmap_find((sHmap *)PrinterSingleton.data, name);
+  var_ val = msxmap_get(PrinterSingleton.data, name);
   if (val) {
-    var_ list = (printerFunction *)(((sHmap *)PrinterSingleton.data)->values)->buf;
-    lastprinters[lasttick] = list[val[0].vidx];
-    lastnames[lasttick] =
-        stringList_get(
-            ((sHmap *)PrinterSingleton.data)->strings,
-            val[0].kidx
-        );
-    return list[val[0].vidx];
+    lastprinters[lasttick] = *val;
+    lastnames[lasttick] = *(fptr *)hxmap_val_key(((sxmap *)PrinterSingleton.data)->map, val);
+    return *val;
   }
   return (printerFunction){};
 }
