@@ -302,20 +302,20 @@ static inline test_result HMap_test_structure(mHmap(int, int) map) {
     test_assert((it->val == it->key * 2));
   }
   foreach (var_ i, vla(array))
-    test_assert(!!i);
+    test_assert(i);
   for (int i = 0; i < 100; i++)
     mHmap_set(map, i, i * i);
 
   for (int i = 0; i < 100; i++) {
     int *v = mHmap_get(map, i);
-    test_assert(!!v || *v != i * i);
+    test_assert(v || *v != i * i);
   }
 
   for (int i = 0; i < 100; i++)
     if (i % 2)
       mHmap_rem(map, i);
   for (int i = 0; i < 100; i++)
-    test_assert(!!((!!mHmap_get(map, i)) ^ i % 2));
+    test_assert((!!mHmap_get(map, i)) ^ i % 2);
 
   usize acount = HMap_count((HMap *)map);
   usize bcount = 0;
@@ -325,7 +325,7 @@ static inline test_result HMap_test_structure(mHmap(int, int) map) {
   foreach (var_ v, HMap_iter((HMap *)map))
     ccount++;
 
-  test_assert(!acount != bcount || acount != ccount);
+  test_assert(acount == bcount);
 
   mHmap_clear(map);
   for (int i = 0; i < 100; i++) {
