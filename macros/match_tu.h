@@ -17,11 +17,11 @@
     };                                               \
   } TUPLE_EXPAND_A(tagged_union)
 
-#define tu_void_toi(...)               \
-  _Generic(                            \
-      (typeof(({ __VA_ARGS__; }))){},  \
-      void: ((({ __VA_ARGS__; }), 0)), \
-      default: ({ __VA_ARGS__; })      \
+#define tu_void_toi(...)                     \
+  _Generic(                                  \
+      (typeof(({ __VA_ARGS__; })) *)nullptr, \
+      void *: ((({ __VA_ARGS__; }), 0)),     \
+      default: ({ __VA_ARGS__; })            \
   )
 #define tu_match_case_type(variable, tuple)                     \
   typeof IF_IS1(                                                \
