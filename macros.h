@@ -331,11 +331,14 @@ using arrof_t = T[len];
   #define itypeof(struct, member) typeof(((struct *)0)->member)
   #define ptrstype(ptr) typeof(*(typeof(ptr))nullptr)
   #define arrstype(arr) typeof((*(typeof(arr) *)nullptr)[0])
-  #define isArray(ptrable) _Generic( \
-      (typeof(ptrable) *)0,          \
-      typeof((ptrable)[0])(*)[]: 1,  \
-      default: 0                     \
-  )
+  #if __has_builtin(__builtin_types_compatible_p)
+    #define IS_CTARRAY(x) \
+      (!__builtin_types_compatible_p(typeof(x), typeof(1 ? (x) : (x))))
+  #else
+    #pragma GCC warning "using array fallback"
+    #define IS_CTARRAY(x) (0)
+  #endif
+  #define isArray(a) IS_CTARRAY(a)
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
   #include "macros/match_type.h"
   #include "macros/tu_macros.h"

@@ -71,6 +71,7 @@ inline stringList *stringList_copy(AllocatorV allocator, stringList *sl) {
   stringList *res = stringList_new(allocator, sl->len > 10 ? sl->len : 10);
   foreach (usize i, range(0, stringList_len(sl)))
     stringList_push(res, stringList_get(sl, i));
+
   return res;
 }
   #if defined __cplusplus

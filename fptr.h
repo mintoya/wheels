@@ -91,31 +91,30 @@ constexpr fptr nullFptr = {0, nullptr};
 
   #ifndef __cplusplus
 
-  // #define isarray(x) \
-  //   (!__builtin_types_compatible_p(__typeof__(x), __typeof__(&(x)[0])))
 
-    #if __has_builtin(__builtin_strlen)
-      #define fp_cstr(x) (                 \
-          (fptr){                          \
-              __builtin_strlen((char *)x), \
-              (u8 *)x,                     \
-          }                                \
-      )
-    #else
-      #define fp_cstr(x) (       \
-          (fptr){                \
-              strlen((char *)x), \
-              (u8 *)x,           \
-          }                      \
-      )
-    #endif
-    #define fp_c8sl(x) ((fptr){x.len, (u8 *)x.ptr})
-    #define fp_from(arr)        \
-      match_type(               \
-          arr,                  \
-          (fptr, ),             \
-          (slice(c8), fp_c8sl), \
-          (char *, fp_cstr),    \
+    #define fp_from(it)                \
+      match_type_e(                    \
+          it,                          \
+          (fptr, _f, _f;),             \
+          (                            \
+              slice(c8),               \
+              _sl,                     \
+              (fptr){                  \
+                  _sl.len,             \
+                  (u8 *)_sl.ptr,       \
+              };                       \
+          ),                           \
+          (                            \
+              char *,                  \
+              _s,                      \
+              (fptr){                  \
+                  isArray(it)       \
+                      ? sizeof(it) - 1 \
+                      : strlen(_s),    \
+                  (u8 *)_s             \
+              };                       \
+                                       \
+          ),                           \
       )
   #else
     #include <cstring>
