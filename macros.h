@@ -144,6 +144,8 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define TUPLE_B(name, func) func
   #define TUPLE_FIRST(a, ...) a
   #define TUPLE_REST(a, ...) __VA_ARGS__
+  #define TUPLE_EXPAND_FIRST(t) TUPLE_FIRST t
+  #define TUPLE_EXPAND_REST(t) TUPLE_REST t
   #define TUPLE_EXPAND_A(tuple) TUPLE_A tuple
   #define TUPLE_EXPAND_B(tuple) TUPLE_B tuple
   #define REM_PAREN(...) __VA_ARGS__
@@ -189,7 +191,6 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define ASSERT_EXPR(cond, ...) \
     ((void)((int)sizeof(char[1 - 2 * !(cond)])))
   #define STR_H(...) #__VA_ARGS__
-  #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
 
   #define VA_SWITCH_SEL(a, ...) REM_PAREN a
   #define VA_SWITCH(first, ...) VA_SWITCH_SEL(__VA_OPT__((__VA_ARGS__), )(first))
@@ -197,67 +198,16 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define VA_SWITCH_REMP_HELPER(...) REM_PAREN __VA_ARGS__
   #define VA_SWITCH_REMP(first, ...) VA_SWITCH_REMP_HELPER(VA_SWITCH_SEL(__VA_OPT__((__VA_ARGS__), )(first)))
 
+  #define IF_IS1_HELP_1 a, b
+  #define IF_ISL2(a, b, c, d, ...) c
+  #define IF_ISL1(tok, then, ...) IF_ISL2(tok, then, __VA_ARGS__, a, b, c, d)
+
+  #define IF_IS1(tok, then, otherwise) \
+    IF_ISL1(ID_CONCAT(IF_IS1_HELP_, tok), then, otherwise)
 //
 // loops
 //
   #include "macros/foreach3.h"
-
-  #if defined(__cplusplus)
-template <typename CIterator, typename CastType = void>
-struct RangeAdapter {
-  CIterator c_iter;
-  explicit RangeAdapter(CIterator it) : c_iter(it) {}
-
-  struct Sentinel {};
-
-  struct Iterator {
-    CIterator *ptr;
-
-    explicit Iterator(CIterator *p) : ptr(p) {}
-
-    // Deduce native type, or use CastType if specified
-    using ReturnType = std::conditional_t<
-        std::is_same_v<CastType, void>,
-        decltype(ptr->state->current),
-        CastType>;
-
-    ReturnType operator*() const {
-      if constexpr (std::is_same_v<CastType, void>) {
-        return ptr->state->current;
-      } else {
-        return (CastType)(ptr->state->current);
-      }
-    }
-
-    Iterator &operator++() {
-      if (ptr->valid(ptr->state)) {
-        ptr->next(ptr->state);
-      }
-      return *this;
-    }
-
-    bool operator!=(Sentinel) const {
-      return ptr->valid(ptr->state);
-    }
-  };
-
-  Iterator begin() {
-    return Iterator(&c_iter);
-  }
-
-  Sentinel end() const {
-    return Sentinel{};
-  }
-};
-template <typename CastType = void, typename CIterator>
-RangeAdapter<CIterator, CastType> as_range(CIterator it) {
-  return RangeAdapter<CIterator, CastType>(it);
-}
-    #define cpp_iterator_helper(iterator, type) \
-      as_range<type>(iterator)
-    #define cpp_iterator(...) \
-      cpp_iterator_helper(__VA_ARGS__)
-  #endif
 
 //
 // var
@@ -379,13 +329,14 @@ using arrof_t = T[len];
     _Generic((*((T1 *)NULL)), T2: true, default: false)
   #define UNQUAL(...) __typeof__(1 ? (__VA_ARGS__) : (__VA_ARGS__))
   #define itypeof(struct, member) typeof(((struct *)0)->member)
-  #define ptrstype(ptr) typeof(*((typeof(ptr))nullptr))
+  #define ptrstype(ptr) typeof(*(typeof(ptr))nullptr)
   #define arrstype(arr) typeof((*(typeof(arr) *)nullptr)[0])
   #define isArray(ptrable) _Generic( \
       (typeof(ptrable) *)0,          \
       typeof((ptrable)[0])(*)[]: 1,  \
       default: 0                     \
   )
+  #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
   #include "macros/match_type.h"
   #include "macros/tu_macros.h"
 #endif
