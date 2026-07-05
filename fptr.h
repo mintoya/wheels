@@ -91,28 +91,27 @@ constexpr fptr nullFptr = {0, nullptr};
 
   #ifndef __cplusplus
 
-
     #define fp_from(it)                \
-      match_type_e(                    \
+      match_type(                      \
           it,                          \
-          (fptr, _f, _f;),             \
+          (fptr, _f, _f),              \
           (                            \
               slice(c8),               \
               _sl,                     \
               (fptr){                  \
                   _sl.len,             \
                   (u8 *)_sl.ptr,       \
-              };                       \
+              }                        \
           ),                           \
           (                            \
               char *,                  \
               _s,                      \
               (fptr){                  \
-                  isArray(it)       \
+                  isArray(it)          \
                       ? sizeof(it) - 1 \
                       : strlen(_s),    \
                   (u8 *)_s             \
-              };                       \
+              }                        \
                                        \
           ),                           \
       )
