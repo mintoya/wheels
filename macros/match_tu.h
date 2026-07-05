@@ -23,18 +23,18 @@
       void *: ((({ __VA_ARGS__; }), 0)),     \
       default: ({ __VA_ARGS__; })            \
   )
-#define tu_match_case_type(variable, tuple)                     \
-  typeof IF_IS1(                                                \
-      ID_CONCAT(tu_match_, TUPLE_EXPAND_FIRST(tuple)),          \
-      ({ tu_void_toi(TUPLE_EXPAND_REST(tuple)); }),             \
-      ({                                                        \
-        tu_void_toi(                                            \
-            TUPLE_EXPAND_FIRST(tuple)                      /**/ \
-            TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
-            = variable.TUPLE_EXPAND_FIRST(tuple);               \
-            TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)))       \
-        );                                                      \
-      })                                                        \
+#define tu_match_case_type(variable, tuple)                         \
+  typeof IF_IS1(                                                    \
+      ID_CONCAT(tu_match_, TUPLE_EXPAND_FIRST(tuple)),              \
+      ({ tu_void_toi(TUPLE_EXPAND_REST(tuple)); }),                 \
+      ({                                                            \
+        tu_void_toi(                                                \
+            var_                                                    \
+                TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
+            = variable.TUPLE_EXPAND_FIRST(tuple);                   \
+            TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)))           \
+        );                                                          \
+      })                                                            \
   )
 
 #define tu_ignore_assign(variable, value)                \
@@ -54,26 +54,26 @@
   } while (0)
 
 #define tu_match_default 1
-#define tu_match_case(variable, tuple)                              \
-  REM_PAREN IF_IS1(                                                 \
-      ID_CONCAT(tu_match_, TUPLE_EXPAND_FIRST(tuple)),              \
-      (default : {                                                  \
-        tu_ignore_assign(                                           \
-            _result,                                                \
-            tu_void_toi(TUPLE_EXPAND_REST(tuple))                   \
-        );                                                          \
-      } break;),                                                    \
-      (case (TU_TAG(TUPLE_EXPAND_FIRST(tuple))) : {                 \
-        tu_ignore_assign(                                           \
-            _result,                                                \
-            tu_void_toi(                                            \
-                TUPLE_EXPAND_FIRST(tuple)                      /**/ \
-                TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
-                = variable.TUPLE_EXPAND_FIRST(tuple);               \
-                TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)))       \
-            )                                                       \
-        );                                                          \
-      } break;)                                                     \
+#define tu_match_case(variable, tuple)                                  \
+  REM_PAREN IF_IS1(                                                     \
+      ID_CONCAT(tu_match_, TUPLE_EXPAND_FIRST(tuple)),                  \
+      (default : {                                                      \
+        tu_ignore_assign(                                               \
+            _result,                                                    \
+            tu_void_toi(TUPLE_EXPAND_REST(tuple))                       \
+        );                                                              \
+      } break;),                                                        \
+      (case (TU_TAG(TUPLE_EXPAND_FIRST(tuple))) : {                     \
+        tu_ignore_assign(                                               \
+            _result,                                                    \
+            tu_void_toi(                                                \
+                var_                                                    \
+                    TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
+                = variable.TUPLE_EXPAND_FIRST(tuple);                   \
+                TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)))           \
+            )                                                           \
+        );                                                              \
+      } break;)                                                         \
   )
 #define tu_match(variable, first, ...)                                  \
   ({                                                                    \
