@@ -1,30 +1,30 @@
 #define TU_TAG(type) ID_CONCAT(type, _enum)
 
 #define TU_ENUM(type_d) TU_TAG(TUPLE_FIRST type_d),
-#define TU_TDEF(type_d) typedef TUPLE_REST type_d TUPLE_FIRST type_d;
-#define TU_UMEM(type_d) TUPLE_EXPAND_A(type_d) TUPLE_EXPAND_A(type_d);
+#define TU_TDEF(type_d) typedef TUPLE_EXPAND_REST(type_d) TUPLE_EXPAND_FIRST(type_d);
+#define TU_UMEM(type_d) TUPLE_EXPAND_FIRST(type_d) TUPLE_EXPAND_FIRST(type_d);
 
-#define tu_def(tagged_union, ...)                    \
-  typedef enum : TUPLE_EXPAND_B(tagged_union){       \
-      APPLY_N(TU_ENUM, __VA_ARGS__)                  \
-  } ID_CONCAT(_enum_, TUPLE_EXPAND_A(tagged_union)); \
-  APPLY_N(TU_TDEF, __VA_ARGS__)                      \
-  typedef struct TUPLE_EXPAND_A(tagged_union) {      \
-    ID_CONCAT(_enum_, TUPLE_EXPAND_A(tagged_union))  \
-    tag;                                             \
-    union {                                          \
-      APPLY_N(TU_UMEM, __VA_ARGS__)                  \
-    };                                               \
-  } TUPLE_EXPAND_A(tagged_union)
+#define tu_def(tagged_union, ...)                        \
+  typedef enum : TUPLE_EXPAND_B(tagged_union){           \
+      APPLY_N(TU_ENUM, __VA_ARGS__)                      \
+  } ID_CONCAT(_enum_, TUPLE_EXPAND_FIRST(tagged_union)); \
+  APPLY_N(TU_TDEF, __VA_ARGS__)                          \
+  typedef struct TUPLE_EXPAND_FIRST(tagged_union) {      \
+    ID_CONCAT(_enum_, TUPLE_EXPAND_FIRST(tagged_union))  \
+    tag;                                                 \
+    union {                                              \
+      APPLY_N(TU_UMEM, __VA_ARGS__)                      \
+    };                                                   \
+  } TUPLE_EXPAND_FIRST(tagged_union)
 
-#define tu_void_toi(...)                     \
-  _Generic(                                  \
-      (typeof(({ __VA_ARGS__; })) *)nullptr, \
-      void *: ((({ __VA_ARGS__; }), 0)),     \
-      default: ({ __VA_ARGS__; })            \
+#define tu_void_toi(...)                         \
+  _Generic(                                      \
+      (typeof(({ __VA_ARGS__; })) *)nullptr,     \
+      void *: ((({ __VA_ARGS__; }), nothing_v)), \
+      default: ({ __VA_ARGS__; })                \
   )
 #define tu_match_case_type(variable, tuple)                         \
-  typeof IF_IS1(                                                    \
+  typeof(IF_IS1(                                                    \
       ID_CONCAT(tu_match_, TUPLE_EXPAND_FIRST(tuple)),              \
       ({ tu_void_toi(TUPLE_EXPAND_REST(tuple)); }),                 \
       ({                                                            \
@@ -35,7 +35,7 @@
             TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)))           \
         );                                                          \
       })                                                            \
-  )
+  ))
 
 #define tu_ignore_assign(variable, value)                \
   do {                                                   \
