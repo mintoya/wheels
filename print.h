@@ -4,9 +4,9 @@
 #include "allocator.h"
 #include "assertMessage.h"
 #include "fptr.h"
+#include "hhmap.h"
 #include "macros.h"
 #include "mytypes.h"
-#include "hhmap.h"
 #include "smap.h"
 #include <locale.h>
 #include <stdint.h>
@@ -282,7 +282,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(_slice_c8_printerfn, "slice(c8)", slice(c8), {
 });
 
 REGISTER_PRINTER(c8, { PUTC(in); });
-REGISTER_SPECIAL_PRINTER("cstr", char *, {
+REGISTER_PRINTER(cstr, {
   in = in ?: (char *)"__NULLCSTR__";
   while (*in)
     PUTC(*in++);

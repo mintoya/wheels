@@ -19,7 +19,7 @@
 
 #define tu_void_toi(...)                         \
   _Generic(                                      \
-      (typeof(({ __VA_ARGS__; })) *)nullptr,     \
+      (typeof(({ __VA_ARGS__; })) *)0,     \
       void *: ((({ __VA_ARGS__; }), nothing_v)), \
       default: ({ __VA_ARGS__; })                \
   )
