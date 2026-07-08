@@ -149,6 +149,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define TUPLE_EXPAND_A(tuple) TUPLE_A tuple
   #define TUPLE_EXPAND_B(tuple) TUPLE_B tuple
   #define REM_PAREN(...) __VA_ARGS__
+  #define REMOVE_PARENS(...) REM_PAREN __VA_ARGS__
   #define TUPLE_PUSH_TRAILING_COMMA(...) (__VA_OPT__(__VA_ARGS__, ))
   #define TUPLE_PUSH(tuple, a) (MACRO_EXPAND(REM_PAREN TUPLE_PUSH_TRAILING_COMMA tuple a))
 
@@ -340,6 +341,6 @@ using arrof_t = T[len];
   #endif
   #define isArray(a) IS_CTARRAY(a)
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
-  #include "macros/match_type.h"
   #include "macros/match_tu.h"
+  #include "macros/match_type.h"
 #endif

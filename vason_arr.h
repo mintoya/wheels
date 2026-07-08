@@ -40,13 +40,12 @@ vason_container vason_container_create(slice(c8) text, AllocatorV allocator);
 void vason_container_free(vason_container container);
 usize vason_container_footprint(vason_container c);
 
-  // #include "tests.c"
+  // #include "print.h"
   #if defined(MY_PRINTER_H)
-    #include "print.h"
-REGISTER_PRINTER(vason_container, {
+typePrinter(vason_container) {
   if (in.current >= msList_len(in.tags) || in.tags[in.current] & vason_INVALID) {
     PUTS("(!)");
-    goto end;
+    return;
   } else if (in.tags[in.current] & vason_UNPARSED) {
     PUTS("(?");
     switch (in.tags[in.current] ^ vason_UNPARSED) {
@@ -63,7 +62,7 @@ REGISTER_PRINTER(vason_container, {
         PUTS("s)");
         break;
     }
-    goto end;
+    return;
   }
   switch (in.tags[in.current]) {
     case vason_INVALID:
@@ -97,8 +96,7 @@ REGISTER_PRINTER(vason_container, {
       PUTS("}");
     } break;
   }
-end:
-});
+}
   #endif
 
 // referance requred since lazy containers modify tehmselves

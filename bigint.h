@@ -82,7 +82,7 @@ NAMESPACE_STRUCT(
 );
 
   #if defined(MY_PRINTER_H)
-REGISTER_PRINTER(bigint, {
+typePrinter(bigint) {
   args = printer_arg_trim(args);
   bool debug = fptr_eq(args, fp("dbg"));
   bool normal = !debug;
@@ -166,7 +166,7 @@ REGISTER_PRINTER(bigint, {
     } else
       PUTS("0");
   }
-});
+}
   #endif
 
 #endif

@@ -106,7 +106,7 @@ struct debugStats debugAllocator_stats(AllocatorV allocator) {
       .total_calls = internals.total,
   };
 }
-REGISTER_SPECIAL_PRINTER_NEEDID(print_debug_stats, "dbga-stats", struct debugStats, {
+typePrinter("dbga-stats", struct debugStats) {
   PUTS("{max storage: ");
   USETYPEPRINTER(usize, in.max_memory);
   PUTS(",");
@@ -119,7 +119,7 @@ REGISTER_SPECIAL_PRINTER_NEEDID(print_debug_stats, "dbga-stats", struct debugSta
   PUTS("total calls : ");
   USETYPEPRINTER(usize, in.total_calls);
   PUTS("}");
-});
+}
 AllocatorV debugAllocatorInit(struct dbgAlloc_config config) {
   AllocatorV allocator = config.allocator;
   Debug_allocator_block *res = aCreate(allocator, Debug_allocator_block);
