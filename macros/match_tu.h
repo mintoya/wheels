@@ -19,7 +19,7 @@
 
 #define tu_void_toi(...)                         \
   _Generic(                                      \
-      (typeof(({ __VA_ARGS__; })) *)0,     \
+      (typeof(({ __VA_ARGS__; })) *)0,           \
       void *: ((({ __VA_ARGS__; }), nothing_v)), \
       default: ({ __VA_ARGS__; })                \
   )
@@ -37,20 +37,22 @@
       })                                                            \
   ))
 
-#define tu_ignore_assign(variable, value)                \
-  do {                                                   \
-    var_ _eval = value;                                  \
-    _Static_assert(                                      \
-        types_eq(                                        \
-            typeof(_eval), typeof(variable)              \
-        ),                                               \
-        "result types in match statements have to match" \
-    );                                                   \
-    variable = _Generic(                                 \
-        variable,                                        \
-        typeof(_eval): _eval,                            \
-        default: (typeof(variable)){}                    \
-    );                                                   \
+#define STRFRYE(x) #x
+#define STRFRY(x) STRFRYE(x)
+#define tu_ignore_assign(variable, value, type)      \
+  do {                                               \
+    var_ _eval = value;                              \
+    _Static_assert(                                  \
+        types_eq(                                    \
+            typeof(_eval), typeof(variable)          \
+        ),                                           \
+        "result type doesnt match for " STRFRY(type) \
+    );                                               \
+    variable = _Generic(                             \
+        variable,                                    \
+        typeof(_eval): _eval,                        \
+        default: (typeof(variable)){}                \
+    );                                               \
   } while (0)
 
 #define tu_match_default 1
@@ -60,7 +62,8 @@
       (default : {                                                      \
         tu_ignore_assign(                                               \
             _result,                                                    \
-            tu_void_toi(TUPLE_EXPAND_REST(tuple))                       \
+            tu_void_toi(TUPLE_EXPAND_REST(tuple)),                      \
+            default                                                     \
         );                                                              \
       } break;),                                                        \
       (case (TU_TAG(TUPLE_EXPAND_FIRST(tuple))) : {                     \
@@ -71,7 +74,8 @@
                     TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
                 = variable.TUPLE_EXPAND_FIRST(tuple);                   \
                 TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)))           \
-            )                                                           \
+            ),                                                          \
+            TUPLE_EXPAND_FIRST(tuple)                                   \
         );                                                              \
       } break;)                                                         \
   )

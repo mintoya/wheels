@@ -35,6 +35,7 @@ static inline usize sentList_length(void *items, usize unit) {
     ;
   return res;
 }
+  #define sentList_len(l) sentList_length(l, sizeof(*l))
 
 static inline int fptr_cmp(const fptr a, const fptr b) {
   return a.len - b.len

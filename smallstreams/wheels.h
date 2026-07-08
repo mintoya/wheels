@@ -1,4 +1,4 @@
-#if defined(MY_FILES_H) || defined(WHEELS_INCLUDE_ALL)
+#if defined(MY_FILES_H) || defined(WHEELS_INCLUDE_ALL)  && !defined(MY_FILES_C)
   #define MY_FILES_C (1)
   #include "smallfiles.h"
 #endif
