@@ -145,7 +145,7 @@ void List_remove(List *l, List_index_t i, size_t width);
   #define mList_cap(list) (((List *)(list))->capacity)
   #define mList_vla(list) ((typeof(typeof(mList_iType(list)))(*)[mList_len(list)])mList_arr(list))
   #define mList_allocator(list) ({ ((List *)(list))->allocator; })
-  #define mList_push(list, val)                        \
+  #define mList_push(list, ...)                        \
     do {                                               \
       if_unlikely (mList_len(list) >= mList_cap(list)) \
         List_resize(                                   \
@@ -153,7 +153,8 @@ void List_remove(List *l, List_index_t i, size_t width);
             LIST_GROW_EQ(mList_len(list)),             \
             sizeof(mList_iType(list))                  \
         );                                             \
-      mList_arr(list)[mList_len(list)++] = (val);      \
+      mList_arr(list)[mList_len(list)++] =             \
+          (mList_iType(list))__VA_ARGS__;              \
     } while (0)
 
   #define mList_pop(list) ({            \
