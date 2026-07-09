@@ -265,18 +265,18 @@ test_fn(mlist_tests) {
   foreach (usize i, range(0, 25))
     mList_rem(list, i);
 
-  test_assert(!!!(mList_len(list) != 25));
+  test_assert(mList_len(list) == 25);
 
   foreach (var_ v, mList_iter(list))
-    test_assert(!!!!(v % 2));
+    test_assert(v % 2);
 
   foreach (usize i, range(0, 50, 2))
     mList_ins(list, i, i * i);
 
-  test_assert(!!!(mList_len(list) != 50));
+  test_assert(mList_len(list) == 50);
 
   foreach (usize i, range(0, 50))
-    test_assert(!!!(mList_arr(list)[i] != i * i));
+    test_assert(mList_arr(list)[i] == i * i);
   test_pass();
 }
 test_fn(mlist_vla_cast) {
@@ -289,9 +289,9 @@ test_fn(mlist_vla_cast) {
   defer { aFree(allocator, arr, sizeof(*arr)); };
   memcpy(arr, mList_arr(list), sizeof(*arr));
   mList_pushArr(list, *arr);
-  test_assert(!!!(mList_len(list) != 6));
-  test_assert(!!!memcmp(mList_arr(list), arr, sizeof(*arr)));
-  test_assert(!!!memcmp(mList_arr(list), mList_arr(list) + 3, sizeof(*arr)));
+  test_assert(mList_len(list) == 6);
+  test_assert(!memcmp(mList_arr(list), arr, sizeof(*arr)));
+  test_assert(!memcmp(mList_arr(list), mList_arr(list) + 3, sizeof(*arr)));
   test_pass();
 }
 

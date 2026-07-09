@@ -88,18 +88,18 @@ test_fn(file_stream_seek_append) {
   wflags.mode.truncate = 1;
 
   sstream stream = file_stream_open(allocator, test_file, wflags);
-  test_assert(!!!!stream);
+  test_assert(stream);
 
   sPutsf(stream, fp("AABBCC"));
   sSeekf(stream, 2);
   sPutsf(stream, fp("DD"));
 
-  test_assert(!!!sTellf(stream) != 4);
+  test_assert(sTellf(stream) == 4);
 
   sSeekf(stream, 0);
   u8 buf[8] = {0};
   sGetsf(stream, (fptr){6, buf});
-  test_assert(!!!memcmp(buf, "AADDCC", 6));
+  test_assert(!memcmp(buf, "AADDCC", 6));
 
   file_stream_close(allocator, stream);
 
@@ -109,13 +109,13 @@ test_fn(file_stream_seek_append) {
   aflags.mode.append = 1;
 
   sstream astream = file_stream_open(allocator, test_file, aflags);
-  test_assert(!!!!astream);
+  test_assert(astream);
 
   sPutsf(astream, fp("EE"));
 
   sSeekf(astream, 0);
   sGetsf(astream, (fptr){8, buf});
-  test_assert(!!!memcmp(buf, "AADDCCEE", 8));
+  test_assert(!memcmp(buf, "AADDCCEE", 8));
 
   file_stream_close(allocator, astream);
   remove(test_file);

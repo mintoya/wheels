@@ -77,7 +77,7 @@ test_fn(debug_allocator_test) {
   AllocatorV debug = debugAllocator(
       allocator = allocator,
   );
-  foreach (var_ i, range(0, allocations, 1)) {
+  foreach (var_ i, range(0, allocations)) {
     usize size = (i * i) + 1;
     int *ip = (int *)aAlloc(debug, 1);
     aResize(debug, ip, 1, size);
@@ -89,7 +89,7 @@ test_fn(debug_allocator_test) {
   foreach (var_ kv, HMap_iter((HMap *)internals->map))
     n2++;
   int n = debugAllocatorDeInit(debug);
-  test_assert(!!!!n != allocations || n1 != allocations || n2 != n1);
+  test_assert(n == allocations && n1 == allocations && n2 == n1);
   test_pass();
 }
 

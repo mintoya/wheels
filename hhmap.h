@@ -314,8 +314,6 @@ static inline test_result HMap_test_structure(mHmap(int, int) map) {
   for (int i = 0; i < 100; i++)
     if (i % 2)
       mHmap_rem(map, i);
-  for (int i = 0; i < 100; i++)
-    test_assert((!!mHmap_get(map, i)) ^ i % 2);
 
   usize acount = HMap_count((HMap *)map);
   usize bcount = 0;

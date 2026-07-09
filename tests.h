@@ -63,7 +63,6 @@ test_fn(always_pass) {
   test_pass();
 }
 test_fn(always_fail) { test_assert(false); }
-test_fn(always_fail2) { test_assert(1 && !1); }
 test_fn(always_leak) {
   aCreate(allocator, int);
   test_pass();

@@ -317,7 +317,7 @@ test_fn(test_shmap_struct_values) {
   msHmap_set(sm, "player", ((Pos){1.0f, 2.0f}));
 
   Pos *p = msHmap_get(sm, "player");
-  test_assert(!!p || p->x != 1.0f || p->y != 2.0f);
+  test_assert(p && p->x == 1.0f && p->y == 2.0f);
 
   test_pass();
 }
