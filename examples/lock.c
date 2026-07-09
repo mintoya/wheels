@@ -6,16 +6,14 @@
 
 #include "../thread_help.h"
 
-decfunction(inner_task, ((int, id)), int);
-deffunction(inner_task, ((int, id)), int, {
+deffunction(inner_task, ((int, id)), int) {
   println("inner task thread : {}", thrd_current());
   println("  -> Inner task {} is executing!", id);
   thrd_sleep(&(struct timespec){1}, NULL);
   return id * 10;
-});
+}
 typedef struct mtxtpoolmutex_recursive *poolptr;
-decfunction(outer_task, ((AllocatorV, alloc), (poolptr, pool), (int, id)), int);
-deffunction(outer_task, ((AllocatorV, alloc), (poolptr, pool), (int, id)), int, {
+deffunction(outer_task, ((AllocatorV, alloc), (poolptr, pool), (int, id)), int) {
   println(
       "outer task thread : {}\n"
       "[Worker] Outer task {} started.",
@@ -31,7 +29,7 @@ deffunction(outer_task, ((AllocatorV, alloc), (poolptr, pool), (int, id)), int, 
 
   println("[Worker] Outer task {} completed with result: {}", id, res);
   return res;
-});
+}
 
 #include "../allocators/debugallocator.h"
 

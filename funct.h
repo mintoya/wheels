@@ -107,6 +107,8 @@ struct mutex_outer {
   #define typelist_tuple_args(typelist) typelist_tuple_args_helper typelist
 
   #define deffunctoin_struct_item(tuple) TUPLE_EXPAND_A(tuple) TUPLE_EXPAND_B(tuple);
+  #define deffunction_void_ton(type) \
+    typeof(*_Generic((typeof(type *)){}, void *: (nothing_t *)0, default: (type *)0))
   #define deffunctoin_struct_items(...) APPLY_N(deffunctoin_struct_item, __VA_ARGS__)
 
   #define deffunction_struct(name, in, out) \
@@ -114,7 +116,7 @@ struct mutex_outer {
       struct name##args {                   \
         deffunctoin_struct_items in         \
       } args;                               \
-      out result;                           \
+      deffunction_void_ton(out) result;     \
     }
   #define decfunction(name, in, out)                                      \
     typedef deffunction_struct(name##_struct_t, in, out) name##_struct_t; \
@@ -131,14 +133,31 @@ struct mutex_outer {
   #define deffunction_extract_item(tuple) ins->args.TUPLE_EXPAND_B(tuple)
   #define deffunction_extract_items(...) APPLY_N_C(deffunction_extract_item, __VA_ARGS__)
 
-  #define deffunction(name, in, out, ...)               \
-    out name(typelist_tuple_args(in)) {                 \
-      __VA_ARGS__ deffunction_return_if_nothing(out)    \
-    } /**/                                              \
-    void name##_wrapper(void *inn) {                    \
-      name##_struct_t *ins = (typeof(ins))inn;          \
-      ins->result = name(deffunction_extract_items in); \
-    }
+  #define deffunction_assign(value, f)      \
+    value = match_type(                     \
+        value,                              \
+        (nothing_t, _, (f, (nothing_t){})), \
+        (default, f)                        \
+    )
+
+  #define deffunction(name, in, out)                                       \
+    decfunction(name, in, out);                                            \
+    out name(typelist_tuple_args(in));                                     \
+    void name##_wrapper(void *inn) {                                       \
+      name##_struct_t *ins = (typeof(ins))inn;                             \
+      deffunction_assign(ins->result, name(deffunction_extract_items in)); \
+    }                                                                      \
+    out name(typelist_tuple_args(in))
+
+  #define deffunction_thrd(name, in, out)                                      \
+    int name##_thrd_wrapper(void *inn) {                                       \
+      name##_wrapper(inn);                                                     \
+      return 0;                                                                \
+    }                                                                          \
+    int name##_spawn(name##_struct_t *ins) {                                   \
+      return thrd_create(ins->args.threadid.thread, name##_thrd_wrapper, ins); \
+    }                                                                          \
+    deffunction(name, ((thread_info, threadid), REM_PAREN in), out)
 
 typedef struct thread_info {
   thrd_t thread[1];
@@ -149,16 +168,15 @@ typedef struct thread_info {
     decfunction(name, ((thread_info, threadid), REM_PAREN in), out); /**/ \
     int name##_spawn(name##_struct_t *ins);
 
-  #define deffunction_thrd(name, in, out, ...)                                        \
-    deffunction(name, ((thread_info, threadid), REM_PAREN in), out, __VA_ARGS__) /**/ \
-        int                                                                           \
-        name##_thrd_wrapper(void *inn) {                                              \
-      name##_wrapper(inn);                                                            \
-      return 0;                                                                       \
-    }                                                                                 \
-    int name##_spawn(name##_struct_t *ins) {                                          \
-      return thrd_create(ins->args.threadid.thread, name##_thrd_wrapper, ins);        \
-    }
+  #define deffunction_thrd(name, in, out)                                      \
+    int name##_thrd_wrapper(void *inn) {                                       \
+      name##_wrapper(inn);                                                     \
+      return 0;                                                                \
+    }                                                                          \
+    int name##_spawn(name##_struct_t *ins) {                                   \
+      return thrd_create(ins->args.threadid.thread, name##_thrd_wrapper, ins); \
+    }                                                                          \
+    deffunction(name, ((thread_info, threadid), REM_PAREN in), out)
 
   #define defunction_argsStruct(name, argss) (     \
       (void)sizeof(name argss),                    \
@@ -265,14 +283,15 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
 
   #include "allocators/tsaAllocator.h"
   #include "tests.h"
-decfunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), nothing_t);
-deffunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), nothing_t, {
+
+decfunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), void);
+deffunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), void) {
   var_ one_second = (struct timespec){1};
   thrd_sleep(&one_second, nullptr);
   mutex_critical (int *x, mutex_lock, i[0]) {
     x[0]++;
   } else unreachable();
-});
+}
 test_fn(thread_function) {
   var_ tsa = TSA_init(allocator);
   defer { TSA_deinit(tsa); };
@@ -290,7 +309,7 @@ test_fn(thread_function) {
     thrdfunction_await(tsa, mList_pop(list));
 
   mutex_deInit(integer);
-  test_assert(!!!!integer.data != 5);
+  test_assert(integer.data == 5);
   test_pass();
 }
 #endif
@@ -320,7 +339,7 @@ static bool tpool_doSingle(tpool_single_t pool) {
   }
   return false;
 }
-deffunction_thrd(tpool_worker, ((tpool_single_t, pool)), nothing_t, {
+deffunction_thrd(tpool_worker, ((tpool_single_t, pool)), nothing_t) {
   while (1) {
     if (tpool_doSingle(pool)) continue;
     bool to_exit = false;
@@ -332,7 +351,7 @@ deffunction_thrd(tpool_worker, ((tpool_single_t, pool)), nothing_t, {
     } else thrd_exit(5);
     if (to_exit) thrd_exit(5);
   }
-});
+}
 tpoolNode_t *_tpool_queup(tpool_single_t pool, basic_closure_t fn) {
   tpoolNode_t *node = aCreate(tpool_allocator(pool), tpoolNode_t);
   *node = (typeof(*node)){.task = {fn, {false}}, .next = NULL};

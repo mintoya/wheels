@@ -1,12 +1,22 @@
-#include <stdio.h>
 #if defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0
   #define MY_TEST_FRAMEWORK_C (1)
 #endif
+
 #include <stddef.h>
-#if !defined MY_TEST_FRAMEWORK_H && !defined MY_TEST_FRAMEWORK_C
-typedef struct {
+#include <stdio.h>
+
+typedef struct test_result {
   size_t result;
 } test_result;
+#define test_pass() \
+  return (test_result){0}
+#define test_assert(...)                  \
+  do {                                    \
+    if (!(__VA_ARGS__))                   \
+      return (test_result){__LINE__ + 1}; \
+  } while (0)
+
+#if !defined MY_TEST_FRAMEWORK_H && !defined MY_TEST_FRAMEWORK_C
   #include "allocator.h"
   #include "macros.h"
   #define MY_TEST_FRAMEWORK_H (1)
@@ -17,31 +27,11 @@ typedef struct {
         ),                                             \
         __COUNTER__                                    \
     )(AllocatorV allocator)
-  #define test_assert(...)              \
-    do {                                \
-      if (!(__VA_ARGS__)) {             \
-        return (test_result){__LINE__}; \
-      }                                 \
-    } while (0)
-  #define test_pass() \
-    return (test_result){0}
 #elif defined MY_TEST_FRAMEWORK_C && MY_TEST_FRAMEWORK_C == (1)
   #undef MY_TEST_FRAMEWORK_C
   #define MY_TEST_FRAMEWORK_C (2)
-typedef struct {
-  size_t result;
-} test_result;
   #include "allocator.h"
   #include "macros.h"
-
-  #define test_assert(...)              \
-    do {                                \
-      if (!(__VA_ARGS__)) {             \
-        return (test_result){__LINE__}; \
-      }                                 \
-    } while (0)
-  #define test_pass() \
-    return (test_result){0}
 
 struct testNode {
   c8 *testname;
@@ -105,7 +95,7 @@ int main(void) {
         leaked ? test_RED ",LEAK" test_RESET : "",
         testList->testname
     );
-    if (result.result) printf("line : %zu\n", result.result);
+    if (result.result) printf("line : %zu\n", result.result - 1);
     else printf("\n");
     fflush(stdout);
     pass += !(result.result) && !leaked;
