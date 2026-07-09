@@ -2,7 +2,6 @@
 #include "../funct.h"
 #include "../print.h"
 #include <stdatomic.h>
-#include <stddefer.h>
 
 #include "../thread_help.h"
 
@@ -12,8 +11,7 @@ deffunction(inner_task, ((int, id)), int) {
   thrd_sleep(&(struct timespec){1}, NULL);
   return id * 10;
 }
-typedef struct mtxtpoolmutex_recursive *poolptr;
-deffunction(outer_task, ((AllocatorV, alloc), (poolptr, pool), (int, id)), int) {
+deffunction(outer_task, ((AllocatorV, alloc), (tpool_single_t, pool), (int, id)), int) {
   println(
       "outer task thread : {}\n"
       "[Worker] Outer task {} started.",

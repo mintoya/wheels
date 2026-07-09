@@ -6,14 +6,15 @@
 #include <stdio.h>
 
 typedef struct test_result {
+  char *check;
   size_t result;
 } test_result;
 #define test_pass() \
   return (test_result){0}
-#define test_assert(...)                  \
-  do {                                    \
-    if (!(__VA_ARGS__))                   \
-      return (test_result){__LINE__ + 1}; \
+#define test_assert(...)                                \
+  do {                                                  \
+    if (!(__VA_ARGS__))                                 \
+      return (test_result){#__VA_ARGS__, __LINE__ + 1}; \
   } while (0)
 
 #if !defined MY_TEST_FRAMEWORK_H && !defined MY_TEST_FRAMEWORK_C
@@ -34,6 +35,7 @@ typedef struct test_result {
   #include "macros.h"
 
 struct testNode {
+  c8 *filename;
   c8 *testname;
   fnptrof((AllocatorV), test_result) fn;
   struct testNode *next;
@@ -46,6 +48,7 @@ struct testNode {
     name##testfunctoin##_register(void) {       \
       static struct testNode thisNode =         \
           (typeof(thisNode)){                   \
+              .filename = (char *)__FILE__,     \
               .testname = (char *)#name,        \
               .fn = name,                       \
           };                                    \
@@ -60,6 +63,7 @@ test_fn(always_pass) {
   test_pass();
 }
 test_fn(always_fail) { test_assert(false); }
+test_fn(always_fail2) { test_assert(1 && !1); }
 test_fn(always_leak) {
   aCreate(allocator, int);
   test_pass();
@@ -88,14 +92,22 @@ int main(void) {
     var_ result = testList->fn(testAlloc);
     int leaked = debugAllocatorDeInit(testAlloc);
     printf(
-        "[%s%s] %s\t: ",
+        "[%s%s] %s",
         result.result
             ? test_RED "FAIL" test_RESET
             : test_GREEN "PASS" test_RESET,
         leaked ? test_RED ",LEAK" test_RESET : "",
         testList->testname
     );
-    if (result.result) printf("line : %zu\n", result.result - 1);
+    if (result.result) printf(
+        "\n"
+        "\tline\t:%zu\n"
+        "\tfile\t:%s\n"
+        "\tcond\t:(%s)\n",
+        result.result - 1,
+        testList->filename,
+        result.check
+    );
     else printf("\n");
     fflush(stdout);
     pass += !(result.result) && !leaked;

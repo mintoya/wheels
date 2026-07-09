@@ -348,7 +348,7 @@ typePrinter(ldouble) { USETYPEPRINTER(f128, (f128)in); }
 typePrinter(u32) { USETYPEPRINTER(usize, (usize)in); }
 typePrinter(i32) { USETYPEPRINTER(isize, (isize)in); }
 typePrinter(fptr) {
-  const c32 hex_chars[17] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 0};
+  const c8 hex_chars[17] = "0123456789abcdef";
   char cut0s = 0;
   char useLength = 0;
   if (fptr_eq(fp_from("length"), printer_arg_trim(args)))
@@ -358,19 +358,12 @@ typePrinter(fptr) {
     USETYPEPRINTER(usize, in.len);
   }
   PUTS("<");
-  usize start = 0;
-  if (cut0s)
-    for (usize i = 0; i < in.len; i++)
-      if (in.ptr[i] != 0) {
-        start = i;
-        break;
-      }
 
-  for (usize i = start; i < in.len; i++) {
-    u8 top = (in.ptr[i] & 0xF0) >> 4;
-    u8 bottom = in.ptr[i] & 0x0F;
-    PUTC((c8)(hex_chars[top]));
-    PUTC((c8)(hex_chars[bottom]));
+  foreach (usize i, range(in.len, 0)) {
+    u8 top = (in.ptr[i - 1] & 0xF0) >> 4;
+    u8 bottom = in.ptr[i - 1] & 0x0F;
+    PUTC(hex_chars[top]);
+    PUTC(hex_chars[bottom]);
   }
   PUTS(">");
   if (useLength)
