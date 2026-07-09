@@ -6,8 +6,6 @@
 
 #include "../thread_help.h"
 
-// 1. The Dependent Sub-Task
-// This just simulates some work that a parent task needs done.
 decfunction(inner_task, ((int, id)), int);
 deffunction(inner_task, ((int, id)), int, {
   println("inner task thread : {}", thrd_current());

@@ -20,11 +20,10 @@ int main(void) {
       list,
       ((int[]){5, 8, 7, 9, 5, 8, 7, 9})
   );
-  foreach (var_ element, vlap(mList_vla(list))) {
+  foreach (var_ element, vlap(mList_vla(list)))
     println("{}", (int)element);
-  };
   println("list footprint : {}", sizeof(*mList_vla(list)));
 
   return 0;
 }
-#include "wheels/wheels.h"
+#include "../wheels.h"

@@ -29,7 +29,6 @@ typedef struct {
   usize size;
 } printerFunction;
 // helper escape type
-typedef unsigned int uint;
 typedef struct {
   struct {
     uint row, col;
@@ -104,30 +103,25 @@ typedef struct {
 } PrinterSingleton_t;
 extern PrinterSingleton_t PrinterSingleton;
 
-static void PrinterSingleton_init() {
-  PrinterSingleton.data = msxmap_init(stdAlloc, printerFunction);
-}
-static void PrinterSingleton_deInit() {
-  msxmap_deinit(PrinterSingleton.data);
-}
+static void PrinterSingleton_init() { PrinterSingleton.data = msxmap_init(stdAlloc, printerFunction); }
+static void PrinterSingleton_deInit() { msxmap_deinit(PrinterSingleton.data); }
 static void PrinterSingleton_append(fptr name, printerFunction function) {
   msxmap_set(PrinterSingleton.data, name, function);
 }
 
 static printerFunction PrinterSingleton_get(fptr name) {
-  static thread_local printerFunction lastprinters[2] = {{}, {}};
+  static thread_local printerFunction lastprinters[2] = {};
   static thread_local fptr lastnames[2] = {nullFptr, nullFptr};
   static thread_local u8 lasttick = 0;
 
-  if (!fptr_cmp(name, lastnames[lasttick])) {
+  if (fptr_eq(name, lastnames[lasttick]))
     return lastprinters[lasttick];
-  } else if (!fptr_cmp(name, lastnames[!lasttick])) {
+  else if (fptr_eq(name, lastnames[!lasttick]))
     return lastprinters[!lasttick];
-  }
+
   lasttick = !lasttick;
 
-  var_ val = msxmap_get(PrinterSingleton.data, name);
-  if (val) {
+  if_decl (var_ val, msxmap_get(PrinterSingleton.data, name)) {
     lastprinters[lasttick] = *val;
     lastnames[lasttick] = *(fptr *)hxmap_val_key(((sxmap *)PrinterSingleton.data)->map, val);
     return *val;
@@ -155,18 +149,12 @@ __attribute__((constructor(201))) static void printerInit() {
   PrinterSingleton_init();
 }
 #endif
-__attribute__((destructor(201))) static void printerDeInit() {
-  PrinterSingleton_deInit();
-}
+__attribute__((destructor(201))) static void printerDeInit() { PrinterSingleton_deInit(); }
 
 #define GETTYPEPRINTERFN(T) _##T##_printer
 
 #define PUTS(characters) put(characters, _arb, countof(characters) - 1, 0)
-#define PUTC(character)                               \
-  do {                                                \
-    ASSERT_EXPR(types_eq(c8, typeof(character)), ""); \
-    put(REF(character), _arb, 1, 0);                  \
-  } while (0)
+#define PUTC(character) put(REF(character), _arb, 1, 0)
 
 #define typePrinter_name_inner(str, T, name)                        \
   static void ID_CONCAT(name, raw)(                                 \
@@ -232,22 +220,6 @@ struct print_arg {
 };
 void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr args, void *arb);
 
-// examples with builtin types
-// the behavior of PUTS is modular
-//
-// for building printers
-// USENAMEDPRINTER(printerid,value)
-// USETYPEPRINTER(type,value)
-//
-// typeprinter skips the search
-// named printer skips the string parsing
-// use print_wf with "put" as the ouputFunction
-// to keep output consistant, but that makes it recursive
-//
-// you can pass args with a printerid and a colon
-// ex: "fptr<void>: c0 length"
-//
-
 typePrinter("ptr", void *) {
   uintptr_t v = (uintptr_t)in;
   PUTS("0x");
@@ -312,10 +284,8 @@ typePrinter(usize) {
   u8 digit = 0;
   usize l = 1;
   while (l <= in / 10) {
-    if (l * 10 < l)
-      break;
-    else
-      l = l * 10;
+    if (l * 10 < l) break;
+    else l = l * 10;
   }
   while (l) {
     char c = in / l + '0';
@@ -347,15 +317,13 @@ typePrinter(f128) {
   f128 u = in;
 
   f128 round = 0.5;
-  for (usize i = 0; i < digits; i++) {
+  for (usize i = 0; i < digits; i++)
     round /= 10.0;
-  }
   u += round;
 
   f128 tens = 1;
-  while (u / tens >= 10) {
+  while (u / tens >= 10)
     tens *= 10;
-  }
 
   while (tens >= 1) {
     int d = (int)(u / tens);
@@ -411,14 +379,14 @@ typePrinter(fptr) {
 typePrinter(pEsc) {
   if (in.poset) {
 
-    PUTS("\033[");
+    PUTS("\033["); // ]
     USETYPEPRINTER(usize, in.pos.row);
     PUTS(";");
     USETYPEPRINTER(usize, in.pos.col);
     PUTS("H");
   }
   if (in.fgset) {
-    PUTS("\033[38;2;");
+    PUTS("\033[38;2;"); // ]
     USETYPEPRINTER(usize, in.fg.r);
     PUTS(";");
     USETYPEPRINTER(usize, in.fg.g);
@@ -428,7 +396,7 @@ typePrinter(pEsc) {
   }
 
   if (in.bgset) {
-    PUTS("\033[48;2;");
+    PUTS("\033[48;2;"); // ]
     USETYPEPRINTER(usize, in.bg.r);
     PUTS(";");
     USETYPEPRINTER(usize, in.bg.g);
@@ -437,11 +405,11 @@ typePrinter(pEsc) {
     PUTS("m");
   }
   if (in.clear) {
-    PUTS("\033[2J");
-    PUTS("\033[H");
+    PUTS("\033[2J"); // ]
+    PUTS("\033[H");  // ]
   }
   if (in.reset) {
-    PUTS("\033[0m");
+    PUTS("\033[0m"); // ]
   }
 }
 
@@ -539,6 +507,43 @@ typePrinter("mHmap", HMap *) {
           put, (fptr){HMap_getValSize(in), ((u8 *)sp) + HMap_getKeySize(in)}, nullFptr, _arb
       );
       PUTS(",");
+    }
+    PUTS("}");
+  }
+}
+typePrinter("mxmap", hxmap *) {
+  args = printer_arg_trim(args);
+  var_ kvs = printer_arg_until(':', args);
+  args = printer_arg_after(':', args);
+  var_ kprinter = P$(
+      printer_arg_until(',', kvs),
+      printer_arg_trim($),
+      PrinterSingleton_get($)
+  );
+  var_ vprinter = P$(
+      printer_arg_after(',', kvs),
+      printer_arg_trim($),
+      PrinterSingleton_get($)
+  );
+  if (!(kprinter.function && vprinter.function)) {
+    PUTS("__could'nt find printer for ");
+    USENAMEDPRINTER("slice(c8)", kvs);
+    PUTS("__");
+  } else if (!EQUAL_ANY(kprinter.size, ~(usize)0, in->ksize) || !EQUAL_ANY(vprinter.size, ~(usize)0, in->vsize)) {
+    PUTS("__size for ");
+    USENAMEDPRINTER("slice(c8)", kvs);
+    PUTS(" doesn't match map");
+    PUTS("__");
+  } else {
+    PUTS("{");
+
+    bool comma = false;
+    foreach (var_ sp, hxmap_iter(in)) {
+      if (comma) PUTS(",");
+      comma = true;
+      kprinter.function(put, (fptr){in->ksize, (u8 *)sp.key}, args, _arb);
+      PUTS(":");
+      vprinter.function(put, (fptr){in->vsize, (u8 *)sp.val}, args, _arb);
     }
     PUTS("}");
   }

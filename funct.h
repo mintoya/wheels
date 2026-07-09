@@ -131,11 +131,13 @@ struct mutex_outer {
   #define deffunction_extract_item(tuple) ins->args.TUPLE_EXPAND_B(tuple)
   #define deffunction_extract_items(...) APPLY_N_C(deffunction_extract_item, __VA_ARGS__)
 
-  #define deffunction(name, in, out, ...)                                                     \
-    out name(typelist_tuple_args(in)) { __VA_ARGS__ deffunction_return_if_nothing(out) } /**/ \
-    void name##_wrapper(void *inn) {                                                          \
-      name##_struct_t *ins = (typeof(ins))inn;                                                \
-      ins->result = name(deffunction_extract_items in);                                       \
+  #define deffunction(name, in, out, ...)               \
+    out name(typelist_tuple_args(in)) {                 \
+      __VA_ARGS__ deffunction_return_if_nothing(out)    \
+    } /**/                                              \
+    void name##_wrapper(void *inn) {                    \
+      name##_struct_t *ins = (typeof(ins))inn;          \
+      ins->result = name(deffunction_extract_items in); \
     }
 
 typedef struct thread_info {

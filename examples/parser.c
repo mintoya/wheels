@@ -1,5 +1,5 @@
-#include "../arenaAllocator.h"
-#include "../debugallocator.h"
+#include "../allocators/arenaAllocator.h"
+#include "../allocators/debugallocator.h"
 #include "../print.h"
 #include "../vason_arr.h"
 
@@ -21,17 +21,20 @@ slice(c8) read_stdin(AllocatorV allocator) {
   return (slice(c8)){.ptr = data, .len = size};
 }
 bool isDigit(c8 c) { return c >= '0' && c <= '9'; }
-int main(int nargs, char *args[nargs]) {
-  mList(char *) argslist = mList_init(stdAlloc, char *, nargs);
-  defer { mList_deinit(argslist); };
-  bool lazy = false;
-  for (var_ i = 1; i < nargs; i++) {
-    if (args[i][0] == '-') {
-      if (fptr_eq(fptr_CS(args[i] + 1), fp("-lazy")))
-        lazy = true;
-    } else
-      mList_push(argslist, args[i]);
-  }
+#include "../cmdline_parser.h"
+cmd_main(
+    int nargs,
+    char **args,
+    (bool, lazy, ("--lazy", "-l"), "lazily parse", false),
+    (bool, help, ("--help", "-h"), "print help message", false),
+) {
+  if (help) {
+    cmd_usage(args[0]);
+    return 0;
+  } else {
+    args++;
+    nargs--;
+  };
 
   slice(c8) input = read_stdin(stdAlloc);
   defer { aFree(stdAlloc, input.ptr, input.len); };
@@ -42,18 +45,21 @@ int main(int nargs, char *args[nargs]) {
       lazy
           ? vason_parseString_Lazy(local, input)
           : vason_parseString(local, input);
-  vason_container *f = &parsed; // clang defer
+  println("{vason_container}", parsed);
+  vason_container *f = &parsed;
   defer { vason_container_free(*f); };
   vason_index current = parsed.current;
-  if (mList_len(argslist))
-    foreach (char *cptr, vla(*mList_vla(argslist)))
+  if (nargs)
+    foreach (char *cptr, vla(*VLAP(args, nargs))) {
+      println("getting {} from {vason_container}", cptr, P$(parsed, ({$.current = current;$; })));
       current =
           isDigit(cptr[0])
               ? vason_get_idx(&parsed, current, atoi(cptr))
               : vason_get_str(&parsed, current, fptr_CS(cptr));
+    }
   if (lazy)
     vason_lazy_expand(&parsed, current);
   parsed.current = current;
   println("{vason_container}", parsed);
-  // println("{}", vason_tostr(stdAlloc, parsed));
+  return 0;
 }

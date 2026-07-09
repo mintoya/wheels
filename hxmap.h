@@ -305,7 +305,7 @@ void *hxmap_set(
       }
     }
     idx++;
-    if (idx >= cap) idx = 0;
+    idx %= cap;
   }
 
   if (!val) return nullptr;
@@ -336,7 +336,7 @@ void *hxmap_get(
         !hxmap_base_cmp(m, m->keys + (ks * idx), key)
     ) return m->vals + (m->vsize * idx);
     idx++;
-    if (idx >= cap) idx = 0;
+    idx %= cap;
   }
   return nullptr;
 }

@@ -40,7 +40,7 @@ vason_container vason_container_create(slice(c8) text, AllocatorV allocator);
 void vason_container_free(vason_container container);
 usize vason_container_footprint(vason_container c);
 
-  // #include "print.h"
+  #include "print.h"
   #if defined(MY_PRINTER_H)
 typePrinter(vason_container) {
   if (in.current >= msList_len(in.tags) || in.tags[in.current] & vason_INVALID) {
@@ -71,10 +71,10 @@ typePrinter(vason_container) {
       break;
     case vason_PAIR: {
       vason_span vs = in.tables_strings[in.current];
-      PUTS("(:)<");
+      PUTS("<");
       in.current = vs.start;
       USETYPEPRINTER(vason_container, in);
-      PUTS(",");
+      PUTS(":");
       in.current++;
       USETYPEPRINTER(vason_container, in);
       PUTS(">");
@@ -84,10 +84,8 @@ typePrinter(vason_container) {
       USENAMEDPRINTER("slice(c8)", ((fptr){(usize)vs.end - vs.start, (u8 *)(vs.start + in.text.ptr)}));
     } break;
     case vason_TABLE: {
+      PUTS("{");
       vason_span vs = in.tables_strings[in.current];
-      PUTS("(<");
-      USETYPEPRINTER(usize, (usize)(vs.end - vs.start));
-      PUTS(">){");
       for (vason_index i = vs.start; i < vs.end; i++) {
         i != vs.start ? PUTS(",") : (void)0;
         in.current = i;
