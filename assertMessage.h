@@ -191,6 +191,8 @@ void __attribute__((noreturn)) _assertMessageFail(
                                   \
   } while (0)
 
+#define TODO() assertMessage(false, "todo")
+
 #if __has_builtin(__builtin_unreachable)
   #define unreachable() __builtin_unreachable()
 #else
