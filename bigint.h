@@ -81,6 +81,7 @@ NAMESPACE_STRUCT(
     (negetive, &bigint_negetive),
 );
 
+/*
   #if defined(MY_PRINTER_H)
 typePrinter(bigint) {
   args = printer_arg_trim(args);
@@ -168,13 +169,16 @@ typePrinter(bigint) {
   }
 }
   #endif
+*/
 
 #endif
 
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
   #define MY_BIGINT_C (1)
 #endif
-#if defined(MY_BIGINT_C)
+#if defined(MY_BIGINT_C) && MY_BIGINT_C == 1
+  #undef MY_BIGINT_C
+  #define MY_BIGINT_C (2)
 
   #include "allocators/arenaAllocator.h"
 

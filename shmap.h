@@ -2,7 +2,6 @@
 #if !defined(SHMAP_H)
   #define SHMAP_H (1)
   #include "fptr.h"
-  #include "hhmap.h"
   #include "macros.h"
   #include "mylist.h"
   #include "mytypes.h"

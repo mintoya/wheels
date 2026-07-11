@@ -1,6 +1,7 @@
 #ifndef MY_DEBUG_ALLOCATOR_H
 #define MY_DEBUG_ALLOCATOR_H
 #include "../allocator.h"
+#include "../hxmap.h"
 #include <stdio.h>
 
 struct tracedata {
@@ -54,13 +55,12 @@ int debugAllocatorDeInit(AllocatorV);
 
 #if defined(MY_DEBUG_ALLOCATOR_C)
 
-#include "../hhmap.h"
 #include "../macros.h"
 #include "../mytypes.h"
 #include "../print.h"
 
 typedef struct {
-  mHmap(void *, struct tracedata) map;
+  mxMap(void *, struct tracedata) map;
   AllocatorV actualAllocator;
   struct dbgAlloc_config config;
   usize max, current, total;
@@ -84,9 +84,9 @@ test_fn(debug_allocator_test) {
   };
 
   debugAllocatorInternals *internals = ((debugAllocatorInternals *)debug->arb);
-  int n1 = HMap_count((HMap *)internals->map);
+  int n1 = ((hxmap *)internals->map)->count;
   int n2 = 0;
-  foreach (var_ kv, HMap_iter((HMap *)internals->map))
+  foreach (var_ it, hxmap_iter(internals->map))
     n2++;
   int n = debugAllocatorDeInit(debug);
   test_assert(n == allocations && n1 == allocations && n2 == n1);
@@ -102,7 +102,7 @@ struct debugStats debugAllocator_stats(AllocatorV allocator) {
   return (struct debugStats){
       .max_memory = internals.max,
       .current_memory = internals.current,
-      .total_active_allocations = HMap_count((HMap *)internals.map),
+      .total_active_allocations = ((hxmap *)internals.map)->count,
       .total_calls = internals.total,
   };
 }
@@ -125,7 +125,7 @@ AllocatorV debugAllocatorInit(struct dbgAlloc_config config) {
   Debug_allocator_block *res = aCreate(allocator, Debug_allocator_block);
 
   res->internals[0] = (debugAllocatorInternals){
-      .map = mHmap_init(allocator, void *, struct tracedata, 32),
+      .map = mxMap_init(allocator, void *, struct tracedata),
       .actualAllocator = allocator,
       .config = config,
       .max = 0,
@@ -160,23 +160,25 @@ int debugAllocatorDeInit(AllocatorV allocator) {
     print_wfO(fileprint, out, "leaked {} bytes\n", internals->current);
   }
 
-  foreach (var_ kv, mHmap_iter(internals->map, void *)) {
+  foreach (var_ kv, hxmap_iter(internals->map)) {
     leaks++;
+    var_ key = *(void **)kv.key;
+    var_ val = *(mxMap_valType(internals->map) *)kv.val;
     if (out) {
       print_wfO(
           fileprint, out, "leaked {}{usize}{} bytes at {}{ptr}{} in {cstr} at {}\n"
                           "=========================================================\n",
           g,
-          kv->val.size,
+          val.size,
           rst,
           b,
-          kv->key,
+          key,
           r,
-          kv->val.fn,
-          kv->val.ln
+          val.fn,
+          val.ln
       );
       print_wfO(
-          fileprint, out, "from {cstr} line {}\n", kv->val.fn, kv->val.ln
+          fileprint, out, "from {cstr} line {}\n", val.fn, val.ln
       );
 
       print_wfO(
@@ -184,9 +186,9 @@ int debugAllocatorDeInit(AllocatorV allocator) {
       );
       print_wfO(fileprint, out, "{}", rst);
     }
-    (aFree)(realAllocator, (void *)kv->key, kv->val.size, kv->val.fn, kv->val.ln);
+    (aFree)(realAllocator, (void *)key, val.size, val.fn, val.ln);
   }
-  mHmap_deinit(internals->map);
+  mxMap_deinit(internals->map);
   aFree(realAllocator, (void *)allocator, sizeof(Debug_allocator_block));
   return leaks;
 }
@@ -194,9 +196,12 @@ int debugAllocatorDeInit(AllocatorV allocator) {
 struct debugStats debugAllocator_clear(AllocatorV allocator) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   var_ res = debugAllocator_stats(allocator);
-  foreach (var_ kv, mHmap_iter(internals->map, void *))
-    aFree(internals->actualAllocator, (void *)kv->key, kv->val.size);
-  mHmap_clear(internals->map);
+  foreach (var_ kv, hxmap_iter(internals->map)) {
+    var_ key = *(void **)kv.key;
+    var_ val = *(mxMap_valType(internals->map) *)kv.val;
+    aFree(internals->actualAllocator, (void *)key, val.size);
+    mxMap_rem(internals->map, key);
+  }
   return res;
 }
 void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln) {
@@ -213,17 +218,10 @@ void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln)
       };
 
   assertMessage(
-      !mHmap_get(internals->map, res),
+      !mxMap_get(internals->map, res),
       "allocator allocated buisy memory"
   );
-  mHmap_set(internals->map, res, data);
-  if (HMap_load((HMap *)internals->map) > 75) {
-    HMap_manage(
-        (HMap **)&internals->map,
-        nullptr,
-        HMap_getMetaSize((HMap *)internals->map) * 2
-    );
-  }
+  mxMap_set(internals->map, res, data);
   internals->current += size;
 
   if (internals->current > internals->max)
@@ -245,12 +243,12 @@ void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln)
 void debugAllocator_free(AllocatorV allocator, void *ptr, usize size, char *fn, usize ln) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
-  struct tracedata *data = mHmap_get(internals->map, ptr);
+  struct tracedata *data = mxMap_get(internals->map, ptr);
 
   struct tracedata datak = *data;
   assertMessage(data, "pointer not in allocator , from %lu %s", ln, fn);
   internals->current -= data->size;
-  assertMessage(mHmap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
+  assertMessage(mxMap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
   (aFree)(realAllocator, ptr, data->size, fn, ln);
 
   if (internals->config.on_call) {
@@ -262,22 +260,22 @@ void debugAllocator_free(AllocatorV allocator, void *ptr, usize size, char *fn, 
     t.trace = datak;
     internals->config.on_call(&t);
   }
-  mHmap_rem(internals->map, ptr);
+  mxMap_rem(internals->map, ptr);
 }
 void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize oldsize, usize newsize, char *fn, usize ln) {
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
-  struct tracedata *data = mHmap_get(internals->map, ptr);
+  struct tracedata *data = mxMap_get(internals->map, ptr);
   assertMessage(data, "pointer not in allocator , from %lu %s", ln, fn);
   internals->current -= data->size;
-  assertMessage(mHmap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
+  assertMessage(mxMap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
 
-  mHmap_rem(internals->map, ptr);
+  mxMap_rem(internals->map, ptr);
 
   void *res = ((aResize)(realAllocator, ptr, oldsize, newsize, fn, ln));
   internals->total++;
   assertMessage(
-      !mHmap_get(internals->map, res),
+      !mxMap_get(internals->map, res),
       "allocator allocated buisy memory"
   );
   var_ da =
@@ -286,7 +284,7 @@ void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize oldsize, usi
           .fn = fn,
           .ln = ln,
       };
-  mHmap_set(internals->map, res, da);
+  mxMap_set(internals->map, res, da);
 
   internals->current += newsize;
 

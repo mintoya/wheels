@@ -52,12 +52,6 @@
 #endif
 #undef OMAP_C
 
-#if defined(HMAP_H) || defined(WHEELS_INCLUDE_ALL) && !defined(HMAP_C)
-  #define HMAP_C (1)
-  #include "hhmap.h"
-#endif
-#undef HMAP_C
-
 #if defined(MY_HXMAP_H) || defined(WHEELS_INCLUDE_ALL) && !defined(MY_HXMAP_C)
   #define MY_HXMAP_C (1)
   #include "hxmap.h"

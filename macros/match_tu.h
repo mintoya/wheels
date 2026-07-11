@@ -79,11 +79,11 @@
         );                                                              \
       } break;)                                                         \
   )
-#define tu_match(variable, first, ...)                                  \
+#define tu_match(tunion, first, ...)                                    \
   ({                                                                    \
-    var_ _variable = variable;                                          \
+    var_ _variable = tunion;                                            \
     tu_match_case_type(_variable, first) _result = (typeof(_result)){}; \
-    switch (variable.tag) {                                             \
+    switch (_variable.tag) {                                            \
       MACRO_EXPAND(tu_match_case(_variable, first))                     \
       APPLY_N_WITH(tu_match_case, _variable, __VA_ARGS__)               \
     }                                                                   \
@@ -91,7 +91,7 @@
   })
 
 #define tu_of(type, ...) \
-  {.tag = TU_TAG(type), .type = (type)__VA_ARGS__}
+  {.tag = TU_TAG(type), .type = __VA_ARGS__}
 #define tu_is(type, item) (item.tag == TU_TAG(type))
 #define tu_or(type, item, other, ...) \
   ({                                  \

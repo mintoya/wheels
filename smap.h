@@ -96,9 +96,7 @@ sxmap *smap_new(AllocatorV allocator, u32 vsize, usize cap, usize arenaSize) {
           cmpfptr
       );
   defer { aFree(allocator, m, sizeof(*m)); };
-  memcpy(
-      res->map, m, sizeof(hxmap)
-  );
+  memcpy(res->map, m, sizeof(hxmap));
   res->stringArena = arena_new_ext(allocator, arenaSize);
   return res;
 }

@@ -39,7 +39,7 @@ typedef struct vason_container {
 vason_container vason_container_create(slice(c8) text, AllocatorV allocator);
 void vason_container_free(vason_container container);
 usize vason_container_footprint(vason_container c);
-
+/*
   #include "print.h"
   #if defined(MY_PRINTER_H)
 typePrinter(vason_container) {
@@ -96,6 +96,7 @@ typePrinter(vason_container) {
   }
 }
   #endif
+  */
 
 // referance requred since lazy containers modify tehmselves
 vason_index vason_get_str(vason_container *c, vason_index entry, fptr f);

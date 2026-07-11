@@ -4,6 +4,8 @@
 #include "mytypes.h"
 #include <stdarg.h>
 
+#define TODO() assertMessage(false, "todo")
+
 #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
 #define ASSERTMESSAGE_PRINTRESET "\x1b[0m"
 #define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"
@@ -191,7 +193,6 @@ void __attribute__((noreturn)) _assertMessageFail(
                                   \
   } while (0)
 
-#define TODO() assertMessage(false, "todo")
 
 #if __has_builtin(__builtin_unreachable)
   #define unreachable() __builtin_unreachable()
