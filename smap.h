@@ -75,6 +75,8 @@ test_fn(smap_test) {
   test_pass();
 }
 
+u64 hashfptr(const void *a);
+i8 cmpfptr(const void *a, const void *b);
 #endif
 
 #if defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0

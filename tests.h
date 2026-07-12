@@ -24,7 +24,7 @@ typedef struct test_result {
   #define test_fn(name)                                \
     [[maybe_unused, nodiscard]] test_result ID_CONCAT( \
         ID_CONCAT(                                     \
-            testing_function__, __LINE__               \
+            testing_function__, name                   \
         ),                                             \
         __COUNTER__                                    \
     )(AllocatorV allocator)
