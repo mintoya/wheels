@@ -108,16 +108,16 @@ struct debugStats debugAllocator_stats(AllocatorV allocator) {
 }
 typePrinter("dbga-stats", struct debugStats) {
   PUTS("{max storage: ");
-  USETYPEPRINTER(usize, in.max_memory);
+  USENAMEDPRINTER("usize", in.max_memory);
   PUTS(",");
   PUTS("current storage: ");
-  USETYPEPRINTER(usize, in.current_memory);
+  USENAMEDPRINTER("usize", in.current_memory);
   PUTS(",");
   PUTS("active allocations : ");
-  USETYPEPRINTER(usize, in.total_active_allocations);
+  USENAMEDPRINTER("usize", in.total_active_allocations);
   PUTS(",");
   PUTS("total calls : ");
-  USETYPEPRINTER(usize, in.total_calls);
+  USENAMEDPRINTER("usize", in.total_calls);
   PUTS("}");
 }
 AllocatorV debugAllocatorInit(struct dbgAlloc_config config) {

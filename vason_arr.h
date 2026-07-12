@@ -39,27 +39,26 @@ typedef struct vason_container {
 vason_container vason_container_create(slice(c8) text, AllocatorV allocator);
 void vason_container_free(vason_container container);
 usize vason_container_footprint(vason_container c);
-/*
+// {printer
   #include "print.h"
-  #if defined(MY_PRINTER_H)
 typePrinter(vason_container) {
   if (in.current >= msList_len(in.tags) || in.tags[in.current] & vason_INVALID) {
     PUTS("(!)");
     return;
   } else if (in.tags[in.current] & vason_UNPARSED) {
-    PUTS("(?");
+    PUTS("(?"); //)
     switch (in.tags[in.current] ^ vason_UNPARSED) {
       case vason_INVALID:
       case vason_UNPARSED:
         break;
       case vason_TABLE:
-        PUTS("<>)");
+        /*(*/ PUTS("<>)");
         break;
       case vason_PAIR:
-        PUTS(":)");
+        /*(*/ PUTS(":)");
         break;
       case vason_STRING:
-        PUTS("s)");
+        /*(*/ PUTS("s)");
         break;
     }
     return;
@@ -95,8 +94,7 @@ typePrinter(vason_container) {
     } break;
   }
 }
-  #endif
-  */
+// }
 
 // referance requred since lazy containers modify tehmselves
 vason_index vason_get_str(vason_container *c, vason_index entry, fptr f);

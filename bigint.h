@@ -81,8 +81,7 @@ NAMESPACE_STRUCT(
     (negetive, &bigint_negetive),
 );
 
-/*
-  #if defined(MY_PRINTER_H)
+  #include "print.h"
 typePrinter(bigint) {
   args = printer_arg_trim(args);
   bool debug = fptr_eq(args, fp("dbg"));
@@ -168,8 +167,6 @@ typePrinter(bigint) {
       PUTS("0");
   }
 }
-  #endif
-*/
 
 #endif
 
