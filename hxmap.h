@@ -50,27 +50,27 @@ void *hxmap_val_key(
     void *val
 );
 
-  #define mxMap(K, V) ptrof(fnptrof((hxmap *, ptrof(K)), V))
-  #define mxMap_valType(map) typeof((*map)(((hxmap *)0), nullptr))
-  #define mxMap_defaults(...) VA_SWITCH_REMP((0, 0, 0)__VA_OPT__(, (__VA_ARGS__)))
-  #define mxMap_init(allocator, K, V, ...) (mxMap(K, V)) hxmap_new(allocator, sizeof(K), sizeof(V), mxMap_defaults(__VA_ARGS__))
-  #define mxMap_set(map, key, val) ({                                  \
+  #define mxmap(K, V) ptrof(fnptrof((hxmap *, ptrof(K)), V))
+  #define mxmap_valType(map) typeof((*map)(((hxmap *)0), nullptr))
+  #define mxmap_defaults(...) VA_SWITCH_REMP((0, 0, 0)__VA_OPT__(, (__VA_ARGS__)))
+  #define mxmap_init(allocator, K, V, ...) (mxmap(K, V)) hxmap_new(allocator, sizeof(K), sizeof(V), mxmap_defaults(__VA_ARGS__))
+  #define mxmap_set(map, key, val) ({                                  \
     var_ _k = key;                                                     \
     var_ _v = val;                                                     \
-    ASSERT_EXPR(types_eq(typeof(map), mxMap(typeof(_k), typeof(_v)))); \
-    (ptrof(mxMap_valType(map))) hxmap_set((hxmap *)map, &_k, &_v);     \
+    ASSERT_EXPR(types_eq(typeof(map), mxmap(typeof(_k), typeof(_v)))); \
+    (ptrof(mxmap_valType(map))) hxmap_set((hxmap *)map, &_k, &_v);     \
   })
-  #define mxMap_rem(map, key) ({                                               \
+  #define mxmap_rem(map, key) ({                                               \
     var_ _k = key;                                                             \
-    ASSERT_EXPR(types_eq(typeof(map), mxMap(typeof(_k), mxMap_valType(map)))); \
-    (ptrof(mxMap_valType(map))) hxmap_set((hxmap *)map, &_k, nullptr);         \
+    ASSERT_EXPR(types_eq(typeof(map), mxmap(typeof(_k), mxmap_valType(map)))); \
+    (ptrof(mxmap_valType(map))) hxmap_set((hxmap *)map, &_k, nullptr);         \
   })
-  #define mxMap_get(map, key) ({                                               \
+  #define mxmap_get(map, key) ({                                               \
     var_ _k = key;                                                             \
-    ASSERT_EXPR(types_eq(typeof(map), mxMap(typeof(_k), mxMap_valType(map)))); \
-    (ptrof(mxMap_valType(map))) hxmap_get((hxmap *)map, &_k);                  \
+    ASSERT_EXPR(types_eq(typeof(map), mxmap(typeof(_k), mxmap_valType(map)))); \
+    (ptrof(mxmap_valType(map))) hxmap_get((hxmap *)map, &_k);                  \
   })
-  #define mxMap_deinit(map) hxmap_free(((void)(sizeof(typeof(mxMap_valType(map)))), (hxmap *)map))
+  #define mxmap_deinit(map) hxmap_free(((void)(sizeof(typeof(mxmap_valType(map)))), (hxmap *)map))
 
 //{hxmap(map)
 
@@ -106,51 +106,87 @@ void *hxmap_val_key(
         FOREACH_hxmap_increase, \
         FOREACH_hxmap_valid,    \
         FOREACH_hxmap_cast)
+
+  #define FOREACH_mxmap_init(map_ptr, keytype) (                  \
+      struct {                                                    \
+        typeof(map_ptr) _m;                                       \
+        size_t _idx;                                              \
+        keytype _kt[0];                                           \
+      },                                                          \
+      ({                                                          \
+        var_ _map_eval = map_ptr;                                 \
+        /*type check*/                                            \
+        (void)sizeof((*_map_eval)((hxmap *)0, REF((keytype){}))); \
+        (typeof(_foreach_._foreach_)){                            \
+            ._m = _map_eval,                                      \
+            ._idx = 0,                                            \
+        };                                                        \
+      })                                                          \
+  )
+  #define FOREACH_mxmap_cast(is)                                                                       \
+    ((struct { typeof(is._kt[0]) key; mxmap_valType(is._m)*val; }){                                                                                     \
+        .key = *(typeof(is._kt[0]) *)(((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize)),   \
+        .val = (mxmap_valType(is._m) *)(((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize)), \
+    })
+  #define FOREACH_mxmap_iter    \
+    (                           \
+        FOREACH_mxmap_init,     \
+        FOREACH_hxmap_increase, \
+        FOREACH_hxmap_valid,    \
+        FOREACH_mxmap_cast)
   //}
   #include "tests.h"
 test_fn(hxmap_tests) {
-  var_ map = mxMap_init(allocator, u32, u64);
+  var_ map = mxmap_init(allocator, u32, u64);
 
   u32 k1 = 42;
   u64 v1 = 100;
-  mxMap_set(map, k1, v1);
+  mxmap_set(map, k1, v1);
 
-  var_ r1 = mxMap_get(map, k1);
+  var_ r1 = mxmap_get(map, k1);
   test_assert(r1);
   test_assert(*r1 == 100);
   test_assert(((hxmap *)map)->count == 1);
 
   u64 v2 = 200;
-  mxMap_set(map, k1, v2);
-  var_ r2 = mxMap_get(map, k1);
+  mxmap_set(map, k1, v2);
+  var_ r2 = mxmap_get(map, k1);
   test_assert(r2);
   test_assert(*r2 == 200);
   test_assert(((hxmap *)map)->count == 1);
 
   u32 k2 = 99;
-  var_ r3 = mxMap_get(map, k2);
+  var_ r3 = mxmap_get(map, k2);
   test_assert(!r3);
 
-  mxMap_rem(map, k1);
-  var_ r4 = mxMap_get(map, k1);
+  mxmap_rem(map, k1);
+  var_ r4 = mxmap_get(map, k1);
   test_assert(!r4);
   test_assert(((hxmap *)map)->count == 0);
 
   for (u32 i = 0; i < 1000; i++) {
     u64 val = i * 10;
-    mxMap_set(map, i, val);
+    mxmap_set(map, i, val);
   }
 
   test_assert(((hxmap *)map)->count == 1000);
   test_assert(((hxmap *)map)->cap > 1000);
 
+  var_ ps = &aCreate(allocator, u64, 1000);
+  defer { aFree(allocator, ps, sizeof(*ps)); };
+
+  foreach (var_ item, mxmap_iter(map, u32))
+    ps[0][item.key] = 1;
+  foreach (var_ x, vlap(ps))
+    test_assert(x);
+
   foreach (u32 i, range(0, 1000)) {
-    var_ r = mxMap_get(map, i);
+    var_ r = mxmap_get(map, i);
     test_assert(r);
     test_assert(*r == i * 10);
   }
 
-  mxMap_deinit(map);
+  mxmap_deinit(map);
 
   test_pass();
 }

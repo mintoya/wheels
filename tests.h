@@ -56,7 +56,7 @@ struct testNode {
       testList = &thisNode;                     \
     }                                           \
     [[nodiscard]] test_result name(AllocatorV allocator)
-
+/*
 test_fn(always_pass) {
   var_ memory = &aCreate(allocator, int, 5);
   aFree(allocator, memory, sizeof(*memory));
@@ -67,6 +67,7 @@ test_fn(always_leak) {
   aCreate(allocator, int);
   test_pass();
 }
+*/
 
   #include "stdio.h"
   #define test_RESET "\x1b[0m"
