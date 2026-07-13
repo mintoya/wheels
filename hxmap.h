@@ -160,8 +160,8 @@ test_fn(hxmap_tests) {
   test_assert(!r3);
 
   mxmap_rem(map, k1);
-  var_ r4 = mxmap_get(map, k1);
-  test_assert(!r4);
+  test_assert(!mxmap_get(map, k1));
+
   test_assert(((hxmap *)map)->count == 0);
 
   for (u32 i = 0; i < 1000; i++) {

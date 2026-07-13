@@ -507,7 +507,7 @@ struct slice_any_t {
 typePrinter("*", void *) { // least safe printer of all time
   var_ typef = printer_arg_trim(printer_arg_until(':', args));
   args = printer_arg_after(':', args);
-  PUTS("*");
+  PUTS("[*]");
   if (!in) PUTS("null");
   else {
     var_ np = PrinterSingleton_get(typef);

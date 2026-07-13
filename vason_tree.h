@@ -83,7 +83,7 @@ test_fn(vason_match) {
   printf(
       "input\t: %s \noutput\t: %.*s\n",
       expected,
-      result.len,
+      (int)result.len,
       result.ptr
   );
   slice(c8) fromExpected = (slice(c8)){strlen(expected), (c8 *)expected};

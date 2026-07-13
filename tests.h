@@ -52,8 +52,14 @@ struct testNode {
               .testname = (char *)#name,        \
               .fn = name,                       \
           };                                    \
-      thisNode.next = testList;                 \
-      testList = &thisNode;                     \
+      if (!testList) {                          \
+        testList = &thisNode;                   \
+        return;                                 \
+      }                                         \
+      var_ n = testList;                        \
+      while (n->next)                           \
+        n = n->next;                            \
+      n->next = &thisNode;                      \
     }                                           \
     [[nodiscard]] test_result name(AllocatorV allocator)
 /*
@@ -84,6 +90,7 @@ int main(void) {
   while (testList) {
     AllocatorV testAlloc = debugAllocator(
             .allocator = stdAlloc,
+            // .log = stdout,
   #if defined(LOG_ALLOCATIONS)
             .on_call = onalloc
   #endif

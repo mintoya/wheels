@@ -7,7 +7,6 @@
   #include "mytypes.h"
   #include "sList.h"
   #include "stringList.h"
-  #include <stddef.h>
 struct double_idx {
   usize kidx, vidx; // kidx in stringlist, vidx in buckets[fptr_hash(f)]
 };
@@ -336,10 +335,10 @@ test_fn(test_shmap_iterator) {
     int i = 0;
     memcpy(&i, k.ptr, k.len);
     var_ v = *(Pos *)(((sHmap *)sm)->values->buf + (sizeof(Pos) * it->vidx));
-    test_assert(!v.x != i);
-    test_assert(!v.y != i);
+    test_assert(v.x == i);
+    test_assert(v.y == i);
   }
-  test_assert(!count != 10);
+  test_assert(count == 10);
 
   test_pass();
 }
@@ -358,10 +357,10 @@ test_fn(test_shmap_iterator_cast) {
     count++;
     int i = 0;
     memcpy(&i, it.key.ptr, it.key.len);
-    test_assert(!it.val.x != i);
-    test_assert(!it.val.y != i);
+    test_assert(it.val.x == i);
+    test_assert(it.val.y == i);
   }
-  test_assert(!count != 10);
+  test_assert(count == 10);
 
   test_pass();
 }

@@ -341,6 +341,30 @@ using arrof_t = T[len];
   #endif
   #define isArray(a) IS_CTARRAY(a)
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
+
+  #define asU8Vla(x) *VLAP((u8 *)&x, sizeof(x))
+
+  #define mcmp(a, b) ({                                                    \
+    var_ _a = &a;                                                          \
+    var_ _b = &b;                                                          \
+    _Static_assert(types_eq(typeof(_a), typeof(_b)), "not the same type"); \
+    __builtin_memcmp(_a, _b, MIN$(sizeof(*_b), sizeof(*_a)));              \
+  })
+
+  #define mcpy(a, b) ({                                                    \
+    var_ _a = &a;                                                          \
+    var_ _b = &b;                                                          \
+    _Static_assert(types_eq(typeof(_a), typeof(_b)), "not the same type"); \
+    __builtin_memcpy(_a, _b, MIN$(sizeof(*_b), sizeof(*_a)));              \
+  })
+
+  #define mset(mem, v) ({                                                                         \
+    var_ _m = &mem;                                                                               \
+    var_ _v = v;                                                                                  \
+    _Static_assert(types_eq(typeof((*_m)[0]), typeof(_v)), #mem "[0] must be of typeof(" #v ")"); \
+    foreach (var_ i, span(*_m, countof(*_m)))                                                     \
+      *i = _v;                                                                                    \
+  })
   #include "macros/match_tu.h"
   #include "macros/match_type.h"
 #endif

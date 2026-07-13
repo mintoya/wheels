@@ -1,5 +1,6 @@
-#ifndef MY_TYPES
-  #define MY_TYPES
+#include <string.h>
+#if !defined MY_TYPES
+  #define MY_TYPES (1)
   #include "macros.h"
   #include <assert.h>
   #include <stdalign.h>
@@ -71,11 +72,13 @@ typedef SSIZE_T ssize_t;
     #include <sys/types.h>
   #else
 typedef ptrdiff_t ssize_t;
-static_assert(sizeof(ssize_t) == sizeof(usize), "ssize and usize have to be the same length");
   #endif
 typedef ssize_t isize;
 typedef uintptr_t uptr;
 typedef ptrdiff_t iptr;
+
+static_assert(sizeof(isize) == sizeof(usize), "isize must be same size as usize");
+static_assert(~(isize)0 < (isize)0, "isize must be signed 2's complement'");
 
   #if !defined(__cplusplus)
     #ifndef thread_local
@@ -234,8 +237,17 @@ struct slice_array {
     (type[]) { __VA_OPT__(__VA_ARGS__, )(type){0} }
   #define sentList_vla(list) ({var_ _list = list; VLAP(_list, sentList_length(_list, sizeof(*_list))); })
 
-  // #define mcmp(a, b) ({ memcmp(&a, &b, MIN$(sizeof(a), sizeof(b))); })
-  // #define mcpy(a, b) ({ memcpy(&a, &b, MIN$(sizeof(a), sizeof(b))); })
+  #define slice_clone(allocator, slice) ({                 \
+    var_ _s = slice;                                       \
+    (typeof(slice)){                                       \
+        _s.len,                                            \
+        memcpy(                                            \
+            aCreate(allocator, typeof(_s.ptr[0]), _s.len), \
+            _s.ptr,                                        \
+            (sizeof(slice.ptr[0])) * _s.len                \
+        ),                                                 \
+    };                                                     \
+  })
+
 
 #endif // MY_TYPES
-
