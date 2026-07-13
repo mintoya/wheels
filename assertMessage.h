@@ -1,34 +1,35 @@
-#ifndef ASSERTMESSAGE_H
-#define ASSERTMESSAGE_H
-#include "macros.h"
-#include "mytypes.h"
-#include <stdarg.h>
+#if !defined ASSERTMESSAGE_H
+  #define ASSERTMESSAGE_H (1)
+  #include "macros.h"
+  #include "mytypes.h"
+  #include <stdarg.h>
+  #include <stdio.h>
 
-#define TODO() assertMessage(false, "todo")
+  #define TODO(...) assert(false && #__VA_ARGS__) _Pragma("GCC warning \" todo in program  \"")
 
-#define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
-#define ASSERTMESSAGE_PRINTRESET "\x1b[0m"
-#define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"
+  #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
+  #define ASSERTMESSAGE_PRINTRESET "\x1b[0m"
+  #define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"
 
-// {output macors
-// {int _am_write(void*,unsigned)
-#if defined(_WIN32) || defined(_WIN64)
-  #include <io.h>
+  // {output macors
+  // {int _am_write(void*,unsigned)
+  #if defined(_WIN32) || defined(_WIN64)
+    #include <io.h>
 static inline int _am_write(const void *buf, unsigned len) {
   return _write(2, buf, len);
 }
-#elif __has_include(<unistd.h>)
-  #include <unistd.h>
+  #elif __has_include(<unistd.h>)
+    #include <unistd.h>
 static inline int _am_write(const void *buf, unsigned len) {
   return (int)write(2, buf, (size_t)len);
 }
-#else
+  #else
 static inline int _am_write(const void *buf, unsigned len) {
   (void)buf;
   (void)len;
   return -1; // unsupported platform
 }
-#endif
+  #endif
 
 // }
 
@@ -113,25 +114,25 @@ static void _am_vfmt(const char *fmt, va_list ap) {
 // }
 // }
 
-#ifndef assertMessage_no_backtrace
-  #if __has_include(<execinfo.h>)
-    #include <execinfo.h>
-  #else
+  #ifndef assertMessage_no_backtrace
+    #if __has_include(<execinfo.h>)
+      #include <execinfo.h>
+    #else
 EXTERN_C_START
 extern char **backtrace_symbols(void *const *__array, int __size);
 extern int backtrace(void **__array, int __size) __attribute__((nonnull(1)));
 EXTERN_C_END
+    #endif
   #endif
-#endif
 
-#if __has_builtin(__builtin_trap)
-  #define assertMessage_fail_ins() __builtin_trap()
-#else
-  #define assertMessage_fail_ins() abort()
-#endif
+  #if __has_builtin(__builtin_trap)
+    #define assertMessage_fail_ins() __builtin_trap()
+  #else
+    #define assertMessage_fail_ins() abort()
+  #endif
 
-#ifndef NDEBUG
-  #if !defined(noAssertMessage)
+  #ifndef NDEBUG
+    #if !defined(noAssertMessage)
 
 // [[noreturn, gnu::cold, gnu::format(printf, 7, 8)]]
 void __attribute__((noreturn)) _assertMessageFail(
@@ -145,64 +146,63 @@ void __attribute__((noreturn)) _assertMessageFail(
     ...
 );
 
-    #ifndef assertMessage_no_backtrace
-      #define _ASSERT_GET_BT(arr) backtrace(arr, 5)
+      #ifndef assertMessage_no_backtrace
+        #define _ASSERT_GET_BT(arr) backtrace(arr, 5)
+      #else
+        #define _ASSERT_GET_BT(arr) 0
+      #endif
+
+      #define assertMessage(expr, ...)            \
+        ({                                        \
+          DIAGNOSTIC_PUSH("-Wunknown-attributes") \
+          if_unlikely (!(expr)) {                 \
+            DIAGNOSTIC_POP()                      \
+            void *array[5];                       \
+            size_t size = _ASSERT_GET_BT(array);  \
+            _assertMessageFail(                   \
+                #expr,                            \
+                __PRETTY_FUNCTION__,              \
+                __FILE__,                         \
+                __LINE__,                         \
+                array,                            \
+                size,                             \
+                "" __VA_ARGS__                    \
+            );                                    \
+          }                                       \
+          0;                                      \
+        })
     #else
-      #define _ASSERT_GET_BT(arr) 0
+      #include <assert.h>
+      #define assertMessage(bool, ...) ({ assert(bool);0; })
     #endif
-
-    #define assertMessage(expr, ...)            \
-      ({                                        \
-        DIAGNOSTIC_PUSH("-Wunknown-attributes") \
-        if_unlikely (!(expr)) {                 \
-          DIAGNOSTIC_POP()                      \
-          void *array[5];                       \
-          size_t size = _ASSERT_GET_BT(array);  \
-          _assertMessageFail(                   \
-              #expr,                            \
-              __PRETTY_FUNCTION__,              \
-              __FILE__,                         \
-              __LINE__,                         \
-              array,                            \
-              size,                             \
-              "" __VA_ARGS__                    \
-          );                                    \
-        }                                       \
-        0;                                      \
-      })
   #else
-    #include <assert.h>
-    #define assertMessage(bool, ...) ({ assert(bool);0; })
+    #define assertMessage(expr, ...)                  \
+      ({                                              \
+        if_unlikely (!expr) assertMessage_fail_ins(); \
+        0;                                            \
+      })
   #endif
-#else
-  #define assertMessage(expr, ...)                  \
-    ({                                              \
-      if_unlikely (!expr) assertMessage_fail_ins(); \
-      0;                                            \
-    })
-#endif
 
-#define assertOnce(...)           \
-  do {                            \
-                                  \
-    static char hasRun = false;   \
-                                  \
-    if (!hasRun)                  \
-      assertMessage(__VA_ARGS__); \
-    hasRun = true;                \
-                                  \
-  } while (0)
+  #define assertOnce(...)           \
+    do {                            \
+                                    \
+      static char hasRun = false;   \
+                                    \
+      if (!hasRun)                  \
+        assertMessage(__VA_ARGS__); \
+      hasRun = true;                \
+                                    \
+    } while (0)
 
-
-#if __has_builtin(__builtin_unreachable)
-  #define unreachable() __builtin_unreachable()
-#else
-  #define unreachable() assertMessage(false, "reached unreachable code")
-#endif
+  #if __has_builtin(__builtin_unreachable)
+    #define unreachable() __builtin_unreachable()
+  #else
+    #define unreachable() assertMessage(false, "reached unreachable code")
+  #endif
 
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-#define ASSERTMESSAGE_C (1)
+  #define ASSERTMESSAGE_C (1)
 #endif
 #if defined(ASSERTMESSAGE_C) && !defined(noAssertMessage)
 
@@ -234,7 +234,7 @@ void __attribute__((noreturn)) _assertMessageFail(
   _am_write_uint(line, 10, 0);
   _am_puts("\n\nfailed\n" ASSERTMESSAGE_PRINTRESET);
 
-#ifndef assertMessage_no_backtrace
+  #ifndef assertMessage_no_backtrace
   char **syms = backtrace_symbols(trace, traceLen);
   if (syms) {
     _am_puts(ASSERTMESSAGE_PRINTRED "backtrace:\n==========================\n");
@@ -244,22 +244,22 @@ void __attribute__((noreturn)) _assertMessageFail(
     }
     _am_puts("==========================\n" ASSERTMESSAGE_PRINTRESET);
   }
-#endif
+  #endif
   assertMessage_fail_ins();
 }
 
-#ifndef assertMessage_no_backtrace
-  #if __has_include(<execinfo.h>)
-    #include <execinfo.h>
-    #include <unistd.h>
-  #elif __has_include(<windows.h>) && __has_include ( <dbghelp.h> ) && __has_include ( <errhandlingapi.h> ) && __has_include ( <io.h> ) && __has_include ( <winbase.h> )
-    //
-    #include <windows.h>
-    //
-    #include <dbghelp.h>
-    #include <errhandlingapi.h>
-    #include <io.h>
-    #include <winbase.h>
+  #ifndef assertMessage_no_backtrace
+    #if __has_include(<execinfo.h>)
+      #include <execinfo.h>
+      #include <unistd.h>
+    #elif __has_include(<windows.h>) && __has_include ( <dbghelp.h> ) && __has_include ( <errhandlingapi.h> ) && __has_include ( <io.h> ) && __has_include ( <winbase.h> )
+      //
+      #include <windows.h>
+      //
+      #include <dbghelp.h>
+      #include <errhandlingapi.h>
+      #include <io.h>
+      #include <winbase.h>
 
 int __attribute__((nonnull(1))) backtrace(void **array, int size) {
   return CaptureStackBackTrace(
@@ -320,7 +320,7 @@ char **backtrace_symbols(void *const *array, int size) {
   SymCleanup(process);
   return result;
 }
-  #elif __has_include(<stm32u5xx.h>)
+    #elif __has_include(<stm32u5xx.h>)
 EXTERN_C_START
 
 static char trace_buf[4][12];
@@ -342,11 +342,11 @@ int backtrace(void **__array, int __size) {
   return 0;
 }
 EXTERN_C_END
-  #else
+    #else
 EXTERN_C_START
 char **backtrace_symbols(void *const *array, int size) { return NULL; }
 extern int backtrace(void **__array, int __size) { return 0; }
 EXTERN_C_END
+    #endif
   #endif
-#endif
 #endif
