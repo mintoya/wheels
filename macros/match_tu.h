@@ -16,7 +16,7 @@
       APPLY_N(TU_UMEM, __VA_ARGS__)                      \
     };                                                   \
   } TUPLE_EXPAND_FIRST(tagged_union)
-
+// {void + expr
 #define tu_void_toi(...)                         \
   _Generic(                                      \
       (typeof(({ __VA_ARGS__; })) *)0,           \
@@ -89,7 +89,76 @@
     }                                                                   \
     _result;                                                            \
   })
+// }
+// {void
+#define tu_match_case_void(variable, tuple)                     \
+  REM_PAREN IF_IS1(                                             \
+      ID_CONCAT(tu_match_, TUPLE_EXPAND_FIRST(tuple)),          \
+      (default : {                                              \
+        TUPLE_EXPAND_REST(tuple);                               \
+      } break;),                                                \
+      (case (TU_TAG(TUPLE_EXPAND_FIRST(tuple))) : {             \
+        var_                                                    \
+            TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
+            = variable.TUPLE_EXPAND_FIRST(tuple);               \
+        TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)));          \
+      } break;)                                                 \
+  )
+#define tu_match_void(tunion, ...)                             \
+  do {                                                         \
+    var_ _variable = tunion;                                   \
+    switch (_variable.tag) {                                   \
+      APPLY_N_WITH(tu_match_case_void, _variable, __VA_ARGS__) \
+    }                                                          \
+  } while (0)
+// }
+// {expr
 
+#define tu_match_case_type_exp(variable, tuple)                  \
+  typeof(IF_IS1(                                                 \
+      ID_CONCAT(tu_match_, TUPLE_EXPAND_FIRST(tuple)),           \
+      ({ TUPLE_EXPAND_REST(tuple); }),                           \
+      ({                                                         \
+        var_ TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
+            = variable.TUPLE_EXPAND_FIRST(tuple);                \
+        TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)));           \
+      })                                                         \
+  ))
+
+#define tu_match_case_exp(variable, tuple)                            \
+  REM_PAREN IF_IS1(                                                   \
+      ID_CONCAT(tu_match_, TUPLE_EXPAND_FIRST(tuple)),                \
+      (default : {                                                    \
+        tu_ignore_assign(                                             \
+            _result,                                                  \
+            TUPLE_EXPAND_REST(tuple),                                 \
+            default                                                   \
+        );                                                            \
+      } break;),                                                      \
+      (case (TU_TAG(TUPLE_EXPAND_FIRST(tuple))) : {                   \
+        tu_ignore_assign(                                             \
+            _result,                                                  \
+            ({                                                        \
+              var_                                                    \
+                  TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
+                  = variable.TUPLE_EXPAND_FIRST(tuple);               \
+              TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)));          \
+            }),                                                       \
+            TUPLE_EXPAND_FIRST(tuple)                                 \
+        );                                                            \
+      } break;)                                                       \
+  )
+#define tu_match_exp(tunion, first, ...)                      \
+  ({                                                          \
+    var_ _variable = tunion;                                  \
+    tu_match_case_type_exp(_variable, first) _result;         \
+    switch (_variable.tag) {                                  \
+      MACRO_EXPAND(tu_match_case_exp(_variable, first))       \
+      APPLY_N_WITH(tu_match_case_exp, _variable, __VA_ARGS__) \
+    }                                                         \
+    _result;                                                  \
+  })
+// }
 #define tu_of(type, ...) \
   {.tag = TU_TAG(type), .type = __VA_ARGS__}
 #define tu_is(type, item) (item.tag == TU_TAG(type))

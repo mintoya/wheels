@@ -2,7 +2,7 @@
   _Generic(                           \
       value,                          \
       type: value,                    \
-      default: (typeof(type)){}       \
+      default: (type){}               \
   )
 
 #define match_type_default 1
@@ -22,17 +22,15 @@
       )                                                         \
   )
 
-#define match_type(value, ...)             \
-  ({                                       \
-    arrof(ptrof(typeof(value)), 1) _vx = { \
-        (typeof(_vx[0]))REF(value)           \
-    };                                     \
-    _Generic(                              \
-        _vx[0][0],                         \
-        APPLY_N_WITH_C(                    \
-            match_type_items,              \
-            _vx[0][0],                     \
-            __VA_ARGS__                    \
-        )                                  \
-    );                                     \
+#define match_type(value, ...) \
+  ({                           \
+    var_ _vx = REF(value);    \
+    _Generic(                  \
+        _vx[0],                \
+        APPLY_N_WITH_C(        \
+            match_type_items,  \
+            _vx[0],            \
+            __VA_ARGS__        \
+        )                      \
+    );                         \
   })
