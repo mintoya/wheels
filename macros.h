@@ -289,7 +289,7 @@ using arrof_t = T[len];
     #define arrof(T, ...) typeof(typeof(T)[__VA_ARGS__])
   #else
     #define fnptrof(in, out) typeof(out(*) in)
-    #define ptrof(T) typeof(typeof(T) *)
+    #define ptrof(T) typeof(T *)
     #define arrof(T, ...) typeof(typeof(T)[__VA_ARGS__])
   #endif
 
@@ -327,7 +327,7 @@ using arrof_t = T[len];
     #endif
   #endif
   #define types_eq(T1, T2) \
-    _Generic((T1 *)0, T2 *: true, default: false)
+    _Generic((T1 *)0, T2 *: 1, default: 0)
   #define UNQUAL(...) __typeof__(1 ? (__VA_ARGS__) : (__VA_ARGS__))
   #define itypeof(struct, member) typeof(((struct *)0)->member)
   #define ptrstype(ptr) typeof(*(typeof(ptr))nullptr)
