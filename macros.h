@@ -327,37 +327,41 @@ using arrof_t = T[len];
     #endif
   #endif
   #define types_eq(T1, T2) \
-    _Generic((*((T1 *)NULL)), T2: true, default: false)
+    _Generic((T1 *)0, T2 *: true, default: false)
   #define UNQUAL(...) __typeof__(1 ? (__VA_ARGS__) : (__VA_ARGS__))
   #define itypeof(struct, member) typeof(((struct *)0)->member)
   #define ptrstype(ptr) typeof(*(typeof(ptr))nullptr)
   #define arrstype(arr) typeof((*(typeof(arr) *)nullptr)[0])
-  #if __has_builtin(__builtin_types_compatible_p)
+
+  #define IS_CTARRAY(x) \
+    (!types_eq(typeof(x), typeof(1 ? (x) : (x))))
+  #if defined __cplusplus
     #define IS_CTARRAY(x) \
-      (!__builtin_types_compatible_p(typeof(x), typeof(1 ? (x) : (x))))
-  #else
-    #pragma GCC warning "using array fallback"
-    #define IS_CTARRAY(x) (0)
+      (!types_eq(typeof(x), std::decay_t<typeof(x)>))
   #endif
+_Static_assert(IS_CTARRAY("hello"));
+_Static_assert(!IS_CTARRAY((char *)"hello"));
   #define isArray(a) IS_CTARRAY(a)
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
 
   #define asU8Vla(x) *VLAP((u8 *)&x, sizeof(x))
 
-  #define mcmp(a, b) ({                                                    \
-    var_ _a = &a;                                                          \
-    var_ _b = &b;                                                          \
-    _Static_assert(types_eq(typeof(_a), typeof(_b)), "not the same type"); \
-    __builtin_memcmp(_a, _b, MIN$(sizeof(*_b), sizeof(*_a)));              \
+  #define mcmp(a, b) ({                                       \
+    var_ _a = &a;                                             \
+    var_ _b = &b;                                             \
+    typedef typeof(({ *_a; })) _da;                           \
+    typedef typeof(({ *_b; })) _db;                           \
+    _Static_assert(types_eq(_da, _db), "not the same type");  \
+    __builtin_memcmp(_a, _b, MIN$(sizeof(*_b), sizeof(*_a))); \
   })
-
-  #define mcpy(a, b) ({                                                    \
-    var_ _a = &a;                                                          \
-    var_ _b = &b;                                                          \
-    _Static_assert(types_eq(typeof(_a), typeof(_b)), "not the same type"); \
-    __builtin_memcpy(_a, _b, MIN$(sizeof(*_b), sizeof(*_a)));              \
+  #define mcpy(a, b) ({                                       \
+    var_ _a = &a;                                             \
+    var_ _b = &b;                                             \
+    typedef typeof(({ *_a; })) _da;                           \
+    typedef typeof(({ *_b; })) _db;                           \
+    _Static_assert(types_eq(_da, _db), "not the same type");  \
+    __builtin_memcpy(_a, _b, MIN$(sizeof(*_b), sizeof(*_a))); \
   })
-
   #define mset(mem, v) ({                                                                         \
     var_ _m = &mem;                                                                               \
     var_ _v = v;                                                                                  \
@@ -365,6 +369,7 @@ using arrof_t = T[len];
     foreach (var_ i, span(*_m, countof(*_m)))                                                     \
       *i = _v;                                                                                    \
   })
+
   #include "macros/match_tu.h"
   #include "macros/match_type.h"
 #endif

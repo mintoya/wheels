@@ -22,8 +22,17 @@
       )                                                         \
   )
 
-#define match_type(value, ...)                           \
-  _Generic(                                                \
-      (*(typeof(value) *)nullptr),                         \
-      APPLY_N_WITH_C(match_type_items, value, __VA_ARGS__) \
-  )
+#define match_type(value, ...)             \
+  ({                                       \
+    arrof(ptrof(typeof(value)), 1) _vx = { \
+        (typeof(_vx[0]))REF(value)           \
+    };                                     \
+    _Generic(                              \
+        _vx[0][0],                         \
+        APPLY_N_WITH_C(                    \
+            match_type_items,              \
+            _vx[0][0],                     \
+            __VA_ARGS__                    \
+        )                                  \
+    );                                     \
+  })

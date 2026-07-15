@@ -5,10 +5,6 @@
 #include <stddef.h>
 #include <stdio.h>
 
-typedef struct test_result {
-  char *check;
-  size_t result;
-} test_result;
 #define test_pass() \
   return (test_result){0}
 #define test_assert(...)                                \
@@ -18,9 +14,13 @@ typedef struct test_result {
   } while (0)
 
 #if !defined MY_TEST_FRAMEWORK_H && !defined MY_TEST_FRAMEWORK_C
+  #define MY_TEST_FRAMEWORK_H (1)
   #include "allocator.h"
   #include "macros.h"
-  #define MY_TEST_FRAMEWORK_H (1)
+typedef struct test_result {
+  char *check;
+  size_t result;
+} test_result;
   #define test_fn(name)                                \
     [[maybe_unused, nodiscard]] test_result ID_CONCAT( \
         ID_CONCAT(                                     \
@@ -31,6 +31,10 @@ typedef struct test_result {
 #elif defined MY_TEST_FRAMEWORK_C && MY_TEST_FRAMEWORK_C == (1)
   #undef MY_TEST_FRAMEWORK_C
   #define MY_TEST_FRAMEWORK_C (2)
+typedef struct test_result {
+  char *check;
+  size_t result;
+} test_result;
   #include "allocator.h"
   #include "macros.h"
 
@@ -90,7 +94,7 @@ int main(void) {
   while (testList) {
     AllocatorV testAlloc = debugAllocator(
             .allocator = stdAlloc,
-            // .log = stdout,
+    // .log = stdout,
   #if defined(LOG_ALLOCATIONS)
             .on_call = onalloc
   #endif
@@ -122,7 +126,9 @@ int main(void) {
   }
   printf("%zu tests out of %zu passed", pass, count);
 }
-  #include "funct.h" // excluded from  include all for of c23
+  #if !defined __cplusplus
+    #include "funct.h" // excluded from  include all for of c23
+  #endif
   #define WHEELS_INCLUDE_ALL
   #include "wheels.h"
 #endif

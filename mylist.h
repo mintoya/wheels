@@ -303,10 +303,10 @@ test_fn(mlist_vla_cast) {
   mList_push(list, 9);
   var_ arr = &aCreate(allocator, int, 3);
   defer { aFree(allocator, arr, sizeof(*arr)); };
-  memcpy(arr, mList_arr(list), sizeof(*arr));
+  mcpy(*arr, *mList_vla(list));
   mList_pushArr(list, *arr);
   test_assert(mList_len(list) == 6);
-  test_assert(!memcmp(mList_arr(list), arr, sizeof(*arr)));
+  test_assert(!mcmp(*arr, *mList_vla(list)));
   test_assert(!memcmp(mList_arr(list), mList_arr(list) + 3, sizeof(*arr)));
   test_pass();
 }

@@ -78,6 +78,10 @@ void *hxmap_val_key(
       struct {                          \
         typeof(map_ptr) _m;             \
         size_t _idx;                    \
+        struct {                        \
+          void *key;                    \
+          void *val;                   \
+        } _val[0];                      \
       },                                \
       ({                                \
         var_ _map_eval = map_ptr;       \
@@ -94,10 +98,10 @@ void *hxmap_val_key(
         is._idx++;                                                                                 \
       is._idx < ((hxmap *)is._m)->cap;                                                             \
     })
-  #define FOREACH_hxmap_cast(is)                                             \
-    ((struct { void *key, *val; }){                                          \
-        .key = ((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize), \
-        .val = ((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize), \
+  #define FOREACH_hxmap_cast(is)                                                       \
+    ((typeof(is._val[0])){                                                             \
+        .key = (void *)(((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize)), \
+        .val = (void *)(((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize)), \
     })
 
   #define FOREACH_hxmap_iter    \
@@ -111,7 +115,10 @@ void *hxmap_val_key(
       struct {                                                    \
         typeof(map_ptr) _m;                                       \
         size_t _idx;                                              \
-        keytype _kt[0];                                           \
+        struct {                                                  \
+          keytype key;                                            \
+          mxmap_valType(map_ptr) * val;                           \
+        } _val[0];                                                \
       },                                                          \
       ({                                                          \
         var_ _map_eval = map_ptr;                                 \
@@ -123,10 +130,10 @@ void *hxmap_val_key(
         };                                                        \
       })                                                          \
   )
-  #define FOREACH_mxmap_cast(is)                                                                       \
-    ((struct { typeof(is._kt[0]) key; mxmap_valType(is._m)*val; }){                                                                                     \
-        .key = *(typeof(is._kt[0]) *)(((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize)),   \
-        .val = (mxmap_valType(is._m) *)(((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize)), \
+  #define FOREACH_mxmap_cast(is)                                                                        \
+    ((typeof(is._val[0])){                                                                              \
+        .key = *(typeof(is._val->key) *)(((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize)), \
+        .val = (typeof(is._val->val))(((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize)),    \
     })
   #define FOREACH_mxmap_iter    \
     (                           \

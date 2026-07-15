@@ -1,8 +1,8 @@
-#ifndef MY_DEBUG_ALLOCATOR_H
-#define MY_DEBUG_ALLOCATOR_H
-#include "../allocator.h"
-#include "../hxmap.h"
-#include <stdio.h>
+#if !defined MY_DEBUG_ALLOCATOR_H
+  #define MY_DEBUG_ALLOCATOR_H
+  #include "../allocator.h"
+  #include "../hxmap.h"
+  #include <stdio.h>
 
 struct tracedata {
   char *fn;
@@ -30,13 +30,13 @@ struct debugStats {
 };
 struct debugStats debugAllocator_stats(AllocatorV allocator);
 struct debugStats debugAllocator_clear(AllocatorV allocator);
-#define debugAllocator(...) ({                     \
-  struct dbgAlloc_config config = {                \
-      __VA_ARGS__                                  \
-  };                                               \
-  config.allocator = config.allocator ?: stdAlloc; \
-  debugAllocatorInit(config);                      \
-})
+  #define debugAllocator(...) ({                     \
+    struct dbgAlloc_config config = {                \
+        __VA_ARGS__                                  \
+    };                                               \
+    config.allocator = config.allocator ?: stdAlloc; \
+    debugAllocatorInit(config);                      \
+  })
 
 /**
  * `@param` **allocator**  allocator
@@ -50,14 +50,14 @@ int debugAllocatorDeInit(AllocatorV);
 #endif // MY_DEBUG_ALLOCATOR_H
 
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-#define MY_DEBUG_ALLOCATOR_C (1)
+  #define MY_DEBUG_ALLOCATOR_C (1)
 #endif
 
 #if defined(MY_DEBUG_ALLOCATOR_C)
 
-#include "../macros.h"
-#include "../mytypes.h"
-#include "../print.h"
+  #include "../macros.h"
+  #include "../mytypes.h"
+  #include "../print.h"
 
 typedef struct {
   mxmap(void *, struct tracedata) map;
@@ -71,7 +71,7 @@ typedef struct {
   debugAllocatorInternals internals[1];
 } Debug_allocator_block;
 
-#include "../tests.h"
+  #include "../tests.h"
 test_fn(debug_allocator_test) {
   usize allocations = 10;
   AllocatorV debug = debugAllocator(
@@ -244,11 +244,9 @@ void debugAllocator_free(AllocatorV allocator, void *ptr, usize size, char *fn, 
   debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
   AllocatorV realAllocator = internals->actualAllocator;
   struct tracedata *data = mxmap_get(internals->map, ptr);
-
-  struct tracedata datak = *data;
   assertMessage(data, "pointer not in allocator , from %lu %s", ln, fn);
+  struct tracedata datak = *data;
   internals->current -= data->size;
-  assertMessage(mxmap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
   (aFree)(realAllocator, ptr, data->size, fn, ln);
 
   if (internals->config.on_call) {
@@ -268,10 +266,7 @@ void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize oldsize, usi
   struct tracedata *data = mxmap_get(internals->map, ptr);
   assertMessage(data, "pointer not in allocator , from %lu %s", ln, fn);
   internals->current -= data->size;
-  assertMessage(mxmap_get(internals->map, ptr), "double free or corruption in : %s %zu", fn, ln);
-
   mxmap_rem(internals->map, ptr);
-
   void *res = ((aResize)(realAllocator, ptr, oldsize, newsize, fn, ln));
   internals->total++;
   assertMessage(

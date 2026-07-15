@@ -512,7 +512,7 @@ typePrinter("*", void *) { // least safe printer of all time
   else {
     var_ np = PrinterSingleton_get(typef);
     if (np.function)
-      np.function(put, (fptr){np.size, in}, args, _arb);
+      np.function(put, (fptr){np.size, (u8 *)in}, args, _arb);
     else {
       PUTS("UNKNOWN PRINTER ");
       USENAMEDPRINTER("slice(c8)", typef)

@@ -5,7 +5,9 @@
   #include <stdarg.h>
   #include <stdio.h>
 
-  #define TODO(...) assert(false && #__VA_ARGS__) _Pragma("GCC warning \" todo in program  \"")
+  #define TODO(...)                \
+    assert(false && #__VA_ARGS__); \
+    exit(1) _Pragma("GCC warning \" todo in program  \"")
 
   #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
   #define ASSERTMESSAGE_PRINTRESET "\x1b[0m"
