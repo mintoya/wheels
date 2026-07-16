@@ -159,7 +159,7 @@ static struct bbs_result bbsearch(
     const void *base0,
     usize nmemb,
     usize size,
-    int (*compar)(const void *, const void *)
+    i8 (*compar)(const void *, const void *)
 ) {
   typedef typeof(bbsearch(nullptr, nullptr, 0, 0, nullptr)) r_t;
   const char *base = (const char *)base0;
@@ -179,7 +179,7 @@ static struct bbs_result bbsearch(
 static inline sList_header *sList_appendFromArr(AllocatorV allocator, sList_header *l, usize width, void *source, usize ammount) {
   return sList_insertFromArr(allocator, l, source, ammount, l->length, width);
 }
-static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, usize width, usize i, void *element) {
+static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, usize width, usize i, const void *element) {
   return sList_insertFromArr(allocator, l, element, 1, i, width);
 }
   #if defined(__BLOCKS__)
