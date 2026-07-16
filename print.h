@@ -137,8 +137,10 @@ void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *)
   #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
   #define print_(fmt, ...) print_wfO(fileprint, stdout, fmt, __VA_ARGS__)
   #define println_(fmt, ...) print(fmt "\n", __VA_ARGS__)
-  #define print(fmt, ...) print_(fmt, __VA_ARGS__)
-  #define println(fmt, ...) println_(fmt, __VA_ARGS__)
+  #if !defined PRINT_NDEF
+    #define print(fmt, ...) print_(fmt, __VA_ARGS__)
+    #define println(fmt, ...) println_(fmt, __VA_ARGS__)
+  #endif
 
   #if !defined(__cplusplus)
 
@@ -299,6 +301,7 @@ __attribute__((destructor(201))) static void printerDeInit() { PrinterSingleton_
 
 typePrinter("ptr", void *) {
   uintptr_t v = (uintptr_t)in;
+  if (!v) return PUTS("(nil)");
   PUTS("0x");
 
   int shift = (sizeof(uintptr_t) * 8) - 4;

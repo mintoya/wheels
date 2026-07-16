@@ -2,6 +2,7 @@
   #define MY_DEBUG_ALLOCATOR_H
   #include "../allocator.h"
   #include "../hxmap.h"
+  #include "../print.h"
   #include <stdio.h>
 
 struct tracedata {

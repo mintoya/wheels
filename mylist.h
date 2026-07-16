@@ -6,7 +6,7 @@
   #include <string.h>
 
   #if !defined LIST_GROW_EQ
-    #define LIST_GROW_EQ(uint) (uint + uint / 2 + 1)
+    #define LIST_GROW_EQ(uint) (uint + uint)
   #endif
   #include "allocator.h"
 
@@ -14,11 +14,17 @@ typedef size_t List_index_t;
 typedef struct List {
   List_index_t length;
   List_index_t capacity;
+  uint8_t *__restrict head;
   AllocatorV allocator;
-  uint8_t *head;
 } List;
 
-void List_forceResize(List *l, List_index_t newSize, size_t width);
+static inline void List_forceResize(List *l, List_index_t newlength, size_t width) {
+  l->head = (uint8_t *)aResize(l->allocator, l->head, l->capacity * width, newlength * width);
+  l->capacity = newlength;
+  if (l->allocator->size)
+    l->capacity = l->allocator->size(l->allocator, l->head) / width;
+  l->length = (l->length < l->capacity) ? (l->length) : (l->capacity);
+}
 
 __attribute__((pure))
 /**
@@ -180,10 +186,14 @@ void List_remove(List *l, List_index_t i, size_t width);
       mList_iType(list) value = val;                           \
       List_insert((List *)list, index, &value, sizeof(value)); \
     } while (0)
+
   #define mList_rem(list, index)                                   \
-    do {                                                           \
+    ({                                                             \
+      mList_iType(list) x;                                         \
+      x = mList_len(list) > index ? mList_arr(list)[index] : x;    \
       List_remove((List *)list, index, sizeof(mList_iType(list))); \
-    } while (0)
+      x;                                                           \
+    })
   #define mList_setCap(list, capacity) \
     do {                               \
       List_forceResize(                \
@@ -330,13 +340,6 @@ void List_remove(List *l, List_index_t i, size_t width) {
   if (i >= l->length) return;
   memmove(l->head + i * width, l->head + (i + 1) * width, (l->length - i - 1) * width);
   l->length--;
-}
-void List_forceResize(List *l, List_index_t newlength, size_t width) {
-  l->head = (uint8_t *)aResize(l->allocator, l->head, l->capacity * width, newlength * width);
-  l->capacity = newlength;
-  if (l->allocator->size)
-    l->capacity = l->allocator->size(l->allocator, l->head) / width;
-  l->length = (l->length < l->capacity) ? (l->length) : (l->capacity);
 }
 void *List_insertFromArr(List *l, const void *source, List_index_t length, List_index_t location, size_t width) {
   if (location > l->length) return l;
