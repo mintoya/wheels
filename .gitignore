@@ -16,3 +16,4 @@ wheels.pdb
 /.xmake/
 /compile_commands.json
 /cpthreads
+/includeAll.o
