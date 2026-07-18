@@ -73,6 +73,12 @@
 #endif
 #undef MY_ALLOCATOR_C
 
+#if defined(MY_OXMAP_H) || defined(WHEELS_INCLUDE_ALL) && !defined(MY_OXMAP_C)
+  #define MY_OXMAP_C (1)
+  #include "oxmap.h"
+#endif
+#undef MY_OXMAP_C
+
 #if defined(ASSERTMESSAGE_H) || defined(WHEELS_INCLUDE_ALL) && !defined(ASSERTMESSAGE_C)
   #define ASSERTMESSAGE_C (1)
   #include "assertMessage.h"

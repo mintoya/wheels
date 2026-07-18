@@ -36,11 +36,11 @@ void oxmap_free(oxmap *map) {
   aFree(allocator, map, sizeof(*map));
 }
 struct bbs_result oxmap_base_search(const oxmap *map, const void *key) {
-  if (map->cmp) return bbsearch(key, map->keys, map->keys->length, map->ksize, map->cmp);
+  if (map->cmp) return bbsearch(key, map->keys->buf, map->keys->length, map->ksize, map->cmp);
 
   usize size = map->ksize;
   usize nmemb = map->keys->length / size;
-  const char *base = (const char *)map->keys;
+  const char *base = (const char *)map->keys->buf;
 
   for (usize lim = nmemb; lim; lim /= 2) {
     var_ p = base + (lim >> 1) * size;
@@ -55,7 +55,7 @@ struct bbs_result oxmap_base_search(const oxmap *map, const void *key) {
   return (struct bbs_result){(void *)base, false};
 }
 void *oxmap_key_val(const oxmap *map, const void *key) {
-  return (((u8 *)key - (u8 *)map->keys->buf) / map->ksize * map->vsize) + map->vals;
+  return (((u8 *)key - (u8 *)map->keys->buf) / map->ksize * map->vsize) + map->vals->buf;
 }
 void *oxmap_set(oxmap *map, const void *key, const void *val) {
   if (!key) return nullptr;
@@ -82,5 +82,156 @@ void *oxmap_get(const oxmap *map, const void *key) {
   var_ pos = oxmap_base_search(map, key);
   if (pos.f) return oxmap_key_val(map, pos.p);
   return nullptr;
+}
+void oxmap_clear(oxmap *map) { map->keys->length = (map->vals->length = 0); }
+  #define moxmap(K, V) ptrof(fnptrof((oxmap *, K *), V))
+  #define moxmap_vt(map) typeof((*map)((oxmap *)0, nullptr))
+  #define moxmap_tox(map) ((void)sizeof(typeof((*map)((oxmap *)0, nullptr))), (oxmap *)map)
+  #define moxmap_init(allocator, K, V, ...) (moxmap(K, V)) oxmap_new(allocator, sizeof(K), sizeof(V), VA_SWITCH(nullptr, __VA_ARGS__))
+  #define moxmap_deinit(map) oxmap_free(moxmap_tox(map))
+  #define moxmap_set(map, key, val) ((moxmap_vt(map) *)({                       \
+    var_ _k = key;                                                              \
+    var_ _v = val;                                                              \
+    (void)sizeof(({ typeof(&_v) _r = (typeof((*map)((oxmap *)0, &_k)) *)0; })); \
+    oxmap_set(moxmap_tox(map), &_k, &_v);                                       \
+  }))
+  #define moxmap_get(map, key) ((moxmap_vt(map) *)({    \
+    var_ _k = key;                                      \
+    (void)sizeof((typeof((*map)((oxmap *)0, &_k)) *)0); \
+    oxmap_get(moxmap_tox(map), &_k);                    \
+  }))
+
+  #define moxmap_rem(map, key)                            \
+    ({                                                    \
+      var_ _k = key;                                      \
+      (void)sizeof((typeof((*map)((oxmap *)0, &_k)) *)0); \
+      oxmap_set(moxmap_tox(map), &_k, nullptr);           \
+    })
+// {iter
+  #define FOREACH_oxmap_init(map_ptr) ( \
+      struct {                          \
+        typeof(map_ptr) _m;             \
+        size_t _idx;                    \
+        struct {                        \
+          void *key;                    \
+          void *val;                    \
+        } _val[0];                      \
+      },                                \
+      ({                                \
+        var_ _map_eval = map_ptr;       \
+        (typeof(_foreach_._foreach_)){  \
+            ._m = _map_eval,            \
+            ._idx = 0,                  \
+        };                              \
+      })                                \
+  )
+  #define FOREACH_oxmap_increase(is) (is._idx++)
+  #define FOREACH_oxmap_valid(is) \
+    (is._idx < ((oxmap *)is._m)->keys->length)
+  #define FOREACH_oxmap_cast(is)                                                            \
+    ((typeof(is._val[0])){                                                                  \
+        .key = (void *)(((oxmap *)is._m)->keys->buf + (is._idx * ((oxmap *)is._m)->ksize)), \
+        .val = (void *)(((oxmap *)is._m)->vals->buf + (is._idx * ((oxmap *)is._m)->vsize)), \
+    })
+
+  #define FOREACH_oxmap_iter    \
+    (                           \
+        FOREACH_oxmap_init,     \
+        FOREACH_oxmap_increase, \
+        FOREACH_oxmap_valid,    \
+        FOREACH_oxmap_cast)
+
+  #define FOREACH_moxmap_init(map_ptr, K, V) ( \
+      struct {                                 \
+        typeof(map_ptr) _m;                    \
+        size_t _idx;                           \
+        struct {                               \
+          K key;                               \
+          V *val;                              \
+        } _val[0];                             \
+      },                                       \
+      ({                                       \
+        var_ _map_eval = map_ptr;              \
+        _Static_assert(                        \
+            types_eq(                          \
+                typeof(_map_eval),             \
+                moxmap(K, V)                   \
+            ),                                 \
+            "wrong map iterator type"          \
+        );                                     \
+        (typeof(_foreach_._foreach_)){         \
+            ._m = _map_eval,                   \
+            ._idx = 0,                         \
+        };                                     \
+      })                                       \
+  )
+  #define FOREACH_moxmap_cast(is)                                                                            \
+    ((typeof(is._val[0])){                                                                                   \
+        .key = *(typeof(is._val->key) *)(((oxmap *)is._m)->keys->buf + (is._idx * ((oxmap *)is._m)->ksize)), \
+        .val = (typeof(is._val->val))(((oxmap *)is._m)->vals->buf + (is._idx * ((oxmap *)is._m)->vsize)),    \
+    })
+  #define FOREACH_moxmap_iter   \
+    (                           \
+        FOREACH_moxmap_init,    \
+        FOREACH_oxmap_increase, \
+        FOREACH_oxmap_valid,    \
+        FOREACH_moxmap_cast)
+// }
+i8 test_icmp(const void *a, const void *b) {
+  var_ ai = *(int *)a;
+  var_ bi = *(int *)b;
+  return ai > bi ? -1 : bi > ai ? 1
+                                : 0;
+}
+test_fn(oxmap_basic) {
+  var_ map = oxmap_new(allocator, sizeof(int), sizeof(int), test_icmp);
+  // var_ map = oxmap_new(allocator, sizeof(int), sizeof(int), nullptr);
+  defer { oxmap_free(map); };
+
+  foreach (var_ i, range(0, 100))
+    oxmap_set(map, REF(i), REF(i * i));
+  foreach (var_ i, range(0, 100)) {
+    var_ g = oxmap_get(map, REF(i));
+    test_assert(g);
+    test_assert(*(int *)g == i * i);
+  }
+
+  var_ ints = &aCreate(allocator, i8, 100);
+  defer { aFree(allocator, ints, sizeof(*ints)); };
+
+  foreach (var_ it, oxmap_iter(map)) {
+    var_ k = *(int *)it.key;
+    var_ v = *(int *)it.val;
+    test_assert(v == k * k);
+    (*ints)[k] = 1;
+  }
+
+  foreach (var_ i, vlap(ints))
+    test_assert(i == 1);
+
+  test_pass();
+}
+test_fn(oxmap_macros) {
+  var_ map = moxmap_init(allocator, int, int, test_icmp);
+  defer { moxmap_deinit(map); };
+  foreach (var_ i, range(0, 100))
+    moxmap_set(map, i, i * i);
+  foreach (var_ i, range(0, 100)) {
+    var_ g = moxmap_get(map, i);
+    test_assert(g);
+    test_assert(*g == i * i);
+  }
+
+  var_ ints = &aCreate(allocator, i8, 100);
+  defer { aFree(allocator, ints, sizeof(*ints)); };
+
+  foreach (var_ it, moxmap_iter(map, int, int)) {
+    test_assert(*it.val == it.key * it.key);
+    (*ints)[it.key] = 1;
+  }
+
+  foreach (var_ i, vlap(ints))
+    test_assert(i == 1);
+  test_pass();
 }
 #endif
