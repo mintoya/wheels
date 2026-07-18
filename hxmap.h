@@ -80,7 +80,7 @@ void *hxmap_val_key(
         size_t _idx;                    \
         struct {                        \
           void *key;                    \
-          void *val;                   \
+          void *val;                    \
         } _val[0];                      \
       },                                \
       ({                                \
@@ -111,24 +111,29 @@ void *hxmap_val_key(
         FOREACH_hxmap_valid,    \
         FOREACH_hxmap_cast)
 
-  #define FOREACH_mxmap_init(map_ptr, keytype) (                  \
-      struct {                                                    \
-        typeof(map_ptr) _m;                                       \
-        size_t _idx;                                              \
-        struct {                                                  \
-          keytype key;                                            \
-          mxmap_valType(map_ptr) * val;                           \
-        } _val[0];                                                \
-      },                                                          \
-      ({                                                          \
-        var_ _map_eval = map_ptr;                                 \
-        /*type check*/                                            \
-        (void)sizeof((*_map_eval)((hxmap *)0, REF((keytype){}))); \
-        (typeof(_foreach_._foreach_)){                            \
-            ._m = _map_eval,                                      \
-            ._idx = 0,                                            \
-        };                                                        \
-      })                                                          \
+  #define FOREACH_mxmap_init(map_ptr, keytype, valtype) ( \
+      struct {                                            \
+        typeof(map_ptr) _m;                               \
+        size_t _idx;                                      \
+        struct {                                          \
+          keytype key;                                    \
+          valtype *val;                                   \
+        } _val[0];                                        \
+      },                                                  \
+      ({                                                  \
+        var_ _map_eval = map_ptr;                         \
+        _Static_assert(                                   \
+            types_eq(                                     \
+                typeof(_map_eval),                        \
+                typeof(mxmap(keytype, valtype))           \
+            ),                                            \
+            "wrong types passed to iterator"              \
+        );                                                \
+        (typeof(_foreach_._foreach_)){                    \
+            ._m = _map_eval,                              \
+            ._idx = 0,                                    \
+        };                                                \
+      })                                                  \
   )
   #define FOREACH_mxmap_cast(is)                                                                        \
     ((typeof(is._val[0])){                                                                              \
@@ -182,7 +187,7 @@ test_fn(hxmap_tests) {
   var_ ps = &aCreate(allocator, u64, 1000);
   defer { aFree(allocator, ps, sizeof(*ps)); };
 
-  foreach (var_ item, mxmap_iter(map, u32))
+  foreach (var_ item, mxmap_iter(map, u32, u64))
     ps[0][item.key] = 1;
   foreach (var_ x, vlap(ps))
     test_assert(x);
@@ -203,7 +208,7 @@ test_fn(hxmap_tests) {
   #define MY_HXMAP_C (1)
 #endif
 
-#if defined MY_HXMAP_C
+#if defined MY_HXMAP_C && MY_HXMAP_C == 1
 hxmap *hxmap_new(
     AllocatorV allocator,
     usize ksize,

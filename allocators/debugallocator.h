@@ -87,7 +87,7 @@ test_fn(debug_allocator_test) {
   debugAllocatorInternals *internals = ((debugAllocatorInternals *)debug->arb);
   int n1 = ((hxmap *)internals->map)->count;
   int n2 = 0;
-  foreach (var_ it, mxmap_iter(internals->map, void *))
+  foreach (var_ it, mxmap_iter(internals->map, void *, struct tracedata))
     n2++;
   int n = debugAllocatorDeInit(debug);
   test_assert(n == allocations && n1 == allocations && n2 == n1);
