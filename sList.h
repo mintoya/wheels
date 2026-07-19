@@ -1,3 +1,4 @@
+#include <string.h>
 #if !defined(SHORT_LIST_H)
   #define SHORT_LIST_H (1)
   #include "allocator.h"
@@ -153,29 +154,46 @@ static inline sList_header *sList_append(
 struct bbs_result {
   void *p;
   bool f;
+  usize i;
 };
 static struct bbs_result bbsearch(
     const void *key,
     const void *base0,
     usize nmemb,
     usize size,
-    i8 (*compar)(const void *, const void *)
+    fnptrof((const void *, const void *), i8) compar
 ) {
   typedef typeof(bbsearch(nullptr, nullptr, 0, 0, nullptr)) r_t;
   const char *base = (const char *)base0;
 
   for (usize lim = nmemb; lim; lim /= 2) {
     var_ p = base + (lim >> 1) * size;
-    var_ cmp = compar(key, p);
+    var_ cmp = compar ? compar(key, p) : memcmp(key, p, size);
     if (!cmp)
-      return (r_t){(void *)p, 1};
+      return (r_t){(void *)p, 1, ((u8 *)p - (u8 *)base0) / size};
     if (cmp > 0) {
       base = (const char *)p + size;
       lim--;
     }
   }
-  return (r_t){(void *)base, 0};
+  return (r_t){(void *)base, 0, ((u8 *)base - (u8 *)base0) / size};
 }
+  #define bbs_vla(it, vla, ...) ({                                                                        \
+    var_ _evla = &vla;                                                                                    \
+    var_ _eit = it;                                                                                       \
+    _Static_assert(types_eq(typeof(_eit), typeof(**_evla)), "searching for wrong type in list");          \
+    var_ _rxbs = bbsearch(&_eit, *_evla, countof(*_evla), sizeof(_eit), VA_SWITCH(nullptr, __VA_ARGS__)); \
+    struct {                                                                                              \
+      typeof(_eit) *p;                                                                                    \
+      bool f;                                                                                             \
+      usize i;                                                                                          \
+    } _rxbst = {                                                                                          \
+        (typeof(_eit) *)_rxbs.p,                                                                          \
+        _rxbs.f,                                                                                          \
+        _rxbs.i,                                                                                        \
+    };                                                                                                    \
+    _rxbst;                                                                                               \
+  })
 static inline sList_header *sList_appendFromArr(AllocatorV allocator, sList_header *l, usize width, void *source, usize ammount) {
   return sList_insertFromArr(allocator, l, source, ammount, l->length, width);
 }
@@ -387,7 +405,6 @@ test_fn(msList_insert_remove) {
   test_assert(msList_popFront(list) == 200);
   test_assert(msList_len(list) == 1);
   test_assert(list[0] == 300);
-
 }
 test_fn(msList_array_operations) {
   msList(int) list = msList_init(allocator, int);
@@ -403,7 +420,6 @@ test_fn(msList_array_operations) {
   test_assert(msList_len(list) == 6);
   test_assert(list[0] == 1);
   test_assert(list[1] == 2);
-
 }
 test_fn(msList_capacity_and_padding) {
   msList(int) list = msList_init(allocator, int);
@@ -420,7 +436,6 @@ test_fn(msList_capacity_and_padding) {
 
   msList_clear(list);
   test_assert(msList_len(list) == 0);
-
 }
 test_fn(msList_vla_cast) {
   msList(int) list = msList_init(allocator, int);

@@ -148,7 +148,6 @@ test_fn(oxmap_basic) {
 
   foreach (var_ i, vlap(ints))
     test_assert(i == 1);
-
 }
 test_fn(oxmap_basic_nosort) {
   var_ map = oxmap_new(allocator, sizeof(int), sizeof(int), nullptr);
@@ -174,7 +173,6 @@ test_fn(oxmap_basic_nosort) {
 
   foreach (var_ i, vlap(ints))
     test_assert(i == 1);
-
 }
 test_fn(oxmap_macros) {
   var_ map = moxmap_init(allocator, int, int, test_icmp);
@@ -224,23 +222,7 @@ void oxmap_free(oxmap *map) {
   aFree(allocator, map, sizeof(*map));
 }
 struct bbs_result oxmap_base_search(const oxmap *map, const void *key) {
-  if (map->cmp) return bbsearch(key, map->keys->buf, map->keys->length, map->ksize, map->cmp);
-
-  usize size = map->ksize;
-  usize nmemb = map->keys->length;
-  var_ base = (const u8 *)map->keys->buf;
-
-  for (usize lim = nmemb; lim; lim /= 2) {
-    var_ p = base + (lim / 2) * size;
-    var_ cmp = fptr_cmp(((fptr){size, (u8 *)key}), ((fptr){size, (u8 *)p}));
-    if (!cmp)
-      return (struct bbs_result){(void *)p, true};
-    if (cmp > 0) {
-      base = (const u8 *)p + size;
-      lim--;
-    }
-  }
-  return (struct bbs_result){(void *)base, false};
+  return bbsearch(key, map->keys->buf, map->keys->length, map->ksize, map->cmp);
 }
 void *oxmap_key_val(const oxmap *map, const void *key) {
   return (((u8 *)key - (u8 *)map->keys->buf) / map->ksize * map->vsize) + map->vals->buf;
