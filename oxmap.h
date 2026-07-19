@@ -14,76 +14,17 @@ typedef struct oxmap {
   sList_header *keys;
   sList_header *vals;
 } oxmap;
-oxmap *oxmap_new(AllocatorV allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp) cmp) {
-  var_ res = aCreate(allocator, oxmap);
-  mcpy(
-      *res,
-      ((oxmap){
-          .allocator = allocator,
-          .cmp = cmp,
-          .ksize = ksize,
-          .vsize = vsize,
-          .keys = sList_new(allocator, 2, ksize),
-          .vals = sList_new(allocator, 2, vsize),
-      })
-  );
-  return res;
-}
-void oxmap_free(oxmap *map) {
-  var_ allocator = map->allocator;
-  sList_free(allocator, map->keys, map->ksize);
-  sList_free(allocator, map->vals, map->vsize);
-  aFree(allocator, map, sizeof(*map));
-}
-struct bbs_result oxmap_base_search(const oxmap *map, const void *key) {
-  if (map->cmp) return bbsearch(key, map->keys->buf, map->keys->length, map->ksize, map->cmp);
 
-  usize size = map->ksize;
-  usize nmemb = map->keys->length / size;
-  const char *base = (const char *)map->keys->buf;
+oxmap *oxmap_new(AllocatorV allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp) cmp);
+void oxmap_free(oxmap *map);
+// valptr from keyptr
+void *oxmap_key_val(const oxmap *map, const void *key);
+// keyptr from valptr
+void *oxmap_val_key(const oxmap *map, const void *val);
+void *oxmap_set(oxmap *map, const void *key, const void *val);
+void *oxmap_get(const oxmap *map, const void *key);
+void oxmap_clear(oxmap *map);
 
-  for (usize lim = nmemb; lim; lim /= 2) {
-    var_ p = base + (lim >> 1) * size;
-    var_ cmp = fptr_cmp(((fptr){size, (u8 *)key}), ((fptr){size, (u8 *)p}));
-    if (!cmp)
-      return (struct bbs_result){(void *)p, true};
-    if (cmp > 0) {
-      base = (const char *)p + size;
-      lim--;
-    }
-  }
-  return (struct bbs_result){(void *)base, false};
-}
-void *oxmap_key_val(const oxmap *map, const void *key) {
-  return (((u8 *)key - (u8 *)map->keys->buf) / map->ksize * map->vsize) + map->vals->buf;
-}
-void *oxmap_set(oxmap *map, const void *key, const void *val) {
-  if (!key) return nullptr;
-  var_ pos = oxmap_base_search(map, key);
-  usize idx = ((u8 *)pos.p - map->keys->buf) / map->ksize;
-
-  if (val) {
-    if (pos.f) return memcpy(oxmap_key_val(map, pos.p), val, map->vsize);
-    else {
-      map->keys = sList_insert(map->allocator, map->keys, map->ksize, idx, key);
-      map->vals = sList_insert(map->allocator, map->vals, map->vsize, idx, val);
-      return map->vals->buf + (idx * map->vsize);
-    }
-  } else {
-    if (pos.f) {
-      sList_remove(map->keys, map->ksize, idx);
-      sList_remove(map->vals, map->vsize, idx);
-    }
-    return nullptr;
-  }
-}
-void *oxmap_get(const oxmap *map, const void *key) {
-  if (!key) return nullptr;
-  var_ pos = oxmap_base_search(map, key);
-  if (pos.f) return oxmap_key_val(map, pos.p);
-  return nullptr;
-}
-void oxmap_clear(oxmap *map) { map->keys->length = (map->vals->length = 0); }
   #define moxmap(K, V) ptrof(fnptrof((oxmap *, K *), V))
   #define moxmap_vt(map) typeof((*map)((oxmap *)0, nullptr))
   #define moxmap_tox(map) ((void)sizeof(typeof((*map)((oxmap *)0, nullptr))), (oxmap *)map)
@@ -185,7 +126,33 @@ i8 test_icmp(const void *a, const void *b) {
 }
 test_fn(oxmap_basic) {
   var_ map = oxmap_new(allocator, sizeof(int), sizeof(int), test_icmp);
-  // var_ map = oxmap_new(allocator, sizeof(int), sizeof(int), nullptr);
+  defer { oxmap_free(map); };
+
+  foreach (var_ i, range(0, 100))
+    oxmap_set(map, REF(i), REF(i * i));
+  foreach (var_ i, range(0, 100)) {
+    var_ g = oxmap_get(map, REF(i));
+    test_assert(g);
+    test_assert(*(int *)g == i * i);
+  }
+
+  var_ ints = &aCreate(allocator, i8, 100);
+  defer { aFree(allocator, ints, sizeof(*ints)); };
+
+  foreach (var_ it, oxmap_iter(map)) {
+    var_ k = *(int *)it.key;
+    var_ v = *(int *)it.val;
+    test_assert(v == k * k);
+    (*ints)[k] = 1;
+  }
+
+  foreach (var_ i, vlap(ints))
+    test_assert(i == 1);
+
+  test_pass();
+}
+test_fn(oxmap_basic_nosort) {
+  var_ map = oxmap_new(allocator, sizeof(int), sizeof(int), nullptr);
   defer { oxmap_free(map); };
 
   foreach (var_ i, range(0, 100))
@@ -234,4 +201,86 @@ test_fn(oxmap_macros) {
     test_assert(i == 1);
   test_pass();
 }
+#endif
+#if (defined MY_OXMAP_C && MY_OXMAP_C == 1) || (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
+  #define MY_OXMAP_C (2)
+oxmap *oxmap_new(AllocatorV allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp) cmp) {
+  assertMessage(ksize || vsize);
+  var_ res = aCreate(allocator, oxmap);
+  mcpy(
+      *res,
+      ((oxmap){
+          .allocator = allocator,
+          .cmp = cmp,
+          .ksize = ksize,
+          .vsize = vsize,
+          .keys = sList_new(allocator, 2, ksize),
+          .vals = sList_new(allocator, 2, vsize),
+      })
+  );
+  return res;
+}
+void oxmap_free(oxmap *map) {
+  var_ allocator = map->allocator;
+  sList_free(allocator, map->keys, map->ksize);
+  sList_free(allocator, map->vals, map->vsize);
+  aFree(allocator, map, sizeof(*map));
+}
+struct bbs_result oxmap_base_search(const oxmap *map, const void *key) {
+  if (map->cmp) return bbsearch(key, map->keys->buf, map->keys->length, map->ksize, map->cmp);
+
+  usize size = map->ksize;
+  usize nmemb = map->keys->length;
+  var_ base = (const u8 *)map->keys->buf;
+
+  for (usize lim = nmemb; lim; lim /= 2) {
+    var_ p = base + (lim / 2) * size;
+    var_ cmp = fptr_cmp(((fptr){size, (u8 *)key}), ((fptr){size, (u8 *)p}));
+    if (!cmp)
+      return (struct bbs_result){(void *)p, true};
+    if (cmp > 0) {
+      base = (const u8 *)p + size;
+      lim--;
+    }
+  }
+  return (struct bbs_result){(void *)base, false};
+}
+void *oxmap_key_val(const oxmap *map, const void *key) {
+  return (((u8 *)key - (u8 *)map->keys->buf) / map->ksize * map->vsize) + map->vals->buf;
+}
+void *oxmap_val_key(const oxmap *map, const void *val) {
+  return (((u8 *)val - (u8 *)map->vals->buf) / map->vsize * map->ksize) + map->keys->buf;
+}
+void *oxmap_set(oxmap *map, const void *key, const void *val) {
+  if (!key) return nullptr;
+  if (map->keys->length * 4 > map->keys->capacity * 3) {
+    var_ ns = map->keys->length * 2;
+    map->keys = sList_realloc(map->allocator, map->keys, map->ksize, ns);
+    map->vals = sList_realloc(map->allocator, map->vals, map->vsize, ns);
+  }
+  var_ pos = oxmap_base_search(map, key);
+  usize idx = ((u8 *)pos.p - map->keys->buf) / map->ksize;
+
+  if (val) {
+    if (pos.f) return memcpy(oxmap_key_val(map, pos.p), val, map->vsize);
+    else {
+      map->keys = sList_insert(map->allocator, map->keys, map->ksize, idx, key);
+      map->vals = sList_insert(map->allocator, map->vals, map->vsize, idx, val);
+      return map->vals->buf + (idx * map->vsize);
+    }
+  } else {
+    if (pos.f) {
+      sList_remove(map->keys, map->ksize, idx);
+      sList_remove(map->vals, map->vsize, idx);
+    }
+    return nullptr;
+  }
+}
+void *oxmap_get(const oxmap *map, const void *key) {
+  if (!key) return nullptr;
+  var_ pos = oxmap_base_search(map, key);
+  if (pos.f) return oxmap_key_val(map, pos.p);
+  return nullptr;
+}
+void oxmap_clear(oxmap *map) { map->keys->length = (map->vals->length = 0); }
 #endif

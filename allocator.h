@@ -85,6 +85,7 @@ void(aFree)(AllocatorV allocator, void *oldptr, usize size, char *file, usize li
     memset(_res, 0, sizeof(type) * _count);                                        \
     _res;                                                                          \
   })
+#define aDestroy(allocator, item) aFree(allocator, item, sizeof(*item))
 #define aValue(allocator, value) ({              \
   var_ _rse = aCreate(allocator, typeof(value)); \
   _rse[0] = value;                               \

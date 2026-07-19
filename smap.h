@@ -39,10 +39,10 @@ msxmap(int) j;
         FOREACH_sxmap_cast)
   //}
   // {msxmap(map)
-  #define FOREACH_msxmap_cast(is)                                                                        \
-    ((struct {fptr key; ptrof(msxmap_iType(is._m)) val; }){                                                                                       \
-        .key = *(fptr *)(((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize)),                  \
-        .val = (ptrof(msxmap_iType(map)))(((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize)), \
+  #define FOREACH_msxmap_cast(is)                                                                          \
+    ((struct {fptr key; ptrof(msxmap_iType(is._m)) val; }){                                                                                         \
+        .key = *(fptr *)(((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize)),                    \
+        .val = (ptrof(msxmap_iType(is._m)))(((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize)), \
     })
 
   #define FOREACH_msxmap_iter   \

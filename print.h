@@ -638,24 +638,23 @@ static slice(c8) vsn_print_fn(AllocatorV allocator, char *fmt, struct print_arg 
         (struct print_arg[]){__VA_OPT__(APPLY_N(MAKE_PRINT_ARG, __VA_ARGS__))((struct print_arg){})} \
     );                                                                                               \
   })
-
   #ifdef PRINTER_LIST_TYPENAMES
 __attribute__((constructor(205))) static void printer_post_initfn() {
   print("==============================\n"
         "printer debug\n"
         "==============================\n");
   println("list of printer type names: ");
-  foreach (usize i, range(0, stringList_len((stringList *)PrinterSingleton.data)))
-    println("{slice(c8)}", stringList_get((stringList *)(PrinterSingleton.data), i));
-  println(
-      "buckets   : {}\n"
-      "footprint : {}\n"
-      "collisions: {}\n"
-      "==============================\n",
-      ((sHmap *)PrinterSingleton.data)->num_buckets,
-      sHmap_footprint((sHmap *)PrinterSingleton.data),
-      sHmap_countCollisions((sHmap *)PrinterSingleton.data),
-  );
+  foreach (var_ i, msxmap_iter(PrinterSingleton.data))
+    println("{slice(c8)}", i.key);
+  // println(
+  //     "buckets   : {}\n"
+  //     "footprint : {}\n"
+  //     "collisions: {}\n"
+  //     "==============================\n",
+  //     ((sHmap *)PrinterSingleton.data)->num_buckets,
+  //     sHmap_footprint((sHmap *)PrinterSingleton.data),
+  //     sHmap_countCollisions((sHmap *)PrinterSingleton.data),
+  // );
 }
   #endif // PRINTER_LIST_TYPENAMES
   #undef MY_PRINTER_H

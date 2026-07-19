@@ -50,18 +50,17 @@ struct OSearch_T OMap_search(OMap *map, fptr key) {
 }
 fptr OMap_set(OMap *map, fptr key, fptr val) {
   struct OSearch_T place = OMap_search(map, key);
-  fptr res = nullFptr;
   if (place.found) {
     if (!val.ptr) {
       stringList_remove(map->data, place.i);
       stringList_remove(map->data, place.i);
+      return nullFptr;
     } else
-      res = stringList_set(map->data, place.i + 1, val);
+      return stringList_set(map->data, place.i + 1, val);
   } else {
     stringList_insert(map->data, place.i, key);
-    res = stringList_insert(map->data, place.i + 1, val);
+    return stringList_insert(map->data, place.i + 1, val);
   }
-  return res;
 }
 fptr OMap_get(OMap *map, fptr key) {
   struct OSearch_T place = OMap_search(map, key);

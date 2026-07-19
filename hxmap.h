@@ -6,10 +6,10 @@
   #include "mytypes.h"
 
 typedef enum : u64 {
-  EMPTY = 0,
-  OCCUPIED = 1,
+  HXEMPTY = 0,
+  HXOCC = 1,
   LEFT = 2,
-} mflag;
+} mxflag;
 typedef struct hxmap {
   AllocatorV allocator;
   const u32 ksize, vsize;
@@ -18,7 +18,7 @@ typedef struct hxmap {
   const fnptrof((const void *, const void *), i8) cmp;
   struct {
     u64 ohash : sizeof(u64) * 8 - 2;
-    mflag flag : 2;
+    mxflag flag : 2;
   } *flags;
   u8 *keys;
   u8 *vals;
@@ -94,7 +94,7 @@ void *hxmap_val_key(
   #define FOREACH_hxmap_increase(is) (is._idx++)
   #define FOREACH_hxmap_valid(is)                                                                  \
     ({                                                                                             \
-      while (is._idx < ((hxmap *)is._m)->cap && ((hxmap *)is._m)->flags[is._idx].flag != OCCUPIED) \
+      while (is._idx < ((hxmap *)is._m)->cap && ((hxmap *)is._m)->flags[is._idx].flag != HXOCC) \
         is._idx++;                                                                                 \
       is._idx < ((hxmap *)is._m)->cap;                                                             \
     })
@@ -221,21 +221,21 @@ hxmap *hxmap_new(
   assertMessage(allocator);
   assertMessage(ksize);
   assertMessage(vsize);
-  var_ res = ((hxmap){
-      .allocator = allocator,
-      .ksize = (u32)ksize,
-      .vsize = (u32)vsize,
-      .count = 0,
-      .cap = cap,
-      .hfn = hashfn,
-      .cmp = cmpfn,
-      .flags = aCreate(allocator, ptrstype(itypeof(hxmap, flags)), cap),
-      .keys = aCreate(allocator, u8, cap * ksize),
-      .vals = aCreate(allocator, u8, cap * vsize),
-  });
-  var_ resp = aCreate(allocator, typeof(res));
-  memcpy(resp, &res, sizeof(res));
-  return resp;
+  return mcpy(
+      *aCreate(allocator, hxmap),
+      ((hxmap){
+          .allocator = allocator,
+          .ksize = (u32)ksize,
+          .vsize = (u32)vsize,
+          .count = 0,
+          .cap = cap,
+          .hfn = hashfn,
+          .cmp = cmpfn,
+          .flags = aCreate(allocator, ptrstype(itypeof(hxmap, flags)), cap),
+          .keys = aCreate(allocator, u8, cap * ksize),
+          .vals = aCreate(allocator, u8, cap * vsize),
+      })
+  );
 }
 void hxmap_free(hxmap *map) {
   var_ allocator = map->allocator;
@@ -246,9 +246,7 @@ void hxmap_free(hxmap *map) {
 }
 static inline i8 hxmap_base_cmp(const hxmap *m, const void *a, const void *b) {
   if (m->cmp) return m->cmp(a, b);
-  int mc = memcmp(a, b, m->ksize);
-  return mc < 0 ? -1 : mc > 0 ? 1
-                              : 0;
+  return memcmp(a, b, m->ksize);
 }
 static inline u64 hxmap_base_hash(const hxmap *m, const void *a) {
   if (m->hfn) return m->hfn(a);
@@ -282,7 +280,6 @@ void hxmap_manage(
   var_ oc = map->cap;
   var_ nc = map->cap * scale;
   // var_ nc = scale < 0 ? map->cap / (-scale) : map->cap * scale;
-
   var_ nv = aCreate(map->allocator, u8, map->vsize * nc);
   var_ nk = aCreate(map->allocator, u8, map->ksize * nc);
   var_ nf = aCreate(map->allocator, ptrstype(itypeof(hxmap, flags)), nc);
@@ -305,16 +302,16 @@ void hxmap_manage(
   var_ vs = map->vsize;
 
   foreach (usize i, range(0, oc))
-    if (of[i].flag == OCCUPIED) {
+    if (of[i].flag == HXOCC) {
       u64 hx = of[i].ohash;
       var_ idx = hx % nc;
 
-      while (nf[idx].flag == OCCUPIED) {
+      while (nf[idx].flag == HXOCC) {
         idx++;
         if (idx >= nc) idx = 0;
       }
 
-      nf[idx].flag = OCCUPIED;
+      nf[idx].flag = HXOCC;
       nf[idx].ohash = hx;
       memcpy(nk + (ks * idx), ok + (ks * i), ks);
       memcpy(nv + (vs * idx), ov + (vs * i), vs);
@@ -326,65 +323,44 @@ void *hxmap_set(
     void *val
 ) {
   if (!key) return nullptr;
-
-  if_unlikely (m->count * 4 >= m->cap * 3) hxmap_manage(m, 2);
+  if_unlikely ((m->count + 1) * 4 >= m->cap * 3) hxmap_manage(m, 2);
 
   var_ hx = hxmap_base_hash(m, key) & (~(u64)0 >> 2);
-  var_ cap = m->cap;
-  var_ ks = m->ksize;
-  var_ vs = m->vsize;
-  var_ idx = hx % cap;
-  var_ target_idx = cap;
+  var_ idx = hx % m->cap;
 
-  while (m->flags[idx].flag != EMPTY) {
-    if (m->flags[idx].flag == LEFT) {
-      if (target_idx == cap) target_idx = idx;
-    } else if (
-        m->flags[idx].flag == OCCUPIED &&
+  for (; m->flags[idx].flag != HXEMPTY; idx = (idx + 1) % m->cap) {
+    if (
         m->flags[idx].ohash == hx &&
-        !hxmap_base_cmp(m, m->keys + (ks * idx), key)
-    ) {
-      if (val)
-        return memcpy(m->vals + (vs * idx), val, vs);
-      else {
-        m->count--;
-        m->flags[idx].flag = LEFT;
-        return nullptr;
-      }
-    }
-    idx++;
-    idx %= cap;
+        !hxmap_base_cmp(m, m->keys + (m->ksize * idx), key)
+    ) break;
   }
 
-  if (!val) return nullptr;
-  m->count++;
+  mxflag flag = m->flags[idx].flag;
+  if (!val) {
+    if (flag != HXEMPTY && m->flags[(idx + 1) % m->cap].flag == HXEMPTY) {
+      m->count--;
+      m->flags[idx].flag = HXEMPTY;
+    } else if (flag == HXOCC) m->flags[idx].flag = LEFT;
+    return nullptr;
+  }
 
-  if (target_idx != cap) idx = target_idx;
-
-  m->flags[idx].flag = OCCUPIED;
+  m->count += flag == HXEMPTY;
+  m->flags[idx].flag = HXOCC;
   m->flags[idx].ohash = hx;
-  memcpy(m->keys + (ks * idx), key, ks);
-  return memcpy(m->vals + (vs * idx), val, vs);
+  memcpy(m->keys + (m->ksize * idx), key, m->ksize);
+  return memcpy(m->vals + (m->vsize * idx), val, m->vsize);
 }
-void *hxmap_get(
-    const hxmap *m,
-    void *key
-) {
+void *hxmap_get(const hxmap *m, void *key) {
   assertMessage(key);
-
   var_ hx = hxmap_base_hash(m, key) & (~(u64)0 >> 2);
   var_ cap = m->cap;
-  var_ ks = m->ksize;
-  var_ idx = hx % cap;
 
-  while (m->flags[idx].flag != EMPTY) {
+  for (var_ idx = hx % cap; m->flags[idx].flag != HXEMPTY; idx = (idx + 1) % cap) {
     if (
-        m->flags[idx].flag == OCCUPIED &&
+        m->flags[idx].flag == HXOCC &&
         m->flags[idx].ohash == hx &&
-        !hxmap_base_cmp(m, m->keys + (ks * idx), key)
+        !hxmap_base_cmp(m, m->keys + (m->ksize * idx), key)
     ) return m->vals + (m->vsize * idx);
-    idx++;
-    idx %= cap;
   }
   return nullptr;
 }
