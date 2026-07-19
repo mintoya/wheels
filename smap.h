@@ -72,7 +72,6 @@ test_fn(smap_test) {
     if (!(i % 2)) test_assert(*msxmap_get(map, str) == i);
     else test_assert(!msxmap_get(map, str));
   }
-  test_pass();
 }
 
 u64 hashfptr(const void *a);

@@ -76,7 +76,6 @@ test_fn(file_stream_write_read) {
 
   file_stream_close(allocator, rstream);
   remove(test_file);
-  test_pass();
 }
 
 test_fn(file_stream_seek_append) {
@@ -119,7 +118,6 @@ test_fn(file_stream_seek_append) {
 
   file_stream_close(allocator, astream);
   remove(test_file);
-  test_pass();
 }
 
 #endif

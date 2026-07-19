@@ -149,7 +149,6 @@ test_fn(oxmap_basic) {
   foreach (var_ i, vlap(ints))
     test_assert(i == 1);
 
-  test_pass();
 }
 test_fn(oxmap_basic_nosort) {
   var_ map = oxmap_new(allocator, sizeof(int), sizeof(int), nullptr);
@@ -176,7 +175,6 @@ test_fn(oxmap_basic_nosort) {
   foreach (var_ i, vlap(ints))
     test_assert(i == 1);
 
-  test_pass();
 }
 test_fn(oxmap_macros) {
   var_ map = moxmap_init(allocator, int, int, test_icmp);
@@ -199,7 +197,6 @@ test_fn(oxmap_macros) {
 
   foreach (var_ i, vlap(ints))
     test_assert(i == 1);
-  test_pass();
 }
 #endif
 #if (defined MY_OXMAP_C && MY_OXMAP_C == 1) || (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)

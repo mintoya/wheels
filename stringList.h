@@ -116,7 +116,6 @@ test_fn(test_stringList_manipulation) {
 
   test_assert(fptr_eq(stringList_get(sl, 0), fp("new")));
 
-  test_pass();
 }
 test_fn(test_stringList_churn) {
   usize ITERS = 100;
@@ -151,7 +150,6 @@ test_fn(test_stringList_churn) {
          sl->len,
          (size_t)msList_len(sl->flist));
 
-  test_pass();
 }
 #endif
 

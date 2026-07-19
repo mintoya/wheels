@@ -301,9 +301,6 @@ test_fn(test_shmap_generic_values) {
   msHmap_rem(sm, "age");
   test_assert(!msHmap_get(sm, "age"));
   test_assert(((sHmap *)sm)->values->length == 2);
-  ;
-
-  test_pass();
 }
 test_fn(test_shmap_struct_values) {
   typedef struct {
@@ -316,8 +313,6 @@ test_fn(test_shmap_struct_values) {
 
   Pos *p = msHmap_get(sm, "player");
   test_assert(p && p->x == 1.0f && p->y == 2.0f);
-
-  test_pass();
 }
 test_fn(test_shmap_iterator) {
   typedef struct {
@@ -339,8 +334,6 @@ test_fn(test_shmap_iterator) {
     test_assert(v.y == i);
   }
   test_assert(count == 10);
-
-  test_pass();
 }
 
 test_fn(test_shmap_iterator_cast) {
@@ -361,7 +354,5 @@ test_fn(test_shmap_iterator_cast) {
     test_assert(it.val.y == i);
   }
   test_assert(count == 10);
-
-  test_pass();
 }
 #endif

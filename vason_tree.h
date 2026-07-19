@@ -99,7 +99,6 @@ test_fn(vason_match) {
   defer { vason_container_free(b); };
   test_assert(vason_container_eq(a, b));
 
-  test_pass();
 }
 #endif
 

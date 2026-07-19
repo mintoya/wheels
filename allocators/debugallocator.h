@@ -91,7 +91,6 @@ test_fn(debug_allocator_test) {
     n2++;
   int n = debugAllocatorDeInit(debug);
   test_assert(n == allocations && n1 == allocations && n2 == n1);
-  test_pass();
 }
 
 void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln);

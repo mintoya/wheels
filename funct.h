@@ -1,5 +1,7 @@
+#include <threads.h>
 #if !defined(MY_THREAD_MACORS_H)
   #define MY_THREAD_MACORS_H (1)
+  #include "ts_int.h"
 
 //
 // c23 only
@@ -149,16 +151,6 @@ struct mutex_outer {
     }                                                                      \
     out name(typelist_tuple_args(in))
 
-  #define deffunction_thrd(name, in, out)                                      \
-    int name##_thrd_wrapper(void *inn) {                                       \
-      name##_wrapper(inn);                                                     \
-      return 0;                                                                \
-    }                                                                          \
-    int name##_spawn(name##_struct_t *ins) {                                   \
-      return thrd_create(ins->args.threadid.thread, name##_thrd_wrapper, ins); \
-    }                                                                          \
-    deffunction(name, ((thread_info, threadid), REM_PAREN in), out)
-
 typedef struct thread_info {
   thrd_t thread[1];
   int status[1];
@@ -169,6 +161,7 @@ typedef struct thread_info {
     int name##_spawn(name##_struct_t *ins);
 
   #define deffunction_thrd(name, in, out)                                      \
+    decfunction_thrd(name, in, out);                                           \
     int name##_thrd_wrapper(void *inn) {                                       \
       name##_wrapper(inn);                                                     \
       return 0;                                                                \
@@ -283,11 +276,11 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
 
   #include "allocators/tsaAllocator.h"
   #include "tests.h"
+constexpr struct {
+} f = {};
 
-decfunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), void);
 deffunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), void) {
-  var_ one_second = (struct timespec){1};
-  thrd_sleep(&one_second, nullptr);
+  thrd_sleep(REF(int_timespec(ts_int_s / 2)), nullptr);
   mutex_critical (int *x, mutex_lock, i[0]) {
     x[0]++;
   } else unreachable();
@@ -310,7 +303,6 @@ test_fn(thread_function) {
 
   mutex_deInit(integer);
   test_assert(integer.data == 5);
-  test_pass();
 }
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0

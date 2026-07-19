@@ -200,7 +200,6 @@ test_fn(hxmap_tests) {
 
   mxmap_deinit(map);
 
-  test_pass();
 }
 #endif
 

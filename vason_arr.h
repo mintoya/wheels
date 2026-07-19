@@ -290,7 +290,6 @@ test_fn(vason_parser_immediate) {
   test_assert((num_span.end - num_span.start) == 1);
   test_assert(!memcmp(c.text.ptr + num_span.start, "1", 1));
 
-  test_pass();
 }
 test_fn(vason_parser_lazy) {
   const char text[] = "{ foo : bar, numbers : [1, 2] }";
@@ -319,7 +318,6 @@ test_fn(vason_parser_lazy) {
   test_assert((num_span.end - num_span.start) == 1);
   test_assert(memcmp(c.text.ptr + num_span.start, "1", 1) == 0);
 
-  test_pass();
 }
 #endif
 

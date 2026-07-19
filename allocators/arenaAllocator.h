@@ -20,7 +20,6 @@ test_fn(arena_test) {
     i32 *= i32;
   test_assert(!((uptr)u8s % alignof(myAlign)));
   test_assert(!((uptr)i32s % alignof(myAlign)));
-  test_pass();
 }
 #endif
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0

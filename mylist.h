@@ -303,7 +303,6 @@ test_fn(mlist_tests) {
 
   foreach (usize i, range(0, 50))
     test_assert(mList_arr(list)[i] == i * i);
-  test_pass();
 }
 test_fn(mlist_vla_cast) {
   mList(int) list = mList_init(allocator, int);
@@ -318,7 +317,6 @@ test_fn(mlist_vla_cast) {
   test_assert(mList_len(list) == 6);
   test_assert(!mcmp(*arr, *mList_vla(list)));
   test_assert(!memcmp(mList_arr(list), mList_arr(list) + 3, sizeof(*arr)));
-  test_pass();
 }
 
 #endif // MY_LIST_H

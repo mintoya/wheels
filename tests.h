@@ -5,12 +5,16 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#define test_pass() \
-  return (test_result){0}
-#define test_assert(...)                                \
-  do {                                                  \
-    if (!(__VA_ARGS__))                                 \
-      return (test_result){#__VA_ARGS__, __LINE__ + 1}; \
+#define test_assert(...)    \
+  do {                      \
+    if (!(__VA_ARGS__)) {   \
+      *_result =            \
+          (test_result){    \
+              #__VA_ARGS__, \
+              __LINE__ + 1  \
+          };                \
+      return;               \
+    }                       \
   } while (0)
 
 #if !defined MY_TEST_FRAMEWORK_H && !defined MY_TEST_FRAMEWORK_C
@@ -21,16 +25,17 @@ typedef struct test_result {
   char *check;
   size_t result;
 } test_result;
-  #define test_fn(name)                                \
-    [[maybe_unused, nodiscard]] test_result ID_CONCAT( \
-        ID_CONCAT(                                     \
-            testing_function__, name                   \
-        ),                                             \
-        __COUNTER__                                    \
-    )(AllocatorV allocator)
+  #define test_fn(name)              \
+    [[maybe_unused]] void ID_CONCAT( \
+        ID_CONCAT(                   \
+            testing_function__, name \
+        ),                           \
+        __COUNTER__                  \
+    )(test_result * _result, AllocatorV allocator)
 #elif defined MY_TEST_FRAMEWORK_C && MY_TEST_FRAMEWORK_C == (1)
   #undef MY_TEST_FRAMEWORK_C
   #define MY_TEST_FRAMEWORK_C (2)
+
 typedef struct test_result {
   char *check;
   size_t result;
@@ -41,41 +46,39 @@ typedef struct test_result {
 struct testNode {
   c8 *filename;
   c8 *testname;
-  fnptrof((AllocatorV), test_result) fn;
+  fnptrof((test_result *, AllocatorV), void) fn;
   struct testNode *next;
 }
     *testList = nullptr;
 
-  #define test_fn(name)                         \
-    [[nodiscard]] test_result name(AllocatorV); \
-    [[gnu::constructor]] static void            \
-    name##testfunctoin##_register(void) {       \
-      static struct testNode thisNode =         \
-          (typeof(thisNode)){                   \
-              .filename = (char *)__FILE__,     \
-              .testname = (char *)#name,        \
-              .fn = name,                       \
-          };                                    \
-      if (!testList) {                          \
-        testList = &thisNode;                   \
-        return;                                 \
-      }                                         \
-      var_ n = testList;                        \
-      while (n->next)                           \
-        n = n->next;                            \
-      n->next = &thisNode;                      \
-    }                                           \
-    [[nodiscard]] test_result name(AllocatorV allocator)
+  #define test_fn(name)                     \
+    void name(test_result *, AllocatorV);   \
+    [[gnu::constructor]] static void        \
+    name##testfunctoin##_register(void) {   \
+      static struct testNode thisNode =     \
+          (typeof(thisNode)){               \
+              .filename = (char *)__FILE__, \
+              .testname = (char *)#name,    \
+              .fn = name,                   \
+          };                                \
+      if (!testList) {                      \
+        testList = &thisNode;               \
+        return;                             \
+      }                                     \
+      var_ n = testList;                    \
+      while (n->next)                       \
+        n = n->next;                        \
+      n->next = &thisNode;                  \
+    }                                       \
+    void name(test_result *_result, AllocatorV allocator)
 /*
 test_fn(always_pass) {
   var_ memory = &aCreate(allocator, int, 5);
   aFree(allocator, memory, sizeof(*memory));
-  test_pass();
 }
 test_fn(always_fail) { test_assert(false); }
 test_fn(always_leak) {
   aCreate(allocator, int);
-  test_pass();
 }
 */
 
@@ -100,7 +103,8 @@ int main(void) {
   #endif
     );
     count++;
-    var_ result = testList->fn(testAlloc);
+    var_ result = (test_result){};
+    testList->fn(&result, testAlloc);
     int leaked = debugAllocatorDeInit(testAlloc);
     printf(
         "[%s%s] %s",
