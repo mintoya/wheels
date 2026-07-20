@@ -221,9 +221,6 @@ void oxmap_free(oxmap *map) {
   sList_free(allocator, map->vals, map->vsize);
   aFree(allocator, map, sizeof(*map));
 }
-struct bbs_result oxmap_base_search(const oxmap *map, const void *key) {
-  return bbsearch(key, map->keys->buf, map->keys->length, map->ksize, map->cmp);
-}
 void *oxmap_key_val(const oxmap *map, const void *key) {
   return (((u8 *)key - (u8 *)map->keys->buf) / map->ksize * map->vsize) + map->vals->buf;
 }
@@ -237,7 +234,7 @@ void *oxmap_set(oxmap *map, const void *key, const void *val) {
     map->keys = sList_realloc(map->allocator, map->keys, map->ksize, ns);
     map->vals = sList_realloc(map->allocator, map->vals, map->vsize, ns);
   }
-  var_ pos = oxmap_base_search(map, key);
+  var_ pos = bbsearch(key, map->keys->buf, map->keys->length, map->ksize, map->cmp);
   usize idx = ((u8 *)pos.p - map->keys->buf) / map->ksize;
 
   if (val) {
@@ -257,7 +254,7 @@ void *oxmap_set(oxmap *map, const void *key, const void *val) {
 }
 void *oxmap_get(const oxmap *map, const void *key) {
   if (!key) return nullptr;
-  var_ pos = oxmap_base_search(map, key);
+  var_ pos = bbsearch(key, map->keys->buf, map->keys->length, map->ksize, map->cmp);
   if (pos.f) return oxmap_key_val(map, pos.p);
   return nullptr;
 }
