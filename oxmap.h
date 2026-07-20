@@ -41,7 +41,6 @@ void oxmap_clear(oxmap *map);
     (void)sizeof((typeof((*map)((oxmap *)0, &_k)) *)0); \
     oxmap_get(moxmap_tox(map), &_k);                    \
   }))
-
   #define moxmap_rem(map, key)                            \
     ({                                                    \
       var_ _k = key;                                      \
