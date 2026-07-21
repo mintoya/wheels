@@ -1,6 +1,6 @@
-#include <threads.h>
 #if !defined(MY_THREAD_MACORS_H)
   #define MY_THREAD_MACORS_H (1)
+  #include "thread_help.h"
   #include "ts_int.h"
 
 //
@@ -14,7 +14,6 @@
   #include "mylist.h"
   #include "mytypes.h"
   #include "stdatomic.h"
-  #include "thread_help.h"
 
 //
 // mutex

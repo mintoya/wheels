@@ -1,4 +1,3 @@
-#include <string.h>
 #if !defined(SHORT_LIST_H)
   #define SHORT_LIST_H (1)
   #include "allocator.h"
@@ -186,11 +185,11 @@ static struct bbs_result bbsearch(
     struct {                                                                                              \
       typeof(_eit) *p;                                                                                    \
       bool f;                                                                                             \
-      usize i;                                                                                          \
+      usize i;                                                                                            \
     } _rxbst = {                                                                                          \
         (typeof(_eit) *)_rxbs.p,                                                                          \
         _rxbs.f,                                                                                          \
-        _rxbs.i,                                                                                        \
+        _rxbs.i,                                                                                          \
     };                                                                                                    \
     _rxbst;                                                                                               \
   })

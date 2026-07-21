@@ -196,10 +196,12 @@ void __attribute__((noreturn)) _assertMessageFail(
                                     \
     } while (0)
 
-  #if __has_builtin(__builtin_unreachable)
-    #define unreachable() __builtin_unreachable()
-  #else
-    #define unreachable() assertMessage(false, "reached unreachable code")
+  #if !defined unreachable
+    #if __has_builtin(__builtin_unreachable)
+      #define unreachable() __builtin_unreachable()
+    #else
+      #define unreachable() assertMessage(false, "reached unreachable code")
+    #endif
   #endif
 
 #endif
