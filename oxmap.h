@@ -30,11 +30,11 @@ void oxmap_clear(oxmap *map);
   #define moxmap_tox(map) ((void)sizeof(typeof((*map)((oxmap *)0, nullptr))), (oxmap *)map)
   #define moxmap_init(allocator, K, V, ...) (moxmap(K, V)) oxmap_new(allocator, sizeof(K), sizeof(V), VA_SWITCH(nullptr, __VA_ARGS__))
   #define moxmap_deinit(map) oxmap_free(moxmap_tox(map))
-  #define moxmap_set(map, key, val) ((moxmap_vt(map) *)({                       \
-    var_ _k = key;                                                              \
-    var_ _v = val;                                                              \
-    (void)sizeof(({ typeof(&_v) _r = (typeof((*map)((oxmap *)0, &_k)) *)0; })); \
-    oxmap_set(moxmap_tox(map), &_k, &_v);                                       \
+  #define moxmap_set(map, key, val) ((moxmap_vt(map) *)({ \
+    var_ _k = key;                                        \
+    var_ _v = val;                                        \
+    (void)sizeof(({ typeof(&_v) _r = (typeof((*map)((oxmap *)0, &_k)) *)0;0; }));                                  \
+    oxmap_set(moxmap_tox(map), &_k, &_v);                 \
   }))
   #define moxmap_get(map, key) ((moxmap_vt(map) *)({    \
     var_ _k = key;                                      \
@@ -200,9 +200,8 @@ test_fn(oxmap_macros) {
   #define MY_OXMAP_C (2)
 oxmap *oxmap_new(AllocatorV allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp) cmp) {
   assertMessage(ksize || vsize);
-  var_ res = aCreate(allocator, oxmap);
-  mcpy(
-      *res,
+  return aValue(
+      allocator,
       ((oxmap){
           .allocator = allocator,
           .cmp = cmp,
@@ -212,7 +211,6 @@ oxmap *oxmap_new(AllocatorV allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp)
           .vals = sList_new(allocator, 2, vsize),
       })
   );
-  return res;
 }
 void oxmap_free(oxmap *map) {
   var_ allocator = map->allocator;

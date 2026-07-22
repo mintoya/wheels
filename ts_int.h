@@ -16,22 +16,26 @@ CONST_EXPR ts_int ts_int_min = ts_int_s * 60;
 CONST_EXPR ts_int ts_int_hour = ts_int_min * 60;
 CONST_EXPR ts_int ts_int_day = ts_int_hour * 24;
 static inline ts_int timespec_int(timespec in) { return ((ts_int)in.tv_sec * ts_int_s) + in.tv_nsec; }
-static inline timespec int_timespec(ts_int in) { return (timespec){in / ts_int_s, in % ts_int_s}; }
+static inline timespec int_timespec(ts_int in) { return (timespec){(itypeof(timespec, tv_sec))(in / ts_int_s), (itypeof(timespec, tv_nsec))(in % ts_int_s)}; }
 static inline ts_int now() {
   var_ ts = (struct timespec){};
   assertMessage(timespec_get(&ts, TIME_MONOTONIC) == TIME_MONOTONIC);
   return timespec_int(ts);
 }
 typePrinter(ts_int) {
+  if (!in) {
+    PUTS("{0}");
+    return;
+  }
   CONST_EXPR ts_int ys = ts_int_day * 365;
   PUTS("{");
   #pragma push_macro("PRINT_TIME_FMT")
-  #define PRINT_TIME_FMT(name, var) \
-    if_decl (var_ t, in / var) {    \
-      PUTS(name ":");               \
-      USETYPEPRINTER(usize, t);     \
-      if (in %= var)                \
-        PUTS(",");                  \
+  #define PRINT_TIME_FMT(name, var)    \
+    if_decl (var_ t, in / var) {       \
+      PUTS(name ":");                  \
+      USETYPEPRINTER(usize, (usize)t); \
+      if (in %= var)                   \
+        PUTS(",");                     \
     }
   PRINT_TIME_FMT("y", ys);
   PRINT_TIME_FMT("d", ts_int_day);

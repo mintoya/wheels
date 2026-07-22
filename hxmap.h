@@ -23,13 +23,23 @@ typedef enum : u64 {
 typedef struct hxmap {
   AllocatorV allocator;
   const u32 ksize, vsize;
-  usize count, cap;
+  usize count;
+  int capbit;
   const fnptrof((const void *), u64) hfn;
   const fnptrof((const void *, const void *), i8) cmp;
   u64 *__restrict flags;
   u8 *__restrict keys;
   u8 *__restrict vals;
 } hxmap;
+void hxmap_newm(
+    AllocatorV allocator,
+    usize ksize,
+    usize vsize,
+    int power,
+    itypeof(hxmap, hfn) hashfn,
+    itypeof(hxmap, cmp) cmpfn,
+    hxmap map[1]
+);
 hxmap *hxmap_new(
     AllocatorV allocator,
     usize ksize,
@@ -38,6 +48,7 @@ hxmap *hxmap_new(
     itypeof(hxmap, hfn) hashfn,
     itypeof(hxmap, cmp) cmpfn
 );
+void hxmap_freem(hxmap map);
 void hxmap_free(hxmap *map);
 void *hxmap_set(
     hxmap *m,
@@ -99,11 +110,11 @@ void *hxmap_val_key(
       })                                \
   )
   #define FOREACH_hxmap_increase(is) (is._idx++)
-  #define FOREACH_hxmap_valid(is)                                                                \
-    ({                                                                                           \
-      while (is._idx < ((hxmap *)is._m)->cap && !isHXOCCUPIED(((hxmap *)is._m)->flags[is._idx])) \
-        is._idx++;                                                                               \
-      is._idx < ((hxmap *)is._m)->cap;                                                           \
+  #define FOREACH_hxmap_valid(is)                                                                                 \
+    ({                                                                                                            \
+      while (is._idx < ((usize)1 << ((hxmap *)is._m)->capbit) && !isHXOCCUPIED(((hxmap *)is._m)->flags[is._idx])) \
+        is._idx++;                                                                                                \
+      is._idx < ((usize)1 << ((hxmap *)is._m)->capbit);                                                           \
     })
   #define FOREACH_hxmap_cast(is)                                                       \
     ((typeof(is._val[0])){                                                             \
@@ -189,7 +200,6 @@ test_fn(hxmap_tests) {
   }
 
   test_assert(((hxmap *)map)->count == 1000);
-  test_assert(((hxmap *)map)->cap > 1000);
 
   var_ ps = &aCreate(allocator, u64, 1000);
   defer { aFree(allocator, ps, sizeof(*ps)); };
@@ -214,41 +224,57 @@ test_fn(hxmap_tests) {
 #endif
 
 #if defined MY_HXMAP_C && MY_HXMAP_C == 1
+void hxmap_newm(
+    AllocatorV allocator,
+    usize ksize,
+    usize vsize,
+    int capbit,
+    itypeof(hxmap, hfn) hashfn,
+    itypeof(hxmap, cmp) cmpfn,
+    hxmap map[1]
+) {
+  capbit = capbit ?: 3;
+  usize cap = (usize)1 << capbit;
+  assertMessage(allocator);
+  assertMessage(ksize);
+  assertMessage(vsize);
+  var_ rs = ((hxmap){
+      .allocator = allocator,
+      .ksize = (u32)ksize,
+      .vsize = (u32)vsize,
+      .count = 0,
+      .capbit = capbit,
+      .hfn = hashfn,
+      .cmp = cmpfn,
+      .flags = aCreate(allocator, ptrstype(itypeof(hxmap, flags)), cap),
+      .keys = aCreate(allocator, u8, cap * ksize),
+      .vals = aCreate(allocator, u8, cap * vsize),
+  });
+  mcpy(*map, rs);
+}
 hxmap *hxmap_new(
     AllocatorV allocator,
     usize ksize,
     usize vsize,
-    int cap,
+    int capbit,
     itypeof(hxmap, hfn) hashfn,
     itypeof(hxmap, cmp) cmpfn
 ) {
-  cap = cap ?: 3;
-  cap = 2 << cap;
-  assertMessage(allocator);
-  assertMessage(ksize);
-  assertMessage(vsize);
-  return mcpy(
-      *aCreate(allocator, hxmap),
-      ((hxmap){
-          .allocator = allocator,
-          .ksize = (u32)ksize,
-          .vsize = (u32)vsize,
-          .count = 0,
-          .cap = cap,
-          .hfn = hashfn,
-          .cmp = cmpfn,
-          .flags = aCreate(allocator, ptrstype(itypeof(hxmap, flags)), cap),
-          .keys = aCreate(allocator, u8, cap * ksize),
-          .vals = aCreate(allocator, u8, cap * vsize),
-      })
-  );
+  var_ map = (hxmap){};
+  hxmap_newm(allocator, ksize, vsize, capbit, hashfn, cmpfn, &map);
+  return aValue(allocator, map);
+}
+void hxmap_freem(hxmap map) {
+  var_ allocator = map.allocator;
+  usize cap = (usize)1 << map.capbit;
+  aFree(allocator, map.flags, sizeof(*map.flags) * cap);
+  aFree(allocator, map.keys, map.ksize * cap);
+  aFree(allocator, map.vals, map.vsize * cap);
 }
 void hxmap_free(hxmap *map) {
   var_ allocator = map->allocator;
-  aFree(allocator, map->flags, sizeof(*map->flags) * map->cap);
-  aFree(allocator, map->keys, map->ksize * map->cap);
-  aFree(allocator, map->vals, map->vsize * map->cap);
-  aFree(allocator, map, sizeof(*map));
+  hxmap_freem(*map);
+  aDestroy(allocator, map);
 }
 static inline i8 hxmap_base_cmp(const hxmap *m, const void *a, const void *b) {
   if (m->cmp) return m->cmp(a, b);
@@ -277,7 +303,7 @@ static inline u64 hxmap_base_hash(const hxmap *m, const void *a) {
       return x;
     }
     case sizeof(u16):
-      return *(u16 *)bytes * 0x85ebca6b; // simple multiplier
+      return *(u16 *)bytes * 0x85ebca6b;
     case sizeof(u8):
       return *(u8 *)bytes * 0x85ebca6b;
     default: {
@@ -287,7 +313,7 @@ static inline u64 hxmap_base_hash(const hxmap *m, const void *a) {
         hash *= 0x100000001b3ULL;
       }
       return hash;
-    } break;
+    }
   }
 }
 void hxmap_manage(
@@ -296,8 +322,11 @@ void hxmap_manage(
 ) {
 
   assert(scale > 0);
-  var_ oc = map->cap;
-  var_ nc = map->cap * scale;
+  var_ ocb = map->capbit;
+  var_ ncb = map->capbit + scale;
+  var_ oc = (usize)1 << ocb;
+  var_ nc = (usize)1 << ncb;
+
   usize newcount = 0;
   // var_ nc = scale < 0 ? map->cap / (-scale) : map->cap * scale;
   var_ nv = aCreate(map->allocator, u8, map->vsize * nc);
@@ -313,7 +342,7 @@ void hxmap_manage(
     aFree(map->allocator, of, sizeof(*of) * oc);
   };
 
-  map->cap = nc;
+  map->capbit = ncb;
   map->vals = nv;
   map->keys = nk;
   map->flags = nf;
@@ -342,7 +371,7 @@ void hxmap_manage(
 void *hxmap_get(const hxmap *m, void *key) {
   assertMessage(key);
   var_ hx = HXHASHBITS(hxmap_base_hash(m, key));
-  var_ mask = m->cap - 1;
+  var_ mask = ((usize)1 << m->capbit) - 1;
 
   for (var_ idx = hx & mask; !isHXEMPTY(m->flags[idx]); idx = (idx + 1) & mask) {
     if (
@@ -359,10 +388,12 @@ void *hxmap_set(
     void *val
 ) {
   if (!key) return nullptr;
-  if_unlikely ((m->count + 1) * 4 >= m->cap * 3) hxmap_manage(m, 2);
+  usize cap = (usize)1 << (m->capbit);
+  if_unlikely ((m->count + 1) * 4 >= cap * 3) hxmap_manage(m, 1);
+  cap = (usize)1 << (m->capbit);
 
   var_ hx = HXHASHBITS(hxmap_base_hash(m, key));
-  var_ mask = m->cap - 1;
+  var_ mask = cap - 1;
   var_ idx = hx & mask;
 
   for (; !isHXEMPTY(m->flags[idx]); idx = (idx + 1) & mask) {

@@ -87,27 +87,23 @@ u64 hashfptr(const void *a) { return fptr_hash(*(fptr *)a); }
 i8 cmpfptr(const void *a, const void *b) { return fptr_cmp(*(fptr *)a, *(fptr *)b); }
 sxmap *smap_new(AllocatorV allocator, u32 vsize, usize cap, usize arenaSize) {
   var_ res = aCreate(allocator, sxmap);
-  var_ m =
-      hxmap_new(
-          allocator,
-          sizeof(fptr),
-          vsize,
-          cap,
-          hashfptr,
-          cmpfptr
-      );
-  defer { aFree(allocator, m, sizeof(*m)); };
-  memcpy(res->map, m, sizeof(hxmap));
+  hxmap_newm(
+      allocator,
+      sizeof(fptr),
+      vsize,
+      cap,
+      hashfptr,
+      cmpfptr,
+      res->map
+  );
   res->stringArena = arena_new_ext(allocator, arenaSize);
   return res;
 }
 void smap_free(sxmap *map) {
   var_ allocator = map->map->allocator;
   arena_cleanup(map->stringArena);
-  aFree(allocator, map->map->flags, sizeof(*map->map->flags) * map->map->cap);
-  aFree(allocator, map->map->keys, map->map->ksize * map->map->cap);
-  aFree(allocator, map->map->vals, map->map->vsize * map->map->cap);
-  aFree(allocator, map, sizeof(*map));
+  hxmap_freem(map->map[0]);
+  aDestroy(allocator, map);
 }
 void *smap_set(sxmap *map, fptr k, void *b) {
   if (!k.len) return nullptr;
