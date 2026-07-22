@@ -228,11 +228,6 @@ void *oxmap_val_key(const oxmap *map, const void *val) {
 }
 void *oxmap_set(oxmap *map, const void *key, const void *val) {
   if (!key) return nullptr;
-  if (map->keys->length * 4 > map->keys->capacity * 3) {
-    var_ ns = map->keys->length * 2;
-    map->keys = sList_realloc(map->allocator, map->keys, map->ksize, ns);
-    map->vals = sList_realloc(map->allocator, map->vals, map->vsize, ns);
-  }
   var_ pos = bbsearch(key, map->keys->buf, map->keys->length, map->ksize, map->cmp);
   usize idx = ((u8 *)pos.p - map->keys->buf) / map->ksize;
 

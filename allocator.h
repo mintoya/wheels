@@ -86,10 +86,11 @@ void(aFree)(AllocatorV allocator, void *oldptr, usize size, char *file, usize li
     _res;                                                              \
   })
 #define aDestroy(allocator, item) aFree(allocator, item, sizeof(*item))
-#define aValue(allocator, value) ({              \
-  var_ _rse = aCreate(allocator, typeof(value)); \
-  _rse[0] = value;                               \
-  _rse;                                          \
+#define aValue(allocator, value) ({               \
+  var_ _rve = value;                              \
+  var_ _rse = &aCreate(allocator, typeof(value)); \
+  memcpy(_rse, &_rve, sizeof(*_rse));             \
+  *_rse;                                          \
 })
 // #define aDestroy(allocator , value )
 #if defined(__cplusplus)

@@ -218,6 +218,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #if defined __cplusplus
     #define __auto_type auto
   #endif
+  #define Var var_
 
 //
 // expect
