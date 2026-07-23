@@ -219,6 +219,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     #define __auto_type auto
   #endif
   #define Var var_
+  #define let var_
 
 //
 // expect

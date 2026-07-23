@@ -38,16 +38,16 @@ static inline void FBA_init(u8 *buffer, usize size, FBA_State res[1]) {
 }
 
   #define fba_buffer(buffer)                         \
-    ((struct {                                       \
+    struct {                                         \
       FBA_State s[1];                                \
       typeof(buffer) buff;                           \
       _Static_assert(                                \
           sizeof(typeof(buffer)) >= sizeof(myAlign), \
           "buffer cant store a single object"        \
       );                                             \
-    }){})
-  #define fba_initBuffer(buffer)                           \
-    (FBA_init(buffer.buff, sizeof(buffer.buff), buffer.s), \
+    }
+  #define fba_initBuffer(buffer)                                 \
+    (FBA_init((u8 *)buffer.buff, sizeof(buffer.buff), buffer.s), \
      buffer.s->allocator)
 static inline AllocatorV fba_new(AllocatorV allocator, usize size) {
   typedef struct {
