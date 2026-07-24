@@ -354,7 +354,7 @@ void hxmap_manage(
     if (isHXOCCUPIED(of[i])) {
       newcount++;
       hxint hx = HXHASHBITS(of[i]);
-      let idx = hx & ((hxint)1 << flagshift) - 1;
+      let idx = hx & (nc - 1);
 
       while (isHXOCCUPIED(nf[idx])) {
         idx++;
