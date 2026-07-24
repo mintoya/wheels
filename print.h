@@ -134,12 +134,57 @@ void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *)
       );                                                                             \
     } while (0)
 
+  #define fptr_pthing(T, val) ((fptr){sizeof(T), (u8 *)REF((T)val)})
+  #define _FFMT_CALC_LEN_IMPL(T, val) \
+    GETTYPEPRINTERFN(T)(vsn_print, fptr_pthing(T, val), nullFptr, &_len);
+  #define _FFMT_PRINT_IMPL(T, val) \
+    GETTYPEPRINTERFN(T)(sn_print, fptr_pthing(T, val), nullFptr, &_res);
+  #define _FFMT_CALC_LEN(tuple) _FFMT_CALC_LEN_IMPL tuple
+  #define _FFMT_PRINT(tuple) _FFMT_PRINT_IMPL tuple
+
+  #define _FPRINT_IMPL(T, val) \
+    GETTYPEPRINTERFN(T)(_fprint_put, fptr_pthing(T, val), nullFptr, _fprint_arb);
+
+  #define _FPRINT(tuple) _FPRINT_IMPL tuple
+
+  #define fprint_wfO(put_fn, arb, ...)       \
+    do {                                     \
+      outputFunction _fprint_put = (put_fn); \
+      void *_fprint_arb = (arb);             \
+      APPLY_N(_FPRINT, __VA_ARGS__);         \
+    } while (0)
+
+  #define fprint_wf(print, ...) fprint_wfO(print, NULL, __VA_ARGS__)
+  #define fprint_(...) fprint_wfO(fileprint, stdout, __VA_ARGS__)
+
+  #define fprintln_(...)                 \
+    do {                                 \
+      fprint_(__VA_ARGS__);              \
+      fileprint("\n", stdout, 1, false); \
+    } while (0)
+
+  #if !defined PRINT_NDEF
+    #define fprint(...) fprint_(__VA_ARGS__)
+    #define fprintln(...) fprintln_(__VA_ARGS__)
+  #endif
+
+  #define fmt_(allocator, ...)                          \
+    ({                                                  \
+      usize _len = 0;                                   \
+      APPLY_N(_FFMT_CALC_LEN, __VA_ARGS__);             \
+      var_ _res = slice_alloc(allocator, c8, _len + 1); \
+      _res.len = 0;                                     \
+      APPLY_N(_FFMT_PRINT, __VA_ARGS__);                \
+      _res.ptr[_res.len] = 0;                           \
+      _res;                                             \
+    })
   #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
   #define print_(fmt, ...) print_wfO(fileprint, stdout, fmt, __VA_ARGS__)
   #define println_(fmt, ...) print(fmt "\n", __VA_ARGS__)
   #if !defined PRINT_NDEF
-    #define print(fmt, ...) print_(fmt, __VA_ARGS__)
-    #define println(fmt, ...) println_(fmt, __VA_ARGS__)
+    #define print print_
+    #define println println_
+    #define fmt fmt_
   #endif
 
   #if !defined(__cplusplus)
