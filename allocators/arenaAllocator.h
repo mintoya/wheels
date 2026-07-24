@@ -28,6 +28,7 @@ test_fn(arena_test) {
 
 #if defined(ARENA_ALLOCATOR_C)
 
+  #include "../assertMessage.h"
   #include "../mylist.h"
 typedef struct {
   usize capacity, occupied, count;

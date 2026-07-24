@@ -204,9 +204,9 @@ oxmap *oxmap_new(AllocatorV allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp)
       allocator,
       ((oxmap){
           .allocator = allocator,
-          .cmp = cmp,
           .ksize = ksize,
           .vsize = vsize,
+          .cmp = cmp,
           .keys = sList_new(allocator, 2, ksize),
           .vals = sList_new(allocator, 2, vsize),
       })

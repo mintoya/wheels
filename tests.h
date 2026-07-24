@@ -5,16 +5,16 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#define test_assert(...)    \
-  do {                      \
-    if (!(__VA_ARGS__)) {   \
-      *_result =            \
-          (test_result){    \
-              #__VA_ARGS__, \
-              __LINE__ + 1  \
-          };                \
-      return;               \
-    }                       \
+#define test_assert(...)            \
+  do {                              \
+    if (!(__VA_ARGS__)) {           \
+      *_result =                    \
+          (test_result){            \
+              (char *)#__VA_ARGS__, \
+              __LINE__ + 1          \
+          };                        \
+      return;                       \
+    }                               \
   } while (0)
 
 #if !defined MY_TEST_FRAMEWORK_H && !defined MY_TEST_FRAMEWORK_C

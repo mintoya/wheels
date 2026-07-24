@@ -1,7 +1,7 @@
 #if !defined TS_INT
   #define TS_INT
   #include "print.h"
-  #include <threads.h>
+  #include "thread_help.h"
   #include <time.h>
 typedef struct timespec timespec;
 typedef unsigned _BitInt(
@@ -19,7 +19,7 @@ static inline ts_int timespec_int(timespec in) { return ((ts_int)in.tv_sec * ts_
 static inline timespec int_timespec(ts_int in) { return (timespec){(itypeof(timespec, tv_sec))(in / ts_int_s), (itypeof(timespec, tv_nsec))(in % ts_int_s)}; }
 static inline ts_int now() {
   var_ ts = (struct timespec){};
-  assertMessage(timespec_get(&ts, TIME_MONOTONIC) == TIME_MONOTONIC);
+  assertMessage(timespec_get(&ts, TIME_UTC) == TIME_UTC);
   return timespec_int(ts);
 }
 typePrinter(ts_int) {
