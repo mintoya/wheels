@@ -285,6 +285,7 @@ using fnptrof_t = Ret (*)(Args...);
 template <typename T, size_t len>
 using arrof_t = T[len];
 
+    // #define fnptrof(in, out) typeof(typeof(out)(*) in)
     #define fnptrof(in, out) fnptrof_t<out, REM_PAREN in>
     #define ptrof(T) ptrof_t<T>
     // #define arrof(T, ...) arrof_t<T, __VA_ARGS__>
@@ -356,13 +357,13 @@ _Static_assert(!IS_CTARRAY((char *)"hello"));
     _Static_assert(types_eq(_da, _db), "not the same type");  \
     __builtin_memcmp(_a, _b, MIN$(sizeof(*_b), sizeof(*_a))); \
   })
-  #define mcpy(a, b) ({                                                   \
-    var_ _a = &a;                                                         \
-    var_ _b = &b;                                                         \
-    typedef typeof(({ *_a; })) _da;                                       \
-    typedef typeof(({ *_b; })) _db;                                       \
-    _Static_assert(types_eq(_da, _db), "not the same type");              \
-    (typeof(_a))__builtin_memcpy(_a, _b, MIN$(sizeof(*_b), sizeof(*_a))); \
+  #define mcpy(a, b) ({                                                                   \
+    var_ _a = &a;                                                                         \
+    var_ _b = &b;                                                                         \
+    typedef typeof(({ *_a; })) _da;                                                       \
+    typedef typeof(({ *_b; })) _db;                                                       \
+    _Static_assert(types_eq(_da, _db), "not the same type");                              \
+    (typeof(_a))__builtin_memcpy((void *)_a, (void *)_b, MIN$(sizeof(*_b), sizeof(*_a))); \
   })
   #define mset(mem, v) ({                                                                         \
     var_ _m = &mem;                                                                               \

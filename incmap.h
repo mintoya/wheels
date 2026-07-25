@@ -1,16 +1,17 @@
 #if __INCLUDE_LEVEL__ == 0
   #pragma GCC warning "using example mapconfig"
+// comparison ismeant to be ordered, but currently it does not sort the collisoins at all
   #define mapconfig iimap, int, int, ((k) * 31 ^ 0x1000), (!(a == b))
 #endif
+
 #include "allocator.h"
 #include "macros.h"
 #include "mytypes.h"
 
 #ifndef mapconfig
-  #error "mapconfig must be defined as: KeyType, ValType"
+  #error "mapconfig must be defined as: KeyT, ValT , hash , comparison"
 #endif
 
-// Unpack the mapconfig tuple
 #define _MAP_GET_K(name, k, v, ...) k
 #define _MAP_GET_V(name, k, v, ...) v
 #define _MAP_EVAL_K(tuple) _MAP_GET_K(tuple)
@@ -306,7 +307,6 @@ static inline MAP_K *MAP_FN(val_key)(
   return map->keys + idx;
 }
 
-// Clean up so the header can be included again with new types/expressions
 #undef mapconfig
 #undef mapname
 #undef maphash

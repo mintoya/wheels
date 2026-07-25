@@ -20,7 +20,7 @@ void *smap_get(sxmap *map, fptr k);
   #define msxmap_init(allocator, V, ...) (msxmap(V)) smap_new(allocator, sizeof(V), msxmap_defaults(__VA_ARGS__))
   #define msxmap_deinit(map) ((void)sizeof(msxmap_iType(map)), smap_free((sxmap *)map))
 
-  #define msxmap_set(map, k, v) (ptrof(msxmap_iType(map)))(smap_set((sxmap *)map, fp(k), REF(msxmap_iType(map), v)))
+  #define msxmap_set(map, k, v) (ptrof(msxmap_iType(map)))(smap_set((sxmap *)map, fp(k), (void *)REF(msxmap_iType(map), v)))
   #define msxmap_rem(map, k) ((void)smap_set((sxmap *)map, fp(k), nullptr))
   #define msxmap_get(map, k) (ptrof(msxmap_iType(map))) smap_get((sxmap *)map, fp(k))
 msxmap(int) j;

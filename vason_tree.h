@@ -98,7 +98,6 @@ test_fn(vason_match) {
   );
   defer { vason_container_free(b); };
   test_assert(vason_container_eq(a, b));
-
 }
 #endif
 
@@ -183,8 +182,8 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
           .start = tableStart,
           .end = (vason_index)(tableStart + msList_len(n.table)),
       };
-      msList_pushVla(c->allocator, c->tables_strings, VLAP((vason_span *)NULL, msList_len(n.table)));
-      msList_pushVla(c->allocator, c->tags, VLAP((vason_tag *)NULL, msList_len(n.table)));
+      msList_pushArr(c->allocator, c->tables_strings, *VLAP((vason_span *)NULL, msList_len(n.table)));
+      msList_pushArr(c->allocator, c->tags, *VLAP((vason_tag *)NULL, msList_len(n.table)));
       foreach (var_ item, vla(*msList_vla(n.table)))
         vason_node_intoContainer(c, item, tableStart++);
     } break;
@@ -194,8 +193,8 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
           .start = tableStart,
           .end = (vason_index)(tableStart + 2),
       };
-      msList_pushVla(c->allocator, c->tables_strings, VLAP((vason_span *)NULL, 2));
-      msList_pushVla(c->allocator, c->tags, VLAP((vason_tag *)NULL, 2));
+      msList_pushArr(c->allocator, c->tables_strings, *VLAP((vason_span *)NULL, 2));
+      msList_pushArr(c->allocator, c->tags, *VLAP((vason_tag *)NULL, 2));
       vason_node_intoContainer(c, n.pair[0], tableStart);
       vason_node_intoContainer(c, n.pair[1], tableStart + 1);
     } break;
@@ -230,8 +229,12 @@ vason_container vason_node_toContainer(AllocatorV allocator, vason_node n, slice
   msList_push(allocator, res.tables_strings, (vason_span){});
   vason_node_intoContainer(&res, n, 0);
 
-  slice(c8) resStr = {msList_len(res.text.ptr), aCreate(allocator, c8, msList_len(res.text.ptr))};
-  memcpy(resStr.ptr, res.text.ptr, msList_len(res.text.ptr));
+  let f = aCreate(allocator, typeof(*msList_vla(res.text.ptr)));
+  let e = msList_vla(res.text.ptr);
+  slice(c8) resStr = {
+      msList_len(res.text.ptr),
+      (c8 *)memcpy(f, e, MIN$(sizeof(*f), sizeof(*e)))
+  };
   msList_deInit(allocator, res.text.ptr);
   *strContainer = resStr;
   res.text = resStr;

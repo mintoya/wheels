@@ -294,22 +294,10 @@ struct msList_stackBuffer_t {
               allocator,                                              \
               msList_header(s),                                       \
               sizeof(s[0]),                                           \
-              vla,                                                    \
+              (void *)vla,                                            \
               countof(vla)                                            \
       )                                                               \
               ->buf;                                                  \
-    } while (0)
-  #define msList_pushVla(allocator, s, vla)                              \
-    do {                                                                 \
-      ASSERT_EXPR(_Generic(vla[0][0], typeof(s[0]): 1, default: 0), ""); \
-      s = (typeof(s))sList_appendFromArr(                                \
-              allocator,                                                 \
-              msList_header(s),                                          \
-              sizeof(s[0]),                                              \
-              vla,                                                       \
-              countof(vla[0])                                            \
-      )                                                                  \
-              ->buf;                                                     \
     } while (0)
   #define msList_setCap(allocator, s, capacity)                                             \
     do {                                                                                    \
