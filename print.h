@@ -113,7 +113,7 @@ static void fileprint(
         (struct print_arg){.ref = ((fptr){sizeof(val), (u8 *)REF(val)}), .name = nullFptr}, \
         printer_arg_trim(printer_arg_until(':', fp_from(strname))),                         \
         put,                                                                                \
-        printer_arg_after(':', fp_from(strname)),                                           \
+        nullFptr,                                                                           \
         _arb                                                                                \
     );
   #define USENAMEDPRINTER_WA(strname, args, val)                                                         \
@@ -701,12 +701,14 @@ static slice(c8) vsn_print_fn(AllocatorV allocator, char *fmt, struct print_arg 
   return sn_slice_result;
 }
   #define snprint(allocator, fmt, ...) ({            \
-    allocator,                                       \
+    vsn_print_fn(                                    \
+        allocator,                                   \
         (char *)fmt,                                 \
         (struct print_arg[]){                        \
             APPLY_N_C(MAKE_PRINT_ARG, __VA_ARGS__)   \
                 __VA_OPT__(, )((struct print_arg){}) \
-        };                                           \
+        }                                            \
+    );                                               \
   })
   #ifdef PRINTER_LIST_TYPENAMES
 __attribute__((constructor(205))) static void printer_post_initfn() {
