@@ -80,6 +80,10 @@ static void fileprint(
     bool flush
 );
   #endif
+
+void vsn_print(const c8 *, void *, usize, bool);
+void sn_print(const c8 *, void *, usize, bool);
+
   #define GETTYPEPRINTERFN(T) ID_CONCAT(_, ID_CONCAT(T, _printer))
 
   #define PUTS(characters) _ctx.put(characters, _ctx.arb, countof(characters) - 1, 0)
@@ -162,6 +166,35 @@ static void fileprint(
 
 void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *);
 
+static slice(c8) vsn_print_fn(AllocatorV allocator, char *fmt, struct print_arg *args) {
+  usize sn_length_ = 0;
+  print_f(
+      vsn_print,
+      &sn_length_,
+      fmt,
+      args
+  );
+  var_ sn_slice_result = slice_alloc(allocator, c8, sn_length_);
+  sn_slice_result.len = 0;
+  print_f(
+      sn_print,
+      &sn_slice_result,
+      fmt,
+      args
+  );
+  assert(sn_slice_result.len == sn_length_);
+  return sn_slice_result;
+}
+  #define snprint(allocator, fmt, ...) ({            \
+    vsn_print_fn(                                    \
+        allocator,                                   \
+        (char *)fmt,                                 \
+        (struct print_arg[]){                        \
+            APPLY_N_C(MAKE_PRINT_ARG, __VA_ARGS__)   \
+                __VA_OPT__(, )((struct print_arg){}) \
+        }                                            \
+    );                                               \
+  })
   #define print_wfO(printerfn, arb, fmt, ...)          \
     do {                                               \
       print_f(                                         \
@@ -199,15 +232,17 @@ void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *)
           ),                                                      \
     }
 
-  #define TUPRINT_ITEM_PTR(datatuple, printtuple)              \
-    GETTYPEPRINTERFN(TUPLE_EXPAND_FIRST(printtuple))(          \
-        TUPLE_EXPAND_FIRST(datatuple),                         \
-        *(_ptr++),                                             \
-        fptr_CSP(VA_SWITCH(                                    \
-            "",                                                \
-            TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(printtuple))) \
-        )),                                                    \
-        TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(datatuple)))     \
+  #define TUPRINT_ITEM_PTR(datatuple, printtuple)                  \
+    GETTYPEPRINTERFN(TUPLE_EXPAND_FIRST(printtuple))(              \
+        *(_ptr++),                                                 \
+        (printerfunction_context){                                 \
+            TUPLE_EXPAND_FIRST(datatuple),                         \
+            TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(datatuple))),    \
+            fptr_CSP(VA_SWITCH(                                    \
+                "",                                                \
+                TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(printtuple))) \
+            )),                                                    \
+        }                                                          \
     );
 
   #define tupfmt(allocator, ...)                                          \
@@ -222,8 +257,9 @@ void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *)
       APPLY_N_WITH(TUPRINT_ITEM_PTR, (vsn_print, &_req_len), __VA_ARGS__) \
       fptr _res = {0, aCreate(allocator, u8, _req_len ?: 1)};             \
                                                                           \
-      if (_req_len)                                                       \
+      if (_req_len) {                                                     \
         APPLY_N_WITH(TUPRINT_ITEM_PTR, (sn_print, &_res), __VA_ARGS__)    \
+      }                                                                   \
       _res;                                                               \
     })
   #define tuprint_wfo(printerfn, arb, ...)              \

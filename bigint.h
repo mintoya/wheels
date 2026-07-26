@@ -1,3 +1,4 @@
+#include "print.h"
 #if !defined(MY_BIGINT_H)
   #define MY_BIGINT_H (1)
 
@@ -5,6 +6,7 @@
   #include "macros.h"
   #include "mytypes.h"
   #include "print/print_pre.h"
+  #include "print/str_printers.h"
   #include "sList.h"
 
 typedef unsigned int bigint_unit;
@@ -71,6 +73,7 @@ NAMESPACE_STRUCT(
 NAMESPACE_STRUCT(
     BInt,
     (advanced, BInt_advanced),
+    (cmp, &bigint_cmp),
     (add, &bigint_add),
     (sub, &bigint_sub),
     (mul, &bigint_mul),
@@ -166,6 +169,14 @@ typePrinter(bigint) {
     } else
       PUTS("0");
   }
+}
+
+test_fn(bigint_bits) {
+  let a = BInt.from.bits(allocator, (u32[]){(u32)1 << 31}, 32, 0);
+  defer { msList_deInit(allocator, a); };
+  let b = BInt.from.bits(allocator, (u32[]){(u32)1 << 31}, 32, 1);
+  defer { msList_deInit(allocator, b); };
+  test_assert(BInt.cmp(a, b) > 0);
 }
 
 #endif
@@ -591,21 +602,29 @@ bigint bigint_fptr(AllocatorV allocator, u8 base, fptr str) {
 // assumes that a byte is 8 bits
 bigint bigint_fromBits(AllocatorV alloc, void *ptr, const usize bitcount, bool sigmask) {
   const usize unit_bits = sizeof(bigint_unit) * 8;
+  const usize units = (bitcount + unit_bits - 1) / unit_bits;
 
-  usize units = (bitcount + unit_bits - 1) / unit_bits;
-
-  var_ res = msList_init(alloc, bigint_unit, units ?: 1);
+  let res = msList_init(alloc, bigint_unit, units ?: 1);
   if (!units) return res;
+
   memset(res, 0, units * sizeof(bigint_unit));
 
-  foreach (var_ i, range(0, bitcount)) {
-    if (((u8 *)ptr)[i / 8] & (1u << (i % 8)))
-      res[i / unit_bits] |= (bigint_unit)1 << (i % unit_bits);
+  usize full_bytes = bitcount / 8;
+  usize rem_bits = bitcount % 8;
+
+  memcpy(res, ptr, full_bytes);
+
+  if (rem_bits)
+    ((u8 *)res)[full_bytes] = ((u8 *)ptr)[full_bytes] & ((1u << rem_bits) - 1);
+
+  if (sigmask && (((u8 *)ptr)[(bitcount - 1) / 8] & (1u << ((bitcount - 1) % 8)))) {
+    usize mod = bitcount % unit_bits;
+    if (mod)
+      res[units - 1] |= ~(((bigint_unit)1 << mod) - 1);
   }
-  if (((u8 *)ptr)[(bitcount - 1) / 8] & (1u << ((bitcount - 1) % 8)))
-    foreach (var_ i, range(bitcount, units * unit_bits))
-      res[i / unit_bits] |= ((bigint_unit)1 & sigmask) << (i % unit_bits);
+
   msList_len(res) = units;
+  if (!sigmask) msList_push(alloc, res, {});
   return res;
 }
 #endif

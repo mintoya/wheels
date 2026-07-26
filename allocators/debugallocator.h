@@ -58,7 +58,7 @@ int debugAllocatorDeInit(AllocatorV);
 
   #include "../macros.h"
   #include "../mytypes.h"
-  #include "../print.h"
+  #include "../print/print_pre.h"
 
 typedef struct {
   mxmap(void *, struct tracedata) map;

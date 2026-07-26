@@ -100,50 +100,8 @@ typePrinter("ptr", void *) {
     shift -= 4;
   }
 }
-typePrinter("slice(c8)", slice(c8)) {
-  foreach (c8 *c, span(in.ptr, in.len))
-    PUTC(*c);
-}
-typePrinter(c8) { PUTC(in); }
-typePrinter(cstr) {
-  in = in ?: (char *)"__NULLCSTR__";
-  while (*in)
-    PUTC(*in++);
-}
-
-static void GETTYPEPRINTERFN(carr)(fptr _v_in_ptr, printerfunction_context _ctx) {
-  PUTS(*VLAP((char *)_v_in_ptr.ptr, _v_in_ptr.len));
-}
-__attribute__((constructor(203))) static void printerConstructor_carr() {
-  PrinterSingleton_append(fp("carr"), (printerFunction){GETTYPEPRINTERFN(carr), ~(usize)0});
-}
-
-typePrinter(c32) {
-  if (in <= 0x7F)
-    PUTC((c8)in);
-  else if (in <= 0x7FF) {
-    PUTC((c8)(0xC0 | (in >> 6)));
-    PUTC((c8)(0x80 | (in & 0x3F)));
-  } else if (in <= 0xFFFF) {
-    PUTC((c8)(0xE0 | (in >> 12)));
-    PUTC((c8)(0x80 | ((in >> 6) & 0x3F)));
-    PUTC((c8)(0x80 | (in & 0x3F)));
-  } else {
-    PUTC((c8)(0xF0 | (in >> 18)));
-    PUTC((c8)(0x80 | ((in >> 12) & 0x3F)));
-    PUTC((c8)(0x80 | ((in >> 6) & 0x3F)));
-    PUTC((c8)(0x80 | (in & 0x3F)));
-  }
-}
-
-typePrinter("c32str", c32 *) {
-  if (in)
-    while (*in)
-      USETYPEPRINTER(c32, *in++);
-  else
-    PUTS("__NULLCSTR__");
-}
   #include "print/int_printers.h"
+  #include "print/str_printers.h"
 typePrinter(f128) {
   usize digits = 0;
   let args = PRINTARGS();
@@ -301,35 +259,6 @@ typePrinter("slice", struct slice_any_t) { // second least safe printer
 
 volatile static thread_local bool print_f_shouldFlush = 1;
 
-static slice(c8) vsn_print_fn(AllocatorV allocator, char *fmt, struct print_arg *args) {
-  usize sn_length_ = 0;
-  print_f(
-      vsn_print,
-      &sn_length_,
-      fmt,
-      args
-  );
-  var_ sn_slice_result = slice_alloc(allocator, c8, sn_length_);
-  sn_slice_result.len = 0;
-  print_f(
-      sn_print,
-      &sn_slice_result,
-      fmt,
-      args
-  );
-  assertMessage(sn_slice_result.len == sn_length_);
-  return sn_slice_result;
-}
-  #define snprint(allocator, fmt, ...) ({            \
-    vsn_print_fn(                                    \
-        allocator,                                   \
-        (char *)fmt,                                 \
-        (struct print_arg[]){                        \
-            APPLY_N_C(MAKE_PRINT_ARG, __VA_ARGS__)   \
-                __VA_OPT__(, )((struct print_arg){}) \
-        }                                            \
-    );                                               \
-  })
   #if defined PRINTER_LIST_TYPENAMES
 __attribute__((constructor(205))) static void printer_post_initfn() {
   print("==============================\n"

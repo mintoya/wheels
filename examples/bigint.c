@@ -2,7 +2,7 @@
 #include "../allocators/debugallocator.h"
 
 #include "../bigint.h"
-#include "../wheels.h"
+#include "../print.h"
 
 int main(void) {
   AllocatorV debug = debugAllocator(
@@ -60,9 +60,10 @@ int main(void) {
   while (1) {
     bigint c = bigint_add(debug, a, b);
     i++;
-    println("{bigint} {}", c, i);
+    println("{bigint} {},{}", c, i, msList_len(c));
     msList_deInit(debug, a);
     a = b;
     b = c;
   }
 }
+#include "../wheels.h"
