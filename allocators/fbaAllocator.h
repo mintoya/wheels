@@ -73,7 +73,14 @@ static inline void fba_del(AllocatorV allocator, AllocatorV fba) {
 #endif
 
 #ifdef FBA_ALLOCATOR_C
+bool _fba_has(AllocatorV allocator, void *ptr) {
+  FBA_State *f = (typeof(f))allocator;
+  return !(((uintptr_t)ptr) & (alignof(myAlign) - 1)) &&
+         (u8 *)ptr >= f->buffer &&
+         (u8 *)ptr - f->buffer < f->offset;
+}
 void _fba_free(AllocatorV allocator, void *ptr, usize size, char *, usize) {
+  assert(_fba_has(allocator, ptr));
   FBA_State *f = (typeof(f))allocator;
   f->count--;
   if (!f->count)

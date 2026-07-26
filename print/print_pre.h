@@ -1,5 +1,7 @@
+#include <string.h>
 #if !defined MY_PRINTER_DEFS_H
   #define MY_PRINTER_DEFS_H (1)
+  #include "../allocator.h"
   #include "../fptr.h"
   #include "../mytypes.h"
 
@@ -9,10 +11,14 @@
 // 4 : last print in a cluster
 typedef fnptrof((const c8 *, void *, usize, bool), void) outputFunction;
 
+typedef struct printerfunction_arg {
+  fptr str;
+  struct printerfunction_arg *next;
+} printerfunction_arg;
 typedef struct {
   outputFunction put;
   void *arb;
-  fptr args;
+  printerfunction_arg args;
 } printerfunction_context;
 
 typedef struct {
@@ -51,17 +57,13 @@ fptr printer_arg_until(char delim, fptr string);
 fptr printer_arg_after(char delim, fptr slice);
 fptr printer_arg_after(char delim, fptr slice);
 fptr printer_arg_trim(fptr in);
-static inline fptr printer_arg_pop(char delim, fptr *in) {
-  defer { *in = printer_arg_trim(printer_arg_after(delim, *in)); };
-  return printer_arg_trim(printer_arg_until(delim, *in));
-}
 static inline printerfunction_context printerfunction_context_pop(const printerfunction_context ctx) {
   let x = ctx;
-  x.args = printer_arg_trim(printer_arg_after(':', ctx.args));
+  x.args = x.args.next ? *x.args.next : (printerfunction_arg){};
   return x;
 }
 static inline fptr printerfunction_thisargs(const printerfunction_context _ctx) {
-  return printer_arg_trim(printer_arg_until(':', _ctx.args));
+  return printer_arg_trim(_ctx.args.str);
 }
 typedef struct PrinterSingleton_t PrinterSingleton_t;
 void PrinterSingleton_init();
@@ -83,6 +85,28 @@ static void fileprint(
   #define PUTS(characters) _ctx.put(characters, _ctx.arb, countof(characters) - 1, 0)
   #define PUTC(character) _ctx.put(REF(character), _ctx.arb, 1, 0)
   #define PRINTARGS() printerfunction_thisargs(_ctx)
+  #define PRINTARGS_PUSH(arg)                                             \
+    for (                                                                 \
+        struct {                                                          \
+          fptr oarg;                                                      \
+          printerfunction_context octx;                                   \
+          printerfunction_arg newarg;                                     \
+          bool con;                                                       \
+        } _pa_pu_st = {_ctx.args.str, _ctx, {fp(arg), &_ctx.args}, true}; \
+        _pa_pu_st.con;                                                    \
+        _pa_pu_st.con = false)                                            \
+      for (                                                               \
+          printerfunction_context _ctx = {                                \
+              _pa_pu_st.octx.put,                                         \
+              _pa_pu_st.octx.arb,                                         \
+              {_pa_pu_st.oarg, &_pa_pu_st.newarg},                        \
+          };                                                              \
+          _pa_pu_st.con;                                                  \
+          _pa_pu_st.con = false)
+
+// outputFunction put;
+// void *arb;
+// printerfunction_arg args;
 
   #define typePrinter_name_inner(str, T, name)                        \
     static void ID_CONCAT(name, raw)(                                 \

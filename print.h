@@ -1,6 +1,7 @@
 #if !defined MY_PRINTER_H
   #define MY_PRINTER_H (1)
   #include "allocator.h"
+  #include "allocators/debugallocator.h"
   #include "assertMessage.h"
   #include "macros.h"
   #include "print/print_pre.h"
@@ -50,8 +51,7 @@ void sn_print(const c8 *c, void *cptr, usize length, bool _) {
   loc->len += length;
 }
 
-  #define headconfig printermap, fptr, printerFunction, (fptr_hash(k)), (fptr_cmp(a, b))
-  #define mapconfig headconfig
+  #define mapconfig printermap, fptr, printerFunction, (fptr_hash(k)), (fptr_cmp(a, b))
   #include "incmap.h"
 
 typedef struct PrinterSingleton_t {
@@ -330,23 +330,17 @@ static slice(c8) vsn_print_fn(AllocatorV allocator, char *fmt, struct print_arg 
         }                                            \
     );                                               \
   })
-  #ifdef PRINTER_LIST_TYPENAMES
+  #if defined PRINTER_LIST_TYPENAMES
 __attribute__((constructor(205))) static void printer_post_initfn() {
   print("==============================\n"
         "printer debug\n"
         "==============================\n");
   println("list of printer type names: ");
-  foreach (var_ i, msxmap_iter(PrinterSingleton.data))
-    println("{slice(c8)}", i.key);
-  // println(
-  //     "buckets   : {}\n"
-  //     "footprint : {}\n"
-  //     "collisions: {}\n"
-  //     "==============================\n",
-  //     ((sHmap *)PrinterSingleton.data)->num_buckets,
-  //     sHmap_footprint((sHmap *)PrinterSingleton.data),
-  //     sHmap_countCollisions((sHmap *)PrinterSingleton.data),
-  // );
+  for (usize i = 0; i < (1 << PrinterSingleton.data->capbit); i++)
+    if (printermap_isHXOCCUPIED(PrinterSingleton.data->flags[i]))
+      println("{slice(c8)}", PrinterSingleton.data->keys[i]);
+  println("capacity : {}", 1 << PrinterSingleton.data->capbit);
+  println("allocation : {dbga-stats}", debugAllocator_stats(PrinterSingleton.data->allocator));
 }
   #endif // PRINTER_LIST_TYPENAMES
   #undef MY_PRINTER_H
@@ -359,8 +353,8 @@ __attribute__((constructor(205))) static void printer_post_initfn() {
 
 #if defined MY_PRINTER_C && MY_PRINTER_C == 1 && MY_PRINTER_H == 2
 PrinterSingleton_t PrinterSingleton = {};
-void PrinterSingleton_init() { printermap_newm(stdAlloc, 3, PrinterSingleton.data); }
-void PrinterSingleton_deInit() { printermap_freem(PrinterSingleton.data[0]); }
+void PrinterSingleton_init() { printermap_newm(debugAllocator(.allocator = stdAlloc), 3, PrinterSingleton.data); }
+void PrinterSingleton_deInit() { debugAllocatorDeInit(PrinterSingleton.data[0].allocator); }
 void PrinterSingleton_append(fptr name, printerFunction function) {
   printermap_set(PrinterSingleton.data, name, function);
 }
@@ -439,7 +433,52 @@ void print_f_helper(struct print_arg p, fptr typeName, printerfunction_context _
     USETYPEPRINTER(pEsc, ((pEsc){.reset = true}));
   } else fn.function(p.ref, _ctx);
 }
+msList(printerfunction_arg) print_f_makeArgs(AllocatorV allocator, fptr in) {
+  let res = msList_init(allocator, printerfunction_arg, 1);
+  while (in.len) {
+    for (int i = 0; i < in.len; i++)
+      if (in.ptr[i] == ':') {
+        let last = msList_len(res) ? &msList_last(res) : nullptr;
+        let split = slice_split(in, (0, i), (i + 1, -1));
+        msList_push(allocator, res, {split[0], last});
+        in = split[1];
+        goto rescan;
+      }
+    if (in.len) {
+      let last = msList_len(res) ? &msList_last(res) : nullptr;
+      msList_push(allocator, res, {in, last});
+      return res;
+    }
+    {
+    rescan:;
+    }
+  }
+  return res;
 
+  /*
+  let b = msList_stackBuffer(u8[10]);
+  let l = msList_initBuffer(b);
+  defer { msList_deInit(allocator, l); }
+
+  while (in.len) {
+    usize i = 0;
+    switch (in.ptr[i]) {
+      case ':': {
+        if (!msList_len(l)) {
+        }
+      } break;
+        // clang-format off
+      case '(': break;
+      case '{': break;
+      case '[': break;
+      case ')': break;
+      case '}': break;
+      case ']': break;
+        // clang-format on
+    }
+  }
+  */
+}
 void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *args) {
   bool toggled = 0;
   for (u32 i = 0; fmt[i]; i++) {
@@ -454,11 +493,22 @@ void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *a
       var_ assumedName = *args++;
 
       fptr tname = printer_arg_until(':', typeName);
-      fptr parseargs = printer_arg_after(':', typeName);
+      let list = print_f_makeArgs(stdAlloc, printer_arg_after(':', typeName));
+      defer { msList_deInit(stdAlloc, list); };
       tname = printer_arg_trim(tname);
       if (!assumedName.ref.ptr)
         return put("__ NO ARGUMENT PROVIDED, ENDING PRINT __\n", arb, 41, 1);
-      print_f_helper(assumedName, tname, (printerfunction_context){put, arb, parseargs});
+      print_f_helper(
+          assumedName,
+          tname,
+          (printerfunction_context){
+              put,
+              arb,
+              msList_len(list)
+                  ? list[0]
+                  : (printerfunction_arg){},
+          }
+      );
       i = j;
       toggled = 0;
 
