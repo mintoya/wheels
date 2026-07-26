@@ -4,6 +4,7 @@
   #include "fptr.h"
   #include "macros.h"
   #include "mytypes.h"
+  #include "print/print_pre.h"
   #include "sList.h"
 
 typedef unsigned int bigint_unit;
@@ -81,9 +82,8 @@ NAMESPACE_STRUCT(
     (negetive, &bigint_negetive),
 );
 
-  #include "print.h"
 typePrinter(bigint) {
-  args = printer_arg_trim(args);
+  let args = PRINTARGS();
   bool debug = fptr_eq(args, fp("dbg"));
   bool normal = !debug;
   normal |= fptr_eq(args, fp("both"));

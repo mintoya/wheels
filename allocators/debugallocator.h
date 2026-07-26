@@ -2,7 +2,7 @@
   #define MY_DEBUG_ALLOCATOR_H
   #include "../allocator.h"
   #include "../hxmap.h"
-  #include "../print.h"
+  #include "../print/print_pre.h"
   #include <stdio.h>
 
 struct tracedata {
@@ -147,10 +147,10 @@ int debugAllocatorDeInit(AllocatorV allocator) {
   AllocatorV realAllocator = internals->actualAllocator;
   usize leaks = 0;
 
-  pEsc r = (pEsc){.fg = {255, 0, 0}, .fgset = 1};
-  pEsc g = (pEsc){.fg = {0, 255, 0}, .fgset = 1};
-  pEsc b = (pEsc){.fg = {0, 0, 255}, .fgset = 1};
-  pEsc rst = (pEsc){.reset = 1};
+  const pEsc r = (pEsc){.fg = {-1, 0, 0}, .fgset = true};
+  const pEsc g = (pEsc){.fg = {0, -1, 0}, .fgset = true};
+  const pEsc b = (pEsc){.fg = {0, 0, -1}, .fgset = true};
+  const pEsc rst = (pEsc){.reset = true};
 
   FILE *out = internals->config.log;
 

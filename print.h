@@ -1,282 +1,9 @@
-#if !defined MY_PRINTER_DEFS_H
-  #define MY_PRINTER_DEFS_H (1)
-  #include "fptr.h"
-  #include "mytypes.h"
-
-// 1 : string
-// 2 : context
-// 3 : string length
-// 4 : last print in a cluster
-typedef fnptrof((const c8 *, void *, usize, bool), void) outputFunction;
-
-  #define PRINTERFUNCTION_CONTEXT outputFunction put, void *_arb, fptr args
-typedef struct {
-  // 1 : fat value pointer
-  // 2 : printing function
-  // 3 : printing function context
-  // 4 : args fat pointer
-  void (*function)(fptr, PRINTERFUNCTION_CONTEXT);
-  usize size;
-} printerFunction;
-
-typedef struct {
-  struct {
-    uint row, col;
-  } pos;
-  struct {
-    uint8_t r, g, b;
-  } fg;
-  struct {
-    uint8_t r, g, b;
-  } bg;
-  unsigned char poset : 1; // set position
-  unsigned char bgset : 1; // enable bg
-  unsigned char fgset : 1; // enable fg
-  unsigned char clear : 1; // clear screen
-  unsigned char reset : 1; // reset effects
-} pEsc;
-struct print_arg {
-  fptr ref;
-  fptr name;
-};
-fptr printer_arg_until(char delim, fptr string);
-fptr printer_arg_after(char delim, fptr slice);
-fptr printer_arg_after(char delim, fptr slice);
-fptr printer_arg_trim(fptr in);
-static inline fptr printer_arg_pop(char delim, fptr *in) {
-  defer { *in = printer_arg_trim(printer_arg_after(delim, *in)); };
-  return printer_arg_trim(printer_arg_until(delim, *in));
-}
-typedef struct PrinterSingleton_t PrinterSingleton_t;
-void PrinterSingleton_init();
-void PrinterSingleton_deInit();
-void PrinterSingleton_append(fptr name, printerFunction function);
-
-void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr args, void *arb);
-
-  #if !defined(NOFILEPRINTER)
-static void fileprint(
-    const c8 *c,
-    void *fileHandle,
-    usize length,
-    bool flush
-);
-  #endif
-  #define GETTYPEPRINTERFN(T) ID_CONCAT(_, ID_CONCAT(T, _printer))
-
-  #define PUTS(characters) put(characters, _arb, countof(characters) - 1, 0)
-  #define PUTC(character) put(REF(character), _arb, 1, 0)
-
-  #define typePrinter_name_inner(str, T, name)                        \
-    static void ID_CONCAT(name, raw)(                                 \
-        outputFunction put, fptr args, void *_arb, T in               \
-    );                                                                \
-    static void name(                                                 \
-        fptr _v_in_ptr, PRINTERFUNCTION_CONTEXT                       \
-    ) {                                                               \
-      (void)args;                                                     \
-      T in = *(T *)(_v_in_ptr.ptr);                                   \
-      ID_CONCAT(name, raw)(put, args, _arb, in);                      \
-    }                                                                 \
-    __attribute__((constructor(202))) static void register_##name() { \
-      fptr key = (fptr){                                              \
-          .len = sizeof(str) - 1,                                     \
-          .ptr = (uint8_t *)str,                                      \
-      };                                                              \
-      PrinterSingleton_append(                                        \
-          key,                                                        \
-          (printerFunction){                                          \
-              name,                                                   \
-              sizeof(T),                                              \
-          }                                                           \
-      );                                                              \
-    }                                                                 \
-    static void ID_CONCAT(name, raw)(                                 \
-        outputFunction put, fptr args, void *_arb, T in               \
-    )
-
-  #define typePrinter_name_function(str, T, fname) typePrinter_name_inner(str, T, fname)
-  #define typePrinter_name(str, T) typePrinter_name_function(str, T, ID_CONCAT(PRINTERFN_, ID_CONCAT(__LINE__, ID_CONCAT(__, __COUNTER__))))
-  #define typePrinter_type_inner(str, T, name) typePrinter_name_inner(str, T, name)
-  #define typePrinter_type(T) typePrinter_type_inner(#T, T, GETTYPEPRINTERFN(T))
-
-  #define typePrinter(a, ...)                              \
-    REMOVE_PARENS(VA_SWITCH(                               \
-        (typePrinter_type)__VA_OPT__(, (typePrinter_name)) \
-    ))(a __VA_OPT__(, __VA_ARGS__))
-
-  #define USETYPEPRINTER(T, val) \
-    GETTYPEPRINTERFN(T)((fptr){sizeof(T), (u8 *)(void *)REF(T, val)}, put, _arb, args)
-
-  #define USENAMEDPRINTER(strname, val)                                                     \
-    print_f_helper(                                                                         \
-        (struct print_arg){.ref = ((fptr){sizeof(val), (u8 *)REF(val)}), .name = nullFptr}, \
-        printer_arg_trim(printer_arg_until(':', fp_from(strname))),                         \
-        put,                                                                                \
-        nullFptr,                                                                           \
-        _arb                                                                                \
-    );
-  #define USENAMEDPRINTER_WA(strname, args, val)                                                         \
-    print_f_helper(                                                                                      \
-        (struct print_arg){.ref = ((fptr){sizeof(val), (u8 *)REF(typeof(val), val)}), .name = nullFptr}, \
-        printer_arg_trim(printer_arg_until(':', fp_from(strname))),                                      \
-        put,                                                                                             \
-        args,                                                                                            \
-        _arb                                                                                             \
-    );
-
-void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *);
-
-  #define print_wfO(printerfn, arb, fmt, ...)          \
-    do {                                               \
-      print_f(                                         \
-          printerfn,                                   \
-          arb,                                         \
-          fmt,                                         \
-          (struct print_arg[]){                        \
-              APPLY_N_C(MAKE_PRINT_ARG, __VA_ARGS__)   \
-                  __VA_OPT__(, )((struct print_arg){}) \
-          }                                            \
-      );                                               \
-    } while (0)
-  #define tuprint_item(datatuple, printtuple)                       \
-    GETTYPEPRINTERFN(TUPLE_EXPAND_FIRST(printtuple))(               \
-        TUPLE_EXPAND_FIRST(datatuple),                              \
-        (fptr){                                                     \
-            sizeof(TUPLE_EXPAND_FIRST(printtuple)),                 \
-            (u8 *)REF(                                              \
-                TUPLE_EXPAND_FIRST(printtuple),                     \
-                TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(printtuple))) \
-            ),                                                      \
-        },                                                          \
-        fptr_CSP(VA_SWITCH(                                         \
-            "",                                                     \
-            TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(printtuple)))      \
-        )),                                                         \
-        TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(datatuple)))          \
-    );
-  #define MAKE_FPTR_ITEM(printtuple)                              \
-    (fptr) {                                                      \
-      sizeof(TUPLE_EXPAND_FIRST(printtuple)),                     \
-          (u8 *)REF(                                              \
-              TUPLE_EXPAND_FIRST(printtuple),                     \
-              TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(printtuple))) \
-          ),                                                      \
-    }
-
-  #define TUPRINT_ITEM_PTR(datatuple, printtuple)              \
-    GETTYPEPRINTERFN(TUPLE_EXPAND_FIRST(printtuple))(          \
-        TUPLE_EXPAND_FIRST(datatuple),                         \
-        *(_ptr++),                                             \
-        fptr_CSP(VA_SWITCH(                                    \
-            "",                                                \
-            TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(printtuple))) \
-        )),                                                    \
-        TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(datatuple)))     \
-    );
-
-  #define tupfmt(allocator, ...)                                          \
-    ({                                                                    \
-      fptr _fptrs[] = {                                                   \
-          APPLY_N_C(MAKE_FPTR_ITEM, __VA_ARGS__)                          \
-              __VA_OPT__(, )(fptr){}                                      \
-      };                                                                  \
-                                                                          \
-      usize _req_len = 0;                                                 \
-      fptr *_ptr = _fptrs;                                                \
-      APPLY_N_WITH(TUPRINT_ITEM_PTR, (vsn_print, &_req_len), __VA_ARGS__) \
-      fptr _res = {0, aCreate(allocator, u8, _req_len ?: 1)};             \
-                                                                          \
-      if (_req_len)                                                       \
-        APPLY_N_WITH(TUPRINT_ITEM_PTR, (sn_print, &_res), __VA_ARGS__)    \
-      _res;                                                               \
-    })
-  #define tuprint_wfo(printerfn, arb, ...)              \
-    do {                                                \
-      let fn = printerfn;                               \
-      let fa = arb;                                     \
-      APPLY_N_WITH(tuprint_item, (fn, fa), __VA_ARGS__) \
-    } while (0)
-
-  #define tuprint(...) tuprint_wfo(fileprint, stdout, __VA_ARGS__)
-  #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
-  #define print_(fmt, ...) print_wfO(fileprint, stdout, fmt, __VA_ARGS__)
-  #define println_(fmt, ...) print(fmt "\n", __VA_ARGS__)
-  #if !defined PRINT_NDEF
-    // #define fprint(...) fprint_(__VA_ARGS__)
-    // #define fprintln(...) fprintln_(__VA_ARGS__)
-    #define print print_
-    #define println println_
-  #endif
-
-  #if !defined(__cplusplus)
-
-    #define MAKE_PRINT_ARG_TYPE(type) \
-      type * : ((fptr){sizeof(#type) - 1, (u8 *)#type})
-    #if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
-      #define MAKE_PRINTINTS_SIZE MAKE_PRINT_ARG_TYPE(i32), MAKE_PRINT_ARG_TYPE(u32),
-    #else
-      #define MAKE_PRINTINTS_SIZE
-    #endif
-    #if __SIZEOF_DOUBLE__ != __SIZEOF_LONG_DOUBLE__
-      #define MAKE_PRINTS_D MAKE_PRINT_ARG_TYPE(double), MAKE_PRINT_ARG_TYPE(long double),
-    #else
-      #define MAKE_PRINTS_D MAKE_PRINT_ARG_TYPE(ldouble),
-    #endif
-
-    #define MAKE_PRINT_ARG(a)                                                    \
-      ((struct print_arg){                                                       \
-          .ref = ((fptr){sizeof(a), (u8 *)REF(typeof(a), a)}),                   \
-          .name = _Generic(                                                      \
-              &(__typeof_unqual__(a)){0},                                        \
-              MAKE_PRINT_ARG_TYPE(fptr),                                         \
-              MAKE_PRINT_ARG_TYPE(isize),                                        \
-              MAKE_PRINT_ARG_TYPE(usize),                                        \
-              MAKE_PRINT_ARG_TYPE(float),                                        \
-              MAKE_PRINTS_D /**/                                                 \
-                  MAKE_PRINT_ARG_TYPE(pEsc),                                     \
-              MAKE_PRINTINTS_SIZE /**/                                           \
-              void **: ((fptr){sizeof("ptr") - 1, (u8 *)"ptr"}),                 \
-              slice(c8) *: ((fptr){sizeof("slice(c8)") - 1, (u8 *)"slice(c8)"}), \
-              char **: ((fptr){sizeof("cstr") - 1, (u8 *)"cstr"}),               \
-              char (*)[sizeof(a)]: ((fptr){sizeof("carr") - 1, (u8 *)"carr"}),   \
-              default: nullFptr                                                  \
-          ),                                                                     \
-      })
-
-  #else
-template <typename T>
-constexpr const char *type_name_cstr() { return ""; }
-
-    #define MAKE_PRINT_ARG_TYPE(type) \
-      template <>                     \
-      constexpr const char *type_name_cstr<type>(void) { return #type; }
-
-MAKE_PRINT_ARG_TYPE(fptr);
-MAKE_PRINT_ARG_TYPE(slice(c8));
-MAKE_PRINT_ARG_TYPE(isize);
-MAKE_PRINT_ARG_TYPE(usize);
-MAKE_PRINT_ARG_TYPE(float);
-MAKE_PRINT_ARG_TYPE(double);
-MAKE_PRINT_ARG_TYPE(ldouble);
-MAKE_PRINT_ARG_TYPE(pEsc);
-    #if __SIZEOF_INT__ != __SIZEOF_SIZE_T__
-MAKE_PRINT_ARG_TYPE(i32);
-MAKE_PRINT_ARG_TYPE(u32);
-    #endif
-
-    #define MAKE_PRINT_ARG(a)                                 \
-      ((struct print_arg){                                    \
-          .ref = (fptr){sizeof(typeof(a)), (u8 *)REF(a)},     \
-          .name = fp_from(type_name_cstr<typeof_unqual(a)>()) \
-      })
-  #endif
-#endif
 #if !defined MY_PRINTER_H
   #define MY_PRINTER_H (1)
   #include "allocator.h"
   #include "assertMessage.h"
   #include "macros.h"
+  #include "print/print_pre.h"
   #include "sList.h"
   #include "smap.h"
   #include <locale.h>
@@ -285,7 +12,6 @@ MAKE_PRINT_ARG_TYPE(u32);
 
 // helper escape type
 
-typedef pEsc printerEscape;
   #define pEscRst      \
     ((pEsc){           \
         .pos = {0, 0}, \
@@ -294,7 +20,7 @@ typedef pEsc printerEscape;
     })
 
   #if !defined(NOFILEPRINTER)
-static void fileprint(
+void fileprint(
     const c8 *c,
     void *fileHandle,
     usize length,
@@ -313,20 +39,10 @@ static void fileprint(
 }
   #endif
 
-static void vsn_print(
-    const c8 *_,
-    void *lptr,
-    usize length,
-    bool __
-) {
+void vsn_print(const c8 *_, void *lptr, usize length, bool __) {
   ((usize *)lptr)[0] += length;
 }
-static void sn_print(
-    const c8 *c,
-    void *cptr,
-    usize length,
-    bool ___
-) {
+void sn_print(const c8 *c, void *cptr, usize length, bool _) {
   slice(c8) *loc = (typeof(loc))cptr;
   assertMessage(loc && loc->ptr);
   if (length)
@@ -336,10 +52,7 @@ static void sn_print(
 
   #define headconfig printermap, fptr, printerFunction, (fptr_hash(k)), (fptr_cmp(a, b))
   #define mapconfig headconfig
-
-  #pragma push_macro("headconfig")
   #include "incmap.h"
-  #pragma pop_macro("headconfig")
 
 typedef struct PrinterSingleton_t {
   printermap data[1];
@@ -398,7 +111,7 @@ typePrinter(cstr) {
     PUTC(*in++);
 }
 
-static void GETTYPEPRINTERFN(carr)(fptr _v_in_ptr, PRINTERFUNCTION_CONTEXT) {
+static void GETTYPEPRINTERFN(carr)(fptr _v_in_ptr, printerfunction_context _ctx) {
   PUTS(*VLAP((char *)_v_in_ptr.ptr, _v_in_ptr.len));
 }
 __attribute__((constructor(203))) static void printerConstructor_carr() {
@@ -430,43 +143,11 @@ typePrinter("c32str", c32 *) {
   else
     PUTS("__NULLCSTR__");
 }
-// {int printers
-typePrinter(u64) {
-  c8 digits[sizeof(u64) * 8 / 3];
-  u8 digit = 0;
-  usize l = 1;
-  while (l <= in / 10) {
-    if (l * 10 < l) break;
-    else l = l * 10;
-  }
-  while (l) {
-    char c = in / l + '0';
-    digits[digit++] = c;
-    in %= l;
-    l /= 10;
-  }
-  put(digits, _arb, digit, 0);
-}
-typePrinter(i64) {
-  usize uin = (usize)in;
-  if (in < 0) {
-    PUTC((c8)'-');
-    uin = 0 - in;
-  }
-  USETYPEPRINTER(u64, uin);
-}
-typePrinter(usize) { USETYPEPRINTER(u64, (u64)in); }
-typePrinter(isize) { USETYPEPRINTER(i64, (i64)in); }
-typePrinter(u8) { USETYPEPRINTER(u64, (u64)in); }
-typePrinter(u16) { USETYPEPRINTER(u64, (u64)in); }
-typePrinter(u32) { USETYPEPRINTER(u64, (usize)in); }
-typePrinter(i8) { USETYPEPRINTER(i64, (i64)in); }
-typePrinter(i16) { USETYPEPRINTER(i64, (i64)in); }
-typePrinter(i32) { USETYPEPRINTER(i64, (isize)in); }
-// }
+  #include "print/int_printers.h"
 typePrinter(f128) {
   usize digits = 0;
-  if ((args = printer_arg_trim(args)).len)
+  let args = PRINTARGS();
+  if (args.len)
     for (var_ i = 0; i < args.len && (args.ptr[i] <= '9' && args.ptr[i] >= '0'); i++) {
       digits *= 10;
       digits += args.ptr[i] - '0';
@@ -509,7 +190,7 @@ typePrinter(fptr) {
   const c8 hex_chars[17] = "0123456789abcdef";
   char cut0s = 0;
   char useLength = 0;
-  if (fptr_eq(fp_from("length"), printer_arg_trim(args)))
+  if (fptr_eq(fp_from("length"), PRINTARGS()))
     useLength = 1;
   if (useLength) {
     PUTS("<");
@@ -577,105 +258,44 @@ struct slice_any_t {
 
 // * : * : int can print a ptr to a ptr to an int
 typePrinter("*", void *) { // least safe printer of all time
-  var_ typef = printer_arg_trim(printer_arg_until(':', args));
-  args = printer_arg_after(':', args);
+  let fn = PrinterSingleton_get(PRINTARGS());
+  if (!fn.function) {
+    let red = (pEsc){.fg.r = 255, .fgset = true};
+    let reset = (pEsc){.reset = true};
+    USETYPEPRINTER(pEsc, red);
+    PUTS("__unknown printer ");
+    let str = VLAP((c8 *)PRINTARGS().ptr, PRINTARGS().len);
+    PUTS(*str);
+    PUTS("__");
+    USETYPEPRINTER(pEsc, reset);
+    return;
+  }
   PUTS("[*]");
-  if (!in) PUTS("null");
-  else {
-    var_ np = PrinterSingleton_get(typef);
-    if (np.function)
-      np.function((fptr){np.size, (u8 *)in}, put, _arb, args);
-    else {
-      PUTS("UNKNOWN PRINTER ");
-      USENAMEDPRINTER("slice(c8)", typef)
-    }
-  }
+  fn.function((fptr){fn.size, in}, printerfunction_context_pop(_ctx));
 }
-typePrinter("slice", struct slice_any_t) {
-  fptr farg = printer_arg_trim(args);
-  void *ptr = in.ptr;
-  var_ printer = PrinterSingleton_get(farg);
-  if (!printer.function) {
-    USETYPEPRINTER(pEsc, ((pEsc){.fg = {.r = 255}, .fgset = 1}));
-    PUTS("__could'nt find printer for ");
-    USENAMEDPRINTER("slice(c8)", farg);
-    PUTS("__");
-    USETYPEPRINTER(pEsc, (pEsc){.reset = 1});
-  } else {
-    PUTC((c8)'[');
-    usize size = printer.size;
-    foreach (usize i, range(0, in.len)) {
-      if (i)
-        PUTC((c8)',');
-      printer.function((fptr){size, size * i + (u8 *)ptr}, put, _arb, nullFptr);
-    }
-    PUTC((c8)']');
-  }
-}
-typePrinter("msList", void *) {
-  fptr farg = printer_arg_trim(args);
-  var_ printer = PrinterSingleton_get(
-      printer_arg_trim(
-          printer_arg_until(':', farg)
-      )
-  );
-  if (!printer.function) {
-    USETYPEPRINTER(pEsc, ((pEsc){.fg = {.r = 255}, .fgset = 1}));
-    PUTS("__could'nt find printer for ");
-    USENAMEDPRINTER("slice(c8)", printer_arg_until(':', farg));
-    PUTS("__");
-    USETYPEPRINTER(pEsc, (pEsc){.reset = 1});
-  } else {
-    PUTC((c8)'[');
-    usize size = printer.size;
-    foreach (usize i, range(0, msList_len(in))) {
-      if (i)
-        PUTC((c8)',');
-      printer.function(
-          (fptr){size, size * i + (u8 *)in},
-          put,
-          _arb,
-          printer_arg_after(':', farg)
-      );
-    }
-    PUTC((c8)']');
-  }
-}
-typePrinter("mxmap", hxmap *) {
-  args = printer_arg_trim(args);
-  var_ kvs = printer_arg_until(':', args);
-  args = printer_arg_after(':', args);
-  var_ kprinter = P$(
-      printer_arg_until(',', kvs),
-      printer_arg_trim($),
-      PrinterSingleton_get($)
-  );
-  var_ vprinter = P$(
-      printer_arg_after(',', kvs),
-      printer_arg_trim($),
-      PrinterSingleton_get($)
-  );
-  if (!(kprinter.function && vprinter.function)) {
-    PUTS("__could'nt find printer for ");
-    USENAMEDPRINTER("slice(c8)", kvs);
-    PUTS("__");
-  } else if (!EQUAL_ANY(kprinter.size, ~(usize)0, in->ksize) || !EQUAL_ANY(vprinter.size, ~(usize)0, in->vsize)) {
-    PUTS("__size for ");
-    USENAMEDPRINTER("slice(c8)", kvs);
-    PUTS(" doesn't match map");
-    PUTS("__");
-  } else {
-    PUTS("{");
+typePrinter("slice", struct slice_any_t) { // second least safe printer
+  let const red = (pEsc){.fg.r = 255, .fgset = true};
+  let const reset = (pEsc){.reset = true};
 
-    bool comma = false;
-    foreach (var_ sp, hxmap_iter(in)) {
-      if (comma) PUTS(",");
-      comma = true;
-      kprinter.function((fptr){in->ksize, (u8 *)sp.key}, put, _arb, args);
-      PUTS(":");
-      vprinter.function((fptr){in->vsize, (u8 *)sp.val}, put, _arb, args);
-    }
-    PUTS("}");
+  let fn = PrinterSingleton_get(PRINTARGS());
+  if (!fn.function) {
+    USETYPEPRINTER(pEsc, red);
+    PUTS("__unknown printer ");
+    let str = VLAP((c8 *)PRINTARGS().ptr, PRINTARGS().len);
+    PUTS(*str);
+    PUTS("__");
+    USETYPEPRINTER(pEsc, reset);
+    return;
+  } else if (fn.size == ~(usize)0) {
+    PUTS("printer ");
+    let str = VLAP((c8 *)PRINTARGS().ptr, PRINTARGS().len);
+    PUTS(*str);
+    PUTS(" must have defined size");
+  }
+
+  foreach (let i, span(in.ptr, in.len * fn.size, fn.size)) {
+    if (i != in.ptr) PUTS(",");
+    fn.function((fptr){fn.size, (u8 *)i}, printerfunction_context_pop(_ctx));
   }
 }
 
@@ -796,30 +416,28 @@ fptr printer_arg_trim(fptr in) {
   return in;
 }
 
-void print_f_helper(struct print_arg p, fptr typeName, outputFunction put, fptr args, void *_arb) {
+void print_f_helper(struct print_arg p, fptr typeName, printerfunction_context _ctx) {
   if (!typeName.len) {
     typeName = p.name;
   }
   printerFunction fn = PrinterSingleton_get(typeName);
   if (!fn.function) {
-    USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = 1}));
+    USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = true}));
     PUTS("__ NO_TYPE(");
     if (typeName.len)
       foreach (var_ i, span(typeName.ptr, typeName.len))
         PUTC((c8)i[0]);
     PUTS(") __");
-    USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));
+    USETYPEPRINTER(pEsc, ((pEsc){.reset = true}));
   } else if (p.ref.len != ~(usize)0 && fn.size != p.ref.len) {
-    USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = 1}));
+    USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = true}));
     PUTS("__ PRINTER TRIED TO READ ");
     USETYPEPRINTER(usize, fn.size);
     PUTS(" BUT ITEM HAS ");
     USETYPEPRINTER(usize, p.ref.len);
     PUTS(" BYTES __");
-    USETYPEPRINTER(pEsc, ((pEsc){.reset = 1}));
-  } else {
-    fn.function(p.ref, put, _arb, args);
-  }
+    USETYPEPRINTER(pEsc, ((pEsc){.reset = true}));
+  } else fn.function(p.ref, _ctx);
 }
 
 void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *args) {
@@ -838,10 +456,9 @@ void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *a
       fptr tname = printer_arg_until(':', typeName);
       fptr parseargs = printer_arg_after(':', typeName);
       tname = printer_arg_trim(tname);
-      if (!assumedName.ref.ptr) {
+      if (!assumedName.ref.ptr)
         return put("__ NO ARGUMENT PROVIDED, ENDING PRINT __\n", arb, 41, 1);
-      }
-      print_f_helper(assumedName, tname, put, parseargs, arb);
+      print_f_helper(assumedName, tname, (printerfunction_context){put, arb, parseargs});
       i = j;
       toggled = 0;
 
