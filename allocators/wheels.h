@@ -21,3 +21,9 @@
   #include "debugallocator.h"
 #endif
 #undef MY_DEBUG_ALLOCATOR_C
+
+#if defined FBA_FALLBACK_H || defined(WHEELS_INCLUDE_ALL) && !defined(FBA_FALLBACK_C)
+  #define FBA_FALLBACK_C (1)
+  #include "fbafallbackAllocator.h"
+#endif
+#undef FBA_FALLBACK_C

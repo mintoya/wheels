@@ -4,7 +4,6 @@
 void *_fba_alloc(AllocatorV allocator, usize size, char *, usize);
 void _fba_free(AllocatorV allocator, void *ptr, usize size, char *, usize);
 void *_fba_alloc_nullable(AllocatorV allocator, usize size);
-void _fba_print(AllocatorV allocator);
 static const My_allocator FBA_prototype[1] = {
     (My_allocator){
         .alloc = _fba_alloc,
@@ -65,6 +64,7 @@ static inline void fba_del(AllocatorV allocator, AllocatorV fba) {
   } fbuffer;
   aFree(allocator, (void *)fba, sizeof(fbuffer) + ((fbuffer *)fba)->s->capacity);
 }
+bool _fba_has(AllocatorV allocator, void *ptr);
 
 #endif // FBA_ALLOCATOR_H
 
