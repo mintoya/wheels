@@ -11,15 +11,6 @@
   #include <stdio.h>
   #include <string.h>
 
-// helper escape type
-
-  #define pEscRst      \
-    ((pEsc){           \
-        .pos = {0, 0}, \
-        .clear = 1,    \
-        .reset = 1,    \
-    })
-
   #if !defined(NOFILEPRINTER)
 void fileprint(
     const c8 *c,
@@ -100,6 +91,7 @@ typePrinter("ptr", void *) {
     shift -= 4;
   }
 }
+  #include "print/escape_printers.h"
   #include "print/int_printers.h"
   #include "print/str_printers.h"
 typePrinter(f128) {
@@ -166,42 +158,6 @@ typePrinter(fptr) {
   if (useLength)
     PUTS(">");
 }
-typePrinter(pEsc) {
-  if (in.poset) {
-
-    PUTS("\033["); // ]
-    USETYPEPRINTER(usize, in.pos.row);
-    PUTS(";");
-    USETYPEPRINTER(usize, in.pos.col);
-    PUTS("H");
-  }
-  if (in.fgset) {
-    PUTS("\033[38;2;"); // ]
-    USETYPEPRINTER(usize, in.fg.r);
-    PUTS(";");
-    USETYPEPRINTER(usize, in.fg.g);
-    PUTS(";");
-    USETYPEPRINTER(usize, in.fg.b);
-    PUTS("m");
-  }
-
-  if (in.bgset) {
-    PUTS("\033[48;2;"); // ]
-    USETYPEPRINTER(usize, in.bg.r);
-    PUTS(";");
-    USETYPEPRINTER(usize, in.bg.g);
-    PUTS(";");
-    USETYPEPRINTER(usize, in.bg.b);
-    PUTS("m");
-  }
-  if (in.clear) {
-    PUTS("\033[2J"); // ]
-    PUTS("\033[H");  // ]
-  }
-  if (in.reset) {
-    PUTS("\033[0m"); // ]
-  }
-}
 
 typePrinter("x", u8) {
   const c8 hex_chars[17] = "0123456789abcdef";
@@ -214,7 +170,6 @@ struct slice_any_t {
   void *ptr;
 };
 
-// * : * : int can print a ptr to a ptr to an int
 typePrinter("*", void *) { // least safe printer of all time
   let fn = PrinterSingleton_get(PRINTARGS());
   if (!fn.function) {
@@ -259,6 +214,7 @@ typePrinter("slice", struct slice_any_t) { // second least safe printer
 
 volatile static thread_local bool print_f_shouldFlush = 1;
 
+  #define PRINTER_LIST_TYPENAMES
   #if defined PRINTER_LIST_TYPENAMES
 __attribute__((constructor(205))) static void printer_post_initfn() {
   print("==============================\n"
@@ -338,7 +294,13 @@ fptr printer_arg_trim(fptr in) {
     in.len--;
   return in;
 }
-
+NAMESPACE_STRUCT(
+    parg,
+    (trim, &printer_arg_trim),
+    (after, &printer_arg_after),
+    (until, &printer_arg_until),
+    // (indexof, &printer_arg_indexOf),
+);
 void print_f_helper(struct print_arg p, fptr typeName, printerfunction_context _ctx) {
   if (!typeName.len) {
     typeName = p.name;
@@ -362,53 +324,79 @@ void print_f_helper(struct print_arg p, fptr typeName, printerfunction_context _
     USETYPEPRINTER(pEsc, ((pEsc){.reset = true}));
   } else fn.function(p.ref, _ctx);
 }
-msList(printerfunction_arg) print_f_makeArgs(AllocatorV allocator, fptr in) {
-  let res = msList_init(allocator, printerfunction_arg, 1);
-  while (in.len) {
-    for (int i = 0; i < in.len; i++)
-      if (in.ptr[i] == ':') {
-        let last = msList_len(res) ? &msList_last(res) : nullptr;
-        let split = slice_split(in, (0, i), (i + 1, -1));
-        msList_push(allocator, res, {split[0], last});
-        in = split[1];
-        goto rescan;
-      }
-    if (in.len) {
-      let last = msList_len(res) ? &msList_last(res) : nullptr;
-      msList_push(allocator, res, {in, last});
-      return res;
-    }
-    {
-    rescan:;
-    }
-  }
+
+usize print_f_arglen(fptr in) {
+  usize res = 0;
+  for (usize i = 0, depth = 0; i < in.len; ++i)
+    if (in.ptr[i] == ':' && !depth) {
+      in = slice_split(in, (i + 1, -1))[0];
+      i = (usize)-1;
+      res++;
+    } else if (in.ptr[i] == '(') depth++;
+    else if (in.ptr[i] == ')') depth -= !!(depth);
+  if (in.len) res++;
   return res;
-
-  /*
-  let b = msList_stackBuffer(u8[10]);
-  let l = msList_initBuffer(b);
-  defer { msList_deInit(allocator, l); }
-
-  while (in.len) {
-    usize i = 0;
-    switch (in.ptr[i]) {
-      case ':': {
-        if (!msList_len(l)) {
-        }
-      } break;
-        // clang-format off
-      case '(': break;
-      case '{': break;
-      case '[': break;
-      case ')': break;
-      case '}': break;
-      case ']': break;
-        // clang-format on
-    }
-  }
-  */
 }
-void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *args) {
+// sentinel terminated list of views into in
+printerfunction_arg *print_f_makeArgs(AllocatorV allocator, fptr in) {
+  let arglen = print_f_arglen(in);
+  let res = aCreate(allocator, printerfunction_arg, arglen + 1);
+  foreach (let x, span(res, arglen))
+    x->next = x + 1;
+  let cur = res;
+  for (usize i = 0, depth = 0; i < in.len; ++i) {
+    if (in.ptr[i] == ':' && !depth) {
+      let split = slice_split(in, (0, i), (i + 1, -1));
+      cur++->str = parg.trim(split[0]);
+      in = split[1];
+      i = -1;
+    } else if (in.ptr[i] == '(') depth++;
+    else if (in.ptr[i] == ')') depth -= !!(depth);
+  }
+  if (in.len) cur++->str = parg.trim(in);
+  *cur++ = (typeof(*cur)){};
+  assertMessage(cur == res + arglen + 1);
+  return res;
+}
+
+test_fn(print_f_args) {
+  let args = fp("a :b: c :d ");
+  test_assert(print_f_arglen(args) == 4);
+  let splits = print_f_makeArgs(allocator, args);
+  test_assert(fptr_isEmpty((fptr){sizeof(splits[0]), (u8 *)(splits + 4)}));
+  defer { aFree(allocator, splits, sizeof(splits[0]) * 5); };
+  foreach (let i, span(splits, 3))
+    test_assert(i->next == i + 1);
+  test_assert(fptr_eq(splits[0].str, "a"));
+  test_assert(fptr_eq(splits[1].str, "b"));
+  test_assert(fptr_eq(splits[2].str, "c"));
+  test_assert(fptr_eq(splits[3].str, "d"));
+}
+test_fn(print_f_args_paren) {
+  let args = fp("a :b:(c :d "); // )
+  test_assert(print_f_arglen(args) == 3);
+  let splits = print_f_makeArgs(allocator, args);
+  defer { aFree(allocator, splits, sizeof(splits[0]) * 4); };
+  test_assert(fptr_eq(splits[0].str, "a"));
+  test_assert(fptr_eq(splits[1].str, "b"));
+  test_assert(fptr_eq(splits[2].str, "(c :d")); // )
+}
+test_fn(print_f_args_paren2) {
+  let args = fp("a :b:(c) :d ");
+  test_assert(print_f_arglen(args) == 4);
+}
+  #include "allocators/fbafallbackAllocator.h"
+void print_f(
+    outputFunction put,
+    void *arb,
+    const char *fmt,
+    struct print_arg *args
+) {
+  let allocatorbuf = (fbafb_buffer(myAlign[4])){};
+
+  let allocator = fbafb_initBuffer(allocatorbuf, nullptr, initarena, deinitarena);
+  defer { fbafb_deinit(allocator); };
+
   bool toggled = 0;
   for (u32 i = 0; fmt[i]; i++) {
     if (fmt[i] == '{' && !toggled) {
@@ -421,22 +409,17 @@ void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *a
       };
       var_ assumedName = *args++;
 
-      fptr tname = printer_arg_until(':', typeName);
-      let list = print_f_makeArgs(stdAlloc, printer_arg_after(':', typeName));
-      defer { msList_deInit(stdAlloc, list); };
-      tname = printer_arg_trim(tname);
+      fptr tname = parg.until(':', typeName);
+      let list = print_f_makeArgs(allocator, slice_split(typeName, (tname.len + 1, -1))[0]);
+      defer { aFree(allocator, list, sizeof(list[0]) * (1 + sentList_length(list, sizeof(list[0])))); };
+      tname = parg.trim(tname);
+
       if (!assumedName.ref.ptr)
         return put("__ NO ARGUMENT PROVIDED, ENDING PRINT __\n", arb, 41, 1);
       print_f_helper(
           assumedName,
           tname,
-          (printerfunction_context){
-              put,
-              arb,
-              msList_len(list)
-                  ? list[0]
-                  : (printerfunction_arg){},
-          }
+          (printerfunction_context){put, arb, list[0]}
       );
       i = j;
       toggled = 0;
@@ -452,7 +435,7 @@ void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *a
   }
   put("\0", arb, 1, 0);
   if (print_f_shouldFlush)
-    put(NULL, arb, 0, 1);
+    put(0, arb, 0, 1);
 }
   #undef MY_PRINTER_C
   #define MY_PRINTER_C (2)

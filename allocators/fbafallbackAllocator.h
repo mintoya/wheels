@@ -1,7 +1,6 @@
 #if !defined FBA_FALLBACK_H
   #define FBA_FALLBACK_H (1)
   #include "../allocator.h"
-  #include "../assertMessage.h"
 //{main helper for arenas
   #include "arenaAllocator.h"
 static AllocatorV initarena(void *arg) {
@@ -59,6 +58,7 @@ test_fn(fbafb_grow) {
 #endif
 #if (defined FBA_FALLBACK_C && FBA_FALLBACK_C == 1) || (defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0)
   #define FBA_FALLBACK_C (2)
+  #include "../assertMessage.h"
 AllocatorV fbafb_init(
     struct fbab mem[1],
     u8 *buffer,

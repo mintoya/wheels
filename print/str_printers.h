@@ -1,14 +1,21 @@
 #if !defined STR_PRINTERS_H
   #define STR_PRINTERS_H (1)
-  #include "print_pre.h"
+  #include "escape_printers.h"
 typePrinter("slice(c8)", slice(c8)) {
   foreach (c8 *c, span(in.ptr, in.len))
     PUTC(*c);
 }
 typePrinter(c8) { PUTC(in); }
 typePrinter(cstr) {
-  (in) ? PUTS("__NULLCSTR__")
-       : PUTS(*VLAP(in, strlen(in)));
+  let orange = (pEsc){.fg = {255, 128, 64}, .fgset = true};
+  let reset = (pEsc){.reset = true};
+  if (in) {
+    PUTS("(");
+    USETYPEPRINTER(pEsc, orange);
+    PUTS("null");
+    USETYPEPRINTER(pEsc, reset);
+    PUTS(")");
+  } else PUTS(*VLAP(in, strlen(in)));
 }
 
 static void GETTYPEPRINTERFN(carr)(fptr _v_in_ptr, printerfunction_context _ctx) {
