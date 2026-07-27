@@ -87,10 +87,11 @@ void fbafb_deinit(AllocatorV allocator) {
   *it = (typeof(*it)){};
 }
 void *_fbafb_alloc(AllocatorV allocator, usize size, char *, usize) {
-  let it = (struct fbab *)allocator;
   size = lineup(size, alignof(myAlign));
+  let it = (struct fbab *)allocator;
   if (it->offset + size <= it->cap) {
     let res = it->mem + it->offset;
+    it->count++;
     it->offset += size;
     return res;
   };
@@ -100,18 +101,16 @@ void *_fbafb_alloc(AllocatorV allocator, usize size, char *, usize) {
   );
 }
 void _fbafb_free(AllocatorV allocator, void *ptr, usize oldsize, char *f, usize l) {
+  oldsize = lineup(oldsize, alignof(myAlign));
   assertMessage(!((uptr)ptr & (alignof(myAlign) - 1)));
   let it = (struct fbab *)allocator;
   let u = (uptr)ptr;
   if (u >= (uptr)it->mem && u < it->offset + (uptr)it->mem) {
     it->count--;
     if (!it->count) it->offset = 0;
-    else if (
-        it->mem + it->offset ==
-        (u8 *)ptr + lineup(oldsize, alignof(myAlign))
-    ) it->offset -= lineup(oldsize, alignof(myAlign));
+    else if (it->mem + it->offset == (u8 *)ptr + oldsize) it->offset -= oldsize;
   } else (aFree)(
-      (it->allocator) ?: (assertMessage(false), nullptr),
+      (assertMessage(it->allocator), it->allocator),
       ptr,
       oldsize,
       f,
