@@ -2,8 +2,13 @@
   #define MY_TEST_FRAMEWORK_C (1)
 #endif
 
+#include "macros.h"
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+__attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...);
 
 #define test_assert(...)            \
   do {                              \
@@ -17,50 +22,31 @@
     }                               \
   } while (0)
 
-#if !defined tupfmt
-  #define tupfmt(allocator, ...) nullFptr
-#endif
 #define test_inteq(a, b)                \
   do {                                  \
-    let _a = a;                         \
-    let _b = b;                         \
+    ptrdiff_t _a = a;                   \
+    ptrdiff_t _b = b;                   \
     if (_a != _b) {                     \
       *_result = (test_result){         \
-          (char *)((tupfmt(             \
-                        stdAlloc,       \
-                        (isize, _a),    \
-                        (cstr, " != "), \
-                        (isize, _b),    \
-                    ))                  \
-                       .ptr),           \
+          aprint("%td != %td", _a, _b), \
           __LINE__ + 1                  \
       };                                \
       return;                           \
     }                                   \
   } while (0)
 
-#define test_streq(a, b)                \
-  do {                                  \
-    char *_a = a;                       \
-    char *_b = b;                       \
-    if (strcmp(_a, _b)) {               \
-      *_result = (test_result){         \
-          (char *)((tupfmt(             \
-                        stdAlloc,       \
-                        (cstr, _a),     \
-                        (cstr, " != "), \
-                        (cstr, _b),     \
-                    ))                  \
-                       .ptr),           \
-          __LINE__ + 1                  \
-      };                                \
-      return;                           \
-    }                                   \
+#define test_streq(a, b)              \
+  do {                                \
+    char *_a = a;                     \
+    char *_b = b;                     \
+    if (strcmp(_a, _b)) {             \
+      *_result = (test_result){       \
+          aprint("%s != %s", _a, _b), \
+          __LINE__ + 1                \
+      };                              \
+      return;                         \
+    }                                 \
   } while (0)
-
-#include "allocator.h"
-#include "mytypes.h"
-slice(c8)(snprint)(AllocatorV, char *, ...);
 
 #define test_fpeq(a, b)         \
   do {                          \
@@ -68,15 +54,13 @@ slice(c8)(snprint)(AllocatorV, char *, ...);
     let _b = fp(b);             \
     if (!fptr_eq(_a, _b)) {     \
       *_result = (test_result){ \
-          (char *)snprint(      \
-              stdAlloc,         \
-              "{slice(c8)}"     \
-              " != "            \
-              "{slice(c8)}",    \
-              _a,               \
-              _b                \
-          )                     \
-              .ptr,             \
+          aprint(               \
+              "%.*s != %.*s",   \
+              (int)_a.len,      \
+              _a.ptr,           \
+              (int)_b.len,      \
+              _b.ptr            \
+          ),                    \
           __LINE__ + 1          \
       };                        \
       return;                   \
@@ -157,6 +141,22 @@ void onalloc(allocationType *t) {
   printf("\t%p %zu -> %p %zu : %zu %s\n", t->iptr, t->insize, t->optr, t->outsize, t->trace.ln, t->trace.fn);
 }
 
+__attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...) {
+  let l = (va_list){};
+  let l2 = (va_list){};
+  va_start(l, fmt);
+  va_copy(l2, l);
+
+  let len = vsnprintf(0, 0, fmt, l);
+  va_end(l);
+
+  let res = (char *)malloc((len + 1) * sizeof(char));
+
+  vsnprintf(res, len + 1, fmt, l2);
+  va_end(l2);
+
+  return res;
+}
 int main(void) {
   usize count = 0;
   usize pass = 0;
@@ -201,7 +201,4 @@ int main(void) {
   #endif
   #define WHEELS_INCLUDE_ALL
   #include "wheels.h"
-
-  #include "print/print_pre.h"
-
 #endif
