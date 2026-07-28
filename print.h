@@ -177,7 +177,7 @@ typePrinter("*", void *) { // least safe printer of all time
     let reset = (pEsc){.reset = true};
     USETYPEPRINTER(pEsc, red);
     PUTS("__unknown printer ");
-    let str = VLAP((c8 *)PRINTARGS().ptr, PRINTARGS().len);
+    let str = VLAP((c8 *)PRINTARGS().ptr, PRINTARGS().len + 1);
     PUTS(*str);
     PUTS("__");
     USETYPEPRINTER(pEsc, reset);
@@ -194,14 +194,14 @@ typePrinter("slice", struct slice_any_t) { // second least safe printer
   if (!fn.function) {
     USETYPEPRINTER(pEsc, red);
     PUTS("__unknown printer ");
-    let str = VLAP((c8 *)PRINTARGS().ptr, PRINTARGS().len);
+    let str = VLAP((c8 *)PRINTARGS().ptr, PRINTARGS().len + 1);
     PUTS(*str);
     PUTS("__");
     USETYPEPRINTER(pEsc, reset);
     return;
   } else if (fn.size == ~(usize)0) {
     PUTS("printer ");
-    let str = VLAP((c8 *)PRINTARGS().ptr, PRINTARGS().len);
+    let str = VLAP((c8 *)PRINTARGS().ptr, PRINTARGS().len + 1);
     PUTS(*str);
     PUTS(" must have defined size");
   }
@@ -214,7 +214,6 @@ typePrinter("slice", struct slice_any_t) { // second least safe printer
 
 volatile static thread_local bool print_f_shouldFlush = 1;
 
-  #define PRINTER_LIST_TYPENAMES
   #if defined PRINTER_LIST_TYPENAMES
 __attribute__((constructor(205))) static void printer_post_initfn() {
   print("==============================\n"
@@ -377,9 +376,9 @@ test_fn(print_f_args_paren) {
   test_assert(print_f_arglen(args) == 3);
   let splits = print_f_makeArgs(allocator, args);
   defer { aFree(allocator, splits, sizeof(splits[0]) * 4); };
-  test_assert(fptr_eq(splits[0].str, "a"));
-  test_assert(fptr_eq(splits[1].str, "b"));
-  test_assert(fptr_eq(splits[2].str, "(c :d")); // )
+  test_fpeq(splits[0].str, "a");
+  test_fpeq(splits[1].str, "b");
+  test_fpeq(splits[2].str, "(c :d"); // 0
 }
 test_fn(print_f_args_paren2) {
   let args = fp("a :b:(c) :d ");

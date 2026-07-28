@@ -17,6 +17,71 @@
     }                               \
   } while (0)
 
+#if !defined tupfmt
+  #define tupfmt(allocator, ...) nullFptr
+#endif
+#define test_inteq(a, b)                \
+  do {                                  \
+    let _a = a;                         \
+    let _b = b;                         \
+    if (_a != _b) {                     \
+      *_result = (test_result){         \
+          (char *)((tupfmt(             \
+                        stdAlloc,       \
+                        (isize, _a),    \
+                        (cstr, " != "), \
+                        (isize, _b),    \
+                    ))                  \
+                       .ptr),           \
+          __LINE__ + 1                  \
+      };                                \
+      return;                           \
+    }                                   \
+  } while (0)
+
+#define test_streq(a, b)                \
+  do {                                  \
+    char *_a = a;                       \
+    char *_b = b;                       \
+    if (strcmp(_a, _b)) {               \
+      *_result = (test_result){         \
+          (char *)((tupfmt(             \
+                        stdAlloc,       \
+                        (cstr, _a),     \
+                        (cstr, " != "), \
+                        (cstr, _b),     \
+                    ))                  \
+                       .ptr),           \
+          __LINE__ + 1                  \
+      };                                \
+      return;                           \
+    }                                   \
+  } while (0)
+
+#include "allocator.h"
+#include "mytypes.h"
+slice(c8)(snprint)(AllocatorV, char *, ...);
+
+#define test_fpeq(a, b)         \
+  do {                          \
+    let _a = fp(a);             \
+    let _b = fp(b);             \
+    if (!fptr_eq(_a, _b)) {     \
+      *_result = (test_result){ \
+          (char *)snprint(      \
+              stdAlloc,         \
+              "{slice(c8)}"     \
+              " != "            \
+              "{slice(c8)}",    \
+              _a,               \
+              _b                \
+          )                     \
+              .ptr,             \
+          __LINE__ + 1          \
+      };                        \
+      return;                   \
+    }                           \
+  } while (0)
 #if !defined MY_TEST_FRAMEWORK_H && !defined MY_TEST_FRAMEWORK_C
   #define MY_TEST_FRAMEWORK_H (1)
   #include "allocator.h"
@@ -87,6 +152,7 @@ test_fn(always_leak) {
   #define test_RED "\x1b[31m"
   #define test_GREEN "\x1b[32m"
   #include "allocators/debugallocator.h"
+  #include "print.h"
 void onalloc(allocationType *t) {
   printf("\t%p %zu -> %p %zu : %zu %s\n", t->iptr, t->insize, t->optr, t->outsize, t->trace.ln, t->trace.fn);
 }
@@ -135,4 +201,7 @@ int main(void) {
   #endif
   #define WHEELS_INCLUDE_ALL
   #include "wheels.h"
+
+  #include "print/print_pre.h"
+
 #endif

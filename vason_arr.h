@@ -103,6 +103,15 @@ vason_index vason_get_idx(vason_container *c, vason_index entry, vason_index f);
 bool vason_container_eq(vason_container a, vason_container b);
 vason_container vason_parseString(AllocatorV allocator, slice(c8) string);
 vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string);
+static slice(c8) vason_asString(vason_container c, usize place) {
+  return c.tags[place] == vason_STRING
+             ? (slice(c8)){
+                   (usize)c.tables_strings[place].end -
+                       c.tables_strings[place].start,
+                   (c8 *)(c.tables_strings[place].start + c.text.ptr)
+               }
+             : (slice(c8)){};
+}
 
   #if defined __cplusplus
 typedef struct vason {
@@ -269,27 +278,19 @@ test_fn(vason_parser_immediate) {
 
   vason_container c = vason_parseString(allocator, input);
   vason_container *cp = &c;
-  defer { vason_container_free(*cp); };
+  defer { vason_container_free(*cp); }; // clang blocks :\
 
-  test_assert(c.tags || c.tags[c.current] == vason_TABLE);
+  test_assert(c.tags);
+  test_inteq(c.tags[c.current], vason_TABLE);
 
-  vason_index bar_idx = vason_get_str(&c, c.current, (fptr){3, (u8 *)"foo"});
-  test_assert(c.tags[bar_idx] == vason_STRING);
+  vason_index bar_idx = vason_get_str(&c, c.current, fp("foo"));
+  test_fpeq(vason_asString(c, bar_idx), "bar");
 
-  vason_span bar_span = c.tables_strings[bar_idx];
-  test_assert((bar_span.end - bar_span.start) == 3);
-  test_assert(memcmp(c.text.ptr + bar_span.start, "bar", 3) == 0);
+  vason_index num_idx = vason_get_str(&c, c.current, fp("numbers"));
 
-  vason_index num_idx = vason_get_str(&c, c.current, (fptr){7, (u8 *)"numbers"});
-  test_assert(c.tags[num_idx] == vason_TABLE);
-
-  vason_index first_num_idx = vason_get_idx(&c, num_idx, 0);
-  test_assert(c.tags[first_num_idx] == vason_STRING);
-
-  vason_span num_span = c.tables_strings[first_num_idx];
-  test_assert((num_span.end - num_span.start) == 1);
-  test_assert(!memcmp(c.text.ptr + num_span.start, "1", 1));
-
+  test_inteq(c.tags[num_idx], vason_TABLE);
+  test_fpeq(vason_asString(c, vason_get_idx(&c, num_idx, 0)), "1");
+  test_fpeq(vason_asString(c, vason_get_idx(&c, num_idx, 1)), "2");
 }
 test_fn(vason_parser_lazy) {
   const char text[] = "{ foo : bar, numbers : [1, 2] }";
@@ -299,25 +300,17 @@ test_fn(vason_parser_lazy) {
   vason_container *cp = &c;
   defer { vason_container_free(*cp); };
 
-  test_assert(c.tags || c.tags[c.current] == vason_TABLE);
+  test_assert(c.tags);
+  test_inteq(c.tags[c.current], vason_TABLE);
 
-  vason_index bar_idx = vason_get_str(&c, c.current, (fptr){3, (u8 *)"foo"});
-  test_assert(c.tags[bar_idx] == vason_STRING);
+  vason_index bar_idx = vason_get_str(&c, c.current, fp("foo"));
+  test_fpeq(vason_asString(c, bar_idx), "bar");
 
-  vason_span bar_span = c.tables_strings[bar_idx];
-  test_assert((bar_span.end - bar_span.start) == 3);
-  test_assert(memcmp(c.text.ptr + bar_span.start, "bar", 3) == 0);
-
-  vason_index num_idx = vason_get_str(&c, c.current, (fptr){7, (u8 *)"numbers"});
-  test_assert(c.tags[num_idx] == vason_TABLE);
+  vason_index num_idx = vason_get_str(&c, c.current, fp("numbers"));
+  test_inteq(c.tags[num_idx], vason_TABLE);
 
   vason_index first_num_idx = vason_get_idx(&c, num_idx, 0);
-  test_assert(c.tags[first_num_idx] == vason_STRING);
-
-  vason_span num_span = c.tables_strings[first_num_idx];
-  test_assert((num_span.end - num_span.start) == 1);
-  test_assert(memcmp(c.text.ptr + num_span.start, "1", 1) == 0);
-
+  test_fpeq(vason_asString(c, first_num_idx), "1");
 }
 #endif
 

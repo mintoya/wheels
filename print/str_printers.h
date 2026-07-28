@@ -9,13 +9,13 @@ typePrinter(c8) { PUTC(in); }
 typePrinter(cstr) {
   let orange = (pEsc){.fg = {255, 128, 64}, .fgset = true};
   let reset = (pEsc){.reset = true};
-  if (in) {
+  if (!in) {
     PUTS("(");
     USETYPEPRINTER(pEsc, orange);
     PUTS("null");
     USETYPEPRINTER(pEsc, reset);
     PUTS(")");
-  } else PUTS(*VLAP(in, strlen(in)));
+  } else PUTS(*VLAP(in, strlen(in) + 1));
 }
 
 static void GETTYPEPRINTERFN(carr)(fptr _v_in_ptr, printerfunction_context _ctx) {

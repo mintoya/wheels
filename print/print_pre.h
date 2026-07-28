@@ -255,6 +255,7 @@ static slice(c8) vsn_print_fn(AllocatorV allocator, char *fmt, struct print_arg 
       usize _req_len = 0;                                                 \
       fptr *_ptr = _fptrs;                                                \
       APPLY_N_WITH(TUPRINT_ITEM_PTR, (vsn_print, &_req_len), __VA_ARGS__) \
+      _ptr = _fptrs;                                                      \
       fptr _res = {0, aCreate(allocator, u8, _req_len ?: 1)};             \
                                                                           \
       if (_req_len) {                                                     \
