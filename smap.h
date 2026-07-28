@@ -5,8 +5,12 @@
   #include "hxmap.h"
   #include "macros.h"
   #include "mytypes.h"
+  #include "oxmap.h"
 typedef struct {
-  hxmap map[1];
+  union {
+    hxmap hmap[1];
+    oxmap omap[1];
+  };
   AllocatorV stringArena;
 } sxmap;
 
@@ -87,36 +91,29 @@ u64 hashfptr(const void *a) { return fptr_hash(*(fptr *)a); }
 i8 cmpfptr(const void *a, const void *b) { return fptr_cmp(*(fptr *)a, *(fptr *)b); }
 sxmap *smap_new(AllocatorV allocator, u32 vsize, usize cap, usize arenaSize) {
   var_ res = aCreate(allocator, sxmap);
-  hxmap_newm(
-      allocator,
-      sizeof(fptr),
-      vsize,
-      cap,
-      hashfptr,
-      cmpfptr,
-      res->map
-  );
+  hxmap_newm(allocator, sizeof(fptr), vsize, cap, hashfptr, cmpfptr, res->hmap);
+  // oxmap_newm(allocator, sizeof(fptr), vsize, cmpfptr, res->omap);
   res->stringArena = arena_new_ext(allocator, arenaSize);
   return res;
 }
 void smap_free(sxmap *map) {
-  var_ allocator = map->map->allocator;
+  var_ allocator = map->hmap->allocator;
   arena_cleanup(map->stringArena);
-  hxmap_freem(map->map[0]);
+  hxmap_freem(map->hmap[0]);
   aDestroy(allocator, map);
 }
 void *smap_set(sxmap *map, fptr k, void *b) {
   if (!k.len) return nullptr;
-  if (!b) return hxmap_set(map->map, &k, nullptr);
+  if (!b) return hxmap_set(map->hmap, &k, nullptr);
   var_ copy = P$(
-      hxmap_get(map->map, &k),
+      hxmap_get(map->hmap, &k),
       ({
         $
-            ? *(fptr *)hxmap_val_key(map->map, $)
+            ? *(fptr *)hxmap_val_key(map->hmap, $)
             : (fptr){k.len, (u8 *)memcpy(aCreate(map->stringArena, u8, k.len), k.ptr, k.len)};
       })
   );
-  return hxmap_set(map->map, &copy, b);
+  return hxmap_set(map->hmap, &copy, b);
 }
-void *smap_get(sxmap *map, fptr k) { return hxmap_get(map->map, &k); }
+void *smap_get(sxmap *map, fptr k) { return hxmap_get(map->hmap, &k); }
 #endif

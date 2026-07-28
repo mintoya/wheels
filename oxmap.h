@@ -25,6 +25,8 @@ void *oxmap_set(oxmap *map, const void *key, const void *val);
 void *oxmap_get(const oxmap *map, const void *key);
 void oxmap_clear(oxmap *map);
 
+void oxmap_newm(AllocatorV allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp) cmp, oxmap mem[1]);
+void oxmap_freem(oxmap map);
   #define moxmap(K, V) ptrof(fnptrof((oxmap *, K *), V))
   #define moxmap_vt(map) typeof((*map)((oxmap *)0, nullptr))
   #define moxmap_tox(map) ((void)sizeof(typeof((*map)((oxmap *)0, nullptr))), (oxmap *)map)
@@ -198,10 +200,10 @@ test_fn(oxmap_macros) {
 #endif
 #if (defined MY_OXMAP_C && MY_OXMAP_C == 1) || (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
   #define MY_OXMAP_C (2)
-oxmap *oxmap_new(AllocatorV allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp) cmp) {
+void oxmap_newm(AllocatorV allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp) cmp, oxmap mem[1]) {
   assertMessage(ksize || vsize);
-  return aValue(
-      allocator,
+  mcpy(
+      *mem,
       ((oxmap){
           .allocator = allocator,
           .ksize = ksize,
@@ -212,10 +214,19 @@ oxmap *oxmap_new(AllocatorV allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp)
       })
   );
 }
+oxmap *oxmap_new(AllocatorV allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp) cmp) {
+  let r = aCreate(allocator, oxmap);
+  oxmap_newm(allocator, ksize, vsize, cmp, r);
+  return r;
+}
+void oxmap_freem(oxmap map) {
+  var_ allocator = map.allocator;
+  sList_free(allocator, map.keys, map.ksize);
+  sList_free(allocator, map.vals, map.vsize);
+}
 void oxmap_free(oxmap *map) {
   var_ allocator = map->allocator;
-  sList_free(allocator, map->keys, map->ksize);
-  sList_free(allocator, map->vals, map->vsize);
+  oxmap_freem(*map);
   aFree(allocator, map, sizeof(*map));
 }
 void *oxmap_key_val(const oxmap *map, const void *key) {
