@@ -1,4 +1,3 @@
-#include "print.h"
 #if !defined(MY_BIGINT_H)
   #define MY_BIGINT_H (1)
 
@@ -6,7 +5,6 @@
   #include "macros.h"
   #include "mytypes.h"
   #include "print/print_pre.h"
-  #include "print/str_printers.h"
   #include "sList.h"
 
 typedef unsigned int bigint_unit;
@@ -177,8 +175,83 @@ test_fn(bigint_bits) {
   let b = BInt.from.bits(allocator, (u32[]){(u32)1 << 31}, 32, 1);
   defer { msList_deInit(allocator, b); };
   test_assert(BInt.cmp(a, b) > 0);
+  let c = bigint_add(allocator, a, b);
+  defer { msList_deInit(allocator, c); };
+  test_assert(!BInt.cmp(nullptr, c));
 }
+test_fn(bigint_multiplication) {
+  let a = BInt.from.cstr(allocator, 10, "-1 000 000 000 000");
+  defer { msList_deInit(allocator, a); };
+  let b = BInt.from.cstr(allocator, 10, "1 000 000 000 000");
+  defer { msList_deInit(allocator, b); };
+  let c = BInt.mul(allocator, a, b);
+  defer { msList_deInit(allocator, c); };
+  let str = snprint(allocator, "{bigint}{c8}", c, (c8)0);
+  defer { slice_free(allocator, str); };
+  test_streq(str.ptr, "-1000000000000000000000000");
+}
+test_fn(bigint_addition_subtraction) {
+  let a = BInt.from.cstr(allocator, 10, "999 999 999");
+  defer { msList_deInit(allocator, a); };
+  let b = BInt.from.cstr(allocator, 10, "2");
+  defer { msList_deInit(allocator, b); };
 
+  let sum = bigint_add(allocator, a, b);
+  defer { msList_deInit(allocator, sum); };
+  let sum_str = snprint(allocator, "{bigint}{c8}", sum, (c8)0);
+  defer { slice_free(allocator, sum_str); };
+  test_streq(sum_str.ptr, "1000000001");
+
+  let diff = bigint_sub(allocator, b, a);
+  defer { msList_deInit(allocator, diff); };
+  let diff_str = snprint(allocator, "{bigint}{c8}", diff, (c8)0);
+  defer { slice_free(allocator, diff_str); };
+  test_streq(diff_str.ptr, "-999999997");
+}
+test_fn(bigint_division_and_modulo) {
+  let a = BInt.from.cstr(allocator, 10, "-1 000 000 000");
+  defer { msList_deInit(allocator, a); };
+  let b = BInt.from.cstr(allocator, 10, "3");
+  defer { msList_deInit(allocator, b); };
+
+  var_ res = bigint_div(allocator, a, b);
+  defer {
+    msList_deInit(allocator, res.div);
+    msList_deInit(allocator, res.mod);
+  };
+
+  let div_str = snprint(allocator, "{bigint}{c8}", res.div, (c8)0);
+  defer { slice_free(allocator, div_str); };
+  test_streq(div_str.ptr, "-333333333");
+
+  let mod_str = snprint(allocator, "{bigint}{c8}", res.mod, (c8)0);
+  defer { slice_free(allocator, mod_str); };
+  test_streq(mod_str.ptr, "-1");
+}
+test_fn(bigint_base_16_parsing) {
+  let a = BInt.from.cstr(allocator, 16, "ff ff ff ff");
+  defer { msList_deInit(allocator, a); };
+
+  let a_str = snprint(allocator, "{bigint}{c8}", a, (c8)0);
+  defer { slice_free(allocator, a_str); };
+  test_streq(a_str.ptr, "4294967295");
+}
+test_fn(bigint_comparison) {
+  let a = BInt.from.cstr(allocator, 10, "42");
+  defer { msList_deInit(allocator, a); };
+  let b = BInt.from.cstr(allocator, 10, "42");
+  defer { msList_deInit(allocator, b); };
+  let c = BInt.from.cstr(allocator, 10, "-42");
+  defer { msList_deInit(allocator, c); };
+
+  test_assert(!BInt.cmp(a, b));
+  test_assert(BInt.cmp(a, c) > 0);
+  test_assert(BInt.cmp(c, a) < 0);
+
+  let c_negated = bigint_negate(allocator, c);
+  defer { msList_deInit(allocator, c_negated); };
+  test_assert(!BInt.cmp(a, c_negated));
+}
 #endif
 
 #if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
@@ -215,10 +288,6 @@ bigint_unit bigint_get(bigint b, usize idx) {
 usize bigint_digits(bigint b) {
   return b ? msList_len(b) : 0;
 }
-  #pragma push_macro("max")
-  #pragma push_macro("min")
-  #define max(a, b) (((a) > (b)) ? (a) : (b))
-  #define min(a, b) (((a) < (b)) ? (a) : (b))
 i8 bigint_cmp_sh(bigint a, bigint b, isize sha, isize shb) {
   i8 neg_a = bigint_negetive(a);
 
@@ -227,12 +296,12 @@ i8 bigint_cmp_sh(bigint a, bigint b, isize sha, isize shb) {
 
   i8 sc = neg_a ? -1 : 1;
 
-  isize top = max(
+  isize top = MAX$(
       bigint_digits(a) + sha,
       bigint_digits(b) + shb
   );
   top = top ? top - 1 : 0;
-  isize bot = min(sha, shb);
+  isize bot = MIN$(sha, shb);
 
   for (isize i = top; i >= bot; --i) {
     bigint_unit au = bigint_get(a, i - sha);
@@ -292,16 +361,18 @@ void bigint_negate_ip(AllocatorV allocator, bigint *i) {
   bigint_trim(i);
 }
 void bigint_add_ip_flag(AllocatorV allocator, bigint *a, bigint b, bool negate, isize shift) {
-  usize len = msList_len(a[0]) > msList_len(b)
+  isize b_len_signed = (isize)msList_len(b) + shift;
+  usize b_len = b_len_signed > 0 ? (usize)b_len_signed : 0;
+  usize len = msList_len(a[0]) > b_len
                   ? msList_len(a[0])
-                  : msList_len(b);
+                  : b_len;
   len += 1;
   bigint_expand(allocator, a, len);
   bigint_unit carry = 0;
 
   for (usize i = 0; i < len; i++) {
     var_ ra = bigint_ckd_add_struct(negate ? ~a[0][i] : a[0][i], carry);
-    var_ rb = bigint_ckd_add_struct(ra.result, bigint_get(b, i + shift));
+    var_ rb = bigint_ckd_add_struct(ra.result, bigint_get(b, i - shift));
     a[0][i] = negate ? ~rb.result : rb.result;
     carry = ra.flag + rb.flag;
   }
@@ -518,47 +589,10 @@ struct bigint_div_t bigint_div(AllocatorV allocator, bigint a1, bigint b1) {
 
   return (struct bigint_div_t){.div = quot, .mod = rem};
 }
-bigint bigint_cs(AllocatorV allocator, u8 base, char *str) {
-  assertMessage(base <= 32);
-
-  bool negetive = str[0] == '-';
-  str = negetive ? str + 1 : str;
-  bigint b = bigint_from(allocator, 0);
-
-  var_ sb = msList_stackBuffer(bigint_unit[1]);
-  bigint add = msList_initBuffer(sb);
-
-  while (*str) {
-    u8 nm = 0;
-    switch (*str) {
-      case '0' ... '9': {
-        nm = (*str) - '0';
-      } break;
-      case 'a' ... 'z': {
-        nm = (*str) - 'a' + 10;
-      } break;
-      case ' ':
-      case '\'': // delimiters
-        break;
-      default:
-        assertMessage(false, "character not supported for conversion: %c", *str);
-    }
-    assertMessage(nm < base, "char %c out of range for base %i", *str, (int)base);
-    var_ prod = bigint_mul_single(allocator, &b, base);
-    add[0] = nm;
-    msList_len(add) = 1;
-    bigint_add_ip(allocator, &prod, add, 0);
-
-    msList_deInit(allocator, b);
-
-    b = prod;
-    str++;
-  }
-  if (negetive)
-    bigint_negate_ip(allocator, &b);
-  return b;
+bigint bigint_cs(AllocatorV allocator, const u8 base, char *str) {
+  return bigint_fptr(allocator, base, fp(str));
 }
-bigint bigint_fptr(AllocatorV allocator, u8 base, fptr str) {
+bigint bigint_fptr(AllocatorV allocator, const u8 base, fptr str) {
   assertMessage(base <= 32);
 
   bool negetive = str.len > 0 && str.ptr[0] == '-';
@@ -570,6 +604,7 @@ bigint bigint_fptr(AllocatorV allocator, u8 base, fptr str) {
 
   while (str.len) {
     u8 nm = 0;
+    bool skip = 0;
     switch (*str.ptr) {
       case '0' ... '9': {
         nm = (*str.ptr) - '0';
@@ -579,19 +614,23 @@ bigint bigint_fptr(AllocatorV allocator, u8 base, fptr str) {
       } break;
       case ' ':
       case '\'': // delimiters
+        skip = 1;
         break;
       default:
         assertMessage(false, "character not supported for conversion: %c", *str.ptr);
     }
-    assertMessage(nm < base, "char %c out of range for base %i", *str.ptr, (int)base);
-    var_ prod = bigint_mul_single(allocator, &b, base);
-    add[0] = nm;
-    msList_len(add) = 1;
-    bigint_add_ip(allocator, &prod, add, 0);
 
-    msList_deInit(allocator, b);
+    if (!skip) {
+      assertMessage(nm < base, "char %c out of range for base %i", *str.ptr, (int)base);
+      var_ prod = bigint_mul_single(allocator, &b, base);
+      add[0] = nm;
+      msList_len(add) = 1;
+      bigint_add_ip(allocator, &prod, add, 0);
 
-    b = prod;
+      msList_deInit(allocator, b);
+
+      b = prod;
+    }
     str = slice_split(str, (1, -1))[0];
   }
   if (negetive)

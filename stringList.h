@@ -11,10 +11,10 @@ typedef struct vlength {
 } vlength;
 
 typedef struct stringList {
-  ptrdiff_t *ulist; ///< use-list
-                    /// not sorted,
-  ptrdiff_t *flist; ///< free-list
-                    /// sorted
+  i32 *ulist; ///< use-list
+              /// not sorted,
+  i32 *flist; ///< free-list
+              /// sorted
   usize len, cap;
   vlength *buff;
   AllocatorV allocator;
@@ -170,8 +170,8 @@ test_fn(test_stringList_churn) {
 
 stringList stringList_newVal(AllocatorV allocator, usize initSize) {
   stringList res = (typeof(res)){
-      .ulist = msList_init(allocator, ptrdiff_t),
-      .flist = msList_init(allocator, ptrdiff_t),
+      .ulist = msList_init(allocator, i32),
+      .flist = msList_init(allocator, i32),
       .len = 0,
       .buff = (typeof(res.buff))aAlloc(allocator, initSize),
       .allocator = allocator,
