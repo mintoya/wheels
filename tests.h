@@ -196,7 +196,7 @@ int main(void) {
   }
   printf("%zu tests out of %zu passed", pass, count);
 }
-  #if !defined __cplusplus
+  #if !defined __cplusplus && __STDC_VERSION__ >= 202400L
     #include "funct.h" // excluded from  include all for of c23
   #endif
   #define WHEELS_INCLUDE_ALL
