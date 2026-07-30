@@ -289,16 +289,9 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 // just so i dont have to read types in a circle
 //
 
-  #if defined __cplusplus
-    #include <type_traits>
-template <typename Ret, typename... Args>
-using fnptrof_t = Ret (*)(Args...);
-    #define fnptrof(in, out) fnptrof_t<out, REM_PAREN in>
-  #else
-    #define fnptrof(in, out) typeof(typeof(out)(*) in)
-  #endif
-  #define ptrof(T) typeof(typeof(T) *)
-  #define arrof(T, ...) typeof(typeof(T)[__VA_ARGS__])
+  #define fnptrof(in, out) typeof(typeof(out)(*) in)
+  #define arrof(T, ...) typeof(typeof(typeof((T){}))[__VA_ARGS__])
+  #define ptrof(T) typeof((typeof(void (*)(T)))0, (typeof(T) *)0)
 
 //
 // type stuff
