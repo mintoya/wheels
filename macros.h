@@ -374,6 +374,10 @@ _Static_assert(!IS_CTARRAY((char *)"hello"));
     foreach (var_ i, span(*_m, countof(*_m)))                                                     \
       *i = _v;                                                                                    \
   })
+  #define struct_imm_type(x) typeof(TUPLE_EXPAND_REST(x)) TUPLE_EXPAND_FIRST(x);
+  #define struct_imm_value(x) (TUPLE_EXPAND_REST(x)),
+  #define struct_imm(...) \
+    ((struct {APPLY_N(struct_imm_type, __VA_ARGS__)}){APPLY_N(struct_imm_value, __VA_ARGS__)})
 
   #include "macros/match_tu.h"
   #include "macros/match_type.h"

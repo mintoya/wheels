@@ -107,6 +107,25 @@
       FOREACH_vla_valid,    \
       FOREACH_vla_cast)
 //}
+//{vtable(val)
+#define FOREACH_vtable_init(val, i) (                           \
+    struct { typeof((val).init(i)) _it; typeof(val) _vt ; },                                                 \
+    ({                                                          \
+      let _val = val;                                           \
+      (typeof(_foreach_._foreach_)){._it = _val.init(i), _val}; \
+    })                                                          \
+)
+#define FOREACH_vtable_increase(is) ((is)._vt.increase(&(is)._it))
+#define FOREACH_vtable_valid(is) ((is)._vt.valid(&(is)._it))
+#define FOREACH_vtable_cast(is) ((is)._vt.cast(&(is)._it))
+
+#define FOREACH_vtable         \
+  (                            \
+      FOREACH_vtable_init,     \
+      FOREACH_vtable_increase, \
+      FOREACH_vtable_valid,    \
+      FOREACH_vtable_cast)
+//}
 //
 
 //
