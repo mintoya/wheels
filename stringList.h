@@ -1,4 +1,3 @@
-#include "macros.h"
 #if !defined(STRING_LIST_H)
   #define STRING_LIST_H (1)
   #include "fptr.h"

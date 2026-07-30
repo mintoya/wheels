@@ -291,7 +291,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define fnptrof(in, out) typeof(typeof(out)(*) in)
   #define arrof(T, ...) typeof(typeof(typeof((T){}))[__VA_ARGS__])
-  #define ptrof(T) typeof((typeof(void (*)(T)))0, (typeof(T) *)0)
+  #define ptrof(T) typeof((void)((typeof(void (*)(T)))0), (typeof(T) *)0)
 
 //
 // type stuff
@@ -334,14 +334,17 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define arrstype(arr) typeof((*(typeof(arr) *)nullptr)[0])
 
   #define IS_CTARRAY(x) \
-    (!types_eq(typeof(x), typeof(1 ? (x) : (x))))
+    (!types_eq(typeof(x), typeof(1 ? *(ptrof(typeof(x)))0 : (x))))
   #if defined __cplusplus
     #define IS_CTARRAY(x) \
       (!types_eq(typeof(x), std::decay_t<typeof(x)>))
   #endif
-_Static_assert(IS_CTARRAY("hello"));
-_Static_assert(!IS_CTARRAY((char *)"hello"));
-  #define isArray(a) IS_CTARRAY(a)
+  #define isArray IS_CTARRAY
+
+_Static_assert(!isArray((int)0), "int is not array");
+_Static_assert(!isArray((int *)0), "ptr is not array");
+_Static_assert(isArray((int[]){}), "array is array");
+
   #define VLAP(ptr, len) ((typeof(typeof(*ptr))(*)[len])ptr)
 
   #define asU8Vla(x) *VLAP((u8 *)&x, sizeof(x))

@@ -1,4 +1,3 @@
-#include "macros.h"
 #if !defined(FPTR_H)
   #define FPTR_H (1)
   #include "mytypes.h"
@@ -37,15 +36,15 @@ static inline usize sentList_length(void *items, usize unit) {
 }
   #define sentList_len(l) sentList_length(l, sizeof(*l))
 
-  #define sentlist_clone(allocator, sl) ({              \
-    var_ _sl = sl;                                      \
-    var_ _slen = sentList_len(_sl);                     \
-    (typeof(sl))                                        \
-        memcpy(                                         \
-            aCreate(allocator, typeof(*sl), _slen + 1), \
-            _sl,                                        \
-            sizeof(*sl) * (_slen + 1)                   \
-        );                                              \
+  #define sentlist_clone(allocator, sl) ({                      \
+    var_ _sl = sl;                                              \
+    var_ _slen = sentList_len(_sl);                             \
+    (typeof(sl))                                                \
+        memcpy(                                                 \
+            acreate(allocator, arrof(ptrstype(sl), _slen + 1)), \
+            _sl,                                                \
+            sizeof(*sl) * (_slen + 1)                           \
+        );                                                      \
   })
 
 static inline int fptr_cmp(const fptr a, const fptr b) {

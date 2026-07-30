@@ -3,6 +3,7 @@
   #include "../allocator.h"
   #include "../macros.h"
   #include "../print/print_pre.h"
+  #include "cballocator.h"
 
 struct tracedata {
   const char *fn;
@@ -84,7 +85,6 @@ typedef struct {
   fnptrof((void *, usize, usize, void *, const char *, uint), void) onalloc;
   dbgallocator_map map[1];
 } debugAllocator_state;
-  #include "cballocator.h"
 void _dbga_cba(const callbackallocatorhandle *h) {
   let in = h->insize;
   let out = h->outsize;

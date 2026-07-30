@@ -4,6 +4,7 @@
   #include "macros.h"
   #include "mytypes.h"
   #include <stdlib.h>
+  #include <string.h>
 typedef const struct allocfns *allocfn;
 typedef const struct allocfns {
   const fnptrof(
@@ -17,21 +18,21 @@ static inline uptr alloc_align(uptr u) { return lineup(u, alignof(myAlign)); }
   #define vcallargs(it, ...) (it __VA_OPT__(, ) __VA_ARGS__)
   #define vcall(it, name, args) (it->name vcallargs(it, REM_PAREN args))
 
-  #define acreate(alloc, T)                      \
-    ({                                           \
-      ptrof(T) _result = (typeof(_result))vcall( \
-          (alloc),                               \
-          fn,                                    \
-          (                                      \
-              nullptr,                           \
-              0,                                 \
-              alloc_align(sizeof(*_result)),     \
-              __FILE__,                          \
-              __LINE__                           \
-          )                                      \
-      );                                         \
-      memset(_result, 0, sizeof(*_result));      \
-      _result;                                   \
+  #define acreate(alloc, T)                           \
+    ({                                                \
+      ptrof(T) _result = (typeof(_result))vcall(      \
+          (alloc),                                    \
+          fn,                                         \
+          (                                           \
+              nullptr,                                \
+              0,                                      \
+              alloc_align(sizeof(*_result)),          \
+              __FILE__,                               \
+              __LINE__                                \
+          )                                           \
+      );                                              \
+      __builtin_memset(_result, 0, sizeof(*_result)); \
+      _result;                                        \
     })
   #define avalue(alloc, val) ({                \
     let _r = acreate(alloc, typeof(val));      \

@@ -49,7 +49,12 @@ List_getRef(const List *l, List_index_t i, size_t width) { return (i < l->length
  * @param bytes size of each element
  * @param init initial capacity
  */
-void List_makeNew(allocfn allocator, List *l, size_t bytes, List_index_t init);
+static inline void List_makeNew(allocfn allocator, List *l, size_t width, List_index_t initialSize) {
+  l->length = 0;
+  l->allocator = allocator;
+  l->head = (typeof(l->head))acreate(allocator, uint8_t[width][initialSize]);
+  l->capacity = initialSize;
+}
 static inline void List_resize(List *l, List_index_t newSize, size_t width) {
   newSize = newSize ? newSize : 1;
   if ((newSize > l->capacity || newSize < l->capacity / 8))
@@ -322,12 +327,6 @@ test_fn(mlist_vla_cast) {
     (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
   #undef MY_LIST_C
   #define MY_LIST_C (2)
-void List_makeNew(allocfn allocator, List *l, size_t width, List_index_t initialSize) {
-  l->length = 0;
-  l->allocator = allocator;
-  l->head = (typeof(l->head))acreate(allocator, uint8_t[width][initialSize]);
-  l->capacity = initialSize;
-}
 void List_remove(List *l, List_index_t i, size_t width) {
   if (i >= l->length) return;
   memmove(l->head + i * width, l->head + (i + 1) * width, (l->length - i - 1) * width);

@@ -1,22 +1,21 @@
 #include "hxmap.h"
-#include "macros.h"
+#include "print.h"
 #include "ts_int.h"
-#include <stdio.h>
+#include <string.h>
 #define ihash(k) ((k) * 31 ^ 0x1000)
 #define icmp(a, b) !(a == b)
 u64 hint(const void *i) { return ihash(*(int *)i); }
 i8 cint(const void *a, const void *b) { return icmp(*(int *)a, *(int *)b); }
 
 void perfectset(usize count) {
-  let map = &aCreate(
+  let map = acreate(
       stdAlloc,
-      typeof(struct pmap {
+      struct pmap {
         bool occupied : 1;
         u64 value : 63;
-      }),
-      count
+      }[count]
   );
-  defer { aDestroy(stdAlloc, *map); };
+  defer { adestroy(stdAlloc, *map); };
   foreach (let i, range(0, count)) {
     (*map)[i].occupied = 1;
     (*map)[i].value = i * i;
@@ -26,15 +25,14 @@ void perfectset(usize count) {
   }
 }
 void perfectreset(usize count) {
-  let map = &aCreate(
+  let map = acreate(
       stdAlloc,
-      typeof(struct pmap {
+      struct pmap {
         bool occupied : 1;
         u64 value : 63;
-      }),
-      count
+      }[count]
   );
-  defer { aDestroy(stdAlloc, *map); };
+  defer { adestroy(stdAlloc, *map); };
   foreach (let i, range(0, count)) {
     (*map)[i].occupied = 1;
     (*map)[i].value = i * i;

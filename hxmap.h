@@ -1,4 +1,3 @@
-#include <string.h>
 #if !defined MY_HXMAP_H
   #define MY_HXMAP_H
   #include "allocator.h"

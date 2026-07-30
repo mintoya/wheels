@@ -113,11 +113,15 @@ void __attribute__((noreturn)) _assertMessageFail(
   #endif
 
 #endif
+#if defined(noAssertMessage)
+  #undef ASSERTMESSAGE_C
+  #define ASSERTMESSAGE_C (2)
+#endif
 #if defined(ASSERTMESSAGE_C) && (!defined(noAssertMessage) && ASSERTMESSAGE_C == 1) || \
     (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
 
   #undef ASSERTMESSAGE_C
-  #define ASSERTMESSAGE_C 2
+  #define ASSERTMESSAGE_C (2)
 
 void __attribute__((noreturn)) _assertMessageFail(
     const char *expr_str,

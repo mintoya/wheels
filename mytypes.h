@@ -1,4 +1,3 @@
-#include <string.h>
 #if !defined MY_TYPES
   #define MY_TYPES (1)
   #include "macros.h"
@@ -237,16 +236,16 @@ struct slice_array {
     (type[]) { __VA_OPT__(__VA_ARGS__, )(type){0} }
   #define sentList_vla(list) ({var_ _list = list; VLAP(_list, sentList_length(_list, sizeof(*_list))); })
 
-  #define slice_clone(allocator, slice) ({                 \
-    var_ _s = slice;                                       \
-    (typeof(slice)){                                       \
-        _s.len,                                            \
-        memcpy(                                            \
-            aCreate(allocator, typeof(_s.ptr[0]), _s.len), \
-            _s.ptr,                                        \
-            (sizeof(slice.ptr[0])) * _s.len                \
-        ),                                                 \
-    };                                                     \
+  #define slice_clone(allocator, slice) ({                \
+    var_ _s = slice;                                      \
+    (typeof(slice)){                                      \
+        _s.len,                                           \
+        memcpy(                                           \
+            acreate(allocator, ptrstype(_s.ptr)[_s.len]), \
+            _s.ptr,                                       \
+            (sizeof(slice.ptr[0])) * _s.len               \
+        ),                                                \
+    };                                                    \
   })
 
 #endif // MY_TYPES

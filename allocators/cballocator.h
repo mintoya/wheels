@@ -49,7 +49,6 @@ test_fn(cba_test_fn) {
 }
 
 #endif
-
 #if (defined CBA_ALLOCATOR_C && CBA_ALLOCATOR_C == 1) || (defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0)
   #undef CBA_ALLOCATOR_C
   #define CBA_ALLOCATOR_C (2)
