@@ -172,7 +172,7 @@ sliceDef(c8);
     _s;                                            \
   })
   #define slice_free(allocator, slice) \
-    adestroy(allocator, (typeof (*slice.ptr)(*)[slice.len])slice.ptr)
+    adestroy(allocator, (ptrof(arrof(ptrstype(slice.ptr), slice.len)))slice.ptr)
 
   #if defined __cplusplus
 template <typename T, usize size>

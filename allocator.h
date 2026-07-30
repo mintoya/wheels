@@ -4,8 +4,8 @@
   #include "macros.h"
   #include "mytypes.h"
   #include <stdlib.h>
-typedef const struct allocfn *allocfn;
-typedef const struct allocfn {
+typedef const struct allocfns *allocfn;
+typedef const struct allocfns {
   const fnptrof(
       (allocfn, void *, usize, usize, const char *, const uint),
       void *
@@ -17,21 +17,21 @@ static inline uptr alloc_align(uptr u) { return lineup(u, alignof(myAlign)); }
   #define vcallargs(it, ...) (it __VA_OPT__(, ) __VA_ARGS__)
   #define vcall(it, name, args) (it->name vcallargs(it, REM_PAREN args))
 
-  #define acreate(alloc, T)                  \
-    ({                                       \
-      ptrof(T) _result = (ptrof(T))vcall(    \
-          (alloc),                           \
-          fn,                                \
-          (                                  \
-              nullptr,                       \
-              0,                             \
-              alloc_align(sizeof(*_result)), \
-              __FILE__,                      \
-              __LINE__                       \
-          )                                  \
-      );                                     \
-      memset(_result, 0, sizeof(*_result));  \
-      _result;                               \
+  #define acreate(alloc, T)                      \
+    ({                                           \
+      ptrof(T) _result = (typeof(_result))vcall( \
+          (alloc),                               \
+          fn,                                    \
+          (                                      \
+              nullptr,                           \
+              0,                                 \
+              alloc_align(sizeof(*_result)),     \
+              __FILE__,                          \
+              __LINE__                           \
+          )                                      \
+      );                                         \
+      memset(_result, 0, sizeof(*_result));      \
+      _result;                                   \
     })
   #define avalue(alloc, val) ({                \
     let _r = acreate(alloc, typeof(val));      \
@@ -57,7 +57,7 @@ void *stdAllocatorFunction(
     const char *fname,
     const uint ln
 );
-static const struct allocfn stdAlloc[1] = {{stdAllocatorFunction}};
+static const struct allocfns stdAlloc[1] = {{stdAllocatorFunction}};
 #endif
 
 #if (defined SINGLE_ALLOCATOR_C && SINGLE_ALLOCATOR_C == 1) || (defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0)

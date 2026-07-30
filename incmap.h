@@ -138,7 +138,7 @@ static inline void MAP_FN(newm)(
       .allocator = allocator,
       .count = 0,
       .capbit = capbit,
-      .flags = *acreate(allocator, ptrstype(itypeof(mapname, flags))[cap]),
+      .flags = *acreate(allocator, hxint[cap]),
       .keys = *acreate(allocator, MAP_K[cap]),
       .vals = *acreate(allocator, MAP_V[cap]),
   });
@@ -180,7 +180,7 @@ static inline void MAP_FN(manage)(
   usize newcount = 0;
   let nv = acreate(map->allocator, MAP_V[nc]);
   let nk = acreate(map->allocator, MAP_K[nc]);
-  let nf = acreate(map->allocator, ptrstype(itypeof(mapname, flags))[nc]);
+  let nf = acreate(map->allocator, hxint[nc]);
 
   let ov = map->vals;
   let ok = map->keys;
@@ -309,7 +309,7 @@ static inline void MAP_FN(clear)(
     const mapname *map
 ) {
   let count = 1 << map->capbit;
-  memset(map->flags, 0, sizeof(typeof (*map->flags)[count]));
+  memset(map->flags, 0, sizeof(hxint[count]));
 }
 
 typedef struct MAP_FN(iter_state) {

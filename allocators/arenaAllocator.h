@@ -35,14 +35,14 @@ typedef struct ArenaAllocator_buffer {
   u8 *ptr;
 } ArenaAllocator_buffer;
 typedef struct ArenaAllocator_data {
-  void *(*fn)(void *, void *, usize, usize, char *, usize);
+  struct allocfns fn[1];
   mList(ArenaAllocator_buffer) buffers; // stores backing allocatorr inside
 } ArenaAllocator_data;
 allocfn arena_backing_allocator(allocfn allocator) {
   return mList_allocator(((ArenaAllocator_data *)allocator)->buffers);
 }
 
-void *_arena_fn(void *allocator, void *ptr, usize oldsize, usize newsize, char *file, usize line);
+void *_arena_fn(allocfn allocator, void *ptr, usize oldsize, usize newsize, const char *file, uint line);
 
 ArenaAllocator_buffer arena_newBlock(allocfn origional_allocator, usize size) {
   var_ ptr = (u8 *)acreate(origional_allocator, u8[size]);
@@ -54,11 +54,9 @@ ArenaAllocator_buffer arena_newBlock(allocfn origional_allocator, usize size) {
   });
 }
 allocfn arena_new_ext(allocfn allocator, usize blocksize) {
-  var_ result = acreate(allocator, ArenaAllocator_data);
-  result->fn = _arena_fn;
-  result->buffers = mList_init(allocator, ArenaAllocator_buffer);
+  let result = avalue(allocator, ((ArenaAllocator_data){{_arena_fn}, mList_init(allocator, ArenaAllocator_buffer)}));
   mList_push(result->buffers, arena_newBlock(allocator, blocksize));
-  return (allocfn)result;
+  return result->fn;
 }
 void arena_cleanup(allocfn allocator) {
   var_ data = ((ArenaAllocator_data *)allocator);
@@ -99,7 +97,7 @@ usize arena_footprint(allocfn allocator) {
   return size;
 }
 
-void *_arena_fn(void *allocator, void *ptr, usize oldsize, usize newsize, char *file, usize line) {
+void *_arena_fn(allocfn allocator, void *ptr, usize oldsize, usize newsize, const char *file, uint line) {
   var_ data = ((ArenaAllocator_data *)allocator);
   oldsize = lineup(oldsize, alignof(myAlign));
   newsize = lineup(newsize, alignof(myAlign));

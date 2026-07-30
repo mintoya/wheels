@@ -268,7 +268,7 @@ hxmap *hxmap_new(
 void hxmap_freem(hxmap map) {
   let allocator = map.allocator;
   usize cap = (usize)1 << map.capbit;
-  adestroy(allocator, (typeof (*map.flags)(*)[cap])map.flags);
+  adestroy(allocator, (ptrstype(map.flags)(*)[cap])map.flags);
   adestroy(allocator, (u8(*)[map.ksize][cap])map.keys);
   adestroy(allocator, (u8(*)[map.vsize][cap])map.vals);
 }
@@ -445,6 +445,6 @@ void *hxmap_val_key(
   return map->keys + (idx * map->ksize);
 }
 void hxmap_clear(hxmap *map) {
-  memset(map->flags, 0, sizeof(typeof(map->flags[0])[1 << map->capbit]));
+  memset(map->flags, 0, sizeof(ptrstype(map->flags)[1 << map->capbit]));
 }
 #endif

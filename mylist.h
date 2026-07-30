@@ -6,7 +6,7 @@
   #include <string.h>
 
   #if !defined LIST_GROW_EQ
-    #define LIST_GROW_EQ(uint) (uint + uint)
+    #define LIST_GROW_EQ(uint) (uint + uint / 2)
   #endif
   #include "allocator.h"
 
@@ -230,7 +230,7 @@ void List_remove(List *l, List_index_t i, size_t width);
     if (_alloc == mList_allocator(list)) {                                                                           \
       _res = mList_arr(list);                                                                                        \
     } else {                                                                                                         \
-      _res = *acreate(_alloc, mList_iType(list)[mList_len(list)]);                                                   \
+      _res = *acreate(_alloc, typeof(mList_iType(list))[mList_len(list)]);                                           \
       memcpy(_res, mList_arr(list), mList_len(list) * sizeof(*_res));                                                \
       adestroy(mList_allocator(list), (u8(*)[sizeof(mList_iType(list))][mList_cap(list)])mList_listptr(list)->head); \
     }                                                                                                                \
@@ -312,7 +312,8 @@ test_fn(mlist_vla_cast) {
   mcpy(*arr, *mList_vla(list));
   mList_pushArr(list, *arr);
   test_assert(mList_len(list) == 6);
-  test_assert(!mcmp(*arr, *mList_vla(list)));
+
+  test_assert(!memcmp(mList_arr(list), *arr, sizeof(*arr)));
   test_assert(!memcmp(mList_arr(list), mList_arr(list) + 3, sizeof(*arr)));
 }
 
@@ -337,7 +338,7 @@ void *List_insertFromArr(List *l, const void *source, List_index_t length, List_
 
   bool inlist =
       (u8 *)source >= l->head &&
-      (u8 *)source + length * width <= l->head + l->length * width;
+      (u8 *)source < l->head + l->capacity * width;
 
   usize need = l->length + (inlist ? 2 * length : length);
   u8 *obuf = l->head;

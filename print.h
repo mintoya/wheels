@@ -184,7 +184,7 @@ typePrinter("*", void *) { // least safe printer of all time
     return;
   }
   PUTS("[*]");
-  fn.function((fptr){fn.size, in}, printerfunction_context_pop(_ctx));
+  fn.function((fptr){fn.size, (u8 *)in}, printerfunction_context_pop(_ctx));
 }
 typePrinter("slice", struct slice_any_t) { // second least safe printer
   let const red = (pEsc){.fg.r = 255, .fgset = true};
@@ -206,7 +206,7 @@ typePrinter("slice", struct slice_any_t) { // second least safe printer
     PUTS(" must have defined size");
   }
 
-  foreach (let i, span(in.ptr, in.len * fn.size, fn.size)) {
+  foreach (let i, span((u8 *)in.ptr, in.len * fn.size, fn.size)) {
     if (i != in.ptr) PUTS(",");
     fn.function((fptr){fn.size, (u8 *)i}, printerfunction_context_pop(_ctx));
   }
@@ -362,9 +362,9 @@ printerfunction_arg *print_f_makeArgs(allocfn allocator, fptr in) {
 test_fn(print_f_args) {
   let args = fp("a :b: c :d ");
   test_assert(print_f_arglen(args) == 4);
-  let splits = print_f_makeArgs(allocator, args);
+  struct printerfunction_arg *splits = print_f_makeArgs(allocator, args);
   test_assert(fptr_isEmpty((fptr){sizeof(splits[0]), (u8 *)(splits + 4)}));
-  defer { adestroy(allocator, (typeof(splits[0])(*)[5])splits); };
+  defer { adestroy(allocator, (ptrstype(splits)(*)[5])splits); };
   foreach (let i, span(splits, 3))
     test_assert(i->next == i + 1);
 
@@ -377,7 +377,7 @@ test_fn(print_f_args_paren) {
   let args = fp("a :b:(c :d "); // )
   test_assert(print_f_arglen(args) == 3);
   let splits = print_f_makeArgs(allocator, args);
-  defer { adestroy(allocator, (typeof(splits[0])(*)[4])splits); };
+  defer { adestroy(allocator, (ptrstype(splits)(*)[4])splits); };
   test_fpeq(splits[0].str, "a");
   test_fpeq(splits[1].str, "b");
   test_fpeq(splits[2].str, "(c :d"); // )
@@ -436,7 +436,7 @@ void print_f(
 
       fptr tname = parg.until(':', typeName);
       let list = print_f_makeArgs(allocator, slice_split(typeName, (tname.len + 1, -1))[0]);
-      defer { adestroy(allocator, (typeof(list[0])(*)[sentList_len(list) + 1]) list); };
+      defer { adestroy(allocator, (ptrstype(list)(*)[sentList_len(list) + 1]) list); };
       tname = parg.trim(tname);
 
       if (!assumedName.ref.ptr)

@@ -130,7 +130,7 @@ void vason_node_freeRecursive(allocfn allocator, vason_node n) {
 void vason_node_free(allocfn allocator, vason_node n) {
   switch (n.tag) {
     case vason_PAIR: {
-      adestroy(allocator, (typeof (*n.pair)(*)[2])n.pair);
+      adestroy(allocator, (ptrstype(n.pair)(*)[2])n.pair);
     } break;
     case vason_TABLE: {
       msList_deInit(allocator, n.table);

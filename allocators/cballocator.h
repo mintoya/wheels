@@ -11,7 +11,7 @@ typedef struct cbhandle {
   void *udata;
 } callbackallocatorhandle;
 typedef struct cballocator {
-  struct allocfn dt[1];
+  struct allocfns dt[1];
   allocfn allocator;
   fnptrof((const callbackallocatorhandle *), void) cba;
   fnptrof((const callbackallocatorhandle *, void *), void) cbb;
@@ -24,13 +24,13 @@ void cba_deinit(allocfn fn);
 [[maybe_unused]] static void _test_cba_fn(const callbackallocatorhandle *h) {
   struct {
     int calls, total;
-  } *x = h->cbself->udata;
+  } *x = (typeof(x))h->cbself->udata;
   x->calls++;
 }
 [[maybe_unused]] static void _test_cbb_fn(const callbackallocatorhandle *h, void *res) {
   struct {
     int calls, total;
-  } *x = h->cbself->udata;
+  } *x = (typeof(x))h->cbself->udata;
   x->total += (h->outsize - h->insize);
 }
 test_fn(cba_test_fn) {

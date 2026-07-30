@@ -74,7 +74,6 @@ To bit_cast_func(const From &src) noexcept {
 
   #define CONCATS(...) MACRO_EXPAND(CONCATS1(__VA_ARGS__))
 
-
   #if defined(__cplusplus)
     #pragma GCC warning "using cpp closure defer"
     #include <utility>
@@ -292,25 +291,14 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #if defined __cplusplus
     #include <type_traits>
-template <typename T>
-using ptrof_t = T *;
 template <typename Ret, typename... Args>
 using fnptrof_t = Ret (*)(Args...);
-template <typename T, size_t len>
-using arrof_t = T[len];
-
-    // #define fnptrof(in, out) typeof(typeof(out)(*) in)
     #define fnptrof(in, out) fnptrof_t<out, REM_PAREN in>
-    #define ptrof(T) ptrof_t<T>
-    // #define arrof(T, ...) arrof_t<T, __VA_ARGS__>
-    #define arrof(T, ...) typeof(typeof(T)[__VA_ARGS__])
   #else
     #define fnptrof(in, out) typeof(typeof(out)(*) in)
-    #define ptrof(T) typeof(typeof(T) *)
-    // #define ptrof(T) typeof((struct { typeof(T)(*_p);void(*_f )(T) ; }){}._p)
-    #define arrof(T, ...) typeof(typeof (*(T *)0)[__VA_ARGS__])
-
   #endif
+  #define ptrof(T) typeof(typeof(T) *)
+  #define arrof(T, ...) typeof(typeof(T)[__VA_ARGS__])
 
 //
 // type stuff
@@ -349,7 +337,7 @@ using arrof_t = T[len];
     _Generic((T1 *)0, T2 *: 1, default: 0)
   #define UNQUAL(...) __typeof__(1 ? (__VA_ARGS__) : (__VA_ARGS__))
   #define itypeof(struct, member) typeof(((struct *)0)->member)
-  #define ptrstype(ptr) typeof(*(typeof(ptr))nullptr)
+  #define ptrstype(ptr) typeof(typeof(*(typeof(ptr))nullptr))
   #define arrstype(arr) typeof((*(typeof(arr) *)nullptr)[0])
 
   #define IS_CTARRAY(x) \
@@ -374,8 +362,8 @@ _Static_assert(!IS_CTARRAY((char *)"hello"));
     __builtin_memcmp(_a, _b, MIN$(sizeof(*_b), sizeof(*_a))); \
   })
   #define mcpy(a, b) ({                                                                   \
-    var_ _a = &a;                                                                         \
-    var_ _b = &b;                                                                         \
+    let _a = &a;                                                                          \
+    let _b = &b;                                                                          \
     typedef typeof(({ *_a; })) _da;                                                       \
     typedef typeof(({ *_b; })) _db;                                                       \
     _Static_assert(types_eq(_da, _db), "not the same type");                              \
@@ -392,7 +380,6 @@ _Static_assert(!IS_CTARRAY((char *)"hello"));
   #define struct_imm_value(x) (TUPLE_EXPAND_REST(x)),
   #define struct_imm(...) \
     ((struct {APPLY_N(struct_imm_type, __VA_ARGS__)}){APPLY_N(struct_imm_value, __VA_ARGS__)})
-
 
   #include "macros/match_tu.h"
   #include "macros/match_type.h"

@@ -4,7 +4,7 @@
   #include "../thread_help.h"
 
 typedef struct TSA_State {
-  struct allocfn allocator[1];
+  struct allocfns allocator[1];
   allocfn underlying;
   mtx_t mutex[1];
 } TSA_State;

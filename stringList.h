@@ -188,7 +188,7 @@ void stringList_free_data(stringList slp) {
   allocfn allocator = slp.allocator;
   msList_deInit(allocator, slp.ulist);
   msList_deInit(allocator, slp.flist);
-  adestroy(allocator, (typeof (*slp.buff)(*)[slp.cap])slp.buff);
+  adestroy(allocator, (ptrstype(slp.buff)(*)[slp.cap])slp.buff);
 }
 void stringList_free(stringList *slp) {
   allocfn allocator = slp->allocator;

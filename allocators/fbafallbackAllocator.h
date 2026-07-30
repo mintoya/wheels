@@ -4,7 +4,10 @@
 //{main helper for arenas
   #include "arenaAllocator.h"
 static allocfn initarena(void *arg) {
-  let m = (struct {allocfn alloc ; usize size; } *)arg;
+  struct {
+    allocfn alloc;
+    usize size;
+  } *m = (typeof(m))arg;
   return arena_new_ext(m ? m->alloc : stdAlloc, m ? m->size : 1024);
 }
 static void deinitarena(allocfn allocator, void *) { arena_cleanup(allocator); }
@@ -30,11 +33,21 @@ allocfn fbafb_init(
 );
 void fbafb_deinit(allocfn allocator);
 
-  #define fbafb_buffer(buffer)  \
-    struct {                    \
-      struct fbab allocator[1]; \
-      typeof(buffer) buff;      \
-    }
+  #if !defined __cplusplus
+    #define fbafb_buffer(buffer)  \
+      struct {                    \
+        struct fbab allocator[1]; \
+        typeof(buffer) buff;      \
+      }
+  #else
+template <typename T>
+struct fbafb_buffer_t {
+  struct fbab allocator[1];
+  T buff;
+};
+    #define fbafb_buffer(buffer) fbafb_buffer_t<buffer>
+
+  #endif
   #define fbafb_initBuffer(buffer, ctx, init, deinit) fbafb_init(buffer.allocator, (u8 *)buffer.buff, sizeof(buffer.buff), ctx, init, deinit);
 
 test_fn(fbafb_remain) {

@@ -137,6 +137,12 @@ inline fptr fp_from(T &val) {
       .ptr = reinterpret_cast<u8 *>(&val),
   };
 }
+inline fptr fp_from(slice(c8) val) {
+  return {
+      .len = val.len,
+      .ptr = reinterpret_cast<u8 *>(val.ptr),
+  };
+}
 inline fptr fp_from(fptr u) { return u; }
 inline fptr fp_from(const std::string &s) {
   return {
