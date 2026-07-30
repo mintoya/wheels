@@ -1,3 +1,4 @@
+#include <string.h>
 #if !defined MY_HXMAP_H
   #define MY_HXMAP_H
   #include "allocator.h"
@@ -67,6 +68,7 @@ void *hxmap_val_key(
     const hxmap *map,
     void *val
 );
+void hxmap_clear(hxmap *map);
 
   #define mxmap(K, V) ptrof(fnptrof((hxmap *, ptrof(K)), V))
   #define mxmap_valType(map) typeof((*map)(((hxmap *)0), nullptr))
@@ -441,5 +443,8 @@ void *hxmap_val_key(
 ) {
   usize idx = ((u8 *)val - map->vals) / map->vsize;
   return map->keys + (idx * map->ksize);
+}
+void hxmap_clear(hxmap *map) {
+  memset(map->flags, 0, sizeof(typeof(map->flags[0])[1 << map->capbit]));
 }
 #endif

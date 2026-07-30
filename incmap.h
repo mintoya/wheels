@@ -1,3 +1,4 @@
+#include <string.h>
 #if __INCLUDE_LEVEL__ == 0
   #pragma GCC warning "using example mapconfig"
 // comparison ismeant to be ordered, but currently it does not sort the collisoins at all
@@ -9,7 +10,7 @@
 #include "mytypes.h"
 
 #ifndef mapconfig
-  #error "mapconfig must be defined as: KeyT, ValT , hash , comparison"
+  #error "mapconfig must be defined as: typename , KeyT, ValT , hash(T k), comparison(T a , T b)"
 #endif
 
 #define _MAP_GET_K(name, k, v, ...) k
@@ -304,6 +305,12 @@ static inline MAP_K *MAP_FN(val_key)(
 ) {
   usize idx = val - map->vals;
   return map->keys + idx;
+}
+static inline void MAP_FN(clear)(
+    const mapname *map
+) {
+  let count = 1 << map->capbit;
+  memset(map->flags, 0, sizeof(typeof (*map->flags)[count]));
 }
 
 #undef mapconfig
