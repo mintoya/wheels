@@ -17,11 +17,10 @@ struct OMap_both {
 struct OMap_both OMap_getN(OMap *, usize);
 #endif
 
-#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-  #define OMAP_C (1)
-#endif
-
-#if defined(OMAP_C)
+#if (defined OMAP_C && OMAP_C == 1) || \
+    (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
+  #undef OMAP_C
+  #define OMAP_C (2)
 static inline allocfn OMap_allocator(OMap *omap) {
   return omap->data->allocator;
 }
