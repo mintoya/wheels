@@ -1,9 +1,7 @@
 #if !defined MY_DEBUG_ALLOCATOR_H
   #define MY_DEBUG_ALLOCATOR_H
   #include "../allocator.h"
-  #include "../hxmap.h"
   #include "../macros.h"
-  #include "../mylist.h"
   #include "../print/print_pre.h"
 
 struct tracedata {
@@ -56,6 +54,22 @@ int debugAllocator_clear(allocfn allocator);
  *      - will print traces to stdout
  */
 int debugAllocatorDeInit(allocfn);
+
+  #include "../tests.h"
+test_fn(debugallocator_test) {
+  let alloc = debugAllocator(.allocator = allocator);
+  acreate(alloc, int[5]);
+  aresize(alloc, acreate(alloc, int[5]), int[2]);
+  let p = acreate(alloc, int[5]);
+  let statsa = debugAllocator_stats(alloc);
+  aresize(alloc, p, int[2]);
+  let statsb = debugAllocator_stats(alloc);
+  test_assert(statsa.total_active_allocations == statsb.total_active_allocations);
+  test_assert(statsa.max_memory == statsb.max_memory);
+  test_assert(statsa.current_memory > statsb.current_memory);
+  test_assert(statsa.total_calls < statsb.total_calls);
+  test_inteq(debugAllocatorDeInit(alloc), 3);
+}
 
 #endif // MY_DEBUG_ALLOCATOR_H
 #if (defined MY_DEBUG_ALLOCATOR_C && MY_DEBUG_ALLOCATOR_C == 1) || \
@@ -149,13 +163,11 @@ int debugAllocatorDeInit(allocfn afn) {
   let cba = (callbackallocatorbuffer *)afn;
   let slef = (debugAllocator_state *)(cba->udata);
   int leaks = 0;
-  for (usize i = 0; i < (1 << (slef->map->capbit)); i++)
-    if (dbgallocator_map_isHXOCCUPIED(slef->map->flags[i])) {
-      let key = slef->map->keys[i];
-      let val = slef->map->vals[i];
-      leaks++;
-      adestroy(cba->allocator, (u8(*)[val.size])key);
-    }
+
+  foreach (let kv, vtable(dbgallocator_map_iterator, slef->map)) {
+    leaks++;
+    adestroy(cba->allocator, (u8(*)[kv.val->size])kv.key);
+  }
   dbgallocator_map_freem(slef->map[0]);
   return leaks;
 }
@@ -169,13 +181,10 @@ int debugAllocator_clear(allocfn afn) {
   let cba = (callbackallocatorbuffer *)afn;
   let slef = (debugAllocator_state *)(cba->udata);
   int leaks = 0;
-  for (usize i = 0; i < (1 << (slef->map->capbit)); i++)
-    if (dbgallocator_map_isHXOCCUPIED(slef->map->flags[i])) {
-      let key = slef->map->keys[i];
-      let val = slef->map->vals[i];
-      leaks++;
-      adestroy(cba->allocator, (u8(*)[val.size])key);
-    }
+  foreach (let kv, vtable(dbgallocator_map_iterator, slef->map)) {
+    leaks++;
+    adestroy(cba->allocator, (u8(*)[kv.val->size])kv.key);
+  }
   dbgallocator_map_clear(slef->map);
   return leaks;
 }

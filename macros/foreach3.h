@@ -108,12 +108,18 @@
       FOREACH_vla_cast)
 //}
 //{vtable(val)
-#define FOREACH_vtable_init(val, i) (                           \
-    struct { typeof((val).init(i)) _it; typeof(val) _vt ; },                                                 \
-    ({                                                          \
-      let _val = val;                                           \
-      (typeof(_foreach_._foreach_)){._it = _val.init(i), _val}; \
-    })                                                          \
+#define FOREACH_vtable_init(vt, ...) (    \
+    struct {                              \
+      typeof((vt).init(__VA_ARGS__)) _it; \
+      const typeof(vt) _vt;               \
+    },                                    \
+    ({                                    \
+      let _val = vt;                      \
+      (typeof(_foreach_._foreach_)){      \
+          _val.init(__VA_ARGS__),         \
+          _val                            \
+      };                                  \
+    })                                    \
 )
 #define FOREACH_vtable_increase(is) ((is)._vt.increase(&(is)._it))
 #define FOREACH_vtable_valid(is) ((is)._vt.valid(&(is)._it))

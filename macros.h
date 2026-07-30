@@ -59,7 +59,21 @@ To bit_cast_func(const From &src) noexcept {
   #define MACRO_EXPAND(...) \
     MACRO_EXPAND4(__VA_ARGS__)
 
-  #define DEFER_NAME(a, b) ID_CONCAT(a, b)
+  #define LPAREN (
+  #define RPAREN )
+
+  #define CONCATS1(a, b, ...)   \
+    __VA_OPT__(CONCATS2 LPAREN) \
+    ID_CONCAT(a, b)             \
+    __VA_OPT__(, __VA_ARGS__ RPAREN)
+
+  #define CONCATS2(a, b, ...)   \
+    __VA_OPT__(CONCATS1 LPAREN) \
+    ID_CONCAT(a, b)             \
+    __VA_OPT__(, __VA_ARGS__ RPAREN)
+
+  #define CONCATS(...) MACRO_EXPAND(CONCATS1(__VA_ARGS__))
+
 
   #if defined(__cplusplus)
     #pragma GCC warning "using cpp closure defer"
@@ -75,7 +89,7 @@ struct DeferHelper {
   Deferrer<F> operator+(F &&f) { return {std::forward<F>(f)}; }
 };
 
-    #define defer auto DEFER_NAME(_defer_, __LINE__) = DeferHelper() + [&]()
+    #define defer auto CONCATS(_defer_, __LINE__) = DeferHelper() + [&]()
   #else
     #if __has_include(<stddefer.h>)
       #include <stddefer.h>
@@ -378,6 +392,7 @@ _Static_assert(!IS_CTARRAY((char *)"hello"));
   #define struct_imm_value(x) (TUPLE_EXPAND_REST(x)),
   #define struct_imm(...) \
     ((struct {APPLY_N(struct_imm_type, __VA_ARGS__)}){APPLY_N(struct_imm_value, __VA_ARGS__)})
+
 
   #include "macros/match_tu.h"
   #include "macros/match_type.h"

@@ -1,4 +1,3 @@
-#include <string.h>
 #if __INCLUDE_LEVEL__ == 0
   #pragma GCC warning "using example mapconfig"
 // comparison ismeant to be ordered, but currently it does not sort the collisoins at all
@@ -48,7 +47,7 @@
 
 #define _MAP_CAT_(a, b) a##b
 #define _MAP_CAT(a, b) _MAP_CAT_(a, b)
-#define MAP_FN(fn) _MAP_CAT(mapname, _##fn)
+#define MAP_FN(fn) _MAP_CAT(mapname, _MAP_CAT(_, fn))
 
 // Isolate all types and constants per map instance
 #define hxint _MAP_CAT(mapname, _hxint)
@@ -313,8 +312,59 @@ static inline void MAP_FN(clear)(
   memset(map->flags, 0, sizeof(typeof (*map->flags)[count]));
 }
 
+typedef struct MAP_FN(iter_state) {
+  const mapname *map;
+  usize current;
+} MAP_FN(iter_state);
+
+static inline MAP_FN(iter_state) MAP_FN(iter_init)(const mapname *map) {
+  MAP_FN(iter_state)
+  it = {.map = map, .current = 0};
+  let cap = (usize)1 << it.map->capbit;
+  while (it.current < cap && isHXEMPTY(it.map->flags[it.current]))
+    it.current++;
+  return it;
+}
+
+static inline int MAP_FN(iter_valid)(MAP_FN(iter_state) * it) {
+  let cap = (usize)1 << it->map->capbit;
+  return it->current < cap;
+}
+
+static inline void MAP_FN(iter_increase)(MAP_FN(iter_state) * it) {
+  let cap = (usize)1 << it->map->capbit;
+  it->current++;
+  while (it->current < cap && isHXEMPTY(it->map->flags[it->current]))
+    it->current++;
+}
+
+typedef struct MAP_FN(k_v) {
+  MAP_K key;
+  MAP_V *val;
+} MAP_FN(k_v);
+static inline MAP_FN(k_v) MAP_FN(iter_cast)(MAP_FN(iter_state) * it) {
+  return (MAP_FN(k_v)){
+      .key = it->map->keys[it->current],
+      .val = it->map->vals + it->current
+  };
+}
+
+typedef struct MAP_FN(iterator_t) {
+  const typeof(&MAP_FN(iter_init)) init;
+  const typeof(&MAP_FN(iter_valid)) valid;
+  const typeof(&MAP_FN(iter_increase)) increase;
+  const typeof(&MAP_FN(iter_cast)) cast;
+} MAP_FN(iterator_t);
+static const MAP_FN(iterator_t) MAP_FN(iterator) = {
+    &MAP_FN(iter_init),
+    &MAP_FN(iter_valid),
+    &MAP_FN(iter_increase),
+    &MAP_FN(iter_cast),
+};
+
 #undef mapconfig
 #undef mapname
+#undef mapiterator
 #undef maphash
 #undef mapcmp
 #undef MAP_K
