@@ -21,33 +21,21 @@ typedef struct sList_header {
   alignas(myAlign) u8 buf[];
 } sList_header;
 
-static inline sList_header *sList_new(AllocatorV allocator, usize initLen, usize width) {
+static inline sList_header *sList_new(allocfn allocator, usize initLen, usize width) {
   assertMessage(initLen && width);
-  sList_header *res = (typeof(res))aAlloc(allocator, sizeof(sList_header) + initLen * width);
-  *res = (typeof(*res)){};
-  if (allocator->size) {
-    usize s = allocator->size(allocator, res);
-    res->capacity = (s - sizeof(sList_header)) / width;
-
-  } else res->capacity = initLen;
-  res->length = 0;
-  res->isStack = 0;
+  let res = acreate_extra(allocator, sList_header, +initLen * width);
+  *res = (typeof(*res)){.length = 0, .isStack = 0, .capacity = initLen};
   return res;
 }
-static inline sList_header *sList_realloc(AllocatorV allocator, sList_header *header, usize width, usize newsize) {
+static inline sList_header *sList_realloc(allocfn allocator, sList_header *header, usize width, usize newsize) {
   assertMessage(header && header->capacity);
   if (!header->isStack) {
-    sList_header *res = (typeof(res))aResize(
+    sList_header *res = (typeof(res))aresize(
         allocator,
-        header,
-        sizeof(sList_header) + header->capacity * width,
-        sizeof(sList_header) + newsize * width
+        (u8(*)[sizeof(sList_header) + header->capacity * width]) header,
+        u8[sizeof(sList_header) + newsize * width]
     );
-    if (allocator->size) {
-      usize s = allocator->size(allocator, res);
-      res->capacity = (s - sizeof(sList_header)) / width;
-    } else
-      res->capacity = newsize;
+    res->capacity = newsize;
     return res;
   } else {
     var_ _new = sList_new(allocator, newsize, width);
@@ -57,9 +45,8 @@ static inline sList_header *sList_realloc(AllocatorV allocator, sList_header *he
     return _new;
   }
 }
-static inline void sList_free(AllocatorV allocator, sList_header *sl, usize width) {
-  if (!sl->isStack)
-    aFree(allocator, sl, width * sl->capacity + sizeof(*sl));
+static inline void sList_free(allocfn allocator, sList_header *sl, usize width) {
+  if (!sl->isStack) adestroy(allocator, (u8(*)[sizeof(*sl) + width * sl->capacity]) sl);
 }
 
 static inline void *sList_getRef(
@@ -92,7 +79,7 @@ static inline void *sList_set(
   return sList_setArr(l, width, 1, index, element);
 }
 static inline sList_header *sList_insertFromArr(
-    AllocatorV allocator,
+    allocfn allocator,
     sList_header *l,
     const void *source,
     usize length,
@@ -138,7 +125,7 @@ static inline void sList_removeArr(sList_header *l, usize width, usize len, usiz
 static inline void sList_remove(sList_header *l, usize width, usize idx) { sList_removeArr(l, width, 1, idx); }
 
 static inline sList_header *sList_append(
-    AllocatorV allocator,
+    allocfn allocator,
     sList_header *l,
     usize width,
     const void *element
@@ -193,10 +180,10 @@ static struct bbs_result bbsearch(
     };                                                                                                    \
     _rxbst;                                                                                               \
   })
-static inline sList_header *sList_appendFromArr(AllocatorV allocator, sList_header *l, usize width, void *source, usize ammount) {
+static inline sList_header *sList_appendFromArr(allocfn allocator, sList_header *l, usize width, void *source, usize ammount) {
   return sList_insertFromArr(allocator, l, source, ammount, l->length, width);
 }
-static inline sList_header *sList_insert(AllocatorV allocator, sList_header *l, usize width, usize i, const void *element) {
+static inline sList_header *sList_insert(allocfn allocator, sList_header *l, usize width, usize i, const void *element) {
   return sList_insertFromArr(allocator, l, element, 1, i, width);
 }
   #if defined(__BLOCKS__)
@@ -431,11 +418,11 @@ test_fn(msList_vla_cast) {
   msList_push(allocator, list, 7);
   msList_push(allocator, list, 8);
   msList_push(allocator, list, 9);
-  int *arr = aCreate(allocator, int, 3);
-  defer { aFree(allocator, arr, 3); };
-  memcpy(arr, list, 3 * sizeof(int));
+  let arr = acreate(allocator, int[3]);
+  defer { adestroy(allocator, arr); };
+  memcpy(arr, list, sizeof(*arr));
 
-  msList_pushArr(allocator, list, *VLAP(arr, 3));
+  msList_pushArr(allocator, list, (*arr));
   test_assert(msList_len(list) == 6);
 }
 

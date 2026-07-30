@@ -2,18 +2,18 @@
   #define ARENA_ALLOCATOR_H (1)
   #include "../allocator.h"
 
-AllocatorV arena_new_ext(AllocatorV allocator, usize blocksize);
-void arena_clear(AllocatorV allocator);
-usize arena_countBlocks(AllocatorV allocator);
-void arena_cleanup(AllocatorV allocator);
-usize arena_totalMem(AllocatorV allocator);
-usize arena_footprint(AllocatorV allocator);
+allocfn arena_new_ext(allocfn allocator, usize blocksize);
+void arena_clear(allocfn allocator);
+usize arena_countBlocks(allocfn allocator);
+void arena_cleanup(allocfn allocator);
+usize arena_totalMem(allocfn allocator);
+usize arena_footprint(allocfn allocator);
   #include "../tests.h"
 test_fn(arena_test) {
   var_ arena = arena_new_ext(allocator, 100);
   defer { arena_cleanup(arena); };
-  var_ u8s = &aCreate(arena, u8, 200);
-  var_ i32s = &aCreate(arena, int);
+  var_ u8s = acreate(arena, u8[200]);
+  var_ i32s = acreate(arena, int[100]);
   foreach (var_ i32, vla(*u8s))
     i32 *= i32;
   foreach (var_ i32, vla(*i32s))
@@ -21,41 +21,31 @@ test_fn(arena_test) {
   test_assert(!((uptr)u8s % alignof(myAlign)));
   test_assert(!((uptr)i32s % alignof(myAlign)));
 }
-#endif
-#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-  #define ARENA_ALLOCATOR_C (1)
-#endif
 
-#if defined(ARENA_ALLOCATOR_C)
+#endif
+#if (defined ARENA_ALLOCATOR_C && ARENA_ALLOCATOR_C == 1) || \
+    (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
+  #undef ARENA_ALLOCATOR_C
+  #define ARENA_ALLOCATOR_C (2)
 
   #include "../assertMessage.h"
   #include "../mylist.h"
-typedef struct {
+typedef struct ArenaAllocator_buffer {
   usize capacity, occupied, count;
   u8 *ptr;
 } ArenaAllocator_buffer;
-typedef struct {
-  My_allocator vt[1];
+typedef struct ArenaAllocator_data {
+  void *(*fn)(void *, void *, usize, usize, char *, usize);
   mList(ArenaAllocator_buffer) buffers; // stores backing allocatorr inside
 } ArenaAllocator_data;
-AllocatorV arena_backing_allocator(AllocatorV allocator) {
+allocfn arena_backing_allocator(allocfn allocator) {
   return mList_allocator(((ArenaAllocator_data *)allocator)->buffers);
 }
 
-void *_arena_alloc(AllocatorV allocator, usize size, char *, usize);
-void _arena_free(AllocatorV allocator, void *ptr, usize size, char *, usize);
-AllocatorV _arena_prototype = (typeof(stdAlloc))(My_allocator[1]){{
-    _arena_alloc,
-    _arena_free,
-    nullptr,
-    nullptr,
-}};
-ArenaAllocator_buffer arena_newBlock(AllocatorV origional_allocator, usize size) {
-  var_ ptr = aCreate(origional_allocator, u8, size);
-  var_ cap =
-      origional_allocator->size
-          ? origional_allocator->size(origional_allocator, ptr)
-          : size;
+void *_arena_fn(void *allocator, void *ptr, usize oldsize, usize newsize, char *file, usize line);
+
+ArenaAllocator_buffer arena_newBlock(allocfn origional_allocator, usize size) {
+  var_ ptr = (u8 *)acreate(origional_allocator, u8[size]);
   return ((ArenaAllocator_buffer){
       .capacity = size,
       .occupied = 0,
@@ -63,23 +53,23 @@ ArenaAllocator_buffer arena_newBlock(AllocatorV origional_allocator, usize size)
       .ptr = ptr,
   });
 }
-AllocatorV arena_new_ext(AllocatorV allocator, usize blocksize) {
-  var_ result = aCreate(allocator, ArenaAllocator_data);
-  memcpy(result->vt, _arena_prototype, sizeof(result->vt));
+allocfn arena_new_ext(allocfn allocator, usize blocksize) {
+  var_ result = acreate(allocator, ArenaAllocator_data);
+  result->fn = _arena_fn;
   result->buffers = mList_init(allocator, ArenaAllocator_buffer);
   mList_push(result->buffers, arena_newBlock(allocator, blocksize));
-  return result->vt;
+  return (allocfn)result;
 }
-void arena_cleanup(AllocatorV allocator) {
+void arena_cleanup(allocfn allocator) {
   var_ data = ((ArenaAllocator_data *)allocator);
   var_ vla = mList_vla(data->buffers);
   var_ backing = mList_allocator(data->buffers);
   foreach (var_ block, range(vla[0], vla[1]))
-    aFree(backing, block->ptr, block->capacity);
+    vcall(backing, fn, (block->ptr, block->capacity, 0, nullptr, 0));
   mList_deinit(data->buffers);
-  aFree(backing, data, sizeof(*data));
+  adestroy(backing, data);
 }
-void arena_clear(AllocatorV allocator) {
+void arena_clear(allocfn allocator) {
   var_ data = ((ArenaAllocator_data *)allocator);
   var_ vla = mList_vla(data->buffers);
   foreach (var_ block, range(vla[0], vla[1])) {
@@ -87,10 +77,10 @@ void arena_clear(AllocatorV allocator) {
     block->occupied = 0;
   }
 }
-usize arena_countBlocks(AllocatorV allocator) {
+usize arena_countBlocks(allocfn allocator) {
   return mList_len(((ArenaAllocator_data *)allocator)->buffers);
 }
-usize arena_totalMem(AllocatorV allocator) {
+usize arena_totalMem(allocfn allocator) {
   usize size = 0;
   var_ data = ((ArenaAllocator_data *)allocator);
   var_ vla = mList_vla(data->buffers);
@@ -98,7 +88,7 @@ usize arena_totalMem(AllocatorV allocator) {
     size += block->capacity;
   return size;
 }
-usize arena_footprint(AllocatorV allocator) {
+usize arena_footprint(allocfn allocator) {
   var_ data = ((ArenaAllocator_data *)allocator);
   usize size = 0;
   var_ vla = mList_vla(data->buffers);
@@ -109,9 +99,30 @@ usize arena_footprint(AllocatorV allocator) {
   return size;
 }
 
-void *_arena_alloc(AllocatorV allocator, usize size, char *file, usize line) {
+void *_arena_fn(void *allocator, void *ptr, usize oldsize, usize newsize, char *file, usize line) {
   var_ data = ((ArenaAllocator_data *)allocator);
-  size = lineup(size, alignof(myAlign));
+  oldsize = lineup(oldsize, alignof(myAlign));
+  newsize = lineup(newsize, alignof(myAlign));
+
+  if (!newsize) {
+    if (!ptr) return nullptr;
+    var_ vla = mList_vla(data->buffers);
+    assertMessage(!((uptr)ptr % alignof(myAlign)));
+    foreach (var_ block, range(vla[0], vla[1])) {
+      if ((u8 *)ptr >= block->ptr && (u8 *)ptr < block->ptr + block->capacity) {
+        assertMessage(block->count, "double free?");
+        assertMessage(block->occupied, "double free?");
+        block->count--;
+        if (!block->count)
+          block->occupied = 0;
+        else if (block->ptr + block->occupied == (u8 *)ptr + oldsize)
+          block->occupied -= oldsize;
+        return nullptr;
+      }
+    }
+    assertMessage(false, "allocator could'nt find the pointer");
+    return nullptr;
+  }
 
   assertMessage(mList_len(data->buffers));
   var_ len = mList_len(data->buffers);
@@ -120,17 +131,17 @@ void *_arena_alloc(AllocatorV allocator, usize size, char *file, usize line) {
 
   {
     var_ vla = mList_vla(data->buffers);
-    if (current->occupied + size > current->capacity) {
+    if (current->occupied + newsize > current->capacity) {
       foreach (var_ block, range(vla[0], vla[1])) {
         current = block;
         assertMessage(current->occupied % alignof(myAlign) == 0);
-        if (current->occupied + size <= current->capacity) goto found;
+        if (current->occupied + newsize <= current->capacity) goto found;
       }
       mList_push(
           data->buffers,
           arena_newBlock(
               arena_backing_allocator(allocator),
-              MAX$(mList_arr(data->buffers)[0].capacity, size)
+              MAX$(mList_arr(data->buffers)[0].capacity, newsize)
           )
       );
       current = &mList_last(data->buffers);
@@ -138,31 +149,17 @@ void *_arena_alloc(AllocatorV allocator, usize size, char *file, usize line) {
       found:;
       }
     }
-    // vla is'nt valid
   }
 
-  void *ptr = current->ptr + current->occupied;
-  current->occupied += size;
+  void *res = current->ptr + current->occupied;
+  current->occupied += newsize;
   current->count++;
 
-  return ptr;
-}
-void _arena_free(AllocatorV allocator, void *ptr, usize size, char *file, usize line) {
-  var_ data = ((ArenaAllocator_data *)allocator);
-  var_ vla = mList_vla(data->buffers);
-  assertMessage(!((uptr)ptr % alignof(myAlign)));
-  foreach (var_ block, range(vla[0], vla[1])) {
-    if ((u8 *)ptr >= block->ptr && (u8 *)ptr < block->ptr + block->capacity) {
-      assertMessage(block->count, "double free?");
-      assertMessage(block->occupied, "double free?");
-      block->count--;
-      if (!block->count)
-        block->occupied = 0;
-      else if (block->ptr + block->occupied == ptr)
-        block->occupied -= size;
-      return;
-    }
+  if (ptr && oldsize) {
+    memcpy(res, ptr, MIN$(oldsize, newsize));
+    _arena_fn(allocator, ptr, oldsize, 0, file, line);
   }
-  assertMessage(false, "allocator could'nt find the pointer");
+
+  return res;
 }
 #endif

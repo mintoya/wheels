@@ -1,231 +1,106 @@
-#ifndef MY_ALLOCATOR_H
-#define MY_ALLOCATOR_H
-#include "mytypes.h"
+#if !defined SINGLE_ALLOCATOR_H
+  #define SINGLE_ALLOCATOR_H (1)
+  #include "assertMessage.h"
+  #include "macros.h"
+  #include "mytypes.h"
+  #include <stdlib.h>
+typedef const struct allocfn *allocfn;
+typedef const struct allocfn {
+  const fnptrof(
+      (allocfn, void *, usize, usize, const char *, const uint),
+      void *
+  ) fn;
+} *allocfn;
 
-#define MY_ALLOCATOR_STRICTEST
+[[gnu::const]] static inline uptr lineup(uptr u, usize a) { return (((u + (a - 1)) / a) * a); }
+static inline uptr alloc_align(uptr u) { return lineup(u, alignof(myAlign)); }
+  #define vcallargs(it, ...) (it __VA_OPT__(, ) __VA_ARGS__)
+  #define vcall(it, name, args) (it->name vcallargs(it, REM_PAREN args))
 
-// #define lineup(u, a) ({var_ _a = a ; var_ _u = u;( ((_u + (_a - 1)) / _a) * _a ); })
-__attribute__((const)) static inline uptr lineup(uptr u, usize a) {
-  return (((u + (a - 1)) / a) * a);
-}
-// an allocated pointer should be uncheaged when passed trought this function
-__attribute__((const)) static inline uptr aAlloc_align(uptr unaligned) {
-  return lineup(
-      unaligned, MAX$(alignof(myAlign), sizeof(usize))
-  );
-}
-
-//
-// types
-//
-
-typedef struct My_allocator My_allocator;
-typedef const My_allocator *AllocatorV;
-/**
- *  equivalent of malloc
- *    cannot return null
- *    cannot allocate 0
- *    allocation always aligned to myAlign
- *  @param 1 allocator
- *  @param 2 size    *non-0*
- */
-typedef void *(*const My_allocatorAlloc)(AllocatorV, size_t, char *, usize);
-/**
- *  equivalent of free
- *  @param 1 allocator
- *  @param 2 pointer    *non-null* pointer must've come from same allocator
- */
-typedef void (*const My_allocatorFree)(AllocatorV, void *, usize, char *, usize);
-/**
- *  equivalent of realloc
- *    intended to behave as if
- *      same requirements as My_allocatorAlloc and My_allocatorFree
- *  @param 1 allocator
- *  @param 2 pointer    *non-null* pointer must've come from same allocator
- *  @param 3 size       new size of allocation, non-zero
- *  @return moved pointer
- */
-typedef void *(*const My_allocatorResize)(AllocatorV, void *, size_t, size_t, char *, usize);
-/**
- *  get the size of an allocation/reallocation
- *  @param 1 allocator
- *  @param 2 pointer    *non-null* pointer must've come from same allocator
- *  @return uszble allocation size
- */
-typedef size_t (*const My_allocatorGetUsable)(AllocatorV, void *);
-
-typedef struct My_allocator {
-  My_allocatorAlloc /*    */ alloc;
-  My_allocatorFree /*     */ free;
-  My_allocatorResize /*   */ resize; ///< optional
-  My_allocatorGetUsable /**/ size;   ///< optional
-  // TODO  clearall?
-  myAlign /*          */ arb[];
-} My_allocator;
-
-//
-// helpers
-//
-
-#define aAlloc(...) ((aAlloc)(__VA_ARGS__, (char *)__FUNCTION__, __LINE__))
-#define aResize(...) ((aResize)(__VA_ARGS__, (char *)__FUNCTION__, __LINE__))
-#define aFree(...) ((aFree)(__VA_ARGS__, (char *)__FUNCTION__, __LINE__))
-void *(aAlloc)(AllocatorV allocator, size_t size, char *, usize);
-void *(aResize)(AllocatorV allocator, void *oldptr, size_t oldsize, size_t newsize, char *, usize);
-void(aFree)(AllocatorV allocator, void *oldptr, usize size, char *file, usize line);
-
-#include "macros.h"
-#include <string.h>
-#define aCreate(allocator, type, ...)                                  \
-  /* optional count argument, defaults to 1*/                          \
-  DIAGNOSTIC_PUSH("-Weverything")                                      \
-  *(typeof(type)(*)[VA_SWITCH(1, __VA_ARGS__)])DIAGNOSTIC_POP()({      \
-    size_t _count = VA_SWITCH(1, __VA_ARGS__);                         \
-    type *_res = ((type *)(aAlloc(allocator, sizeof(type) * _count))); \
-    memset(_res, 0, sizeof(type) * _count);                            \
-    _res;                                                              \
+  #define acreate(alloc, T)                  \
+    ({                                       \
+      ptrof(T) _result = (ptrof(T))vcall(    \
+          (alloc),                           \
+          fn,                                \
+          (                                  \
+              nullptr,                       \
+              0,                             \
+              alloc_align(sizeof(*_result)), \
+              __FILE__,                      \
+              __LINE__                       \
+          )                                  \
+      );                                     \
+      memset(_result, 0, sizeof(*_result));  \
+      _result;                               \
+    })
+  #define avalue(alloc, val) ({                \
+    let _r = acreate(alloc, typeof(val));      \
+    let _m = val;                              \
+    (typeof(_m) *)memcpy(_r, &_m, sizeof(_m)); \
   })
-#define aDestroy(allocator, item) aFree(allocator, item, sizeof(*item))
-#define aValue(allocator, value) ({               \
-  var_ _rve = value;                              \
-  var_ _rse = &aCreate(allocator, typeof(value)); \
-  memcpy(_rse, &_rve, sizeof(*_rse));             \
-  *_rse;                                          \
-})
-// #define aDestroy(allocator , value )
-#if defined(__cplusplus)
+
+  #define adestroy(alloc, ptr) \
+    ((void)vcall((alloc), fn, ((ptr), alloc_align(sizeof(*(ptr))), 0, __FILE__, __LINE__)))
+
+  #define aresize(alloc, ptr, T) \
+    ((ptrof(T))vcall((alloc), fn, ((ptr), alloc_align(sizeof(*(ptr))), sizeof(T), __FILE__, __LINE__)))
+
+  #define acreate_extra(alloc, T, extra) \
+    ((ptrof(T))vcall((alloc), fn, (0, 0, alloc_align(sizeof(T) + (extra)), __FILE__, __LINE__)))
+
+// base allocator
+void *stdAllocatorFunction(
+    allocfn,
+    void *op,
+    usize from,
+    usize to,
+    const char *fname,
+    const uint ln
+);
+static const struct allocfn stdAlloc[1] = {{stdAllocatorFunction}};
 #endif
 
-extern AllocatorV stdAlloc;
-
-#endif // MY_ALLOCATOR_H
-
-#if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
-#define MY_ALLOCATOR_C (1)
-#endif
-#if defined(MY_ALLOCATOR_C)
-#include "assertMessage.h"
-#include <stdio.h>
-#include <stdlib.h>
-
-#ifdef MY_ALLOCATOR_STRICTEST
-static inline void check_size(size_t size, char *file, usize line) {
-  assertMessage(size, "allocators cant allocate nothing : %s,%zu", file, line);
+#if (defined SINGLE_ALLOCATOR_C && SINGLE_ALLOCATOR_C == 1) || (defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0)
+  #undef SINGLE_ALLOCATOR_C
+  #define SINGLE_ALLOCATOR_C (2)
+  #include "tests.h"
+test_fn(lifecycle) {
+  adestroy(stdAlloc, aresize(stdAlloc, acreate(stdAlloc, int[5]), int[2]));
 }
-
-static inline void check_realloc_ptr(void *oldptr, char *file, usize line) {
-  assertMessage(oldptr, "tried to reallocate a null pointer : %s,%zu", file, line);
-}
-
-static inline void check_free_ptr(void *oldptr, char *file, usize line) {
-  assertMessage(oldptr, "tried to free a null pointer", file, line);
-}
-
-static inline void check_result(AllocatorV allocator, usize request_size, void *res) {
-  if (!res || ((uptr)res % alignof(myAlign))) {
-    fprintf(
-        stdout,
-        "requested : %zu\n"
-        "allocator:\n"
-        "\ta:%p\n"
-        "\tf:%p\n"
-        "\tr:%p\n"
-        "\ts:%p\n",
-        request_size,
-        allocator->alloc,
-        allocator->free,
-        allocator->resize,
-        allocator->size
-    );
-    assertMessage(res, "allocators cant return null");
-    assertMessage(false, "wrong alignment out of allocator %zu", (uptr)res);
-  }
-}
-#endif
-
-void *(aAlloc)(AllocatorV allocator, size_t size, char *file, usize line) {
-#ifdef MY_ALLOCATOR_STRICTEST
-  size = aAlloc_align(size);
-  check_size(size, file, line);
-#endif
-  void *res = (allocator)->alloc(allocator, size, file, line);
-#ifdef MY_ALLOCATOR_STRICTEST
-  check_result(allocator, size, res);
-#endif
-  return res;
-}
-void *(aResize)(AllocatorV allocator, void *oldptr, usize oldsize, size_t newsize, char *file, usize line) {
-#ifdef MY_ALLOCATOR_STRICTEST
-  oldsize = aAlloc_align(oldsize);
-  newsize = aAlloc_align(newsize);
-  check_size(newsize, file, line);
-  check_realloc_ptr(oldptr, file, line);
-#endif
-  void *res;
-  if (allocator->resize) {
-
-    void *result = (allocator)->resize(allocator, oldptr, oldsize, newsize, file, line);
-#ifdef MY_ALLOCATOR_STRICTEST
-    check_result(allocator, newsize, result);
-#endif
-    res = result;
-  } else {
-
-    void *result = aAlloc(allocator, newsize);
-    usize size = oldsize < newsize ? oldsize : newsize;
-    memcpy(result, oldptr, size);
-    allocator->free(allocator, oldptr, oldsize, file, line);
-    res = (void *)result;
-  }
-  return res;
-}
-void(aFree)(AllocatorV allocator, void *oldptr, usize size, char *file, usize line) {
-#ifdef MY_ALLOCATOR_STRICTEST
-  size = aAlloc_align(size);
-  check_free_ptr(oldptr, file, line);
-#endif
-  (allocator)->free(allocator, oldptr, size, file, line);
-}
-
-void *default_alloc(const My_allocator *allocator, size_t s, char *, usize) {
-  var_ res = malloc(aAlloc_align(s));
-  assertMessage(!((uptr)res % alignof(myAlign)), "%i", (uptr)res % alignof(myAlign));
-  return res;
-}
-void *default_r_alloc(const My_allocator *allocator, void *p, size_t os, size_t ns, char *, usize) { return realloc(p, ns); }
-void default_free(const My_allocator *allocator, void *p, usize size, char *, usize) { return free(p); }
-#if defined(_WIN32) || defined(_WIN64) || defined(__linux__)
-  #define DEFAULT_SIZE_GETTER (1)
-  #include <malloc.h>
-#elif defined(__APPLE__) || defined(__MACH__)
-  #define DEFAULT_SIZE_GETTER (1)
-  #include <malloc/malloc.h>
-#else
-  #undef DEFAULT_SIZE_GETTER
-#endif
-
-#ifdef DEFAULT_SIZE_GETTER
-usize default_size(AllocatorV allocator, void *ptr) {
-  #if defined(_WIN32) || defined(_WIN64)
-  usize (*getSize)(void *) = _msize;
-  #elif defined(__linux__)
-  usize (*getSize)(void *) = malloc_usable_size;
-  #elif defined(__APPLE__) || defined(__MACH__)
-  usize (*getSize)(void *) = malloc_size;
+  // #define STD_PRINT_DEBUG
+  #if defined STD_PRINT_DEBUG
+    #define pptr(ptr) ({let _p = ptr; printf("%p", _p);_p; })
   #else
-      // compile error
+    #define pptr(ptr) ({let _p = ptr; _p; })
   #endif
-  return getSize(ptr);
+void *stdAllocatorFunction(
+    allocfn,
+    void *op,
+    usize from,
+    usize to,
+    const char *fname,
+    const uint ln
+) {
+  typedef enum : u8 {
+    ALLOC = 0b01,
+    RESIZE = 0b11,
+    FREE = 0b10,
+  } amode;
+  #if defined STD_PRINT_DEBUG
+  printf("%s %u (%p %zu %zu ", fname, ln, op, from, to);
+  defer { printf(")\n"); };
+  #endif
+
+  switch (((!!from) << 1) | ((!!to) << 0)) {
+    case ALLOC:
+      return (assertMessage(!op, "allocation called pointer"), pptr(malloc(to)));
+    case FREE:
+      return (assertMessage(op, "allocator does not return null"), free(op), pptr(nullptr));
+    case RESIZE:;
+      return (assertMessage(op, "allocator does not return null"), pptr(realloc(op, to)));
+    default:
+      assertMessage(false, "invalid call from %s line %u: (%p , %zu , %zu)", fname, ln, op, from, to);
+  }
 }
-#endif // DEFAULT_SIZE_GETTER
-AllocatorV stdAlloc = (typeof(stdAlloc))(My_allocator[1]){{
-    default_alloc,
-    default_free,
-    default_r_alloc,
-#ifdef DEFAULT_SIZE_GETTER
-    default_size,
-#else
-    nullptr
-#endif
-}};
+  #undef pptr
 #endif

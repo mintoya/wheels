@@ -11,10 +11,10 @@ typedef struct {
     hxmap hmap[1];
     oxmap omap[1];
   };
-  AllocatorV stringArena;
+  allocfn stringArena;
 } sxmap;
 
-sxmap *smap_new(AllocatorV allocator, u32 vsize, usize cap, usize arenaSize);
+sxmap *smap_new(allocfn allocator, u32 vsize, usize cap, usize arenaSize);
 void *smap_set(sxmap *map, fptr k, void *b);
 void smap_free(sxmap *map);
 void *smap_get(sxmap *map, fptr k);
@@ -81,16 +81,14 @@ test_fn(smap_test) {
 u64 hashfptr(const void *a);
 i8 cmpfptr(const void *a, const void *b);
 #endif
-
-#if defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0
-  #define SXMAP_C (1)
-#endif
-
-#if defined SXMAP_C
+#if defined SXMAP_C && SXMAP_C == (1) || \
+    (defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0)
+  #undef SXMAP_C
+  #define SXMAP_C (2)
 u64 hashfptr(const void *a) { return fptr_hash(*(fptr *)a); }
 i8 cmpfptr(const void *a, const void *b) { return fptr_cmp(*(fptr *)a, *(fptr *)b); }
-sxmap *smap_new(AllocatorV allocator, u32 vsize, usize cap, usize arenaSize) {
-  var_ res = aCreate(allocator, sxmap);
+sxmap *smap_new(allocfn allocator, u32 vsize, usize cap, usize arenaSize) {
+  var_ res = acreate(allocator, sxmap);
   hxmap_newm(allocator, sizeof(fptr), vsize, cap, hashfptr, cmpfptr, res->hmap);
   // oxmap_newm(allocator, sizeof(fptr), vsize, cmpfptr, res->omap);
   res->stringArena = arena_new_ext(allocator, arenaSize);
@@ -100,7 +98,7 @@ void smap_free(sxmap *map) {
   var_ allocator = map->hmap->allocator;
   arena_cleanup(map->stringArena);
   hxmap_freem(map->hmap[0]);
-  aDestroy(allocator, map);
+  adestroy(allocator, map);
 }
 void *smap_set(sxmap *map, fptr k, void *b) {
   if (!k.len) return nullptr;
@@ -110,7 +108,7 @@ void *smap_set(sxmap *map, fptr k, void *b) {
       ({
         $
             ? *(fptr *)hxmap_val_key(map->hmap, $)
-            : (fptr){k.len, (u8 *)memcpy(aCreate(map->stringArena, u8, k.len), k.ptr, k.len)};
+            : (fptr){k.len, (u8 *)memcpy(acreate(map->stringArena, u8[k.len]), k.ptr, k.len)};
       })
   );
   return hxmap_set(map->hmap, &copy, b);

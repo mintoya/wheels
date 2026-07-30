@@ -25,19 +25,19 @@ typedef struct vason_node {
     } *string;
   };
 } vason_node;
-void vason_node_free(AllocatorV allocator, vason_node n);
-void vason_node_freeRecursive(AllocatorV allocator, vason_node n);
+void vason_node_free(allocfn allocator, vason_node n);
+void vason_node_freeRecursive(allocfn allocator, vason_node n);
 usize vason_node_footprint(vason_node n);
-vason_node vason_node_newPair(AllocatorV a);
-vason_node vason_node_makePair(AllocatorV a, vason_node key, vason_node val);
-vason_node vason_node_newTable(AllocatorV a);
-vason_node vason_node_newStr(AllocatorV a, slice(c8) str);
-void vason_table_push(AllocatorV a, vason_node *table, vason_node item);
-vason_node vason_container_toNode(AllocatorV allocator, vason_container c);
-vason_container vason_node_toContainer(AllocatorV allocator, vason_node n, slice(c8) * strContainer);
-vason_node vason_node_str(AllocatorV a, const char *c);
-vason_node vason_node_deepCopy(AllocatorV allocator, vason_node n);
-slice(c8) vason_node_toStr(AllocatorV allocator, vason_node n);
+vason_node vason_node_newPair(allocfn a);
+vason_node vason_node_makePair(allocfn a, vason_node key, vason_node val);
+vason_node vason_node_newTable(allocfn a);
+vason_node vason_node_newStr(allocfn a, slice(c8) str);
+void vason_table_push(allocfn a, vason_node *table, vason_node item);
+vason_node vason_container_toNode(allocfn allocator, vason_container c);
+vason_container vason_node_toContainer(allocfn allocator, vason_node n, slice(c8) * strContainer);
+vason_node vason_node_str(allocfn a, const char *c);
+vason_node vason_node_deepCopy(allocfn allocator, vason_node n);
+slice(c8) vason_node_toStr(allocfn allocator, vason_node n);
 
 NAMESPACE_STRUCT(
     vasonTree_newItem,
@@ -76,7 +76,7 @@ test_fn(vason_match) {
   vason_table_push(allocator, &root, vason_node_deepCopy(allocator, root));
 
   slice(c8) result = vason_node_toStr(allocator, root);
-  defer { aFree(allocator, result.ptr, result.len); };
+  defer { slice_free(allocator, result); };
 
   const char expected[] = "{hello:world,hello,world,{hello:world,hello,world}}";
 
@@ -100,19 +100,17 @@ test_fn(vason_match) {
   test_assert(vason_container_eq(a, b));
 }
 #endif
-
-#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-  #define VASON_BUILDER_C (1)
-#endif
-
-#if defined(VASON_BUILDER_C)
-vason_node vason_node_newPair(AllocatorV a) {
+#if (defined VASON_BUILDER_C && VASON_BUILDER_C == 1) || \
+    (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
+  #undef VASON_BUILDER_C
+  #define VASON_BUILDER_C (2)
+vason_node vason_node_newPair(allocfn a) {
   return (vason_node){
       .tag = vason_PAIR,
-      .pair = aCreate(a, vason_node, 2),
+      .pair = *acreate(a, vason_node[2]),
   };
 }
-void vason_node_freeRecursive(AllocatorV allocator, vason_node n) {
+void vason_node_freeRecursive(allocfn allocator, vason_node n) {
   switch (n.tag) {
     case vason_PAIR: {
       vason_node_freeRecursive(allocator, n.pair[0]);
@@ -129,47 +127,47 @@ void vason_node_freeRecursive(AllocatorV allocator, vason_node n) {
   }
   vason_node_free(allocator, n);
 }
-void vason_node_free(AllocatorV allocator, vason_node n) {
+void vason_node_free(allocfn allocator, vason_node n) {
   switch (n.tag) {
     case vason_PAIR: {
-      aFree(allocator, n.pair, sizeof(*n.pair) * 2);
+      adestroy(allocator, (typeof (*n.pair)(*)[2])n.pair);
     } break;
     case vason_TABLE: {
       msList_deInit(allocator, n.table);
     } break;
     case vason_STRING: {
-      aFree(allocator, n.string, sizeof(*n.string) + n.string->len);
+      adestroy(allocator, (u8(*)[sizeof(*n.string) + n.string->len]) n.string);
     } break;
     default:
       assertMessage(false, "no free for this node ");
   }
 }
-vason_node vason_node_makePair(AllocatorV a, vason_node key, vason_node val) {
+vason_node vason_node_makePair(allocfn a, vason_node key, vason_node val) {
   assertMessage(key.tag == vason_STRING);
   vason_node res = vason_node_newPair(a);
   res.pair[0] = key;
   res.pair[1] = val;
   return res;
 }
-vason_node vason_node_newTable(AllocatorV a) {
+vason_node vason_node_newTable(allocfn a) {
   return (vason_node){
       .tag = vason_TABLE,
       .table = msList_init(a, vason_node)
   };
 }
-vason_node vason_node_newStr(AllocatorV a, slice(c8) str) {
+vason_node vason_node_newStr(allocfn a, slice(c8) str) {
   vason_node res = (vason_node){
       .tag = vason_STRING,
-      .string = (typeof(res.string))aAlloc(a, sizeof(res.string[0]) + str.len)
+      .string = acreate_extra(a, typeof(res.string[0]), str.len)
   };
   memcpy(res.string->buffer, str.ptr, str.len);
   res.string->len = str.len;
   return res;
 }
-vason_node vason_node_str(AllocatorV a, const char *c) {
+vason_node vason_node_str(allocfn a, const char *c) {
   return vason_node_newStr(a, (slice(c8)){strlen((char *)c), (c8 *)c});
 }
-void vason_table_push(AllocatorV a, vason_node *table, vason_node item) {
+void vason_table_push(allocfn a, vason_node *table, vason_node item) {
   assertMessage(table->tag == vason_TABLE);
   msList_push(a, table->table, item);
 }
@@ -215,7 +213,7 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
       assertMessage(false, "unreachable?");
   }
 }
-vason_container vason_node_toContainer(AllocatorV allocator, vason_node n, slice(c8) * strContainer) {
+vason_container vason_node_toContainer(allocfn allocator, vason_node n, slice(c8) * strContainer) {
   assertMessage(strContainer && !strContainer->len);
   vason_container res = (vason_container){
       .current = 0,
@@ -229,7 +227,7 @@ vason_container vason_node_toContainer(AllocatorV allocator, vason_node n, slice
   msList_push(allocator, res.tables_strings, (vason_span){});
   vason_node_intoContainer(&res, n, 0);
 
-  let f = aCreate(allocator, typeof(*msList_vla(res.text.ptr)));
+  let f = acreate(allocator, typeof(*msList_vla(res.text.ptr)));
   let e = msList_vla(res.text.ptr);
   slice(c8) resStr = {
       msList_len(res.text.ptr),
@@ -240,7 +238,7 @@ vason_container vason_node_toContainer(AllocatorV allocator, vason_node n, slice
   res.text = resStr;
   return res;
 }
-vason_node vason_container_toNode(AllocatorV allocator, vason_container c) {
+vason_node vason_container_toNode(allocfn allocator, vason_container c) {
   assertMessage(!c.tokens, "no lazy containers");
   switch (c.tags[c.current]) {
     case vason_STRING: {
@@ -296,7 +294,7 @@ usize vason_node_footprint(vason_node n) {
       return 0;
   }
 }
-vason_node vason_node_deepCopy(AllocatorV allocator, vason_node n) {
+vason_node vason_node_deepCopy(allocfn allocator, vason_node n) {
   vason_node res;
   res.tag = n.tag;
   switch (n.tag) {
@@ -306,24 +304,24 @@ vason_node vason_node_deepCopy(AllocatorV allocator, vason_node n) {
         msList_push(allocator, res.table, vason_node_deepCopy(allocator, item));
     } break;
     case vason_PAIR: {
-      res.pair = aCreate(allocator, vason_node, 2);
+      res.pair = *acreate(allocator, vason_node[2]);
       res.pair[0] = vason_node_deepCopy(allocator, n.pair[0]);
       res.pair[1] = vason_node_deepCopy(allocator, n.pair[1]);
     } break;
     case vason_STRING: {
-      res.string = (typeof(res.string))aAlloc(allocator, sizeof(*n.string) + n.string->len);
+      res.string = acreate_extra(allocator, typeof(*n.string), n.string->len);
       res.string->len = n.string->len;
       memcpy(res.string->buffer, n.string->buffer, n.string->len);
     } break;
   }
   return res;
 }
-slice(c8) vason_node_toStr(AllocatorV allocator, vason_node n) {
+slice(c8) vason_node_toStr(allocfn allocator, vason_node n) {
   slice(c8) strp = {};
   vason_container c = vason_node_toContainer(allocator, n, &strp);
   var_ v = vason_tostr(allocator, c);
   vason_container_free(c);
-  aFree(allocator, strp.ptr, strp.len);
+  adestroy(allocator, (u8(*)[strp.len])strp.ptr);
   return v;
 }
 #endif

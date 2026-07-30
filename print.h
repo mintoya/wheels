@@ -6,8 +6,8 @@
   #include "macros.h"
   #include "print/print_pre.h"
   #include "sList.h"
-  #include "smap.h"
   #include <locale.h>
+  #include <stdatomic.h>
   #include <stdio.h>
   #include <string.h>
 
@@ -236,6 +236,7 @@ __attribute__((constructor(205))) static void printer_post_initfn() {
 #endif
 
 #if defined MY_PRINTER_C && MY_PRINTER_C == 1 && MY_PRINTER_H == 2
+
 PrinterSingleton_t PrinterSingleton = {};
 void PrinterSingleton_init() { printermap_newm(debugAllocator(.allocator = stdAlloc), 3, PrinterSingleton.data); }
 void PrinterSingleton_deInit() { debugAllocatorDeInit(PrinterSingleton.data[0].allocator); }
@@ -337,9 +338,9 @@ usize print_f_arglen(fptr in) {
   return res;
 }
 // sentinel terminated list of views into in
-printerfunction_arg *print_f_makeArgs(AllocatorV allocator, fptr in) {
+printerfunction_arg *print_f_makeArgs(allocfn allocator, fptr in) {
   let arglen = print_f_arglen(in);
-  let res = aCreate(allocator, printerfunction_arg, arglen + 1);
+  let res = *acreate(allocator, printerfunction_arg[arglen + 1]);
   foreach (let x, span(res, arglen))
     x->next = x + 1;
   let cur = res;
@@ -363,22 +364,23 @@ test_fn(print_f_args) {
   test_assert(print_f_arglen(args) == 4);
   let splits = print_f_makeArgs(allocator, args);
   test_assert(fptr_isEmpty((fptr){sizeof(splits[0]), (u8 *)(splits + 4)}));
-  defer { aFree(allocator, splits, sizeof(splits[0]) * 5); };
+  defer { adestroy(allocator, (typeof(splits[0])(*)[5])splits); };
   foreach (let i, span(splits, 3))
     test_assert(i->next == i + 1);
-  test_assert(fptr_eq(splits[0].str, "a"));
-  test_assert(fptr_eq(splits[1].str, "b"));
-  test_assert(fptr_eq(splits[2].str, "c"));
-  test_assert(fptr_eq(splits[3].str, "d"));
+
+  test_fpeq(splits[0].str, "a");
+  test_fpeq(splits[1].str, "b");
+  test_fpeq(splits[2].str, "c");
+  test_fpeq(splits[3].str, "d");
 }
 test_fn(print_f_args_paren) {
   let args = fp("a :b:(c :d "); // )
   test_assert(print_f_arglen(args) == 3);
   let splits = print_f_makeArgs(allocator, args);
-  defer { aFree(allocator, splits, sizeof(splits[0]) * 4); };
+  defer { adestroy(allocator, (typeof(splits[0])(*)[4])splits); };
   test_fpeq(splits[0].str, "a");
   test_fpeq(splits[1].str, "b");
-  test_fpeq(splits[2].str, "(c :d"); // 0
+  test_fpeq(splits[2].str, "(c :d"); // )
 }
 test_fn(print_f_args_paren2) {
   let args = fp("a :b:(c) :d ");
@@ -391,11 +393,35 @@ void print_f(
     const char *fmt,
     struct print_arg *args
 ) {
-  let allocatorbuf = (fbafb_buffer(myAlign[4])){};
+  allocfn allocator;
+  // { allocator state
+  bool owns = false;
+  static _Atomic(bool) b = true; // true = available, false = in-use
+  let static bigbuf = (fbafb_buffer(myAlign[100])){};
+  let smallbuf = (fbafb_buffer(myAlign[2])){};
 
-  let allocator = fbafb_initBuffer(allocatorbuf, nullptr, initarena, deinitarena);
-  defer { fbafb_deinit(allocator); };
-
+  // atomic_exchange reads the old value and writes false in one indivisible step
+  if (atomic_exchange(&b, false)) {
+    owns = true;
+    allocator = fbafb_initBuffer(
+        bigbuf,
+        nullptr,
+        initarena,
+        deinitarena
+    );
+  } else {
+    allocator = fbafb_initBuffer(
+        smallbuf,
+        nullptr,
+        initarena,
+        deinitarena
+    );
+  }
+  defer {
+    if (owns) atomic_store(&b, true); // release back to true
+    fbafb_deinit(allocator);
+  };
+  // }
   bool toggled = 0;
   for (u32 i = 0; fmt[i]; i++) {
     if (fmt[i] == '{' && !toggled) {
@@ -410,7 +436,7 @@ void print_f(
 
       fptr tname = parg.until(':', typeName);
       let list = print_f_makeArgs(allocator, slice_split(typeName, (tname.len + 1, -1))[0]);
-      defer { aFree(allocator, list, sizeof(list[0]) * (1 + sentList_length(list, sizeof(list[0])))); };
+      defer { adestroy(allocator, (typeof(list[0])(*)[sentList_len(list) + 1]) list); };
       tname = parg.trim(tname);
 
       if (!assumedName.ref.ptr)
@@ -418,7 +444,7 @@ void print_f(
       print_f_helper(
           assumedName,
           tname,
-          (printerfunction_context){put, arb, list[0]}
+          (printerfunction_context){put, arb, list[0], allocator}
       );
       i = j;
       toggled = 0;

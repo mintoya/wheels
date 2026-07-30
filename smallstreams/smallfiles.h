@@ -35,8 +35,8 @@ typedef struct {
   };
 } fileopenflags;
 
-sstream file_stream_open(AllocatorV allocator, const char *const path, fileopenflags flags);
-void file_stream_close(AllocatorV allocator, sstream stream);
+sstream file_stream_open(allocfn allocator, const char *const path, fileopenflags flags);
+void file_stream_close(allocfn allocator, sstream stream);
   #include "../tests.h"
 
 test_fn(file_stream_write_read) {
@@ -244,7 +244,7 @@ const small_stream_vt _file_vt = {
     .efromint = _file_sstream_efromint,
 };
 
-sstream file_stream_open(AllocatorV allocator, const char *const path, fileopenflags flags) {
+sstream file_stream_open(allocfn allocator, const char *const path, fileopenflags flags) {
   int flagint = 0;
 
   if (flags.access.read && flags.access.write) flagint |= O_RDWR;
@@ -261,7 +261,7 @@ sstream file_stream_open(AllocatorV allocator, const char *const path, fileopenf
 
   int fd = flags.mode.create ? open(path, flagint, 0666) : open(path, flagint);
   if (fd < 0) return nullptr;
-  struct file_stream *result = aCreate(allocator, struct file_stream);
+  struct file_stream *result = acreate(allocator, struct file_stream);
   memcpy(result[0].vt, &_file_vt, sizeof(_file_vt));
   result[0].vt->tell_max = &result[0].file_len;
   result[0].fileno = fd;
@@ -273,10 +273,10 @@ sstream file_stream_open(AllocatorV allocator, const char *const path, fileopenf
   return (sstream)result;
 }
 
-void file_stream_close(AllocatorV allocator, sstream stream) {
+void file_stream_close(allocfn allocator, sstream stream) {
   struct file_stream *meta = (typeof(meta))stream;
   close(meta->fileno);
-  aFree(allocator, meta, sizeof(*meta));
+  adestroy(allocator, meta);
 }
 
   // }
@@ -389,7 +389,7 @@ const small_stream_vt _file_vt = {
     .efromint = _file_sstream_efromint,
 };
 
-sstream file_stream_open(AllocatorV allocator, const char *const path, fileopenflags flags) {
+sstream file_stream_open(allocfn allocator, const char *const path, fileopenflags flags) {
   DWORD access = 0;
   if (flags.access.read) access |= GENERIC_READ;
   if (flags.access.write) {
@@ -417,7 +417,7 @@ sstream file_stream_open(AllocatorV allocator, const char *const path, fileopenf
   }
   if (handle == INVALID_HANDLE_VALUE) return nullptr;
 
-  struct file_stream *result = aCreate(allocator, struct file_stream);
+  struct file_stream *result = acreate(allocator, struct file_stream);
   memcpy(result[0].vt, &_file_vt, sizeof(_file_vt));
   result[0].vt->tell_max = &result[0].file_len;
   result[0].handle = handle;
@@ -433,10 +433,10 @@ sstream file_stream_open(AllocatorV allocator, const char *const path, fileopenf
   return (sstream)result;
 }
 
-void file_stream_close(AllocatorV allocator, sstream stream) {
+void file_stream_close(allocfn allocator, sstream stream) {
   struct file_stream *meta = (typeof(meta))stream;
   CloseHandle(meta->handle);
-  aFree(allocator, meta, sizeof(*meta));
+  adestroy(allocator, meta);
 }
 
   //}

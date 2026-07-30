@@ -17,7 +17,7 @@ typedef struct stringList {
               /// sorted
   usize len, cap;
   vlength *buff;
-  AllocatorV allocator;
+  allocfn allocator;
 } stringList;
 struct u64_vl_max {
   vlength _[sizeof(u64) * 8 / 7 + 1];
@@ -48,8 +48,8 @@ static inline fptr vlqbuf_toFptr(vlength *b) {
       })
   };
 }
-stringList *stringList_new(AllocatorV allocator, usize initSize);
-stringList stringList_newVal(AllocatorV allocator, usize initSize);
+stringList *stringList_new(allocfn allocator, usize initSize);
+stringList stringList_newVal(allocfn allocator, usize initSize);
 void stringList_free(stringList *sl);
 void stringList_free_data(stringList slp);
 void stringList_remove(stringList *, usize);
@@ -67,7 +67,7 @@ fptr stringList_insert(stringList *, usize, fptr);
   #define stringList_set(stringlist, idx, ptr) stringList_set(stringlist, idx, fp(ptr))
   #define stringList_insert(stringlist, idx, ptr) stringList_insert(stringlist, idx, fp(ptr))
 
-inline stringList *stringList_copy(AllocatorV allocator, stringList *sl) {
+inline stringList *stringList_copy(allocfn allocator, stringList *sl) {
   stringList *res = stringList_new(allocator, sl->len > 10 ? sl->len : 10);
   foreach (usize i, range(0, stringList_len(sl)))
     stringList_push(res, stringList_get(sl, i));
@@ -77,7 +77,7 @@ inline stringList *stringList_copy(AllocatorV allocator, stringList *sl) {
   #if defined __cplusplus
 struct strList {
   stringList *ptr;
-  inline strList(AllocatorV allocator = stdAlloc, usize initSize = 20) {
+  inline strList(allocfn allocator = stdAlloc, usize initSize = 20) {
     ptr = stringList_new(allocator, initSize);
   }
   inline ~strList() { stringList_free(ptr); }
@@ -148,12 +148,10 @@ test_fn(test_stringList_churn) {
          (size_t)msList_len(sl->flist));
 }
 #endif
-
-#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-  #define STRING_LIST_C (1)
-#endif
-
-#if defined(STRING_LIST_C)
+#if (defined STRING_LIST_C && STRING_LIST_C == 1) || \
+    defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
+  #undef STRING_LIST_C
+  #define STRING_LIST_C (2)
   #include <stddef.h>
 
   #define vlen_stat(stringLiteral) ({                 \
@@ -168,37 +166,34 @@ test_fn(test_stringList_churn) {
     (vlqbuf) & res;                                   \
   })
 
-stringList stringList_newVal(AllocatorV allocator, usize initSize) {
+stringList stringList_newVal(allocfn allocator, usize initSize) {
   stringList res = (typeof(res)){
       .ulist = msList_init(allocator, i32),
       .flist = msList_init(allocator, i32),
       .len = 0,
-      .buff = (typeof(res.buff))aAlloc(allocator, initSize),
+      .buff = *acreate(allocator, vlength[initSize]),
       .allocator = allocator,
   };
   assertMessage(!msList_len(res.ulist), "should be 0, is %llu", (unsigned long long)msList_len(res.ulist));
   assertMessage(!msList_len(res.flist), "should be 0, is %llu", (unsigned long long)msList_len(res.flist));
-  if (allocator->size)
-    res.cap = allocator->size(allocator, res.buff);
-  else
-    res.cap = initSize;
+  res.cap = initSize;
   return res;
 }
-stringList *stringList_new(AllocatorV allocator, usize initSize) {
-  stringList *res = aCreate(allocator, stringList);
+stringList *stringList_new(allocfn allocator, usize initSize) {
+  let res = acreate(allocator, stringList);
   *res = stringList_newVal(allocator, initSize);
   return res;
 }
 void stringList_free_data(stringList slp) {
-  AllocatorV allocator = slp.allocator;
+  allocfn allocator = slp.allocator;
   msList_deInit(allocator, slp.ulist);
   msList_deInit(allocator, slp.flist);
-  aFree(allocator, slp.buff, slp.cap);
+  adestroy(allocator, (typeof (*slp.buff)(*)[slp.cap])slp.buff);
 }
 void stringList_free(stringList *slp) {
-  AllocatorV allocator = slp->allocator;
+  allocfn allocator = slp->allocator;
   stringList_free_data(*slp);
-  aFree(allocator, slp, sizeof(stringList));
+  adestroy(allocator, slp);
 }
 struct flsr {
   usize i;
@@ -271,10 +266,12 @@ fptr(stringList_push)(stringList *sl, fptr ptr) {
   } else {
     offset = sl->len;
     if (offset + ptr.len + vlq_len > sl->cap) {
-      sl->buff = (vlength *)aResize(sl->allocator, sl->buff, sl->len, offset + offset / 2 + ptr.len + vlq_len + 10);
-      sl->cap = sl->allocator->size
-                    ? sl->allocator->size(sl->allocator, sl->buff)
-                    : offset + offset / 2 + ptr.len + vlq_len + 10;
+      sl->buff = *aresize(
+          sl->allocator,
+          (vlength(*)[sl->len])sl->buff,
+          vlength[offset + offset / 2 + ptr.len + vlq_len + 10]
+      );
+      sl->cap = offset + offset / 2 + ptr.len + vlq_len + 10;
     }
     sl->len = offset + ptr.len + vlq_len;
   }

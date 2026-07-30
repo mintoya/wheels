@@ -78,7 +78,7 @@ CONST_EXPR int flagshift = sizeof(hxint) * 8 - 1;
 }
 
 typedef struct mapname {
-  AllocatorV allocator;
+  allocfn allocator;
   usize count;
   int capbit;
   u64 *__restrict flags;
@@ -127,7 +127,7 @@ static inline hxint MAP_FN(default_hash)(MAP_K a) {
 }
 
 static inline void MAP_FN(newm)(
-    AllocatorV allocator,
+    allocfn allocator,
     int capbit,
     mapname map[1]
 ) {
@@ -138,34 +138,33 @@ static inline void MAP_FN(newm)(
       .allocator = allocator,
       .count = 0,
       .capbit = capbit,
-      .flags = aCreate(allocator, ptrstype(itypeof(mapname, flags)), cap),
-      .keys = aCreate(allocator, MAP_K, cap),
-      .vals = aCreate(allocator, MAP_V, cap),
+      .flags = *acreate(allocator, ptrstype(itypeof(mapname, flags))[cap]),
+      .keys = *acreate(allocator, MAP_K[cap]),
+      .vals = *acreate(allocator, MAP_V[cap]),
   });
   mcpy(*map, rs);
 }
 
 static inline mapname *MAP_FN(new)(
-    AllocatorV allocator,
+    allocfn allocator,
     int capbit
 ) {
-  let map = (mapname){};
-  MAP_FN(newm)(allocator, capbit, &map);
-  return aValue(allocator, map);
+  let map = acreate(allocator, mapname);
+  MAP_FN(newm)(allocator, capbit, map);
+  return map;
 }
 
 static inline void MAP_FN(freem)(mapname map) {
   let allocator = map.allocator;
-  usize cap = (usize)1 << map.capbit;
-  aFree(allocator, map.flags, sizeof(*map.flags) * cap);
-  aFree(allocator, map.keys, sizeof(MAP_K) * cap);
-  aFree(allocator, map.vals, sizeof(MAP_V) * cap);
+  adestroy(allocator, map.flags);
+  adestroy(allocator, map.keys);
+  adestroy(allocator, map.vals);
 }
 
 static inline void MAP_FN(free)(mapname *map) {
   let allocator = map->allocator;
   MAP_FN(freem)(*map);
-  aDestroy(allocator, map);
+  adestroy(allocator, map);
 }
 
 static inline void MAP_FN(manage)(
@@ -179,23 +178,23 @@ static inline void MAP_FN(manage)(
   let nc = (usize)1 << ncb;
 
   usize newcount = 0;
-  let nv = aCreate(map->allocator, MAP_V, nc);
-  let nk = aCreate(map->allocator, MAP_K, nc);
-  let nf = aCreate(map->allocator, ptrstype(itypeof(mapname, flags)), nc);
+  let nv = acreate(map->allocator, MAP_V[nc]);
+  let nk = acreate(map->allocator, MAP_K[nc]);
+  let nf = acreate(map->allocator, ptrstype(itypeof(mapname, flags))[nc]);
 
   let ov = map->vals;
   let ok = map->keys;
   let of = map->flags;
   defer {
-    aFree(map->allocator, ov, sizeof(MAP_V) * oc);
-    aFree(map->allocator, ok, sizeof(MAP_K) * oc);
-    aFree(map->allocator, of, sizeof(*of) * oc);
+    adestroy(map->allocator, ov);
+    adestroy(map->allocator, ok);
+    adestroy(map->allocator, of);
   };
 
   map->capbit = ncb;
-  map->vals = nv;
-  map->keys = nk;
-  map->flags = nf;
+  map->vals = *nv;
+  map->keys = *nk;
+  map->flags = *nf;
 
   foreach (usize i, range(0, oc))
     if (isHXOCCUPIED(of[i])) {
@@ -203,14 +202,14 @@ static inline void MAP_FN(manage)(
       hxint hx = HXHASHBITS(of[i]);
       let idx = hx % nc;
 
-      while (isHXOCCUPIED(nf[idx])) {
+      while (isHXOCCUPIED((*nf)[idx])) {
         idx++;
         if (idx >= nc) idx = 0;
       }
 
-      nf[idx] = ((hxint)HXOCC << flagshift) | hx;
-      nk[idx] = ok[i];
-      nv[idx] = ov[i];
+      (*nf)[idx] = ((hxint)HXOCC << flagshift) | hx;
+      (*nk)[idx] = ok[i];
+      (*nv)[idx] = ov[i];
     }
   map->count = newcount;
 }

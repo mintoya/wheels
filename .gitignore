@@ -17,3 +17,4 @@ wheels.pdb
 /compile_commands.json
 /cpthreads
 /includeAll.o
+/__pycache__

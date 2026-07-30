@@ -1,35 +1,28 @@
 #if !defined(FBA_ALLOCATOR_H)
   #define FBA_ALLOCATOR_H (1)
   #include "../allocator.h"
-void *_fba_alloc(AllocatorV allocator, usize size, char *, usize);
-void _fba_free(AllocatorV allocator, void *ptr, usize size, char *, usize);
-void *_fba_alloc_nullable(AllocatorV allocator, usize size);
-static const My_allocator FBA_prototype[1] = {
-    (My_allocator){
-        .alloc = _fba_alloc,
-        .free = _fba_free,
-        .resize = nullptr,
-        .size = nullptr,
-    }
-};
+
+void *_fba_fn(void *allocator, void *ptr, usize oldsize, usize newsize, char *file, usize line);
+void *_fba_alloc_nullable(allocfn allocator, usize size);
 
 typedef struct {
-  My_allocator allocator[1];
+  void *(*fn)(void *, void *, usize, usize, char *, usize);
   usize capacity, offset, count;
   u8 *buffer;
 } FBA_State;
-static inline usize FBA_current(AllocatorV allocator) {
+
+static inline usize FBA_current(allocfn allocator) {
   FBA_State *f = (typeof(f))allocator;
   return f->offset;
 }
-static inline void FBA_reset(AllocatorV allocator) {
+static inline void FBA_reset(allocfn allocator) {
   FBA_State *f = (typeof(f))allocator;
   f->offset = 0;
   f->count = 0;
 }
 static inline void FBA_init(u8 *buffer, usize size, FBA_State res[1]) {
   assert(buffer == (typeof(buffer))lineup((uptr)buffer, alignof(myAlign)));
-  memcpy(res->allocator, FBA_prototype, sizeof(res->allocator));
+  res->fn = _fba_fn;
   res->capacity = size;
   res->offset = 0;
   res->count = 0;
@@ -47,49 +40,43 @@ static inline void FBA_init(u8 *buffer, usize size, FBA_State res[1]) {
     }
   #define fba_initBuffer(buffer)                                 \
     (FBA_init((u8 *)buffer.buff, sizeof(buffer.buff), buffer.s), \
-     buffer.s->allocator)
-static inline AllocatorV fba_new(AllocatorV allocator, usize size) {
+     (allocfn)buffer.s)
+
+static inline allocfn fba_new(allocfn allocator, usize size) {
   typedef struct {
     FBA_State s[1];
     alignas(myAlign) u8 x[];
   } fbuffer;
-  var_ r = (fbuffer *)aAlloc(allocator, size + sizeof(fbuffer));
+  var_ r = (fbuffer *)vcall(allocator, fn, (nullptr, 0, size + sizeof(fbuffer), __FILE__, __LINE__));
   FBA_init(r->x, size, r->s);
-  return r->s->allocator;
+  return (allocfn)r->s;
 }
-static inline void fba_del(AllocatorV allocator, AllocatorV fba) {
+static inline void fba_del(allocfn allocator, allocfn fba) {
   typedef struct {
     FBA_State s[1];
     alignas(myAlign) u8 x[];
   } fbuffer;
-  aFree(allocator, (void *)fba, sizeof(fbuffer) + ((fbuffer *)fba)->s->capacity);
+  vcall(allocator, fn, ((void *)fba, sizeof(fbuffer) + ((fbuffer *)fba)->s->capacity, 0, __FILE__, __LINE__));
 }
-bool _fba_has(AllocatorV allocator, void *ptr);
+bool _fba_has(allocfn allocator, void *ptr);
 
 #endif // FBA_ALLOCATOR_H
+#if (defined FBA_ALLOCATOR_C && FBA_ALLOCATOR_C == 1) || \
+    (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
+  #undef FBA_ALLOCATOR_C
+  #define FBA_ALLOCATOR_C (2)
 
-#if (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
-  #define FBA_ALLOCATOR_C (1)
-#endif
-
-#ifdef FBA_ALLOCATOR_C
-bool _fba_has(AllocatorV allocator, void *ptr) {
+bool _fba_has(allocfn allocator, void *ptr) {
   FBA_State *f = (typeof(f))allocator;
   return !(((uintptr_t)ptr) & (alignof(myAlign) - 1)) &&
          (u8 *)ptr >= f->buffer &&
          (u8 *)ptr - f->buffer < f->offset;
 }
-void _fba_free(AllocatorV allocator, void *ptr, usize size, char *, usize) {
-  assert(_fba_has(allocator, ptr));
-  FBA_State *f = (typeof(f))allocator;
-  f->count--;
-  if (!f->count)
-    f->offset = 0;
-}
-void *_fba_alloc_nullable(AllocatorV allocator, usize size) {
+
+void *_fba_alloc_nullable(allocfn allocator, usize size) {
   FBA_State *f = (typeof(f))allocator;
   assert(!((uptr)f->buffer % alignof(myAlign)));
-  size = aAlloc_align(size);
+  size = lineup(size, alignof(myAlign));
   if (f->offset + size > f->capacity)
     return nullptr;
   assert(!(f->offset % alignof(myAlign)));
@@ -100,9 +87,25 @@ void *_fba_alloc_nullable(AllocatorV allocator, usize size) {
   return res;
 }
 
-void *_fba_alloc(AllocatorV allocator, usize size, char *, usize) {
-  void *res = _fba_alloc_nullable(allocator, size);
+void *_fba_fn(void *allocator, void *ptr, usize oldsize, usize newsize, char *file, usize line) {
+  if (!newsize) {
+    if (!ptr) return nullptr;
+    assert(_fba_has((allocfn)allocator, ptr));
+    FBA_State *f = (typeof(f))allocator;
+    f->count--;
+    if (!f->count)
+      f->offset = 0;
+    return nullptr;
+  }
+
+  void *res = _fba_alloc_nullable((allocfn)allocator, newsize);
   assert(res && "buffer probably ran out of space");
+
+  if (ptr && oldsize) {
+    memcpy(res, ptr, MIN$(oldsize, newsize));
+    _fba_fn(allocator, ptr, oldsize, 0, file, line);
+  }
+
   return res;
 }
 

@@ -31,12 +31,12 @@ typedef struct vason_container {
   vason_index current;
   vason_tag *tags;
   vason_span *tables_strings;
-  AllocatorV allocator;
+  allocfn allocator;
   slice(c8) text;
   slice(c8) * tokens;
 } vason_container;
 
-vason_container vason_container_create(slice(c8) text, AllocatorV allocator);
+vason_container vason_container_create(slice(c8) text, allocfn allocator);
 void vason_container_free(vason_container container);
 usize vason_container_footprint(vason_container c);
 // {printer
@@ -101,8 +101,8 @@ vason_index vason_get_str(vason_container *c, vason_index entry, fptr f);
 vason_index vason_get_idx(vason_container *c, vason_index entry, vason_index f);
 
 bool vason_container_eq(vason_container a, vason_container b);
-vason_container vason_parseString(AllocatorV allocator, slice(c8) string);
-vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string);
+vason_container vason_parseString(allocfn allocator, slice(c8) string);
+vason_container vason_parseString_Lazy(allocfn allocator, slice(c8) string);
 static slice(c8) vason_asString(vason_container c, usize place) {
   return c.tags[place] == vason_STRING
              ? (slice(c8)){
@@ -243,7 +243,7 @@ EMSCRIPTEN_BINDINGS(vason_module) {
   function("parseString", optional_override([](const std::string &input) {
              slice(c8) text = {
                  (usize)input.length(),
-                 aCreate(stdAlloc, u8, input.length()),
+                 (u8 *)acreate(stdAlloc, u8[input.length()]),
              };
              memcpy(text.ptr, input.c_str(), input.length());
              vason_container *res = new vason_container(vason_parseString(stdAlloc, text));
@@ -253,7 +253,7 @@ EMSCRIPTEN_BINDINGS(vason_module) {
     #endif
   #endif
 void vason_lazy_expand(vason_container *c, vason_index current);
-slice(c8) vason_tostr(AllocatorV allocator, vason_container c);
+slice(c8) vason_tostr(allocfn allocator, vason_container c);
 NAMESPACE_STRUCT(
     Vason_parses,
     (lazy, &vason_parseString_Lazy),
@@ -313,12 +313,10 @@ test_fn(vason_parser_lazy) {
   test_fpeq(vason_asString(c, first_num_idx), "1");
 }
 #endif
-
-#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-  #define VASON_PARSER_C (1)
-#endif
-
-#if defined(VASON_PARSER_C)
+#if (defined VASON_PARSER_C && VASON_PARSER_C == 1) || \
+    (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
+  #undef VASON_PARSER_C
+  #define VASON_PARSER_C (2)
 typedef enum : c8 {
   vason_STR,
   vason_STR_DELIM,
@@ -408,7 +406,7 @@ static inline vason_span table_reduce(slice(vason_token_t) str, vason_span span)
 
   return span;
 }
-vason_container vason_container_create(slice(c8) text, AllocatorV allocator) {
+vason_container vason_container_create(slice(c8) text, allocfn allocator) {
   vason_container res =
       (vason_container){
           .tags /*           */ = msList_init(allocator, vason_tag),
@@ -420,12 +418,12 @@ vason_container vason_container_create(slice(c8) text, AllocatorV allocator) {
   return res;
 }
 void vason_container_free(vason_container container) {
-  AllocatorV alocator = container.allocator;
+  allocfn alocator = container.allocator;
   msList_deInit(alocator, container.tags);
   msList_deInit(alocator, container.tables_strings);
   if (container.tokens) {
-    aFree(alocator, container.tokens->ptr, container.tokens->len);
-    aFree(alocator, container.tokens, sizeof(*container.tokens));
+    adestroy(alocator, (vason_token_t(*)[container.tokens->len])container.tokens->ptr);
+    adestroy(alocator, container.tokens);
   }
 }
 slice(c8) vason_container_asString(vason_container c) {
@@ -661,15 +659,15 @@ void vason_parse_level2(
     vason_parse_level2_it(parent, tokens, i);
 }
 
-vason_container vason_parseString(AllocatorV allocator, slice(c8) string) {
+vason_container vason_parseString(allocfn allocator, slice(c8) string) {
   assertMessage(string.len < (usize)((vason_index)(-1)));
   vason_container res = vason_container_create(string, allocator);
   slice(vason_token_t) tokens = (typeof(tokens)){
       string.len,
-      (vason_token_t *)aAlloc(allocator, sizeof(vason_token_t) * string.len)
+      (vason_token_t *)acreate(allocator, vason_token_t[string.len])
   };
   vason_tokenize(tokens, string);
-  defer { aFree(allocator, tokens.ptr, tokens.len); };
+  defer { adestroy(allocator, (vason_token_t(*)[tokens.len])tokens.ptr); };
   vason_parse_level1(
       (vason_span){
           .start = 0,
@@ -697,14 +695,14 @@ vason_container vason_parseString(AllocatorV allocator, slice(c8) string) {
   assertMessage(msList_len(res.tables_strings) == msList_len(res.tags));
   return res;
 }
-vason_container vason_parseString_Lazy(AllocatorV allocator, slice(c8) string) {
+vason_container vason_parseString_Lazy(allocfn allocator, slice(c8) string) {
   assertMessage(string.len < (usize)((vason_index)(-1)));
   vason_container res = vason_container_create(string, allocator);
-  slice(vason_token_t) *tokens = aCreate(allocator, slice(vason_token_t));
+  slice(vason_token_t) *tokens = acreate(allocator, slice(vason_token_t));
 
   *tokens = (typeof(*tokens)){
       string.len,
-      (vason_token_t *)aAlloc(allocator, sizeof(vason_token_t) * string.len),
+      (vason_token_t *)acreate(allocator, vason_token_t[string.len]),
   };
   vason_tokenize(*tokens, string);
   vason_parse_level1(
@@ -900,7 +898,7 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
     } break;
   }
 }
-slice(c8) vason_tostr(AllocatorV allocator, vason_container c) {
+slice(c8) vason_tostr(allocfn allocator, vason_container c) {
   mList(c8) res = mList_init(allocator, c8);
   defer { mList_deinit(res); };
 

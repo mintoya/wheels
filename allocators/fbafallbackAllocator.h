@@ -3,25 +3,24 @@
   #include "../allocator.h"
 //{main helper for arenas
   #include "arenaAllocator.h"
-static AllocatorV initarena(void *arg) {
-  let m = (struct {AllocatorV alloc ; usize size; } *)arg;
+static allocfn initarena(void *arg) {
+  let m = (struct {allocfn alloc ; usize size; } *)arg;
   return arena_new_ext(m ? m->alloc : stdAlloc, m ? m->size : 1024);
 }
-static void deinitarena(AllocatorV allocator, void *) { arena_cleanup(allocator); }
+static void deinitarena(allocfn allocator, void *) { arena_cleanup(allocator); }
 //}
 
-void *_fbafb_alloc(AllocatorV, usize, char *, usize);
-void _fbafb_free(AllocatorV, void *, usize, char *, usize);
+void *_fbafb_fn(void *allocator, void *ptr, usize oldsize, usize newsize, char *f, usize l);
 struct fbab {
-  My_allocator vt[1];
+  void *(*fn)(void *, void *, usize, usize, char *, usize);
   u8 *mem;
   usize offset, cap, count;
   void *ctx;
-  AllocatorV allocator;
-  fnptrof((void *), AllocatorV) init;
-  fnptrof((AllocatorV, void *), void) deinit;
+  allocfn allocator;
+  fnptrof((void *), allocfn) init;
+  fnptrof((allocfn, void *), void) deinit;
 };
-AllocatorV fbafb_init(
+allocfn fbafb_init(
     struct fbab mem[1],
     u8 *buffer,
     usize size,
@@ -29,7 +28,7 @@ AllocatorV fbafb_init(
     itypeof(struct fbab, init) initializer,
     itypeof(struct fbab, deinit) deinitializer
 );
-void fbafb_deinit(AllocatorV allocator);
+void fbafb_deinit(allocfn allocator);
 
   #define fbafb_buffer(buffer)  \
     struct {                    \
@@ -42,24 +41,26 @@ test_fn(fbafb_remain) {
   let b = (fbafb_buffer(myAlign[1])){};
   let alloc = fbafb_initBuffer(b, nullptr, nullptr, nullptr);
   // no deinit
-  let i = aCreate(alloc, int);
+  let i = acreate(alloc, int);
   *i = 1;
-  aFree(alloc, i, sizeof(int));
+  adestroy(alloc, i);
 }
 test_fn(fbafb_grow) {
   let b = (fbafb_buffer(myAlign[1])){};
   let alloc = fbafb_initBuffer(b, nullptr, initarena, deinitarena);
   defer { fbafb_deinit(alloc); };
-  let i = aCreate(alloc, int, 1000);
-  *i = 1;
-  aFree(alloc, i, sizeof(int) * 1000);
+  let i = acreate(alloc, int[1000]);
+  (*i)[0] = 1;
+  adestroy(alloc, i);
 }
 
 #endif
-#if (defined FBA_FALLBACK_C && FBA_FALLBACK_C == 1) || (defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0)
+#if (defined FBA_FALLBACK_C && FBA_FALLBACK_C == 1) || \
+    (defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0)
+  #undef FBA_FALLBACK_C
   #define FBA_FALLBACK_C (2)
   #include "../assertMessage.h"
-AllocatorV fbafb_init(
+allocfn fbafb_init(
     struct fbab mem[1],
     u8 *buffer,
     usize size,
@@ -69,7 +70,7 @@ AllocatorV fbafb_init(
 ) {
   assertMessage(!((uptr)buffer & (alignof(myAlign) - 1)));
   *mem = (typeof(*mem)){
-      {_fbafb_alloc, _fbafb_free},
+      _fbafb_fn,
       buffer,
       0,
       size,
@@ -79,42 +80,58 @@ AllocatorV fbafb_init(
       initializer,
       deinitializer
   };
-  return mem->vt;
+  return (allocfn)mem;
 }
-void fbafb_deinit(AllocatorV allocator) {
+void fbafb_deinit(allocfn allocator) {
   let it = (struct fbab *)allocator;
   if (it->allocator) it->deinit(it->allocator, it->ctx);
   *it = (typeof(*it)){};
 }
-void *_fbafb_alloc(AllocatorV allocator, usize size, char *, usize) {
-  size = lineup(size, alignof(myAlign));
+void *_fbafb_fn(void *allocator, void *ptr, usize oldsize, usize newsize, char *f, usize l) {
+  oldsize = lineup(oldsize, alignof(myAlign));
+  newsize = lineup(newsize, alignof(myAlign));
   let it = (struct fbab *)allocator;
-  if (it->offset + size <= it->cap) {
+
+  if (!newsize) {
+    if (!ptr) return nullptr;
+    assertMessage(!((uptr)ptr & (alignof(myAlign) - 1)));
+    let u = (uptr)ptr;
+    if (u >= (uptr)it->mem && u < it->offset + (uptr)it->mem) {
+      it->count--;
+      if (!it->count) it->offset = 0;
+      else if (it->mem + it->offset == (u8 *)ptr + oldsize) it->offset -= oldsize;
+    } else {
+      assertMessage(it->allocator);
+      vcall(it->allocator, fn, (ptr, oldsize, 0, f, l));
+    }
+    return nullptr;
+  }
+
+  if (it->offset + newsize <= it->cap) {
     let res = it->mem + it->offset;
     it->count++;
-    it->offset += size;
+    it->offset += newsize;
+    if (ptr && oldsize) {
+      memcpy(res, ptr, MIN$(oldsize, newsize));
+      _fbafb_fn(allocator, ptr, oldsize, 0, f, l);
+    }
     return res;
   };
-  return aAlloc(
-      (it->allocator = it->allocator ?: it->init(it->ctx)),
-      size
-  );
-}
-void _fbafb_free(AllocatorV allocator, void *ptr, usize oldsize, char *f, usize l) {
-  oldsize = lineup(oldsize, alignof(myAlign));
-  assertMessage(!((uptr)ptr & (alignof(myAlign) - 1)));
-  let it = (struct fbab *)allocator;
-  let u = (uptr)ptr;
-  if (u >= (uptr)it->mem && u < it->offset + (uptr)it->mem) {
-    it->count--;
-    if (!it->count) it->offset = 0;
-    else if (it->mem + it->offset == (u8 *)ptr + oldsize) it->offset -= oldsize;
-  } else (aFree)(
-      (assertMessage(it->allocator), it->allocator),
-      ptr,
-      oldsize,
-      f,
-      l
-  );
+
+  it->allocator = it->allocator ?: it->init(it->ctx);
+
+  // Intercept reallocations where the ptr is in our fixed buffer but newsize exceeds capacity.
+  // We cannot pass ptr to the fallback allocator because it will attempt to free it.
+  if (ptr) {
+    let u = (uptr)ptr;
+    if (u >= (uptr)it->mem && u < it->offset + (uptr)it->mem) {
+      void *res = vcall(it->allocator, fn, (nullptr, 0, newsize, f, l));
+      memcpy(res, ptr, MIN$(oldsize, newsize));
+      _fbafb_fn(allocator, ptr, oldsize, 0, f, l); // Free from the fixed buffer
+      return res;
+    }
+  }
+
+  return vcall(it->allocator, fn, (ptr, oldsize, newsize, f, l));
 }
 #endif

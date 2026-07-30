@@ -167,12 +167,12 @@ sliceDef(c8);
 
   #define slice_alloc(alloccator, type, length) ({ \
     slice(type) _s;                                \
-    _s.ptr = aCreate(alloccator, type, length);    \
+    _s.ptr = *acreate(alloccator, type[length]);   \
     _s.len = length;                               \
     _s;                                            \
   })
   #define slice_free(allocator, slice) \
-    aFree(allocator, (slice).ptr, (sizeof(*(slice).ptr)) * (slice).len);
+    adestroy(allocator, (typeof (*slice.ptr)(*)[slice.len])slice.ptr)
 
   #if defined __cplusplus
 template <typename T, usize size>
@@ -248,6 +248,5 @@ struct slice_array {
         ),                                                 \
     };                                                     \
   })
-
 
 #endif // MY_TYPES

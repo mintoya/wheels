@@ -16,7 +16,7 @@ typedef struct {
   struct tracedata trace;
 } allocationType;
 struct dbgAlloc_config {
-  AllocatorV allocator;
+  allocfn allocator;
   FILE *log;
   fnptrof((allocationType *), void) on_call;
 };
@@ -25,12 +25,12 @@ struct dbgAlloc_config {
  *      - backend allocator, it will also store itself here
  * `@return` debug allocator
  */
-AllocatorV debugAllocatorInit(struct dbgAlloc_config config);
+allocfn debugAllocatorInit(struct dbgAlloc_config config);
 struct debugStats {
   usize max_memory, current_memory, total_calls, total_active_allocations;
 };
-struct debugStats debugAllocator_stats(AllocatorV allocator);
-struct debugStats debugAllocator_clear(AllocatorV allocator);
+struct debugStats debugAllocator_stats(allocfn allocator);
+struct debugStats debugAllocator_clear(allocfn allocator);
   #define debugAllocator(...) ({                     \
     struct dbgAlloc_config config = {                \
         __VA_ARGS__                                  \
@@ -46,15 +46,13 @@ struct debugStats debugAllocator_clear(AllocatorV allocator);
  *      - will free itself along with any leaks it finds
  *      - will print traces to stdout
  */
-int debugAllocatorDeInit(AllocatorV);
+int debugAllocatorDeInit(allocfn);
 
 #endif // MY_DEBUG_ALLOCATOR_H
-
-#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-  #define MY_DEBUG_ALLOCATOR_C (1)
-#endif
-
-#if defined(MY_DEBUG_ALLOCATOR_C)
+#if (defined MY_DEBUG_ALLOCATOR_C && MY_DEBUG_ALLOCATOR_C == 1) || \
+    defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
+  #undef MY_DEBUG_ALLOCATOR_C
+  #define MY_DEBUG_ALLOCATOR_C (2)
 
   #include "../macros.h"
   #include "../mytypes.h"
@@ -62,29 +60,28 @@ int debugAllocatorDeInit(AllocatorV);
 
 typedef struct {
   mxmap(void *, struct tracedata) map;
-  AllocatorV actualAllocator;
   struct dbgAlloc_config config;
   usize max, current, total;
 } debugAllocatorInternals;
 
 typedef struct {
-  My_allocator allocator[1];
+  struct allocfn fn[1];
   debugAllocatorInternals internals[1];
 } Debug_allocator_block;
 
   #include "../tests.h"
 test_fn(debug_allocator_test) {
   usize allocations = 10;
-  AllocatorV debug = debugAllocator(
+  allocfn debug = debugAllocator(
       allocator = allocator,
   );
   foreach (var_ i, range(0, allocations)) {
     usize size = (i * i) + 1;
-    int *ip = (int *)aAlloc(debug, 1);
-    aResize(debug, ip, 1, size);
+    var_ ip = acreate(debug, u8);
+    ip = *aresize(debug, ip, u8[size]);
   };
 
-  debugAllocatorInternals *internals = ((debugAllocatorInternals *)debug->arb);
+  debugAllocatorInternals *internals = ((Debug_allocator_block *)debug)->internals;
   int n1 = ((hxmap *)internals->map)->count;
   int n2 = 0;
   foreach (var_ it, mxmap_iter(internals->map, void *, struct tracedata))
@@ -93,12 +90,10 @@ test_fn(debug_allocator_test) {
   test_assert(n == allocations && n1 == allocations && n2 == n1);
 }
 
-void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln);
-void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize oldsize, usize newsize, char *fn, usize ln);
-void debugAllocator_free(AllocatorV allocator, void *ptr, usize size, char *fn, usize ln);
+void *debugAllocator_fn(allocfn allocator, void *ptr, usize oldsize, usize newsize, const char *fn, uint ln);
 
-struct debugStats debugAllocator_stats(AllocatorV allocator) {
-  debugAllocatorInternals internals = *(debugAllocatorInternals *)allocator->arb;
+struct debugStats debugAllocator_stats(allocfn allocator) {
+  debugAllocatorInternals internals = *((Debug_allocator_block *)allocator)->internals;
   return (struct debugStats){
       .max_memory = internals.max,
       .current_memory = internals.current,
@@ -120,31 +115,27 @@ typePrinter("dbga-stats", struct debugStats) {
   USENAMEDPRINTER("usize", in.total_calls);
   PUTS("}");
 }
-AllocatorV debugAllocatorInit(struct dbgAlloc_config config) {
-  AllocatorV allocator = config.allocator;
-  Debug_allocator_block *res = aCreate(allocator, Debug_allocator_block);
-
-  res->internals[0] = (debugAllocatorInternals){
-      .map = mxmap_init(allocator, void *, struct tracedata),
-      .actualAllocator = allocator,
-      .config = config,
-      .max = 0,
-      .current = 0,
-      .total = 0,
-  };
-  My_allocator deffaultDebugAllocator = {
-      .alloc = debugAllocator_alloc,
-      .free = debugAllocator_free,
-      .resize = debugAllocator_realloc,
-      .size = allocator->size,
-  };
-  memcpy(res->allocator, &deffaultDebugAllocator, sizeof(My_allocator));
-  return res->allocator;
+allocfn debugAllocatorInit(struct dbgAlloc_config config) {
+  allocfn allocator = config.allocator;
+  Debug_allocator_block *res = acreate(allocator, Debug_allocator_block);
+  return avalue(
+             allocator,
+             ((Debug_allocator_block){
+                 {debugAllocator_fn},
+                 {{
+                     .map = mxmap_init(allocator, void *, struct tracedata),
+                     .config = config,
+                     .max = 0,
+                     .current = 0,
+                     .total = 0,
+                 }}
+             })
+  )->fn;
 }
 
-int debugAllocatorDeInit(AllocatorV allocator) {
-  debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
-  AllocatorV realAllocator = internals->actualAllocator;
+int debugAllocatorDeInit(allocfn allocator) {
+  debugAllocatorInternals *internals = ((Debug_allocator_block *)allocator)->internals;
+  allocfn realAllocator = internals->config.allocator;
   usize leaks = 0;
 
   const pEsc r = (pEsc){.fg = {-1, 0, 0}, .fgset = true};
@@ -186,88 +177,89 @@ int debugAllocatorDeInit(AllocatorV allocator) {
       );
       print_wfO(fileprint, out, "{}", rst);
     }
-    (aFree)(realAllocator, (void *)key, val.size, val.fn, val.ln);
+    vcall(realAllocator, fn, ((void *)key, val.size, 0, val.fn, val.ln));
   }
   mxmap_deinit(internals->map);
-  aFree(realAllocator, (void *)allocator, sizeof(Debug_allocator_block));
+  adestroy(realAllocator, (Debug_allocator_block *)allocator);
   return leaks;
 }
 
-struct debugStats debugAllocator_clear(AllocatorV allocator) {
-  debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
+struct debugStats debugAllocator_clear(allocfn allocator) {
+  debugAllocatorInternals *internals = ((Debug_allocator_block *)allocator)->internals;
   var_ res = debugAllocator_stats(allocator);
   foreach (var_ kv, hxmap_iter(internals->map)) {
     var_ key = *(void **)kv.key;
     var_ val = *(mxmap_valType(internals->map) *)kv.val;
-    aFree(internals->actualAllocator, (void *)key, val.size);
+    vcall(internals->config.allocator, fn, ((void *)key, val.size, 0, __FILE__, __LINE__));
     mxmap_rem(internals->map, key);
   }
   return res;
 }
-void *debugAllocator_alloc(AllocatorV allocator, usize size, char *fn, usize ln) {
-  debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
-  AllocatorV realAllocator = internals->actualAllocator;
-  void *res = ((aAlloc)(realAllocator, size, fn, ln));
-  internals->total++;
 
-  var_ data =
-      (struct tracedata){
-          .size = size,
-          .fn = fn,
-          .ln = ln,
-      };
+void *debugAllocator_fn(allocfn allocator, void *ptr, usize oldsize, usize newsize, const char *fn, uint ln) {
+  debugAllocatorInternals *internals = ((Debug_allocator_block *)allocator)->internals;
+  allocfn realAllocator = internals->config.allocator;
 
-  assertMessage(
-      !mxmap_get(internals->map, res),
-      "allocator allocated buisy memory"
-  );
-  mxmap_set(internals->map, res, data);
-  internals->current += size;
+  if (!newsize) {
+    if (!ptr) return nullptr;
+    struct tracedata *data = mxmap_get(internals->map, ptr);
+    assertMessage(data, "pointer not in allocator , from %lu %s", ln, fn);
+    struct tracedata datak = *data;
+    internals->current -= data->size;
+    vcall(realAllocator, fn, (ptr, oldsize, 0, fn, ln));
 
-  if (internals->current > internals->max)
-    internals->max = internals->current;
-
-  if (internals->config.on_call) {
-    allocationType t;
-    t.insize = 0;
-    t.iptr = nullptr;
-    t.optr = res;
-    t.outsize = size;
-    t.trace = data;
-    internals->config.on_call(&t);
+    if (internals->config.on_call) {
+      allocationType t;
+      t.insize = oldsize;
+      t.iptr = ptr;
+      t.optr = nullptr;
+      t.outsize = 0;
+      t.trace = datak;
+      internals->config.on_call(&t);
+    }
+    mxmap_rem(internals->map, ptr);
+    return nullptr;
   }
 
-  return res;
-}
+  if (!ptr) {
+    void *res = vcall(realAllocator, fn, (nullptr, 0, newsize, fn, ln));
+    internals->total++;
 
-void debugAllocator_free(AllocatorV allocator, void *ptr, usize size, char *fn, usize ln) {
-  debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
-  AllocatorV realAllocator = internals->actualAllocator;
-  struct tracedata *data = mxmap_get(internals->map, ptr);
-  assertMessage(data, "pointer not in allocator , from %lu %s", ln, fn);
-  struct tracedata datak = *data;
-  internals->current -= data->size;
-  (aFree)(realAllocator, ptr, data->size, fn, ln);
+    var_ data =
+        (struct tracedata){
+            .size = newsize,
+            .fn = fn,
+            .ln = ln,
+        };
 
-  if (internals->config.on_call) {
-    allocationType t;
-    t.insize = size;
-    t.iptr = ptr;
-    t.optr = nullptr;
-    t.outsize = 0;
-    t.trace = datak;
-    internals->config.on_call(&t);
+    assertMessage(
+        !mxmap_get(internals->map, res),
+        "allocator allocated buisy memory"
+    );
+    mxmap_set(internals->map, res, data);
+    internals->current += newsize;
+
+    if (internals->current > internals->max)
+      internals->max = internals->current;
+
+    if (internals->config.on_call) {
+      allocationType t;
+      t.insize = 0;
+      t.iptr = nullptr;
+      t.optr = res;
+      t.outsize = newsize;
+      t.trace = data;
+      internals->config.on_call(&t);
+    }
+
+    return res;
   }
-  mxmap_rem(internals->map, ptr);
-}
-void *debugAllocator_realloc(AllocatorV allocator, void *ptr, usize oldsize, usize newsize, char *fn, usize ln) {
-  debugAllocatorInternals *internals = (debugAllocatorInternals *)allocator->arb;
-  AllocatorV realAllocator = internals->actualAllocator;
+
   struct tracedata *data = mxmap_get(internals->map, ptr);
   assertMessage(data, "pointer not in allocator , from %lu %s", ln, fn);
   internals->current -= data->size;
   mxmap_rem(internals->map, ptr);
-  void *res = ((aResize)(realAllocator, ptr, oldsize, newsize, fn, ln));
+  void *res = vcall(realAllocator, fn, (ptr, oldsize, newsize, fn, ln));
   internals->total++;
   assertMessage(
       !mxmap_get(internals->map, res),

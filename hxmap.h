@@ -6,7 +6,7 @@
   #include "mytypes.h"
 
 typedef struct hxmap {
-  AllocatorV allocator;
+  allocfn allocator;
   const u32 ksize, vsize;
   usize count;
   int capbit;
@@ -32,7 +32,7 @@ CONST_EXPR int flagshift = sizeof(hxint) * 8 - 1;
   return x & ebits;
 }
 void hxmap_newm(
-    AllocatorV allocator,
+    allocfn allocator,
     usize ksize,
     usize vsize,
     int power,
@@ -41,7 +41,7 @@ void hxmap_newm(
     hxmap map[1]
 );
 hxmap *hxmap_new(
-    AllocatorV allocator,
+    allocfn allocator,
     usize ksize,
     usize vsize,
     int power,
@@ -201,8 +201,8 @@ test_fn(hxmap_tests) {
 
   test_assert(((hxmap *)map)->count == 1000);
 
-  let ps = &aCreate(allocator, hxint, 1000);
-  defer { aFree(allocator, ps, sizeof(*ps)); };
+  let ps = acreate(allocator, hxint[1000]);
+  defer { adestroy(allocator, ps); };
 
   foreach (let item, mxmap_iter(map, u32, hxint))
     ps[0][item.key] = 1;
@@ -219,13 +219,12 @@ test_fn(hxmap_tests) {
 }
 #endif
 
-#if defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0
-  #define MY_HXMAP_C (1)
-#endif
-
-#if defined MY_HXMAP_C && MY_HXMAP_C == 1
+#if (defined MY_HXMAP_C && MY_HXMAP_C == 1) || \
+    defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0
+  #undef MY_HXMAP_C
+  #define MY_HXMAP_C (2)
 void hxmap_newm(
-    AllocatorV allocator,
+    allocfn allocator,
     usize ksize,
     usize vsize,
     int capbit,
@@ -246,14 +245,14 @@ void hxmap_newm(
       .capbit = capbit,
       .hfn = hashfn,
       .cmp = cmpfn,
-      .flags = aCreate(allocator, ptrstype(itypeof(hxmap, flags)), cap),
-      .keys = aCreate(allocator, u8, cap * ksize),
-      .vals = aCreate(allocator, u8, cap * vsize),
+      .flags = *acreate(allocator, ptrstype(itypeof(hxmap, flags))[cap]),
+      .keys = **acreate(allocator, u8[ksize][cap]),
+      .vals = **acreate(allocator, u8[vsize][cap]),
   });
   mcpy(*map, rs);
 }
 hxmap *hxmap_new(
-    AllocatorV allocator,
+    allocfn allocator,
     usize ksize,
     usize vsize,
     int capbit,
@@ -262,19 +261,19 @@ hxmap *hxmap_new(
 ) {
   let map = (hxmap){};
   hxmap_newm(allocator, ksize, vsize, capbit, hashfn, cmpfn, &map);
-  return aValue(allocator, map);
+  return avalue(allocator, map);
 }
 void hxmap_freem(hxmap map) {
   let allocator = map.allocator;
   usize cap = (usize)1 << map.capbit;
-  aFree(allocator, map.flags, sizeof(*map.flags) * cap);
-  aFree(allocator, map.keys, map.ksize * cap);
-  aFree(allocator, map.vals, map.vsize * cap);
+  adestroy(allocator, (typeof (*map.flags)(*)[cap])map.flags);
+  adestroy(allocator, (u8(*)[map.ksize][cap])map.keys);
+  adestroy(allocator, (u8(*)[map.vsize][cap])map.vals);
 }
 void hxmap_free(hxmap *map) {
   let allocator = map->allocator;
   hxmap_freem(*map);
-  aDestroy(allocator, map);
+  adestroy(allocator, map);
 }
 static inline i8 hxmap_base_cmp(const hxmap *m, const void *a, const void *b) {
   if (m->cmp) return m->cmp(a, b);
@@ -329,23 +328,23 @@ void hxmap_manage(
 
   usize newcount = 0;
   // let nc = scale < 0 ? map->cap / (-scale) : map->cap * scale;
-  let nv = aCreate(map->allocator, u8, map->vsize * nc);
-  let nk = aCreate(map->allocator, u8, map->ksize * nc);
-  let nf = aCreate(map->allocator, ptrstype(itypeof(hxmap, flags)), nc);
+  let nv = acreate(map->allocator, u8[map->vsize * nc]);
+  let nk = acreate(map->allocator, u8[map->ksize * nc]);
+  let nf = acreate(map->allocator, ptrstype(itypeof(hxmap, flags))[nc]);
 
   let ov = map->vals;
   let ok = map->keys;
   let of = map->flags;
   defer {
-    aFree(map->allocator, ov, map->vsize * oc);
-    aFree(map->allocator, ok, map->ksize * oc);
-    aFree(map->allocator, of, sizeof(*of) * oc);
+    adestroy(map->allocator, (u8(*)[map->vsize][oc])ov);
+    adestroy(map->allocator, (u8(*)[map->ksize][oc])ok);
+    adestroy(map->allocator, (u8(*)[sizeof(*of)][oc])of);
   };
 
   map->capbit = ncb;
-  map->vals = nv;
-  map->keys = nk;
-  map->flags = nf;
+  map->vals = *nv;
+  map->keys = *nk;
+  map->flags = *nf;
 
   let ks = map->ksize;
   let vs = map->vsize;
@@ -356,14 +355,14 @@ void hxmap_manage(
       hxint hx = HXHASHBITS(of[i]);
       let idx = hx & (nc - 1);
 
-      while (isHXOCCUPIED(nf[idx])) {
+      while (isHXOCCUPIED((*nf)[idx])) {
         idx++;
         if (idx >= nc) idx = 0;
       }
 
-      nf[idx] = ((hxint)HXOCC << flagshift) | hx;
-      memcpy(nk + (ks * idx), ok + (ks * i), ks);
-      memcpy(nv + (vs * idx), ov + (vs * i), vs);
+      (*nf)[idx] = ((hxint)HXOCC << flagshift) | hx;
+      memcpy(map->keys + (ks * idx), ok + (ks * i), ks);
+      memcpy(map->vals + (vs * idx), ov + (vs * i), vs);
     }
   map->count = newcount;
 }

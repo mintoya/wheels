@@ -1,6 +1,7 @@
 #if !defined TS_INT
   #define TS_INT
-  #include "print.h"
+  #include "print/int_printers.h"
+  #include "print/print_pre.h"
   #include "thread_help.h"
   #include <time.h>
 typedef struct timespec timespec;

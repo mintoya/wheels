@@ -19,6 +19,7 @@ typedef struct {
   outputFunction put;
   void *arb;
   printerfunction_arg args;
+  allocfn allocator;
 } printerfunction_context;
 
 typedef struct {
@@ -89,6 +90,7 @@ void sn_print(const c8 *, void *, usize, bool);
   #define PUTS(characters) _ctx.put(characters, _ctx.arb, countof(characters) - 1, 0)
   #define PUTC(character) _ctx.put(REF(character), _ctx.arb, 1, 0)
   #define PRINTARGS() printerfunction_thisargs(_ctx)
+// pushes onto the context without mutating a constant
   #define PRINTARGS_PUSH(arg)                                             \
     for (                                                                 \
         struct {                                                          \
@@ -107,6 +109,7 @@ void sn_print(const c8 *, void *, usize, bool);
           };                                                              \
           _pa_pu_st.con;                                                  \
           _pa_pu_st.con = false)
+  #define PRINTARGS_ALLOCATOR() (_ctx.allocator)
 
 // outputFunction put;
 // void *arb;
@@ -166,7 +169,7 @@ void sn_print(const c8 *, void *, usize, bool);
 
 void print_f(outputFunction put, void *arb, const char *fmt, struct print_arg *);
 
-static slice(c8) vsn_print_fn(AllocatorV allocator, char *fmt, struct print_arg *args) {
+static slice(c8) vsn_print_fn(allocfn allocator, char *fmt, struct print_arg *args) {
   usize sn_length_ = 0;
   print_f(
       vsn_print,

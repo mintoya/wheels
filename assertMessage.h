@@ -9,31 +9,13 @@
     assert(false && #__VA_ARGS__); \
     exit(1) _Pragma("GCC warning \" todo in program  \"")
 
-  #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m"
-  #define ASSERTMESSAGE_PRINTRESET "\x1b[0m"
-  #define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"
+  #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m" // ]
+  #define ASSERTMESSAGE_PRINTRESET "\x1b[0m"         // ]
+  #define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"      // ]
 
-  // {output macors
-  // {int _am_write(void*,unsigned)
-  #if defined(_WIN32) || defined(_WIN64)
-    #include <io.h>
 static inline int _am_write(const void *buf, unsigned len) {
-  return _write(2, buf, len);
+  return (int)fwrite(buf, 1, len, stderr);
 }
-  #elif __has_include(<unistd.h>)
-    #include <unistd.h>
-static inline int _am_write(const void *buf, unsigned len) {
-  return (int)write(2, buf, (size_t)len);
-}
-  #else
-static inline int _am_write(const void *buf, unsigned len) {
-  (void)buf;
-  (void)len;
-  return -1; // unsupported platform
-}
-  #endif
-
-// }
 
 static inline void _am_puts(const char *s) {
   if (!s) return;
@@ -42,81 +24,8 @@ static inline void _am_puts(const char *s) {
     n++;
   _am_write(s, n);
 }
-// { format
-static inline void _am_write_char(char c) { _am_write(&c, 1); }
 
-static inline void _am_write_str(const char *s) {
-  s = s ?: "(nullstr)";
-  while (s[0])
-    _am_write(s++, 1);
-}
-static inline void _am_write_uint(unsigned long long v, int base, int upper) {
-  const char *digits = upper ? "0123456789ABCDEF" : "0123456789abcdef";
-  char buf[32];
-  buf[countof(buf) - 1] = 0;
-  char *p = buf + countof(buf) - 2;
-  while (v) {
-    p[0] = digits[v % base];
-    v /= base;
-    p--;
-  }
-  _am_write_str(p + 1);
-}
-static inline void _am_write_int(long long v) {
-  if (v < 0) {
-    _am_write_char('-');
-    _am_write_uint((unsigned long long)-v, 10, 0);
-  } else {
-    _am_write_uint((unsigned long long)v, 10, 0);
-  }
-}
-static void _am_vfmt(const char *fmt, va_list ap) {
-  for (; *fmt; fmt++) {
-    if (*fmt != '%') {
-      _am_write_char(*fmt);
-      continue;
-    }
-    fmt++;
-    switch (*fmt) {
-      case 's':
-        _am_write_str(va_arg(ap, const char *));
-        break;
-      case 'c':
-        _am_write_char((char)va_arg(ap, int));
-        break;
-      case 'd':
-      case 'i':
-        _am_write_int((longlong)va_arg(ap, int));
-        break;
-      case 'u':
-        _am_write_uint((ulonglong)va_arg(ap, unsigned), 10, 0);
-        break;
-      case 'x':
-        _am_write_uint((ulonglong)va_arg(ap, unsigned), 16, 0);
-        break;
-      case 'X':
-        _am_write_uint((ulonglong)va_arg(ap, unsigned), 16, 1);
-        break;
-      case 'z': {
-        if (fmt[1] == 'u') {
-          fmt++;
-          _am_write_uint(va_arg(ap, usize), 10, 0);
-        }
-      } break;
-      case '%':
-        _am_write_char('%');
-        break;
-      default:
-        _am_write_char('%');
-        _am_write_char(*fmt);
-        break;
-    }
-  }
-}
-// }
-// }
-
-  #ifndef assertMessage_no_backtrace
+  #if !defined assertMessage_no_backtrace
     #if __has_include(<execinfo.h>)
       #include <execinfo.h>
     #else
@@ -133,10 +42,9 @@ EXTERN_C_END
     #define assertMessage_fail_ins() abort()
   #endif
 
-  #ifndef NDEBUG
+  #if !defined NDEBUG
     #if !defined(noAssertMessage)
 
-// [[noreturn, gnu::cold, gnu::format(printf, 7, 8)]]
 void __attribute__((noreturn)) _assertMessageFail(
     const char *expr_str,
     const char *func,
@@ -148,7 +56,7 @@ void __attribute__((noreturn)) _assertMessageFail(
     ...
 );
 
-      #ifndef assertMessage_no_backtrace
+      #if !defined assertMessage_no_backtrace
         #define _ASSERT_GET_BT(arr) backtrace(arr, 5)
       #else
         #define _ASSERT_GET_BT(arr) 0
@@ -205,14 +113,12 @@ void __attribute__((noreturn)) _assertMessageFail(
   #endif
 
 #endif
-#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-  #define ASSERTMESSAGE_C (1)
-#endif
-#if defined(ASSERTMESSAGE_C) && !defined(noAssertMessage)
+#if defined(ASSERTMESSAGE_C) && (!defined(noAssertMessage) && ASSERTMESSAGE_C == 1) || \
+    (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
 
-// #if !defined(ASSERTMESSAGE_OUTPUT)
-//    #define ASSERTMESSAGE_OUTPUT(...) fprintf(stderr, __VA_ARGS__)
-// #endif
+  #undef ASSERTMESSAGE_C
+  #define ASSERTMESSAGE_C 2
+
 void __attribute__((noreturn)) _assertMessageFail(
     const char *expr_str,
     const char *func,
@@ -224,46 +130,53 @@ void __attribute__((noreturn)) _assertMessageFail(
     ...
 ) {
   _am_puts(ASSERTMESSAGE_PRINTRED "\nmessage:\n");
+
+  char buf[1024];
   va_list args;
   va_start(args, fmt);
-  _am_vfmt(fmt, args);
+  int len = vsnprintf(buf, sizeof(buf), fmt, args);
   va_end(args);
-  _am_puts(ASSERTMESSAGE_PRINTORANGE "\nassert:\t");
-  _am_puts(expr_str);
-  _am_puts("\nin fn :\t");
-  _am_puts(func);
-  _am_puts("\nfile  :\t");
-  _am_puts(file);
-  _am_puts("\nline  :\t");
-  _am_write_uint(line, 10, 0);
-  _am_puts("\n\nfailed\n" ASSERTMESSAGE_PRINTRESET);
 
-  #ifndef assertMessage_no_backtrace
+  if (len > 0) {
+    _am_write(buf, (unsigned)len < sizeof(buf) ? (unsigned)len : sizeof(buf) - 1);
+  }
+
+  len = snprintf(buf, sizeof(buf), ASSERTMESSAGE_PRINTORANGE "\nassert:\t%s\nin fn :\t%s\nfile  :\t%s\nline  :\t%u\n\nfailed\n" ASSERTMESSAGE_PRINTRESET, expr_str, func, file, line);
+
+  if (len > 0) {
+    _am_write(buf, (unsigned)len < sizeof(buf) ? (unsigned)len : sizeof(buf) - 1);
+  }
+
+  #if !defined assertMessage_no_backtrace
+  _am_puts(ASSERTMESSAGE_PRINTRED "backtrace:\n==========================\n");
+    #if __has_include(<execinfo.h>)
+  backtrace_symbols_fd(trace, traceLen, 2);
+    #else
   char **syms = backtrace_symbols(trace, traceLen);
   if (syms) {
-    _am_puts(ASSERTMESSAGE_PRINTRED "backtrace:\n==========================\n");
     for (size_t i = 0; i < traceLen; i++) {
       _am_puts(syms[i]);
       _am_puts("\n");
     }
-    _am_puts("==========================\n" ASSERTMESSAGE_PRINTRESET);
   }
+    #endif
+  _am_puts("==========================\n" ASSERTMESSAGE_PRINTRESET);
   #endif
+
+  fflush(stderr);
   assertMessage_fail_ins();
 }
 
-  #ifndef assertMessage_no_backtrace
+  #if !defined assertMessage_no_backtrace
     #if __has_include(<execinfo.h>)
       #include <execinfo.h>
       #include <unistd.h>
     #elif __has_include(<windows.h>) && __has_include ( <dbghelp.h> ) && __has_include ( <errhandlingapi.h> ) && __has_include ( <io.h> ) && __has_include ( <winbase.h> )
-      //
-      #include <windows.h>
-      //
       #include <dbghelp.h>
       #include <errhandlingapi.h>
       #include <io.h>
       #include <winbase.h>
+      #include <windows.h>
 
 int __attribute__((nonnull(1))) backtrace(void **array, int size) {
   return CaptureStackBackTrace(
@@ -289,7 +202,6 @@ char **backtrace_symbols(void *const *array, int size) {
   struct {
     SYMBOL_INFO info;
     char buffer[256];
-
   } sinfo = {
       .info = {
           .SizeOfStruct = sizeof(SYMBOL_INFO),
@@ -312,11 +224,9 @@ char **backtrace_symbols(void *const *array, int size) {
     if (SymFromAddr(process, address, &displacement, symbol)) {
       if (SymGetLineFromAddr64(process, address, &line_displacement, &line)) {
         len = snprintf(output, 512, "%s+0x%llx (%s:%lu)\n", symbol->Name, displacement, line.FileName, line.LineNumber);
-
       } else {
         len = snprintf(output, 512, "%s+0x%llx\n", symbol->Name, displacement);
       }
-
     } else {
       len = snprintf(output, 512, "[Unable to resolve symbol at 0x%llx]\n", address);
     }

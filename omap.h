@@ -4,7 +4,7 @@
 typedef struct {
   stringList data[1];
 } OMap;
-OMap *OMap_new(AllocatorV, usize initSize);
+OMap *OMap_new(allocfn, usize initSize);
 void OMap_free(void *);
 fptr OMap_set(OMap *map, fptr key, fptr val);
 fptr OMap_get(OMap *map, fptr key);
@@ -22,10 +22,10 @@ struct OMap_both OMap_getN(OMap *, usize);
 #endif
 
 #if defined(OMAP_C)
-static inline AllocatorV OMap_allocator(OMap *omap) {
+static inline allocfn OMap_allocator(OMap *omap) {
   return omap->data->allocator;
 }
-OMap *OMap_new(AllocatorV allocator, usize initSize) {
+OMap *OMap_new(allocfn allocator, usize initSize) {
   return (OMap *)stringList_new(allocator, initSize);
 }
 void OMap_free(void *omapPtr) { stringList_free((stringList *)omapPtr); }

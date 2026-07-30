@@ -292,8 +292,8 @@ using arrof_t = T[len];
     #define arrof(T, ...) typeof(typeof(T)[__VA_ARGS__])
   #else
     #define fnptrof(in, out) typeof(typeof(out)(*) in)
-    // #define ptrof(T) typeof(typeof((T){}) *)
-    #define ptrof(T) typeof((struct { typeof(T)(*_p);void(*_f )(T) ; }){}._p)
+    #define ptrof(T) typeof(typeof(T) *)
+    // #define ptrof(T) typeof((struct { typeof(T)(*_p);void(*_f )(T) ; }){}._p)
     #define arrof(T, ...) typeof(typeof (*(T *)0)[__VA_ARGS__])
 
   #endif

@@ -74,13 +74,13 @@ typedef struct test_result {
   char *check;
   size_t result;
 } test_result;
-  #define test_fn(name)              \
-    [[maybe_unused]] void ID_CONCAT( \
-        ID_CONCAT(                   \
-            testing_function__, name \
-        ),                           \
-        __COUNTER__                  \
-    )(test_result * _result, AllocatorV allocator)
+  #define test_fn(name)                     \
+    [[maybe_unused]] static void ID_CONCAT( \
+        ID_CONCAT(                          \
+            testing_function__, name        \
+        ),                                  \
+        __COUNTER__                         \
+    )(test_result * _result, allocfn allocator)
 #elif defined MY_TEST_FRAMEWORK_C && MY_TEST_FRAMEWORK_C == (1)
   #undef MY_TEST_FRAMEWORK_C
   #define MY_TEST_FRAMEWORK_C (2)
@@ -95,13 +95,13 @@ typedef struct test_result {
 struct testNode {
   c8 *filename;
   c8 *testname;
-  fnptrof((test_result *, AllocatorV), void) fn;
+  fnptrof((test_result *, allocfn), void) fn;
   struct testNode *next;
 }
     *testList = nullptr;
 
   #define test_fn(name)                     \
-    void name(test_result *, AllocatorV);   \
+    void name(test_result *, allocfn);      \
     [[gnu::constructor]] static void        \
     name##testfunctoin##_register(void) {   \
       static struct testNode thisNode =     \
@@ -119,7 +119,7 @@ struct testNode {
         n = n->next;                        \
       n->next = &thisNode;                  \
     }                                       \
-    void name(test_result *_result, AllocatorV allocator)
+    void name(test_result *_result, allocfn allocator)
 /*
 test_fn(always_pass) {
   var_ memory = &aCreate(allocator, int, 5);
@@ -135,11 +135,11 @@ test_fn(always_leak) {
   #define test_RESET "\x1b[0m"
   #define test_RED "\x1b[31m"
   #define test_GREEN "\x1b[32m"
-  #include "allocators/debugallocator.h"
-  #include "print.h"
-void onalloc(allocationType *t) {
-  printf("\t%p %zu -> %p %zu : %zu %s\n", t->iptr, t->insize, t->optr, t->outsize, t->trace.ln, t->trace.fn);
-}
+// #include "allocators/debugallocator.h"
+// #include "print.h"
+// void onalloc(allocationType *t) {
+//   printf("\t%p %zu -> %p %zu : %zu %s\n", t->iptr, t->insize, t->optr, t->outsize, t->trace.ln, t->trace.fn);
+// }
 
 __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...) {
   let l = (va_list){};
@@ -157,13 +157,13 @@ __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...) {
 
   return res;
 }
+  #include "allocators/debugallocator.h"
 int main(void) {
   usize count = 0;
   usize pass = 0;
   while (testList) {
-    AllocatorV testAlloc = debugAllocator(
+    allocfn testAlloc = debugAllocator(
             .allocator = stdAlloc,
-    // .log = stdout,
   #if defined(LOG_ALLOCATIONS)
             .on_call = onalloc
   #endif
@@ -171,7 +171,8 @@ int main(void) {
     count++;
     var_ result = (test_result){};
     testList->fn(&result, testAlloc);
-    int leaked = debugAllocatorDeInit(testAlloc);
+    let leaked = 0;
+    // int leaked = debugAllocatorDeInit(testAlloc);
     printf(
         "[%s%s] %s",
         result.result

@@ -201,12 +201,12 @@ typedef struct tpool {
   // i will store the allocator in there
 } tpool;
 typedef mutex(tpool, mutex_recursive) * tpool_single_t;
-AllocatorV tpool_allocator(tpool_single_t pool);
+allocfn tpool_allocator(tpool_single_t pool);
 decfunction_thrd(tpool_worker, ((tpool_single_t, pool)), nothing_t);
 static bool tpool_doSingle(tpool_single_t pool);
 tpoolNode_t *_tpool_queup(tpool_single_t pool, basic_closure_t fn);
 void _tpool_wait_loop(tpool_single_t pool, _Atomic(bool) *done_flag);
-tpool_single_t tpool_init(AllocatorV alloc);
+tpool_single_t tpool_init(allocfn alloc);
 void tpool_deInit(tpool_single_t pool);
 void tpool_addWorkers(tpool_single_t pool, usize count);
 
@@ -216,7 +216,7 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
     _ins.result;                                    \
   })
   #define thrdfunction_call(alloc, name, argss) ({                   \
-    name##_struct_t *_structdata = aCreate(                          \
+    name##_struct_t *_structdata = acreate(                          \
         alloc,                                                       \
         typeof(*_structdata)                                         \
     );                                                               \
@@ -231,7 +231,7 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
   #define thrdfunction_await(alloc, future) ({                                  \
     typeof(future) _future = future;                                            \
     thrd_join(_future->args.threadid.thread[0], _future->args.threadid.status); \
-    defer { aFree(alloc, _future, sizeof(*_future)); };                         \
+    defer { adestroy(alloc, _future); };                                        \
     struct {                                                                    \
       typeof(_future->result) result;                                           \
       int status;                                                               \
@@ -242,7 +242,7 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
     _r;                                                                         \
   })
   #define poolfunction_call(pool, func, argss) ({                                           \
-    var_ args = aCreate(tpool_allocator(pool), typeof(defunction_argsStruct(func, argss))); \
+    var_ args = acreate(tpool_allocator(pool), typeof(defunction_argsStruct(func, argss))); \
     *args = defunction_argsStruct(func, argss);                                             \
     var_ future = _tpool_queup(pool, (basic_closure_t){args, func##_wrapper});              \
     struct {                                                                                \
@@ -252,7 +252,7 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
     _r;                                                                                     \
   })
   #define poolfunction_call_type(pool, func, type, argss) ({                                \
-    var_ args = aCreate(tpool_allocator(pool), typeof(defunction_argsStruct(func, argss))); \
+    var_ args = acreate(tpool_allocator(pool), typeof(defunction_argsStruct(func, argss))); \
     *args = defunction_argsStruct(func, argss);                                             \
     var_ future = _tpool_queup(pool, (basic_closure_t){args, func##_wrapper});              \
     type _r = {future};                                                                     \
@@ -344,7 +344,7 @@ deffunction_thrd(tpool_worker, ((tpool_single_t, pool)), nothing_t) {
   }
 }
 tpoolNode_t *_tpool_queup(tpool_single_t pool, basic_closure_t fn) {
-  tpoolNode_t *node = aCreate(tpool_allocator(pool), tpoolNode_t);
+  tpoolNode_t *node = acreate(tpool_allocator(pool), tpoolNode_t);
   *node = (typeof(*node)){.task = {fn, {false}}, .next = NULL};
 
   mutex_critical (var_ pooldata, mutex_lock, (*pool)) {
@@ -361,10 +361,10 @@ void _tpool_wait_loop(tpool_single_t pool, _Atomic(bool) *done_flag) {
     if (!tpool_doSingle(pool))
       thrd_yield();
 }
-tpool_single_t tpool_init(AllocatorV alloc) {
+tpool_single_t tpool_init(allocfn alloc) {
   typedef typeof(struct tpool_worker_future_struct *) worker_t;
 
-  tpool_single_t pool = aCreate(alloc, typeof(*pool));
+  tpool_single_t pool = acreate(alloc, typeof(*pool));
   pool->data = (tpool){
       .shutdown = false,
       .workers = mList_init(alloc, tpool_worker_struct_t *),
@@ -373,14 +373,14 @@ tpool_single_t tpool_init(AllocatorV alloc) {
   mutex_init((*pool));
   return pool;
 }
-AllocatorV tpool_allocator(tpool_single_t pool) {
+allocfn tpool_allocator(tpool_single_t pool) {
   // changing allocators for objects is illegal anyway
   // mlist pointer is also stable, not constant cause it needs to be mutated
   return mList_allocator(pool->data.workers);
 }
 void tpool_deInit(tpool_single_t pool) {
   typeof(((tpool *)NULL)->workers) workers = NULL;
-  AllocatorV alloc = tpool_allocator(pool);
+  allocfn alloc = tpool_allocator(pool);
   mutex_critical (var_ poolc, mutex_lock, (*pool)) {
     workers = poolc->workers;
     poolc->shutdown = true;
@@ -396,7 +396,7 @@ void tpool_deInit(tpool_single_t pool) {
   } else unreachable();
 
   mutex_deInit((*pool));
-  aFree(alloc, pool, sizeof(*pool));
+  adestroy(alloc, pool);
 }
 void tpool_addWorkers(tpool_single_t pool, usize count) {
   mutex_critical (var_ poolc, mutex_lock, (*pool)) {

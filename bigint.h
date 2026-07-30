@@ -23,38 +23,38 @@ usize bigint_digits(bigint b);
 i8 bigint_cmp_sh(bigint a, bigint b, isize sha, isize shb);
 i8 bigint_cmp(bigint a, bigint b);
 void bigint_trim(bigint *b);
-void bigint_expand(AllocatorV allocator, bigint *b, usize len);
-bigint bigint_copy(AllocatorV allocator, bigint b);
+void bigint_expand(allocfn allocator, bigint *b, usize len);
+bigint bigint_copy(allocfn allocator, bigint b);
 
-void bigint_negate_ip(AllocatorV allocator, bigint *i);
+void bigint_negate_ip(allocfn allocator, bigint *i);
 
-void bigint_add_ip_flag(AllocatorV allocator, bigint *a, bigint b, bool negate, isize shift);
-void bigint_add_ip(AllocatorV allocator, bigint *a, bigint b, isize shift);
-void bigint_sub_ip(AllocatorV allocator, bigint *a, bigint b, isize shift);
+void bigint_add_ip_flag(allocfn allocator, bigint *a, bigint b, bool negate, isize shift);
+void bigint_add_ip(allocfn allocator, bigint *a, bigint b, isize shift);
+void bigint_sub_ip(allocfn allocator, bigint *a, bigint b, isize shift);
 
-bigint bigint_from(AllocatorV allocator, i64 i);
-bigint bigint_fromBits(AllocatorV alloc, void *ptr, usize bitcount, bool signmask);
-bigint bigint_cs(AllocatorV allocator, u8 base, cstr str);
-bigint bigint_fptr(AllocatorV allocator, u8 base, fptr str);
-bigint bigint_negate(AllocatorV allocator, bigint i);
-bigint bigint_add(AllocatorV allocator, bigint a, bigint b);
-bigint bigint_sub(AllocatorV allocator, bigint a, bigint b);
+bigint bigint_from(allocfn allocator, i64 i);
+bigint bigint_fromBits(allocfn alloc, void *ptr, usize bitcount, bool signmask);
+bigint bigint_cs(allocfn allocator, u8 base, cstr str);
+bigint bigint_fptr(allocfn allocator, u8 base, fptr str);
+bigint bigint_negate(allocfn allocator, bigint i);
+bigint bigint_add(allocfn allocator, bigint a, bigint b);
+bigint bigint_sub(allocfn allocator, bigint a, bigint b);
 
 struct bigint_mul_t {
   bigint_unit result, carry;
 };
 
 struct bigint_mul_t bigint_mul_units(bigint_unit a, bigint_unit b);
-void bigint_shrl(AllocatorV allocator, bigint *b, isize direction);
-bigint bigint_mul_single(AllocatorV allocator, bigint *b, bigint_unit bu);
-bigint bigint_mul(AllocatorV allocator, bigint a1, bigint b1);
+void bigint_shrl(allocfn allocator, bigint *b, isize direction);
+bigint bigint_mul_single(allocfn allocator, bigint *b, bigint_unit bu);
+bigint bigint_mul(allocfn allocator, bigint a1, bigint b1);
 struct bigint_div_t {
   bigint div;
   bigint mod;
 };
 
 bigint_unit bigint_estimate_q(bigint rem, bigint b);
-struct bigint_div_t bigint_div(AllocatorV allocator, bigint a1, bigint b1);
+struct bigint_div_t bigint_div(allocfn allocator, bigint a1, bigint b1);
 
 NAMESPACE_STRUCT(
     BInt_from,
@@ -98,11 +98,11 @@ typePrinter(bigint) {
     PUTS("]");
   }
   if (normal) {
-
+    let allocator = PRINTARGS_ALLOCATOR();
     in = bigint_negetive(in)
-             ? (PUTS("-"), bigint_negate(stdAlloc, in))
-             : bigint_copy(stdAlloc, in);
-    defer { msList_deInit(stdAlloc, in); };
+             ? (PUTS("-"), bigint_negate(allocator, in))
+             : bigint_copy(allocator, in);
+    defer { msList_deInit(allocator, in); };
 
     var_ base = ({
       usize dcount = 1;
@@ -124,29 +124,29 @@ typePrinter(bigint) {
 
     var_ hb = msList_stackBuffer(bigint_unit[2]);
     var_ hundred = msList_initBuffer(hb);
-    defer { msList_deInit(stdAlloc, hundred); };
-    msList_push(stdAlloc, hundred, base.modu);
+    defer { msList_deInit(allocator, hundred); };
+    msList_push(allocator, hundred, base.modu);
 
     if (bigint_cmp(in, NULL)) {
-      msList(c8) digits = msList_init(stdAlloc, c8);
-      defer { msList_deInit(stdAlloc, digits); };
+      msList(c8) digits = msList_init(allocator, c8);
+      defer { msList_deInit(allocator, digits); };
 
       while (bigint_cmp(in, NULL)) {
-        var_ dig_big = bigint_div(stdAlloc, in, (bigint)(hundred));
+        var_ dig_big = bigint_div(allocator, in, (bigint)(hundred));
         defer {
-          msList_deInit(stdAlloc, dig_big.mod);
-          msList_deInit(stdAlloc, dig_big.div);
+          msList_deInit(allocator, dig_big.mod);
+          msList_deInit(allocator, dig_big.div);
         };
         var_ dig = bigint_get(dig_big.mod, 0);
         bool is_last = !bigint_cmp(dig_big.div, NULL);
         if (is_last)
           while (dig > 0) {
-            msList_push(stdAlloc, digits, (c8)(dig % 10 + '0'));
+            msList_push(allocator, digits, (c8)(dig % 10 + '0'));
             dig /= 10;
           }
         else
           for (usize i = 0; i < base.digits; i++) {
-            msList_push(stdAlloc, digits, (c8)(dig % 10 + '0'));
+            msList_push(allocator, digits, (c8)(dig % 10 + '0'));
             dig /= 10;
           }
 
@@ -162,7 +162,7 @@ typePrinter(bigint) {
         str[len - 1 - i] = tmp;
       }
 
-      msList_push(stdAlloc, digits, 0);
+      msList_push(allocator, digits, 0);
       PUTS(*msList_vla(digits));
     } else
       PUTS("0");
@@ -254,10 +254,8 @@ test_fn(bigint_comparison) {
 }
 #endif
 
-#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-  #define MY_BIGINT_C (1)
-#endif
-#if defined(MY_BIGINT_C) && MY_BIGINT_C == 1
+#if (defined MY_BIGINT_C && MY_BIGINT_C == 1) || \
+    (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
   #undef MY_BIGINT_C
   #define MY_BIGINT_C (2)
 
@@ -330,7 +328,7 @@ void bigint_trim(bigint *b) {
       slh->length--;
   }
 }
-void bigint_expand(AllocatorV allocator, bigint *b, usize len) {
+void bigint_expand(allocfn allocator, bigint *b, usize len) {
   assertMessage(len >= msList_len(*b), "%zu < %zu", len, msList_len(*b));
   bigint_unit u = 0;
   if (bigint_negetive(b[0]))
@@ -338,14 +336,14 @@ void bigint_expand(AllocatorV allocator, bigint *b, usize len) {
   while (len > msList_len(*b))
     msList_push(allocator, *b, u);
 }
-bigint bigint_copy(AllocatorV allocator, bigint b) {
+bigint bigint_copy(allocfn allocator, bigint b) {
   var_ r = msList_init(allocator, bigint_unit, b ? msList_len(b) : 1);
   if (b)
     msList_pushArr(allocator, r, *msList_vla(b));
   return r;
 }
 
-void bigint_negate_ip(AllocatorV allocator, bigint *i) {
+void bigint_negate_ip(allocfn allocator, bigint *i) {
   assertMessage(i);
   if (!*i)
     return;
@@ -360,7 +358,7 @@ void bigint_negate_ip(AllocatorV allocator, bigint *i) {
   }
   bigint_trim(i);
 }
-void bigint_add_ip_flag(AllocatorV allocator, bigint *a, bigint b, bool negate, isize shift) {
+void bigint_add_ip_flag(allocfn allocator, bigint *a, bigint b, bool negate, isize shift) {
   isize b_len_signed = (isize)msList_len(b) + shift;
   usize b_len = b_len_signed > 0 ? (usize)b_len_signed : 0;
   usize len = msList_len(a[0]) > b_len
@@ -380,13 +378,13 @@ void bigint_add_ip_flag(AllocatorV allocator, bigint *a, bigint b, bool negate, 
   bigint_trim(a);
 }
 
-void bigint_add_ip(AllocatorV allocator, bigint *a, bigint b, isize shift) {
+void bigint_add_ip(allocfn allocator, bigint *a, bigint b, isize shift) {
   return bigint_add_ip_flag(allocator, a, b, 0, shift);
 }
-void bigint_sub_ip(AllocatorV allocator, bigint *a, bigint b, isize shift) {
+void bigint_sub_ip(allocfn allocator, bigint *a, bigint b, isize shift) {
   return bigint_add_ip_flag(allocator, a, b, 1, shift);
 }
-bigint bigint_from(AllocatorV allocator, i64 i) {
+bigint bigint_from(allocfn allocator, i64 i) {
   var_ r = msList_init(allocator, bigint_unit, 1);
   if (sizeof(bigint_unit) >= sizeof(i64)) {
     msList_push(allocator, r, (bigint_unit)i);
@@ -397,17 +395,17 @@ bigint bigint_from(AllocatorV allocator, i64 i) {
   bigint_trim(&r);
   return r;
 }
-bigint bigint_negate(AllocatorV allocator, bigint i) {
+bigint bigint_negate(allocfn allocator, bigint i) {
   var_ res = bigint_copy(allocator, i);
   bigint_negate_ip(allocator, &res);
   return res;
 }
-bigint bigint_add(AllocatorV allocator, bigint a, bigint b) {
+bigint bigint_add(allocfn allocator, bigint a, bigint b) {
   bigint res = bigint_copy(allocator, a);
   bigint_add_ip(allocator, &res, b, 0);
   return res;
 }
-bigint bigint_sub(AllocatorV allocator, bigint a, bigint b) {
+bigint bigint_sub(allocfn allocator, bigint a, bigint b) {
   bigint res = bigint_copy(allocator, a);
   bigint_sub_ip(allocator, &res, b, 0);
   return res;
@@ -438,7 +436,7 @@ struct bigint_mul_t bigint_mul_units(bigint_unit a, bigint_unit b) {
       .carry = carry,
   });
 }
-void bigint_shrl(AllocatorV allocator, bigint *b, isize direction) {
+void bigint_shrl(allocfn allocator, bigint *b, isize direction) {
   if (direction < 0) {
     direction *= -1;
     if (direction > msList_len(b[0])) {
@@ -453,7 +451,7 @@ void bigint_shrl(AllocatorV allocator, bigint *b, isize direction) {
     msList_insArr(allocator, b[0], 0, *VLAP((bigint_unit *)NULL, direction));
   }
 }
-bigint bigint_mul_single(AllocatorV allocator, bigint *b, bigint_unit bu) {
+bigint bigint_mul_single(allocfn allocator, bigint *b, bigint_unit bu) {
   typedef typeof(bigint_mul_units(0, 0)) product;
   bigint res = msList_init(allocator, bigint_unit, msList_len(b[0]));
   bigint_unit carry = 0;
@@ -466,7 +464,7 @@ bigint bigint_mul_single(AllocatorV allocator, bigint *b, bigint_unit bu) {
   msList_push(allocator, res, carry);
   return res;
 }
-bigint bigint_mul(AllocatorV allocator, bigint a1, bigint b1) {
+bigint bigint_mul(allocfn allocator, bigint a1, bigint b1) {
   if ((!bigint_cmp(a1, NULL)) || (!bigint_cmp(b1, NULL)))
     return bigint_from(allocator, 0);
   bool negetive = 0;
@@ -536,7 +534,7 @@ bigint_unit bigint_estimate_q(bigint rem, bigint b) {
 
   return (bigint_unit)q_guess;
 }
-struct bigint_div_t bigint_div(AllocatorV allocator, bigint a1, bigint b1) {
+struct bigint_div_t bigint_div(allocfn allocator, bigint a1, bigint b1) {
   assertMessage(bigint_cmp(b1, NULL));
 
   var_ arena = arena_new_ext(allocator, ((a1 ? msList_len(a1) : 1) + (b1 ? msList_len(b1) : 1)) * sizeof(bigint_unit) * 16);
@@ -589,10 +587,10 @@ struct bigint_div_t bigint_div(AllocatorV allocator, bigint a1, bigint b1) {
 
   return (struct bigint_div_t){.div = quot, .mod = rem};
 }
-bigint bigint_cs(AllocatorV allocator, const u8 base, char *str) {
+bigint bigint_cs(allocfn allocator, const u8 base, char *str) {
   return bigint_fptr(allocator, base, fp(str));
 }
-bigint bigint_fptr(AllocatorV allocator, const u8 base, fptr str) {
+bigint bigint_fptr(allocfn allocator, const u8 base, fptr str) {
   assertMessage(base <= 32);
 
   bool negetive = str.len > 0 && str.ptr[0] == '-';
@@ -639,7 +637,7 @@ bigint bigint_fptr(AllocatorV allocator, const u8 base, fptr str) {
 }
 // create a bigint from a specified bitcount
 // assumes that a byte is 8 bits
-bigint bigint_fromBits(AllocatorV alloc, void *ptr, const usize bitcount, bool sigmask) {
+bigint bigint_fromBits(allocfn alloc, void *ptr, const usize bitcount, bool sigmask) {
   const usize unit_bits = sizeof(bigint_unit) * 8;
   const usize units = (bitcount + unit_bits - 1) / unit_bits;
 
