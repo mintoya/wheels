@@ -23,14 +23,11 @@
   )
 
 #define match_type(value, ...) \
-  ({                           \
-    var_ _vx = REF(value);    \
-    _Generic(                  \
-        _vx[0],                \
-        APPLY_N_WITH_C(        \
-            match_type_items,  \
-            _vx[0],            \
-            __VA_ARGS__        \
-        )                      \
-    );                         \
-  })
+  _Generic(                    \
+      (typeof(value)){},       \
+      APPLY_N_WITH_C(          \
+          match_type_items,    \
+          (value),             \
+          __VA_ARGS__          \
+      )                        \
+  )\

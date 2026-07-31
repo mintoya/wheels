@@ -28,18 +28,17 @@ pub fn build(b: *std.Build) void {
         "file",
         "which file to run",
     ) orelse "tests.h";
-
-    exe.root_module.addCSourceFile(.{
-        .file = b.path(cfile),
-        .flags = &.{
-            "-g",
-            "-w",
+    const compileflags =  &.{
             "-std=c2y",
             "-fdefer-ts",
             "-fno-sanitize=vla-bound",
             "-fsanitize=alignment",
-            // "-finstrument-functions" ,
-        },
+            "-finstrument-functions" ,
+    };
+
+    exe.root_module.addCSourceFile(.{
+        .file = b.path(cfile),
+        .flags = compileflags,
         .language = .c,
     });
 
@@ -48,19 +47,11 @@ pub fn build(b: *std.Build) void {
 
         exe.root_module.addCSourceFile(.{
             .file = b.path("c11threads/c11threads_win32.c"),
-            .flags = &.{
-                "-g",
-                "-w",
-                "-std=c2y",
-                "-fdefer-ts",
-                "-fno-sanitize=vla-bound",
-                "-fsanitize=alignment",
-                // "-finstrument-functions" ,
-            },
+            .flags = compileflags,
             .language = .c,
         });
     }
-    exe.rdynamic = true;
+    // exe.rdynamic = true;
 
     b.installArtifact(exe);
 

@@ -22,12 +22,13 @@
   #define sglist_initSection(list, idx) (                                                                \
       (list).arrays[idx] = *acreate((list).allocator, typeof(typeof(**((list).arrays)))[1 << (idx + 3)]) \
   )
-  #define sglist_push(list, val) ({                      \
+  #define sglist_push(list, ...) ({                      \
     let _list = list;                                    \
     defer { list = _list; };                             \
     if_unlikely (!sglist_idx2(_list.len))                \
       sglist_initSection(_list, sglist_idx1(_list.len)); \
-    sglist_get(_list, _list.len++) = val;                \
+    sglist_get(_list, _list.len++) =                     \
+        (typeof((_list.arrays)[0][0]))__VA_ARGS__;       \
   })
   #define sglist_deinit(list) ({                                               \
     let _p = &(list);                                                          \

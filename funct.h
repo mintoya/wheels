@@ -275,9 +275,6 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
 
   #include "allocators/tsaAllocator.h"
   #include "tests.h"
-constexpr struct {
-} f = {};
-
 deffunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), void) {
   thrd_sleep(REF(int_timespec(ts_int_s / 2)), nullptr);
   mutex_critical (int *x, mutex_lock, i[0]) {

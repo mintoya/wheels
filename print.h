@@ -1,10 +1,10 @@
+#include "mytypes.h"
 #if !defined MY_PRINTER_H
   #define MY_PRINTER_H (1)
   #include "allocator.h"
   #include "allocators/debugallocator.h"
   #include "assertMessage.h"
   #include "macros.h"
-  #include "print/print_pre.h"
   #include "sList.h"
   #include <locale.h>
   #include <stdatomic.h>
@@ -91,9 +91,9 @@ typePrinter("ptr", void *) {
     shift -= 4;
   }
 }
+
   #include "print/escape_printers.h"
-  #include "print/int_printers.h"
-  #include "print/str_printers.h"
+
 typePrinter(f128) {
   usize digits = 0;
   let args = PRINTARGS();
@@ -214,8 +214,7 @@ typePrinter("slice", struct slice_any_t) { // second least safe printer
 
 volatile static thread_local bool print_f_shouldFlush = 1;
 
-  #if defined PRINTER_LIST_TYPENAMES
-__attribute__((constructor(205))) static void printer_post_initfn() {
+static inline void post_init_print_debug(void) {
   print("==============================\n"
         "printer debug\n"
         "==============================\n");
@@ -226,16 +225,15 @@ __attribute__((constructor(205))) static void printer_post_initfn() {
   println("capacity : {}", 1 << PrinterSingleton.data->capbit);
   println("allocation : {dbga-stats}", debugAllocator_stats(PrinterSingleton.data->allocator));
 }
-  #endif // PRINTER_LIST_TYPENAMES
-  #undef MY_PRINTER_H
-  #define MY_PRINTER_H (2)
+
 #endif // MY_PRINTER_H
 
-#if defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-  #define MY_PRINTER_C (1)
-#endif
-
-#if defined MY_PRINTER_C && MY_PRINTER_C == 1 && MY_PRINTER_H == 2
+#if (defined MY_PRINTER_C && MY_PRINTER_C == 1) || \
+    (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
+  #undef MY_PRINTER_C
+  #define MY_PRINTER_C (2)
+  #include "print/int_printers.h"
+  #include "print/str_printers.h"
 
 PrinterSingleton_t PrinterSingleton = {};
 void PrinterSingleton_init() { printermap_newm(debugAllocator(.allocator = stdAlloc), 3, PrinterSingleton.data); }
@@ -284,14 +282,12 @@ fptr printer_arg_after(char delim, fptr slice) {
 fptr printer_arg_trim(fptr in) {
   while (
       in.len &&
-      in.ptr[0] <= ' ') {
-    in.ptr++;
-    in.len--;
-  }
+      in.ptr[0] <= ' ')
+    in = slice_split(in, (1, -1))[0];
   while (
       in.len &&
       in.ptr[in.len - 1] <= ' ')
-    in.len--;
+    in = slice_split(in, (0, in.len - 1))[0];
   return in;
 }
 NAMESPACE_STRUCT(
@@ -358,7 +354,6 @@ printerfunction_arg *print_f_makeArgs(allocfn allocator, fptr in) {
   assertMessage(cur == res + arglen + 1);
   return res;
 }
-
 test_fn(print_f_args) {
   let args = fp("a :b: c :d ");
   test_assert(print_f_arglen(args) == 4);

@@ -82,7 +82,9 @@ To bit_cast_func(const From &src) noexcept {
 
   #define CONCATS(...) MACRO_EXPANDi(CONCATS1(__VA_ARGS__))
 
-  #if defined(__cplusplus)
+  #if __has_include(<stddefer.h>)
+    #include <stddefer.h>
+  #elif defined(__cplusplus)
     #pragma GCC warning "using cpp closure defer"
     #include <utility>
 template <typename F>
@@ -95,25 +97,18 @@ struct DeferHelper {
   template <typename F>
   Deferrer<F> operator+(F &&f) { return {std::forward<F>(f)}; }
 };
-
     #define defer auto CONCATS(_defer_, __LINE__) = DeferHelper() + [&]()
-  #else
-    #if __has_include(<stddefer.h>)
-      #include <stddefer.h>
-    #else
-      #if defined(__clang__)
-        #pragma GCC warning "using clang block defer (captures only work on pointers)"
+  #elif defined(__clang__)
+    #pragma GCC warning "using clang block defer (captures only work on pointers)"
 static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
-        #define defer __attribute__((cleanup(_defer_cleanup_block))) void (^ID_CONCAT(_defer_var__, __COUNTER__))(void) = ^
-      #elif defined(__GNUC__)
-        #pragma GCC warning "using gnu nested function defer"
-        #define _defer_helper(func_name, var__name)              \
-          auto void func_name(int *);                            \
-          int var__name __attribute__((cleanup(func_name))) = 0; \
-          void func_name(int *_)
-        #define defer _defer_helper(ID_CONCAT(_defer_func_, __COUNTER__), ID_CONCAT(_defer_var__, __COUNTER__))
-      #endif
-    #endif
+    #define defer __attribute__((cleanup(_defer_cleanup_block))) void (^ID_CONCAT(_defer_var__, __COUNTER__))(void) = ^
+  #elif defined(__GNUC__)
+    #pragma GCC warning "using gnu nested function defer"
+    #define _defer_helper(func_name, var__name)              \
+      auto inline void func_name(int *);                     \
+      int var__name __attribute__((cleanup(func_name))) = 0; \
+      inline void func_name(int *_)
+    #define defer _defer_helper(ID_CONCAT(_defer_func_, __COUNTER__), ID_CONCAT(_defer_var__, __COUNTER__))
   #endif
 
   #define APPLY_N(macro, ...) \
@@ -226,9 +221,9 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define IF_IS1(tok, then, otherwise) \
     IF_ISL1(ID_CONCAT(IF_IS1_HELP_, tok), then, otherwise)
-//
-// loops
-//
+  //
+  // loops
+  //
   #include "macros/foreach3.h"
 
 //

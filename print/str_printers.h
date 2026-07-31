@@ -22,7 +22,8 @@ static void GETTYPEPRINTERFN(carr)(fptr _v_in_ptr, printerfunction_context _ctx)
   PUTS(*VLAP((char *)_v_in_ptr.ptr, _v_in_ptr.len));
 }
 __attribute__((constructor(203))) static void printerConstructor_carr() {
-  PrinterSingleton_append(fp("carr"), (printerFunction){GETTYPEPRINTERFN(carr), ~(usize)0});
+  static const u8 str[] = "carr";
+  PrinterSingleton_append((fptr){sizeof(str) - 1, (u8 *)str}, (printerFunction){GETTYPEPRINTERFN(carr), ~(usize)0});
 }
 
 typePrinter(c32) {

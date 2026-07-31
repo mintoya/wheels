@@ -126,6 +126,7 @@ constexpr fptr nullFptr = {0, nullptr};
                                        \
           ),                           \
       )
+    #include "tests.h"
   #else
     #include <cstring>
     #include <string>
@@ -170,6 +171,9 @@ inline fptr fp_from(const char (&s)[N]) {
 }
   #endif
   #define fp fp_from
+test_fn(fptr_compile_time) {
+  test_fpeq("a\0a", ((fptr){3, (u8 *)"a\0a"}));
+}
 
   #define fptr_eq(a, b) ({                                                   \
     (fptr_eq)(                                                               \

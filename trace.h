@@ -1,58 +1,82 @@
+extern char __executable_start;
 // -finstrument-functions
+#include "mytypes.h"
 #include "sList.h"
 // #include "thread_help.h"
 #include "macros.h"
 #include "print.h"
+#include "sglist.h"
 #include "ts_int.h"
 #include <stdatomic.h>
 #include <stdbool.h>
+typedef struct {
+  void *addr;
+} sym_off;
+typePrinter(sym_off) {
+  PUTS("{");
+  USENAMEDPRINTER("ptr", (char *)in.addr - &__executable_start);
+  PUTS(",");
+  USENAMEDPRINTER("ptr", (char *)in.addr);
+  PUTS("}");
+}
 
 thread_local static struct {
-  msList(struct {
+  _Atomic(bool) dotrace[1];
+  sglist(struct {
     void *fn;
     void *site;
     ts_int start;
   }) traceStack;
-  _Atomic(bool) dotrace[1];
-} traceData = {nullptr, true};
+} traceData = {true, {stdAlloc}};
 
 __attribute__((no_instrument_function)) void __cyg_profile_func_enter(void *this_fn, void *call_site) {
-  let flag = traceData.dotrace;
-  if (!atomic_exchange(flag, false)) return;
-  defer { atomic_store(flag, true); };
-  let list = &traceData.traceStack;
-  *list = *list ?: msList_init(stdAlloc, ptrstype(*list), 20);
-  msList_push(stdAlloc, *list, {this_fn, call_site, now()});
+  if (!atomic_exchange(traceData.dotrace, false)) return;
+  sglist_push(traceData.traceStack, {this_fn, call_site, now()});
+  atomic_store(traceData.dotrace, true);
 }
 __attribute__((no_instrument_function)) void __cyg_profile_func_exit(void *this_fn, void *call_site) {
-  let flag = traceData.dotrace;
-  if (!atomic_exchange(flag, false)) return;
-  defer { atomic_store(flag, true); };
+  if (!atomic_exchange(traceData.dotrace, false)) return;
   let list = &traceData.traceStack;
-  if (!*list || !msList_len(*list)) return;
-  msList_len(*list)--;
+  list->len -= !!list->len;
+  atomic_store(traceData.dotrace, true);
+}
+struct tracestack_slice {
+  usize len;
+  ptrstype(arrstype(itypeof(itypeof(typeof(traceData), traceStack), arrays))) * ptr;
+};
+struct tracestack_slice getTrace(allocfn alloc) {
+  atomic_exchange(traceData.dotrace, false);
+  let list = &traceData.traceStack;
+  let res = (typeof(getTrace(alloc))){list->len};
+  if (!res.len) return res;
+  res.ptr = *acreate(alloc, typeof(*slice_vla(res)));
+  foreach (usize i, range(0, res.len))
+    res.ptr[i] = sglist_get(*list, i);
+  atomic_store(traceData.dotrace, true);
+  return res;
 }
 
-// slice(ptrstype) getTrace() {}
-
-void(test)(void) {
+void(test)(int recurse) {
   println("Trace inside test():");
-  let list = traceData.traceStack;
-  if (list)
-    foreach (let i, vlap(msList_vla(list)))
-      println("fn: {ptr}, site: {ptr}, called : {ts_int}", i.fn, i.site, i.start);
+  let list = getTrace(stdAlloc);
+  defer {
+    if (list.len) slice_free(stdAlloc, list);
+  };
+  foreach (let i, vlap(slice_vla(list)))
+    println("fn: {sym_off}, site: {sym_off}, called : {ts_int}", i.fn, i.site, i.start);
   println("personal pointer {ptr}", __builtin_return_address(0));
   println("super pointer {ptr}", __builtin_return_address(1));
+  if (recurse) return test(recurse - 1);
 }
 
 int main(void) {
-  test();
-
+  test(1);
   println("Trace back in main():");
-  let list = traceData.traceStack;
-  if (list)
-    foreach (let i, vlap(msList_vla(list)))
-      println("fn: {ptr}, site: {ptr}", i.fn, i.site);
-  println("final capacity {}", (usize)msList_cap(list));
+  let list = getTrace(stdAlloc);
+  defer {
+    if (list.len) slice_free(stdAlloc, list);
+  };
+  foreach (let i, vlap(slice_vla(list)))
+    println("fn: {sym_off}, site: {sym_off}, called : {ts_int}", i.fn, i.site, i.start);
 }
 #include "wheels.h"

@@ -74,12 +74,12 @@ typedef struct test_result {
   char *check;
   size_t result;
 } test_result;
-  #define test_fn(name)                     \
-    [[maybe_unused]] static void ID_CONCAT( \
-        ID_CONCAT(                          \
-            testing_function__, name        \
-        ),                                  \
-        __COUNTER__                         \
+  #define test_fn(name)                            \
+    [[maybe_unused]] static inline void ID_CONCAT( \
+        ID_CONCAT(                                 \
+            testing_function__, name               \
+        ),                                         \
+        __COUNTER__                                \
     )(test_result * _result, allocfn allocator)
 #elif defined MY_TEST_FRAMEWORK_C && MY_TEST_FRAMEWORK_C == (1)
   #undef MY_TEST_FRAMEWORK_C
@@ -166,17 +166,20 @@ test_fn(always_leak) {
 int main(void) {
   usize count = 0;
   usize pass = 0;
-  while (testList) {
-    allocfn testAlloc = debugAllocator(
-            .allocator = stdAlloc,
+
+  allocfn testAlloc = debugAllocator(
+          .allocator = stdAlloc,
   #if defined(LOG_ALLOCATIONS)
-            .on_call = onalloc
+          .on_call = onalloc
   #endif
-    );
+  );
+  defer { debugAllocatorDeInit(testAlloc); };
+  while (testList) {
     count++;
     var_ result = (test_result){};
     testList->fn(&result, testAlloc);
     let leaked = 0;
+    defer { debugAllocator_clear(testAlloc); };
     foreach (let location, vtable(debugallocator_iterator, testAlloc)) {
       leaked++;
       printf(
