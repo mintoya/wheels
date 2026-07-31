@@ -59,6 +59,14 @@ To bit_cast_func(const From &src) noexcept {
   #define MACRO_EXPAND(...) \
     MACRO_EXPAND4(__VA_ARGS__)
 
+  #define MACRO_EXPANDi1(...) \
+    __VA_ARGS__
+  #define MACRO_EXPANDi2(...) \
+    __VA_OPT__(MACRO_EXPANDi1(MACRO_EXPANDi1(MACRO_EXPANDi1(MACRO_EXPANDi1(__VA_ARGS__)))))
+  #define MACRO_EXPANDi3(...) \
+    MACRO_EXPANDi2(MACRO_EXPANDi2(MACRO_EXPANDi2(MACRO_EXPANDi2(__VA_ARGS__))))
+  #define MACRO_EXPANDi(...) MACRO_EXPANDi3(__VA_ARGS__)
+
   #define LPAREN (
   #define RPAREN )
 
@@ -72,7 +80,7 @@ To bit_cast_func(const From &src) noexcept {
     ID_CONCAT(a, b)             \
     __VA_OPT__(, __VA_ARGS__ RPAREN)
 
-  #define CONCATS(...) MACRO_EXPAND(CONCATS1(__VA_ARGS__))
+  #define CONCATS(...) MACRO_EXPANDi(CONCATS1(__VA_ARGS__))
 
   #if defined(__cplusplus)
     #pragma GCC warning "using cpp closure defer"

@@ -1,4 +1,4 @@
-#define TU_TAG(type) ID_CONCAT(type, _enum)
+#define TU_TAG(type) CONCATS(type, _enum)
 
 #define TU_ENUM(type_d) TU_TAG(TUPLE_FIRST type_d),
 #define TU_TDEF(type_d) typedef TUPLE_EXPAND_REST(type_d) TUPLE_EXPAND_FIRST(type_d);
@@ -161,7 +161,7 @@
 // }
 #define tu_of(type, ...) \
   {.tag = TU_TAG(type), .type = __VA_ARGS__}
-#define tu_is(type, item) (item.tag == TU_TAG(type))
+#define tu_is(type, item) ((item).tag == TU_TAG(type))
 #define tu_or(type, item, other, ...) \
   ({                                  \
     var_ item_eval = item;            \
@@ -169,19 +169,22 @@
         ? item_eval.type              \
         : (type)other __VA_ARGS__;    \
   })
-#define tu_assert(type, item) ({                       \
-  var_ item_eval = item;                               \
-  assert(tu_is(type, item_eval) && "unexpected type"); \
-  item_eval.type;                                      \
-})
-#define tu_catch(type, item, ...) ({      \
-  var_ item_eval = item;                  \
-  if_unlikely (!tu_is(type, item_eval)) { \
-    __VA_ARGS__;                          \
-    abort();                              \
-  };                                      \
-  item_eval.type;                         \
-})
+#define tu_catch(type, item, ...) (*({      \
+  var_ _tu_eval = &(item);                  \
+  if_unlikely (!tu_is(type, (*_tu_eval))) { \
+    __VA_ARGS__;                            \
+    __builtin_trap();                       \
+  };                                        \
+  &_tu_eval->type;                          \
+}))
+#define tu_catchr(type, item, ...) (({      \
+  let item_eval = item;                     \
+  if_unlikely (!tu_is(type, (item_eval))) { \
+    __VA_ARGS__;                            \
+    __builtin_trap();                       \
+  };                                        \
+  item_eval.type;                           \
+}))
 #define if_tu_is(variable, type, value)                                              \
   if (tu_is(type, value))                                                            \
     for (struct {type tv;bool keep; } tu_check_ = {value.type, 1}; tu_check_.keep; tu_check_.keep = 0) \

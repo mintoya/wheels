@@ -9,17 +9,21 @@ tu_def(
     (ii64, long long),
 );
 
-#define integer_of(i) match_type(     \
-    i,                                \
-    (u32, u, (integer)tu_of(u32, u)), \
-    (i32, s, (integer)tu_of(i32, s)), \
-    (u64, u, (integer)tu_of(u64, u)), \
-    (i64, s, (integer)tu_of(i64, s)), \
+#define integer_of(i) match_type(      \
+    i,                                 \
+    (u32, u, (integer)tu_of(iu32, u)), \
+    (i32, s, (integer)tu_of(ii32, s)), \
+    (u64, u, (integer)tu_of(iu64, u)), \
+    (i64, s, (integer)tu_of(ii64, s)), \
 )
 
+integer five() { return integer_of(5); }
 int main(void) {
-  integer f;
-  tu_match_exp(
+  integer f = integer_of(5);
+  return tu_catch(iu32, f) = 6;
+  return tu_catchr(iu32, five());
+
+  return tu_match_exp(
       f,
       (iu32, u, (usize)u),
       (ii32, u, (usize)u),
