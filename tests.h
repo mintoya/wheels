@@ -171,8 +171,7 @@ int main(void) {
     count++;
     var_ result = (test_result){};
     testList->fn(&result, testAlloc);
-    let leaked = 0;
-    // int leaked = debugAllocatorDeInit(testAlloc);
+    let leaked = debugAllocatorDeInit(testAlloc);
     printf(
         "[%s%s] %s",
         result.result

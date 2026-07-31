@@ -162,6 +162,7 @@ int debugAllocatorDeInit(allocfn afn) {
   defer { cba_deinit(afn); };
   let cba = (callbackallocatorbuffer *)afn;
   let slef = (debugAllocator_state *)(cba->udata);
+  defer { adestroy(cba->allocator, slef); };
   int leaks = 0;
 
   foreach (let kv, vtable(dbgallocator_map_iterator, slef->map)) {
