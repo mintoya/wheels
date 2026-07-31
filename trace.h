@@ -3,6 +3,7 @@
 // #include "thread_help.h"
 #include "macros.h"
 #include "print.h"
+#include "ts_int.h"
 #include <stdatomic.h>
 #include <stdbool.h>
 
@@ -10,6 +11,7 @@ thread_local static struct {
   msList(struct {
     void *fn;
     void *site;
+    ts_int start;
   }) traceStack;
   _Atomic(bool) dotrace[1];
 } traceData = {nullptr, true};
@@ -20,7 +22,7 @@ __attribute__((no_instrument_function)) void __cyg_profile_func_enter(void *this
   defer { atomic_store(flag, true); };
   let list = &traceData.traceStack;
   *list = *list ?: msList_init(stdAlloc, ptrstype(*list), 20);
-  msList_push(stdAlloc, *list, {this_fn, call_site});
+  msList_push(stdAlloc, *list, {this_fn, call_site, now()});
 }
 __attribute__((no_instrument_function)) void __cyg_profile_func_exit(void *this_fn, void *call_site) {
   let flag = traceData.dotrace;
@@ -38,7 +40,7 @@ void(test)(void) {
   let list = traceData.traceStack;
   if (list)
     foreach (let i, vlap(msList_vla(list)))
-      println("fn: {ptr}, site: {ptr}", i.fn, i.site);
+      println("fn: {ptr}, site: {ptr}, called : {ts_int}", i.fn, i.site, i.start);
   println("personal pointer {ptr}", __builtin_return_address(0));
   println("super pointer {ptr}", __builtin_return_address(1));
 }
