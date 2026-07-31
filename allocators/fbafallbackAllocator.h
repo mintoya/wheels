@@ -13,9 +13,9 @@ static allocfn initarena(void *arg) {
 static void deinitarena(allocfn allocator, void *) { arena_cleanup(allocator); }
 //}
 
-void *_fbafb_fn(void *allocator, void *ptr, usize oldsize, usize newsize, char *f, usize l);
+void *_fbafb_fn(allocfn allocator, void *ptr, usize oldsize, usize newsize, const char *f, uint l);
 struct fbab {
-  void *(*fn)(void *, void *, usize, usize, char *, usize);
+  struct allocfns fn[1];
   u8 *mem;
   usize offset, cap, count;
   void *ctx;
@@ -83,7 +83,7 @@ allocfn fbafb_init(
 ) {
   assertMessage(!((uptr)buffer & (alignof(myAlign) - 1)));
   *mem = (typeof(*mem)){
-      _fbafb_fn,
+      {_fbafb_fn},
       buffer,
       0,
       size,
@@ -100,7 +100,7 @@ void fbafb_deinit(allocfn allocator) {
   if (it->allocator) it->deinit(it->allocator, it->ctx);
   *it = (typeof(*it)){};
 }
-void *_fbafb_fn(void *allocator, void *ptr, usize oldsize, usize newsize, char *f, usize l) {
+void *_fbafb_fn(allocfn allocator, void *ptr, usize oldsize, usize newsize, const char *f, uint l) {
   oldsize = lineup(oldsize, alignof(myAlign));
   newsize = lineup(newsize, alignof(myAlign));
   let it = (struct fbab *)allocator;
@@ -133,14 +133,12 @@ void *_fbafb_fn(void *allocator, void *ptr, usize oldsize, usize newsize, char *
 
   it->allocator = it->allocator ?: it->init(it->ctx);
 
-  // Intercept reallocations where the ptr is in our fixed buffer but newsize exceeds capacity.
-  // We cannot pass ptr to the fallback allocator because it will attempt to free it.
   if (ptr) {
     let u = (uptr)ptr;
     if (u >= (uptr)it->mem && u < it->offset + (uptr)it->mem) {
       void *res = vcall(it->allocator, fn, (nullptr, 0, newsize, f, l));
       memcpy(res, ptr, MIN$(oldsize, newsize));
-      _fbafb_fn(allocator, ptr, oldsize, 0, f, l); // Free from the fixed buffer
+      _fbafb_fn(allocator, ptr, oldsize, 0, f, l);
       return res;
     }
   }
