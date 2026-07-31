@@ -38,6 +38,7 @@ pub fn build(b: *std.Build) void {
             "-fdefer-ts",
             "-fno-sanitize=vla-bound",
             "-fsanitize=alignment",
+            // "-finstrument-functions" ,
         },
         .language = .c,
     });
@@ -54,6 +55,7 @@ pub fn build(b: *std.Build) void {
                 "-fdefer-ts",
                 "-fno-sanitize=vla-bound",
                 "-fsanitize=alignment",
+                // "-finstrument-functions" ,
             },
             .language = .c,
         });

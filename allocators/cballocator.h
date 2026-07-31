@@ -1,6 +1,8 @@
 #if !defined CBA_ALLOCATOR_H
   #define CBA_ALLOCATOR_H (1)
   #include "../allocator.h"
+// handle to an allocation , passed by pointer
+// pointer is stable for duration of calls, also const 
 typedef struct cbhandle {
   struct cballocator *cbself;
   void *inptr;
@@ -13,8 +15,11 @@ typedef struct cbhandle {
 typedef struct cballocator {
   struct allocfns dt[1];
   allocfn allocator;
+  // nullable
   fnptrof((const callbackallocatorhandle *), void) cba;
+  // nullable
   fnptrof((const callbackallocatorhandle *, void *), void) cbb;
+  // never touched
   void *udata;
 } callbackallocatorbuffer;
 allocfn cba_init(allocfn fn, itypeof(struct cballocator, cba) cba, itypeof(struct cballocator, cbb) cbb, void *);
@@ -55,9 +60,9 @@ test_fn(cba_test_fn) {
 void *_cba_alloc(allocfn slf, void *op, usize in, usize out, const char *f, uint l) {
   let selff = (struct cballocator *)slf;
   const struct cbhandle here[1] = {{selff, op, in, out, f, l}};
-  selff->cba(here);
+  if (selff->cba) selff->cba(here);
   let result = vcall(selff->allocator, fn, (op, in, out, f, l));
-  selff->cbb(here, result);
+  if (selff->cbb) selff->cbb(here, result);
   return result;
 }
 allocfn cba_init(

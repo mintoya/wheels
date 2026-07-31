@@ -158,6 +158,11 @@ __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...) {
   return res;
 }
   #include "allocators/debugallocator.h"
+test_fn(always_leak) {
+  acreate(allocator, int[2]);
+  adestroy(allocator, aresize(allocator, acreate(allocator, int[2]), int[5]));
+  aresize(allocator, acreate(allocator, int[2]), int[5]);
+}
 int main(void) {
   usize count = 0;
   usize pass = 0;
@@ -171,7 +176,16 @@ int main(void) {
     count++;
     var_ result = (test_result){};
     testList->fn(&result, testAlloc);
-    let leaked = debugAllocatorDeInit(testAlloc);
+    let leaked = 0;
+    foreach (let location, vtable(debugallocator_iterator, testAlloc)) {
+      leaked++;
+      printf(
+          "\t(" test_RED "leak" test_RESET ") file:%s line:%zu size:%zu\n",
+          location.trace.fn,
+          location.trace.ln,
+          location.trace.size
+      );
+    }
     printf(
         "[%s%s] %s",
         result.result

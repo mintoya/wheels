@@ -326,7 +326,7 @@ static inline MAP_FN(iter_state) MAP_FN(iter_init)(const mapname *map) {
   return it;
 }
 
-static inline int MAP_FN(iter_valid)(MAP_FN(iter_state) * it) {
+static inline int MAP_FN(iter_valid)(const MAP_FN(iter_state) * it) {
   let cap = (usize)1 << it->map->capbit;
   return it->current < cap;
 }
@@ -342,7 +342,7 @@ typedef struct MAP_FN(k_v) {
   MAP_K key;
   MAP_V *val;
 } MAP_FN(k_v);
-static inline MAP_FN(k_v) MAP_FN(iter_cast)(MAP_FN(iter_state) * it) {
+static inline MAP_FN(k_v) MAP_FN(iter_cast)(const MAP_FN(iter_state) * it) {
   return (MAP_FN(k_v)){
       .key = it->map->keys[it->current],
       .val = it->map->vals + it->current
@@ -364,7 +364,6 @@ static const MAP_FN(iterator_t) MAP_FN(iterator) = {
 
 #undef mapconfig
 #undef mapname
-#undef mapiterator
 #undef maphash
 #undef mapcmp
 #undef MAP_K

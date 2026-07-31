@@ -4,7 +4,6 @@
   #include "../macros.h"
   #include "../print/print_pre.h"
   #include "cballocator.h"
-
 struct tracedata {
   const char *fn;
   usize ln;
@@ -55,6 +54,26 @@ int debugAllocator_clear(allocfn allocator);
  *      - will print traces to stdout
  */
 int debugAllocatorDeInit(allocfn);
+typedef struct debugallocattorIterator_state {
+  usize idx;
+  const allocfn _self;
+} debugallocattorIterator_state;
+const debugallocattorIterator_state debugallocator_iterator_init(allocfn allocator);
+typedef struct {
+  void *ptr;
+  struct tracedata trace;
+} debugAllocator_iter_item;
+debugAllocator_iter_item debugallocator_iterator_cast(const debugallocattorIterator_state *);
+void debugallocator_iterator_increase(debugallocattorIterator_state *);
+bool debugallocator_iterator_valid(const debugallocattorIterator_state *);
+
+NAMESPACE_STRUCT(
+    debugallocator_iterator,
+    (init, &debugallocator_iterator_init),
+    (cast, &debugallocator_iterator_cast),
+    (increase, &debugallocator_iterator_increase),
+    (valid, &debugallocator_iterator_valid),
+);
 
   #include "../tests.h"
 test_fn(debugallocator_test) {
@@ -80,6 +99,7 @@ test_fn(debugallocator_test) {
 
   #define mapconfig dbgallocator_map, void *, struct tracedata, ((iptr)k), ((iptr)a - (iptr)b)
   #include "../incmap.h"
+
 typedef struct {
   struct debugStats stats;
   fnptrof((void *, usize, usize, void *, const char *, uint), void) onalloc;
@@ -107,7 +127,7 @@ void _dbga_cba(const callbackallocatorhandle *h) {
   }
 }
 void _dbga_cbb(const callbackallocatorhandle *h, void *p) {
-  let slef = (debugAllocator_state *)(h->cbself->udata);
+  let _self = (debugAllocator_state *)(h->cbself->udata);
   let in = h->insize;
   let out = h->outsize;
   typedef enum : u8 {
@@ -119,30 +139,30 @@ void _dbga_cbb(const callbackallocatorhandle *h, void *p) {
   switch (n) {
     case RESIZE: {
       assertMessage(p);
-      let ptr = dbgallocator_map_get(slef->map, h->inptr);
+      let ptr = dbgallocator_map_get(_self->map, h->inptr);
       assertMessage(ptr, "allocator lost pointer");
-      dbgallocator_map_rem(slef->map, h->inptr);
-      dbgallocator_map_set(slef->map, p, (struct tracedata){h->filename, h->linenumber, out});
+      dbgallocator_map_rem(_self->map, h->inptr);
+      dbgallocator_map_set(_self->map, p, (struct tracedata){h->filename, h->linenumber, out});
     } break;
     case ALLOC: {
       assertMessage(p);
-      assertMessage(!dbgallocator_map_get(slef->map, p), "allocator gave used pointer");
-      dbgallocator_map_set(slef->map, p, (struct tracedata){h->filename, h->linenumber, out});
+      assertMessage(!dbgallocator_map_get(_self->map, p), "allocator gave used pointer");
+      dbgallocator_map_set(_self->map, p, (struct tracedata){h->filename, h->linenumber, out});
     } break;
     case FREE: {
       assertMessage(!p);
-      let ptr = dbgallocator_map_get(slef->map, h->inptr);
+      let ptr = dbgallocator_map_get(_self->map, h->inptr);
       assertMessage(ptr, "allocator lost pointer");
-      dbgallocator_map_rem(slef->map, h->inptr);
+      dbgallocator_map_rem(_self->map, h->inptr);
     } break;
     default:
       unreachable();
   }
-  slef->stats.total_calls++;
-  slef->stats.total_active_allocations += (n == ALLOC) - (n == FREE);
-  slef->stats.current_memory += (isize)h->outsize - (isize)h->insize;
-  slef->stats.max_memory = MAX$(slef->stats.max_memory, slef->stats.current_memory);
-  if (slef->onalloc) slef->onalloc(h->inptr, in, out, p, h->filename, h->linenumber);
+  _self->stats.total_calls++;
+  _self->stats.total_active_allocations += (n == ALLOC) - (n == FREE);
+  _self->stats.current_memory += (isize)h->outsize - (isize)h->insize;
+  _self->stats.max_memory = MAX$(_self->stats.max_memory, _self->stats.current_memory);
+  if (_self->onalloc) _self->onalloc(h->inptr, in, out, p, h->filename, h->linenumber);
 }
 allocfn debugAllocatorInit(struct dbgAlloc_config config) {
   let allocator = config.allocator;
@@ -161,32 +181,67 @@ allocfn debugAllocatorInit(struct dbgAlloc_config config) {
 int debugAllocatorDeInit(allocfn afn) {
   defer { cba_deinit(afn); };
   let cba = (callbackallocatorbuffer *)afn;
-  let slef = (debugAllocator_state *)(cba->udata);
-  defer { adestroy(cba->allocator, slef); };
+  let _self = (debugAllocator_state *)(cba->udata);
+  defer { adestroy(cba->allocator, _self); };
   int leaks = 0;
 
-  foreach (let kv, vtable(dbgallocator_map_iterator, slef->map)) {
+  foreach (let kv, vtable(dbgallocator_map_iterator, _self->map)) {
     leaks++;
     adestroy(cba->allocator, (u8(*)[kv.val->size])kv.key);
   }
-  dbgallocator_map_freem(slef->map[0]);
+  dbgallocator_map_freem(_self->map[0]);
   return leaks;
 }
 
 struct debugStats debugAllocator_stats(allocfn afn) {
   let cba = (callbackallocatorbuffer *)afn;
-  let slef = (debugAllocator_state *)(cba->udata);
-  return slef->stats;
+  let _self = (debugAllocator_state *)(cba->udata);
+  return _self->stats;
 }
 int debugAllocator_clear(allocfn afn) {
   let cba = (callbackallocatorbuffer *)afn;
-  let slef = (debugAllocator_state *)(cba->udata);
+  let _self = (debugAllocator_state *)(cba->udata);
   int leaks = 0;
-  foreach (let kv, vtable(dbgallocator_map_iterator, slef->map)) {
+  foreach (let kv, vtable(dbgallocator_map_iterator, _self->map)) {
     leaks++;
     adestroy(cba->allocator, (u8(*)[kv.val->size])kv.key);
   }
-  dbgallocator_map_clear(slef->map);
+  dbgallocator_map_clear(_self->map);
   return leaks;
+}
+const debugallocattorIterator_state debugallocator_iterator_init(allocfn allocator) {
+  let cba = (callbackallocatorbuffer *)allocator;
+  let _self = (debugAllocator_state *)(cba->udata);
+  let it = dbgallocator_map_iter_init(_self->map);
+  return (debugallocattorIterator_state){it.current, allocator};
+}
+debugAllocator_iter_item debugallocator_iterator_cast(const debugallocattorIterator_state *s) {
+  let cba = (callbackallocatorbuffer *)s->_self;
+  let _self = (debugAllocator_state *)(cba->udata);
+  let state = (dbgallocator_map_iter_state){
+      .current = s->idx,
+      .map = _self->map,
+  };
+  let it = dbgallocator_map_iter_cast(&state);
+  return (debugAllocator_iter_item){.ptr = it.key, .trace = *it.val};
+}
+void debugallocator_iterator_increase(debugallocattorIterator_state *s) {
+  let cba = (callbackallocatorbuffer *)s->_self;
+  let _self = (debugAllocator_state *)(cba->udata);
+  let state = (dbgallocator_map_iter_state){
+      .current = s->idx,
+      .map = _self->map,
+  };
+  dbgallocator_map_iter_increase(&state);
+  s->idx = state.current;
+}
+bool debugallocator_iterator_valid(const debugallocattorIterator_state *s) {
+  let cba = (callbackallocatorbuffer *)s->_self;
+  let _self = (debugAllocator_state *)(cba->udata);
+  let state = (dbgallocator_map_iter_state){
+      .current = s->idx,
+      .map = _self->map,
+  };
+  return dbgallocator_map_iter_valid(&state);
 }
 #endif // MY_DEBUG_ALLOCATOR_C

@@ -16,6 +16,7 @@ headers = [
   ("SXMAP" , "smap.h",True),
   ("SINGLE_ALLOCATOR" , "allocator.h",True),
   ("MY_OXMAP" , "oxmap.h",True),
+  ("MY_SEGMENTTLIST" , "sglist.h",True),
   ("MY_LIST" , "mylist.h",True),
   ("ASSERTMESSAGE" , "assertMessage.h",True),
 ]
@@ -93,6 +94,12 @@ for prefix, header, all_flag in headers:
   #define MY_OXMAP_C (1)
   #include "oxmap.h"
   _Static_assert(MY_OXMAP_C == 2 , "header should define itself as  included");
+#endif
+#if ((defined MY_SEGMENTTLIST_H) || (defined(WHEELS_INCLUDE_ALL)))\
+ && !defined MY_SEGMENTTLIST_C
+  #define MY_SEGMENTTLIST_C (1)
+  #include "sglist.h"
+  _Static_assert(MY_SEGMENTTLIST_C == 2 , "header should define itself as  included");
 #endif
 #if ((defined MY_LIST_H) || (defined(WHEELS_INCLUDE_ALL)))\
  && !defined MY_LIST_C
