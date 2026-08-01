@@ -210,7 +210,7 @@ void List_remove(List *l, List_index_t i, size_t width);
     } while (0)
   #define mList_insArr(list, position, vla)                             \
     do {                                                                \
-      var_ _vla = &vla;                                                 \
+      let _vla = &vla;                                                 \
       ASSERT_EXPR(types_eq(typeof((*_vla)[0]), mList_iType(list)), ""); \
       List_insertFromArr(                                               \
           mList_listptr(list),                                          \
@@ -261,18 +261,18 @@ void List_remove(List *l, List_index_t i, size_t width);
         FOREACH_mList_valid,    \
         FOREACH_mList_cast)
   #define mList_map(allocator, list, ...) ({ \
-    var_ _res =                              \
+    typedef typeof(({                        \
+      mList_iType(list) $;                   \
+      __VA_ARGS__;                           \
+    })) l_rt;                                \
+    let _res =                               \
         mList_init(                          \
             allocator,                       \
-            typeof(({                        \
-              mList_iType(list) $;           \
-              __VA_ARGS__;                   \
-            })),                             \
+            l_rt,                            \
             mList_len(list)                  \
         );                                   \
-    foreach (var_ $, mList_iter(list)) {     \
+    foreach (let $, mList_iter(list))       \
       mList_push(_res, __VA_ARGS__);         \
-    }                                        \
     _res;                                    \
   })
 
@@ -295,7 +295,7 @@ test_fn(mlist_tests) {
 
   test_assert(mList_len(list) == 25);
 
-  foreach (var_ v, mList_iter(list))
+  foreach (let v, mList_iter(list))
     test_assert(v % 2);
 
   foreach (usize i, range(0, 50, 2))
@@ -312,7 +312,7 @@ test_fn(mlist_vla_cast) {
   mList_push(list, 7);
   mList_push(list, 8);
   mList_push(list, 9);
-  var_ arr = acreate(allocator, int[3]);
+  let arr = acreate(allocator, int[3]);
   defer { adestroy(allocator, arr); };
   mcpy(*arr, *mList_vla(list));
   mList_pushArr(list, *arr);

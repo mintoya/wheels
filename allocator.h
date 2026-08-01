@@ -4,7 +4,6 @@
   #include "macros.h"
   #include "mytypes.h"
   #include <stdlib.h>
-  #include <string.h>
 typedef const struct allocfns *allocfn;
 typedef const struct allocfns {
   const fnptrof(
