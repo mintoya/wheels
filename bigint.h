@@ -1,6 +1,7 @@
 #if !defined(MY_BIGINT_H)
   #define MY_BIGINT_H (1)
 
+  #include "allocators/fbafallbackAllocator.h"
   #include "fptr.h"
   #include "macros.h"
   #include "mytypes.h"
@@ -104,7 +105,7 @@ typePrinter(bigint) {
              : bigint_copy(allocator, in);
     defer { msList_deInit(allocator, in); };
 
-    var_ base = ({
+    let base = ({
       usize dcount = 1;
       bigint_unit u = 10;
       bigint_unit max_unit = (bigint_unit)-1;
@@ -122,8 +123,8 @@ typePrinter(bigint) {
       r;
     });
 
-    var_ hb = msList_stackBuffer(bigint_unit[2]);
-    var_ hundred = msList_initBuffer(hb);
+    let hb = msList_stackBuffer(bigint_unit[2]);
+    let hundred = msList_initBuffer(hb);
     defer { msList_deInit(allocator, hundred); };
     msList_push(allocator, hundred, base.modu);
 
@@ -132,12 +133,12 @@ typePrinter(bigint) {
       defer { msList_deInit(allocator, digits); };
 
       while (bigint_cmp(in, NULL)) {
-        var_ dig_big = bigint_div(allocator, in, (bigint)(hundred));
+        let dig_big = bigint_div(allocator, in, (bigint)(hundred));
         defer {
           msList_deInit(allocator, dig_big.mod);
           msList_deInit(allocator, dig_big.div);
         };
-        var_ dig = bigint_get(dig_big.mod, 0);
+        let dig = bigint_get(dig_big.mod, 0);
         bool is_last = !bigint_cmp(dig_big.div, NULL);
         if (is_last)
           while (dig > 0) {
@@ -214,7 +215,7 @@ test_fn(bigint_division_and_modulo) {
   let b = BInt.from.cstr(allocator, 10, "3");
   defer { msList_deInit(allocator, b); };
 
-  var_ res = bigint_div(allocator, a, b);
+  let res = bigint_div(allocator, a, b);
   defer {
     msList_deInit(allocator, res.div);
     msList_deInit(allocator, res.mod);
@@ -337,7 +338,7 @@ void bigint_expand(allocfn allocator, bigint *b, usize len) {
     msList_push(allocator, *b, u);
 }
 bigint bigint_copy(allocfn allocator, bigint b) {
-  var_ r = msList_init(allocator, bigint_unit, b ? msList_len(b) : 1);
+  let r = msList_init(allocator, bigint_unit, b ? msList_len(b) : 1);
   if (b)
     msList_pushArr(allocator, r, *msList_vla(b));
   return r;
@@ -352,7 +353,7 @@ void bigint_negate_ip(allocfn allocator, bigint *i) {
     i[0][j] = ~i[0][j];
   bigint_unit ca = 1;
   for (usize c = 0; ca && c < msList_len(i[0]); c++) {
-    var_ c1 = bigint_ckd_add_struct(ca, i[0][c]);
+    let c1 = bigint_ckd_add_struct(ca, i[0][c]);
     i[0][c] = c1.result;
     ca = c1.flag;
   }
@@ -369,8 +370,8 @@ void bigint_add_ip_flag(allocfn allocator, bigint *a, bigint b, bool negate, isi
   bigint_unit carry = 0;
 
   for (usize i = 0; i < len; i++) {
-    var_ ra = bigint_ckd_add_struct(negate ? ~a[0][i] : a[0][i], carry);
-    var_ rb = bigint_ckd_add_struct(ra.result, bigint_get(b, i - shift));
+    let ra = bigint_ckd_add_struct(negate ? ~a[0][i] : a[0][i], carry);
+    let rb = bigint_ckd_add_struct(ra.result, bigint_get(b, i - shift));
     a[0][i] = negate ? ~rb.result : rb.result;
     carry = ra.flag + rb.flag;
   }
@@ -385,7 +386,7 @@ void bigint_sub_ip(allocfn allocator, bigint *a, bigint b, isize shift) {
   return bigint_add_ip_flag(allocator, a, b, 1, shift);
 }
 bigint bigint_from(allocfn allocator, i64 i) {
-  var_ r = msList_init(allocator, bigint_unit, 1);
+  let r = msList_init(allocator, bigint_unit, 1);
   if (sizeof(bigint_unit) >= sizeof(i64)) {
     msList_push(allocator, r, (bigint_unit)i);
   } else {
@@ -396,7 +397,7 @@ bigint bigint_from(allocfn allocator, i64 i) {
   return r;
 }
 bigint bigint_negate(allocfn allocator, bigint i) {
-  var_ res = bigint_copy(allocator, i);
+  let res = bigint_copy(allocator, i);
   bigint_negate_ip(allocator, &res);
   return res;
 }
@@ -457,7 +458,7 @@ bigint bigint_mul_single(allocfn allocator, bigint *b, bigint_unit bu) {
   bigint_unit carry = 0;
   foreach (usize i, range(0, msList_len(b[0]))) {
     product p = bigint_mul_units(b[0][i], bu);
-    var_ c2 = bigint_ckd_add_struct(p.result, carry);
+    let c2 = bigint_ckd_add_struct(p.result, carry);
     carry = c2.flag + p.carry;
     msList_push(allocator, res, c2.result);
   }
@@ -468,10 +469,10 @@ bigint bigint_mul(allocfn allocator, bigint a1, bigint b1) {
   if ((!bigint_cmp(a1, NULL)) || (!bigint_cmp(b1, NULL)))
     return bigint_from(allocator, 0);
   bool negetive = 0;
-  var_ a = bigint_negetive(a1)
+  let a = bigint_negetive(a1)
                ? (negetive = !negetive, bigint_negate(allocator, a1))
                : bigint_copy(allocator, a1);
-  var_ b = bigint_negetive(b1)
+  let b = bigint_negetive(b1)
                ? (negetive = !negetive, bigint_negate(allocator, b1))
                : bigint_copy(allocator, b1);
   defer { msList_deInit(allocator, a); };
@@ -486,10 +487,10 @@ bigint bigint_mul(allocfn allocator, bigint a1, bigint b1) {
     sh_b++;
   bigint_shrl(allocator, &a, -sh_a);
 
-  var_ res = bigint_from(allocator, 0);
+  let res = bigint_from(allocator, 0);
 
   foreach (usize i, range(0, msList_len(b))) {
-    var_ temp = bigint_mul_single(allocator, &a, bigint_get(b, i + sh_b));
+    let temp = bigint_mul_single(allocator, &a, bigint_get(b, i + sh_b));
     defer { msList_deInit(allocator, temp); };
     bigint_add_ip(allocator, &res, temp, i);
   }
@@ -501,6 +502,7 @@ bigint bigint_mul(allocfn allocator, bigint a1, bigint b1) {
   bigint_shrl(allocator, &res, sh_a + sh_b);
   return res;
 }
+
 
 bigint_unit bigint_estimate_q(bigint rem, bigint b) {
   typedef unsigned _BitInt(sizeof(bigint_unit) * 16) double_unit;
@@ -535,21 +537,28 @@ bigint_unit bigint_estimate_q(bigint rem, bigint b) {
   return (bigint_unit)q_guess;
 }
 struct bigint_div_t bigint_div(allocfn allocator, bigint a1, bigint b1) {
-  assertMessage(bigint_cmp(b1, NULL));
+  assertMessage(bigint_cmp(b1, NULL), "division by zero");
 
-  var_ arena = arena_new_ext(allocator, ((a1 ? msList_len(a1) : 1) + (b1 ? msList_len(b1) : 1)) * sizeof(bigint_unit) * 16);
-  defer { arena_cleanup(arena); };
+  let buff = (fbafb_buffer(bigint_unit[20])){};
+  let act = (struct {allocfn a ; usize s; }){allocator, ((a1 ? msList_len(a1) : 1) + (b1 ? msList_len(b1) : 1)) * sizeof(bigint_unit) * 16};
+  let arena = fbafb_initBuffer(
+      buff,
+      &act,
+      initarena,
+      deinitarena
+  );
+  defer { fbafb_deinit(arena); };
 
   bool neg_a = bigint_negetive(a1);
   bool neg_b = bigint_negetive(b1);
 
-  var_ a = neg_a ? bigint_negate(arena, a1) : bigint_copy(arena, a1);
-  var_ b = neg_b ? bigint_negate(arena, b1) : bigint_copy(arena, b1);
+  let a = neg_a ? bigint_negate(arena, a1) : bigint_copy(arena, a1);
+  let b = neg_b ? bigint_negate(arena, b1) : bigint_copy(arena, b1);
   bigint_trim(&a);
   bigint_trim(&b);
 
-  var_ quot = bigint_from(allocator, 0);
-  var_ rem = bigint_from(allocator, 0);
+  let quot = bigint_from(allocator, 0);
+  let rem = bigint_from(allocator, 0);
 
   isize len_a = (isize)bigint_digits(a);
   foreach (isize i, range(len_a - 1, -1)) {
@@ -559,11 +568,11 @@ struct bigint_div_t bigint_div(allocfn allocator, bigint a1, bigint b1) {
 
     bigint_unit q = bigint_estimate_q(rem, b);
 
-    var_ bq = bigint_mul_single(arena, &b, q);
+    let bq = bigint_mul_single(arena, &b, q);
 
     while (bigint_cmp(bq, rem) > 0) {
       q--;
-      var_ bq_new = bigint_sub(arena, bq, b);
+      let bq_new = bigint_sub(arena, bq, b);
       msList_deInit(arena, bq);
       bq = bq_new;
     }
@@ -597,7 +606,7 @@ bigint bigint_fptr(allocfn allocator, const u8 base, fptr str) {
   str = negetive ? slice_split(str, (1, -1))[0] : str;
   bigint b = bigint_from(allocator, 0);
 
-  var_ sb = msList_stackBuffer(bigint_unit[1]);
+  let sb = msList_stackBuffer(bigint_unit[1]);
   bigint add = msList_initBuffer(sb);
 
   while (str.len) {
@@ -620,7 +629,7 @@ bigint bigint_fptr(allocfn allocator, const u8 base, fptr str) {
 
     if (!skip) {
       assertMessage(nm < base, "char %c out of range for base %i", *str.ptr, (int)base);
-      var_ prod = bigint_mul_single(allocator, &b, base);
+      let prod = bigint_mul_single(allocator, &b, base);
       add[0] = nm;
       msList_len(add) = 1;
       bigint_add_ip(allocator, &prod, add, 0);

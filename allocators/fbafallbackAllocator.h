@@ -34,16 +34,16 @@ allocfn fbafb_init(
 void fbafb_deinit(allocfn allocator);
 
   #if !defined __cplusplus
-    #define fbafb_buffer(buffer)  \
-      struct {                    \
-        struct fbab allocator[1]; \
-        typeof(buffer) buff;      \
+    #define fbafb_buffer(buffer)              \
+      struct {                                \
+        struct fbab allocator[1];             \
+        alignas(myAlign) typeof(buffer) buff; \
       }
   #else
 template <typename T>
 struct fbafb_buffer_t {
   struct fbab allocator[1];
-  T buff;
+  alignas(myAlign) T buff;
 };
     #define fbafb_buffer(buffer) fbafb_buffer_t<buffer>
 

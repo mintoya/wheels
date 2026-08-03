@@ -102,6 +102,7 @@ void *_arena_fn(allocfn allocator, void *ptr, usize os, usize ns, const char *fn
       assertMessage(false, "invalid call from %s line %u: (%p , %zu , %zu)", fn, ln, ptr, os, ns);
   }
 }
+
 allocfn arena_new_ext(allocfn allocator, usize blocksize) {
   let result = avalue(allocator, ((ArenaAllocator_data){{_arena_fn}, mList_init(allocator, ArenaAllocator_buffer)}));
   mList_push(result->buffers, arena_newBlock(allocator, blocksize));

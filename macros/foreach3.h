@@ -172,7 +172,7 @@
 #define FOREACH_getCheck(init, next, check, cast) check FOREACH_DROP_ARGS
 #define FOREACH_getCast(init, next, check, cast) cast FOREACH_DROP_ARGS
 
-#define FOREACH(declaration, generator)                                                               \
+#define foreach(declaration, generator)                                                               \
   for (                                                                                               \
       struct {                                                                                        \
         char cond;                                                                                    \
@@ -197,23 +197,3 @@
             )(_foreach_._foreach_);                                                                   \
         _foreach_.cond;                                                                               \
         _foreach_.cond = !_foreach_.cond)
-#define foreach(decl, generator) FOREACH(decl, generator)
-
-#define EACH3(declaration, generator)                                                                 \
-  (                                                                                                   \
-      struct {                                                                                        \
-        char cond;                                                                                    \
-        MACRO_FROEACH_EXPAND(FOREACH_getInit_struct FOREACH_getInit FOREACH_##generator)              \
-        _foreach_;                                                                                    \
-      } _foreach_ = {                                                                                 \
-          .cond = 1,                                                                                  \
-          ._foreach_ = MACRO_FROEACH_EXPAND(FOREACH_getInit_set FOREACH_getInit FOREACH_##generator), \
-      };                                                                                              \
-      MACRO_FROEACH_EXPAND(/**/                                                                       \
-                           FOREACH_getCheck FOREACH_##generator                                       \
-      )(_foreach_._foreach_) &&                                                                       \
-      _foreach_.cond;                                                                                 \
-      (_foreach_.cond = !_foreach_.cond, /**/                                                         \
-       MACRO_FROEACH_EXPAND(             /**/                                                         \
-                            FOREACH_getNext FOREACH_##generator                                       \
-       )(_foreach_._foreach_))) for (declaration = MACRO_FROEACH_EXPAND(FOREACH_getCast FOREACH_##generator)(_foreach_._foreach_); _foreach_.cond; _foreach_.cond = !_foreach_.cond)

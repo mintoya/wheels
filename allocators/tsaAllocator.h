@@ -2,6 +2,7 @@
   #define TSA_ALLOCATOR_H (1)
   #include "../allocator.h"
   #include "../thread_help.h"
+  #include <string.h>
 
 typedef struct TSA_State {
   struct allocfns allocator[1];

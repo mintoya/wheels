@@ -4,6 +4,8 @@
   #include "macros.h"
   #include "mytypes.h"
   #include <stdlib.h>
+  #include <string.h>
+void *malloc(size_t);
 typedef const struct allocfns *allocfn;
 typedef const struct allocfns {
   const fnptrof(
@@ -69,9 +71,9 @@ test_fn(lifecycle) {
 }
   // #define STD_PRINT_DEBUG
   #if defined STD_PRINT_DEBUG
-    #define pptr(ptr) ({let _p = ptr; printf("%p", _p);_p; })
+    #define pptr(ptr) ({let _p = ptr;assertMessage(_p , "malloc null, probably a size thing"); printf("%p", _p);_p; })
   #else
-    #define pptr(ptr) ({let _p = ptr; _p; })
+    #define pptr(ptr) ({let _p = ptr;assertMessage(_p , "malloc null, probably a size thing"); _p; })
   #endif
 void *stdAllocatorFunction(
     allocfn,

@@ -2,7 +2,7 @@
   #define CBA_ALLOCATOR_H (1)
   #include "../allocator.h"
 // handle to an allocation , passed by pointer
-// pointer is stable for duration of calls, also const 
+// pointer is stable for duration of calls, also const
 typedef struct cbhandle {
   struct cballocator *cbself;
   void *inptr;
@@ -24,6 +24,7 @@ typedef struct cballocator {
 } callbackallocatorbuffer;
 allocfn cba_init(allocfn fn, itypeof(struct cballocator, cba) cba, itypeof(struct cballocator, cbb) cbb, void *);
 void cba_deinit(allocfn fn);
+allocfn cba_backing(allocfn fn);
 
   #include "../tests.h"
 [[maybe_unused]] static void _test_cba_fn(const callbackallocatorhandle *h) {
@@ -70,8 +71,10 @@ allocfn cba_init(
     itypeof(struct cballocator, cba) cba,
     itypeof(struct cballocator, cbb) cbb,
     void *udata
-) {
-  return avalue(fn, ((struct cballocator){{_cba_alloc}, fn, cba, cbb, udata}))->dt;
+) { return avalue(fn, ((struct cballocator){{_cba_alloc}, fn, cba, cbb, udata}))->dt; }
+allocfn cba_backing(allocfn fn) {
+  let _self = (struct cballocator *)fn;
+  return _self->allocator;
 }
 void cba_deinit(allocfn fn) {
   let selff = (struct cballocator *)fn;

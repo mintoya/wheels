@@ -73,6 +73,7 @@ __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...);
 typedef struct test_result {
   char *check;
   size_t result;
+  bool profile;
 } test_result;
   #define test_fn(name)                            \
     [[maybe_unused]] static inline void ID_CONCAT( \
@@ -88,6 +89,7 @@ typedef struct test_result {
 typedef struct test_result {
   char *check;
   size_t result;
+  bool profile;
 } test_result;
   #include "allocator.h"
   #include "macros.h"
@@ -167,26 +169,36 @@ int main(void) {
   usize count = 0;
   usize pass = 0;
 
-  allocfn testAlloc = debugAllocator(
-          .allocator = stdAlloc,
-  #if defined(LOG_ALLOCATIONS)
-          .on_call = onalloc
-  #endif
-  );
-  defer { debugAllocatorDeInit(testAlloc); };
   while (testList) {
+    allocfn testAlloc = debugAllocator(
+            .allocator = stdAlloc,
+  #if defined(LOG_ALLOCATIONS)
+            .on_call = onalloc
+  #endif
+    );
     count++;
     var_ result = (test_result){};
     testList->fn(&result, testAlloc);
     let leaked = 0;
-    defer { debugAllocator_clear(testAlloc); };
+    defer { debugAllocatorDeInit(testAlloc); };
+    if (result.profile) {
+      let stats = debugAllocator_stats(testAlloc);
+      printf("{" test_RED "prof" test_RESET "}");
+      _dbga_stats_printer(
+          (fptr){sizeof(stats), (u8 *)&stats},
+          (printerfunction_context){fileprint, stdout, {}, stdAlloc}
+      );
+      fileprint("\n", stdout, 1, 1);
+    }
     foreach (let location, vtable(debugallocator_iterator, testAlloc)) {
       leaked++;
       printf(
-          "\t(" test_RED "leak" test_RESET ") file:%s line:%zu size:%zu\n",
+          "\t(" test_RED "leak" test_RESET ") %zu bytes\n"
+          "\t\tfile:%s\n"
+          "\t\tline:%zu\n",
+          location.trace.size,
           location.trace.fn,
-          location.trace.ln,
-          location.trace.size
+          location.trace.ln
       );
     }
     printf(

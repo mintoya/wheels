@@ -19,20 +19,20 @@ struct dbgAlloc_config {
  * `@return` debug allocator
  */
 allocfn debugAllocatorInit(struct dbgAlloc_config);
-struct debugStats {
+typedef struct debugStats {
   usize max_memory, current_memory, total_calls, total_active_allocations;
-};
-typePrinter("dbga-stats", struct debugStats) {
-  PUTS("{max storage: ");
+} dbga_stats;
+typePrinter(dbga_stats) {
+  PUTS("{max:");
   USENAMEDPRINTER("usize", in.max_memory);
   PUTS(",");
-  PUTS("current storage: ");
+  PUTS("current:");
   USENAMEDPRINTER("usize", in.current_memory);
   PUTS(",");
-  PUTS("active allocations : ");
+  PUTS("active:");
   USENAMEDPRINTER("usize", in.total_active_allocations);
   PUTS(",");
-  PUTS("total calls : ");
+  PUTS("calls:");
   USENAMEDPRINTER("usize", in.total_calls);
   PUTS("}");
 }
@@ -136,11 +136,13 @@ void _dbga_cbb(const callbackallocatorhandle *h, void *p) {
     FREE = 0b10,
   } amode;
   let n = (amode)((!!in) << 1) | ((!!out) << 0);
+  usize tracked_in = 0;
   switch (n) {
     case RESIZE: {
       assertMessage(p);
       let ptr = dbgallocator_map_get(_self->map, h->inptr);
       assertMessage(ptr, "allocator lost pointer");
+      tracked_in = ptr->size;
       dbgallocator_map_rem(_self->map, h->inptr);
       dbgallocator_map_set(_self->map, p, (struct tracedata){h->filename, h->linenumber, out});
     } break;
@@ -153,6 +155,7 @@ void _dbga_cbb(const callbackallocatorhandle *h, void *p) {
       assertMessage(!p);
       let ptr = dbgallocator_map_get(_self->map, h->inptr);
       assertMessage(ptr, "allocator lost pointer");
+      tracked_in = ptr->size;
       dbgallocator_map_rem(_self->map, h->inptr);
     } break;
     default:
@@ -160,7 +163,7 @@ void _dbga_cbb(const callbackallocatorhandle *h, void *p) {
   }
   _self->stats.total_calls++;
   _self->stats.total_active_allocations += (n == ALLOC) - (n == FREE);
-  _self->stats.current_memory += (isize)h->outsize - (isize)h->insize;
+  _self->stats.current_memory += (isize)h->outsize - (isize)tracked_in;
   _self->stats.max_memory = MAX$(_self->stats.max_memory, _self->stats.current_memory);
   if (_self->onalloc) _self->onalloc(h->inptr, in, out, p, h->filename, h->linenumber);
 }

@@ -1,5 +1,6 @@
 #include "../macros.h"
 #include "../mytypes.h"
+#include <stdlib.h>
 
 tu_def(
     (integer, char),
@@ -21,6 +22,7 @@ integer five() { return integer_of(5); }
 int main(void) {
   integer f = integer_of(5);
   return tu_catch(iu32, f) = 6;
+  return tu_catch(iu32, f, abort()) = 6;
   return tu_catchr(iu32, five());
 
   return tu_match_exp(
@@ -29,5 +31,12 @@ int main(void) {
       (ii32, u, (usize)u),
       (iu64, u, (usize)u),
       (ii64, u, (usize)u),
+  );
+  tu_match_void(
+      f,
+      (iu32, u, return u),
+      (ii32, u, return u),
+      (iu64, u, return u),
+      (ii64, u, return u),
   );
 }

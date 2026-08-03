@@ -1,9 +1,9 @@
-#include <string.h>
 #if !defined MY_PRINTER_DEFS_H
   #define MY_PRINTER_DEFS_H (1)
   #include "../allocator.h"
   #include "../fptr.h"
   #include "../mytypes.h"
+  #include <string.h>
 
 // 1 : string
 // 2 : context
