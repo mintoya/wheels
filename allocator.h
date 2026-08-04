@@ -5,7 +5,11 @@
   #include "mytypes.h"
   #include <stdlib.h>
   #include <string.h>
+
 void *malloc(size_t);
+void *realloc(void *, size_t);
+void free(void *);
+
 typedef const struct allocfns *allocfn;
 typedef const struct allocfns {
   const fnptrof(
@@ -15,7 +19,7 @@ typedef const struct allocfns {
 } *allocfn;
 
 [[gnu::const]] static inline uptr lineup(uptr u, usize a) { return (((u + (a - 1)) / a) * a); }
-static inline uptr alloc_align(uptr u) { return lineup(u, alignof(myAlign)); }
+[[gnu::const]] static inline uptr alloc_align(uptr u) { return lineup(u, alignof(myAlign)); }
   #define vcallargs(it, ...) (it __VA_OPT__(, ) __VA_ARGS__)
   #define vcall(it, name, args) (it->name vcallargs(it, REM_PAREN args))
 
@@ -71,9 +75,9 @@ test_fn(lifecycle) {
 }
   // #define STD_PRINT_DEBUG
   #if defined STD_PRINT_DEBUG
-    #define pptr(ptr) ({let _p = ptr;assertMessage(_p , "malloc null, probably a size thing"); printf("%p", _p);_p; })
+    #define pptr(ptr) ({let _p = ptr; printf("%p", _p);_p; })
   #else
-    #define pptr(ptr) ({let _p = ptr;assertMessage(_p , "malloc null, probably a size thing"); _p; })
+    #define pptr(ptr) ({let _p = ptr; _p; })
   #endif
 void *stdAllocatorFunction(
     allocfn,
@@ -95,11 +99,11 @@ void *stdAllocatorFunction(
 
   switch (((!!from) << 1) | ((!!to) << 0)) {
     case ALLOC:
-      return (assertMessage(!op, "allocation called pointer"), pptr(malloc(to)));
+      return (assertMessage(!op, "allocation called pointer"), pptr(P$(malloc(to), (assertMessage($, "malloc null"), $))));
     case FREE:
       return (assertMessage(op, "allocator does not return null"), free(op), pptr(nullptr));
     case RESIZE:;
-      return (assertMessage(op, "allocator does not return null"), pptr(realloc(op, to)));
+      return (assertMessage(op, "allocator does not return null"), pptr(P$(realloc(op, to), (assertMessage($, "realloc null"), $))));
     default:
       assertMessage(false, "invalid call from %s line %u: (%p , %zu , %zu)", fname, ln, op, from, to);
   }
