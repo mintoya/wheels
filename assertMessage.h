@@ -176,11 +176,12 @@ void __attribute__((noreturn)) _assertMessageFail(
       #include <execinfo.h>
       #include <unistd.h>
     #elif __has_include(<windows.h>) && __has_include ( <dbghelp.h> ) && __has_include ( <errhandlingapi.h> ) && __has_include ( <io.h> ) && __has_include ( <winbase.h> )
+      #include <windows.h>
+    //
       #include <dbghelp.h>
       #include <errhandlingapi.h>
       #include <io.h>
       #include <winbase.h>
-      #include <windows.h>
 
 int __attribute__((nonnull(1))) backtrace(void **array, int size) {
   return CaptureStackBackTrace(

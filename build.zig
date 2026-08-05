@@ -28,6 +28,7 @@ pub fn build(b: *std.Build) void {
         "file",
         "which file to run",
     ) orelse "tests.h";
+
     const compileflags =  &.{
             "-std=c2y",
             "-fdefer-ts",
@@ -51,7 +52,7 @@ pub fn build(b: *std.Build) void {
             .language = .c,
         });
     }
-    // exe.rdynamic = true;
+    exe.rdynamic = true;
 
     b.installArtifact(exe);
 
