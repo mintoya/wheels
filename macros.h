@@ -307,7 +307,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
       #define typeof(...) __typeof__(__VA_ARGS__)
     #endif
 
-    #ifndef typeof_unqual
+    #ifndef typeof_unqual && !defined __GNUC__
       #if __cplusplus >= 202002L
         #define typeof_unqual(...) std::remove_cvref_t<__typeof__(__VA_ARGS__)>
 
@@ -320,14 +320,6 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     #endif
 
   #else
-    // C23 / GNU C extensions
-    #ifndef typeof
-      #define typeof(...) __typeof__(__VA_ARGS__)
-    #endif
-
-    #ifndef typeof_unqual
-      #define typeof_unqual(...) __typeof_unqual__(__VA_ARGS__)
-    #endif
   #endif
   #define types_eq(T1, T2) \
     _Generic((T1 *)0, T2 *: 1, default: 0)

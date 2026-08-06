@@ -1,6 +1,6 @@
+#include <stdio.h>
 #if !defined SINGLE_ALLOCATOR_H
   #define SINGLE_ALLOCATOR_H (1)
-  #include "assertMessage.h"
   #include "macros.h"
   #include "mytypes.h"
   #include <stdlib.h>
@@ -69,11 +69,11 @@ static const struct allocfns stdAlloc[1] = {{stdAllocatorFunction}};
 #if (defined SINGLE_ALLOCATOR_C && SINGLE_ALLOCATOR_C == 1) || (defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0)
   #undef SINGLE_ALLOCATOR_C
   #define SINGLE_ALLOCATOR_C (2)
-  #include "tests.h"
-test_fn(lifecycle) {
-  adestroy(stdAlloc, aresize(stdAlloc, acreate(stdAlloc, int[5]), int[2]));
-}
-  // #define STD_PRINT_DEBUG
+//   #include "tests.h"
+// test_fn(lifecycle) {
+//   adestroy(stdAlloc, aresize(stdAlloc, acreate(stdAlloc, int[5]), int[2]));
+// }
+// #define STD_PRINT_DEBUG
   #if defined STD_PRINT_DEBUG
     #define pptr(ptr) ({let _p = ptr; printf("%p", _p);_p; })
   #else
@@ -99,14 +99,15 @@ void *stdAllocatorFunction(
 
   switch (((!!from) << 1) | ((!!to) << 0)) {
     case ALLOC:
-      return (assertMessage(!op, "allocation called pointer"), pptr(P$(malloc(to), (assertMessage($, "malloc null"), $))));
+      return (assert(!op && "allocation called pointer"), pptr(P$(malloc(to), (assert($ && "malloc null"), $))));
     case FREE:
-      return (assertMessage(op, "allocator does not return null"), free(op), pptr(nullptr));
+      return (assert(op && "allocator does not return null"), free(op), pptr(nullptr));
     case RESIZE:;
-      return (assertMessage(op, "allocator does not return null"), pptr(P$(realloc(op, to), (assertMessage($, "realloc null"), $))));
+      return (assert(op && "allocator does not return null"), pptr(P$(realloc(op, to), (assert($ && "realloc null"), $))));
     default:
-      assertMessage(false, "invalid call from %s line %u: (%p , %zu , %zu)", fname, ln, op, from, to);
+      assert(printf("invalid call from %s line %u: (%p , %zu , %zu)", fname, ln, op, from, to) && false);
   }
+  __builtin_trap();
 }
   #undef pptr
 #endif

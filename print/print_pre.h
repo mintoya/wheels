@@ -303,7 +303,7 @@ static slice(c8) vsn_print_fn(allocfn allocator, char *fmt, struct print_arg *ar
       ((struct print_arg){                                                       \
           .ref = ((fptr){sizeof(a), (u8 *)REF(typeof(a), a)}),                   \
           .name = _Generic(                                                      \
-              &(__typeof_unqual__(a)){0},                                        \
+              &(typeof_unqual(a)){0},                                        \
               MAKE_PRINT_ARG_TYPE(fptr),                                         \
               MAKE_PRINT_ARG_TYPE(isize),                                        \
               MAKE_PRINT_ARG_TYPE(usize),                                        \

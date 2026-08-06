@@ -82,23 +82,26 @@ allocfn fbafb_init(
     itypeof(struct fbab, deinit) deinitializer
 ) {
   assertMessage(!((uptr)buffer & (alignof(myAlign) - 1)));
-  *mem = (typeof(*mem)){
-      {_fbafb_fn},
-      buffer,
-      0,
-      size,
-      0,
-      ctx,
-      nullptr,
-      initializer,
-      deinitializer
-  };
+  mcpy(
+      *mem,
+      ((typeof(*mem)){
+          {_fbafb_fn},
+          buffer,
+          0,
+          size,
+          0,
+          ctx,
+          nullptr,
+          initializer,
+          deinitializer
+      })
+  );
   return (allocfn)mem;
 }
 void fbafb_deinit(allocfn allocator) {
   let it = (struct fbab *)allocator;
   if (it->allocator) it->deinit(it->allocator, it->ctx);
-  *it = (typeof(*it)){};
+  mcpy(*it, ((typeof(*it)){}));
 }
 void *_fbafb_fn(allocfn allocator, void *ptr, usize oldsize, usize newsize, const char *f, uint l) {
   oldsize = lineup(oldsize, alignof(myAlign));

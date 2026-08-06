@@ -21,10 +21,10 @@
 #define MAP_V _MAP_EVAL_V(mapconfig)
 
 #define MAP_HASHASHI(name, k, v, ...) VA_SWITCH(0 __VA_OPT__(, 1))
-#define MAP_HASHASH(__VA_ARGS__) MAP_HASHASHI(__VA_ARGS__)
+#define MAP_HASHASH(...) MAP_HASHASHI(__VA_ARGS__)
 #define MAP_HASCMPII(name, k, v, h, ...) VA_SWITCH(0 __VA_OPT__(, 1))
 #define MAP_HASCMPI(name, k, v, ...) VA_SWITCH(0 __VA_OPT__(, MAP_HASCMPII(name, k, v, __VA_ARGS__)))
-#define MAP_HASCMP(__VA_ARGS__) MAP_HASHASHI(__VA_ARGS__)
+#define MAP_HASCMP(...) MAP_HASHASHI(__VA_ARGS__)
 
 #define mapnameii(name, ...) name
 #define mapnamei(...) mapnameii(__VA_ARGS__)
@@ -32,14 +32,14 @@
 
 #if MAP_HASHASH(mapconfig)
   #define MAP_GETCMPI(name, k, v, h, cmp) cmp
-  #define MAP_GETCMP(__VA_ARGS__) MAP_GETCMPI(__VA_ARGS__)
+  #define MAP_GETCMP(...) MAP_GETCMPI(__VA_ARGS__)
   #define mapcmp(_a, _b) ({let a = _a;let b = _b;  MAP_GETCMP(mapconfig)  ; })
 #else
   #define mapcmp(a, b) MAP_FN(default_cmp)(a, b)
 #endif
 #if MAP_HASCMP(mapconfig)
   #define MAP_GETHASHI(name, k, v, hash, ...) hash
-  #define MAP_GETHASH(__VA_ARGS__) MAP_GETHASHI(__VA_ARGS__)
+  #define MAP_GETHASH(...) MAP_GETHASHI(__VA_ARGS__)
   #define maphash(_k) ({let k = _k;  MAP_GETHASH(mapconfig)  ; })
 #else
   #define maphash(a) MAP_FN(default_hash)(a)

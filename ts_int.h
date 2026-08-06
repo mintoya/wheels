@@ -1,5 +1,6 @@
 #if !defined TS_INT
   #define TS_INT
+  #include "assertMessage.h"
   #include "print/int_printers.h"
   #include "thread_help.h"
   #include <time.h>

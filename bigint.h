@@ -470,11 +470,11 @@ bigint bigint_mul(allocfn allocator, bigint a1, bigint b1) {
     return bigint_from(allocator, 0);
   bool negetive = 0;
   let a = bigint_negetive(a1)
-               ? (negetive = !negetive, bigint_negate(allocator, a1))
-               : bigint_copy(allocator, a1);
+              ? (negetive = !negetive, bigint_negate(allocator, a1))
+              : bigint_copy(allocator, a1);
   let b = bigint_negetive(b1)
-               ? (negetive = !negetive, bigint_negate(allocator, b1))
-               : bigint_copy(allocator, b1);
+              ? (negetive = !negetive, bigint_negate(allocator, b1))
+              : bigint_copy(allocator, b1);
   defer { msList_deInit(allocator, a); };
   defer { msList_deInit(allocator, b); };
   bigint_trim(&a);
@@ -503,9 +503,9 @@ bigint bigint_mul(allocfn allocator, bigint a1, bigint b1) {
   return res;
 }
 
-
 bigint_unit bigint_estimate_q(bigint rem, bigint b) {
-  typedef unsigned _BitInt(sizeof(bigint_unit) * 16) double_unit;
+  typedef unsigned long long double_unit;
+  _Static_assert(sizeof(double_unit) >= 2 * sizeof(bigint_unit));
   usize len_b = bigint_digits(b);
   if (len_b == 0)
     return 0;

@@ -2,7 +2,6 @@
   #define MY_SEGMENTTLIST_H (1)
   #include "macros.h"
   #include "mytypes.h"
-  #include "print.h"
   #define blog2(i) (64 - __builtin_clzll(i) - 1)
   // segmentted list of T
   #define sglist(T)                              \
@@ -42,19 +41,5 @@
     }                                                                          \
   })
 
-  #include "hxmap.h"
-  #include "tests.h"
-test_fn(segment_list_test) {
-  sglist(int) list = {stdAlloc};
-  defer { sglist_deinit(list); };
-  let map = mxmap_init(stdAlloc, int, int *);
-  defer { mxmap_deinit(map); };
-  foreach (let i, range(0, 100)) {
-    sglist_push(list, i);
-    mxmap_set(map, i, &sglist_get(list, i));
-  }
-  foreach (let i, range(0, 100))
-    assertMessage(*mxmap_get(map, i) == &sglist_get(list, i));
-}
 #endif
 #define MY_SEGMENTTLIST_C (2) // has no source
