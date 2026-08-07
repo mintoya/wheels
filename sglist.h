@@ -1,7 +1,6 @@
 #if !defined MY_SEGMENTTLIST_H
   #define MY_SEGMENTTLIST_H (1)
   #include "macros.h"
-  #include "mytypes.h"
   #define blog2(i) (64 - __builtin_clzll(i) - 1)
   // segmentted list of T
   #define sglist(T)                              \

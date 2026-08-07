@@ -210,7 +210,7 @@ void List_remove(List *l, List_index_t i, size_t width);
     } while (0)
   #define mList_insArr(list, position, vla)                             \
     do {                                                                \
-      let _vla = &vla;                                                 \
+      let _vla = &vla;                                                  \
       ASSERT_EXPR(types_eq(typeof((*_vla)[0]), mList_iType(list)), ""); \
       List_insertFromArr(                                               \
           mList_listptr(list),                                          \
@@ -266,12 +266,8 @@ void List_remove(List *l, List_index_t i, size_t width);
       __VA_ARGS__;                           \
     })) l_rt;                                \
     let _res =                               \
-        mList_init(                          \
-            allocator,                       \
-            l_rt,                            \
-            mList_len(list)                  \
-        );                                   \
-    foreach (let $, mList_iter(list))       \
+        mList_init(allocator, l_rt);         \
+    foreach (let $, mList_iter(list))        \
       mList_push(_res, __VA_ARGS__);         \
     _res;                                    \
   })

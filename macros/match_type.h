@@ -10,7 +10,7 @@
 #define match_type_items(value, t)                              \
   REM_PAREN IF_IS1(                                             \
       ID_CONCAT(match_type_, TUPLE_EXPAND_FIRST(t)),            \
-      (default : ({ TUPLE_EXPAND_REST(t); })),                  \
+      (default : TUPLE_EXPAND_REST(t)),                         \
       (                                                         \
                                                                 \
           TUPLE_EXPAND_FIRST(t) : ({                            \

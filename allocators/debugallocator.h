@@ -36,7 +36,7 @@ typePrinter(dbga_stats) {
   USENAMEDPRINTER("usize", in.total_calls);
   PUTS("}");
 }
-struct debugStats debugAllocator_stats(allocfn allocator);
+dbga_stats debugAllocator_stats(allocfn allocator);
 int debugAllocator_clear(allocfn allocator);
   #define debugAllocator(...) ({                     \
     struct dbgAlloc_config config = {                \
