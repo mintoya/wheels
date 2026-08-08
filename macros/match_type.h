@@ -46,8 +46,9 @@
 #define MATCH_INT_LOOP(i, tuple, ...) \
   CONCATS(MATCH_INT_STEP_, IS_PAREN(tuple))(i, tuple, __VA_ARGS__)
 
-#define MATCH_INT_STEP_0(i, tuple, ...) 0
+#define MATCH_INT_STEP_0(i, tuple, ...) (void)0
+#define MATCH_INT_EXPR(tuple, i) TUPLE_EXPAND_FIRST(tuple)(i TUPLE_EXPAND_REST(tuple))
 #define MATCH_INT_STEP_1(i, tuple, ...) \
-  _Generic((char (*)[(TUPLE_EXPAND_FIRST(tuple)) == i])0, char (*)[1]: TUPLE_EXPAND_REST(tuple), default: DEFER(MATCH_INT_LOOP_INDIRECT)()(i, __VA_ARGS__))
+  _Generic((char (*)[MATCH_INT_EXPR(TUPLE_EXPAND_FIRST(tuple), (i))])0, char (*)[1]: TUPLE_EXPAND_REST(tuple), default: DEFER(MATCH_INT_LOOP_INDIRECT)()(i, __VA_ARGS__))
 
 #define match_int(i, ...) MACRO_EXPAND(MATCH_INT_LOOP(i, __VA_ARGS__, ~))
