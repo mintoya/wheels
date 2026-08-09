@@ -1,28 +1,14 @@
 #if !defined MY_TRACE_H
   #define MY_TRACE_H (1)
 
-  #if defined _WIN32
-extern char __ImageBase;
-  #else
-extern char __executable_start;
-  #endif
-
-char *__base_address =
-  #if defined _WIN32
-    &__ImageBase
-  #elif defined __linux__
-    &__executable_start
-  #else
-    0
-  #endif
-    ;
+extern char *__base_address;
 
   #include "macros.h"
   #include "mytypes.h"
   #include "print/print_pre.h"
   #include "sglist.h"
 
-extern sglist(struct {
+extern thread_local sglist(struct {
   void *fn;
   void *site;
 }) traceData;
@@ -43,10 +29,29 @@ struct tracestack_slice getTrace(allocfn alloc);
     (defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0)
   #undef MY_TRACE_C
   #define MY_TRACE_C (2)
-typeof(traceData) traceData = {stdAlloc};
+  #if defined _WIN32
+extern char __ImageBase;
+  #else
+extern char __executable_start;
+  #endif
+
+char *__base_address =
+  #if defined _WIN32
+    &__ImageBase
+  #elif defined __linux__
+    &__executable_start
+  #else
+  //
+  #endif
+    ;
+//
+//
+//
+//
+thread_local typeof(traceData) traceData = {stdAlloc};
 [[gnu::destructor(500)]]
-void rtrace() {sglist_deinit(traceData);}
-bool trace_dotrace = true;
+void rtrace() { sglist_deinit(traceData); }
+thread_local bool trace_dotrace = true;
 [[gnu::no_instrument_function]]
 void __cyg_profile_func_enter(void *this_fn, void *call_site) {
   if (trace_dotrace) trace_dotrace = false;
