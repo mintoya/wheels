@@ -18,7 +18,10 @@ typedef struct sList_header {
   usize isStack : 1;
   usize capacity : sizeof(usize) * 8 - 1;
   usize length;
-  alignas(myAlign) u8 buf[];
+  union {
+    myAlign padding[0];
+    u8 buf[];
+  };
 } sList_header;
 
 static inline sList_header *sList_new(allocfn allocator, usize initLen, usize width) {
