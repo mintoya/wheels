@@ -82,7 +82,7 @@ To bit_cast_func(const From &src) noexcept {
 
   #define CONCATS(...) MACRO_EXPANDi(CONCATS1(__VA_ARGS__))
 
-  #if __has_include(<stddefer.h>)
+  #if __has_include(<stddefer.h>) && !defined __cplusplus
     #include <stddefer.h>
   #elif defined(__cplusplus)
     #pragma GCC warning "using cpp closure defer"
@@ -303,21 +303,8 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #if defined(__cplusplus)
     #include <type_traits>
 
-    #ifndef typeof
-      #define typeof(...) __typeof__(__VA_ARGS__)
-    #endif
-
-    #ifndef typeof_unqual && !defined __GNUC__
-      #if __cplusplus >= 202002L
-        #define typeof_unqual(...) std::remove_cvref_t<__typeof__(__VA_ARGS__)>
-
-      #elif __cplusplus >= 201402L
-        #define typeof_unqual(...) std::remove_cv_t<std::remove_reference_t<__typeof__(__VA_ARGS__)>>
-
-      #else
-        #define typeof_unqual(...) typename std::remove_cv<typename std::remove_reference<__typeof__(__VA_ARGS__)>::type>::type
-      #endif
-    #endif
+    #define typeof(...) __typeof__(__VA_ARGS__)
+    #define typeof_unqual(...) __typeof_unqual__(__VA_ARGS__)
 
   #else
   #endif
@@ -354,11 +341,10 @@ _Static_assert(isArray((int[]){}), "array is array");
   })
   #define mcpy(a, b) ({                                                                   \
     let _a = &a;                                                                          \
-    let _b = &b;                                                                          \
+    let _b = b;                                                                           \
     typedef typeof(({ *_a; })) _da;                                                       \
-    typedef typeof(({ *_b; })) _db;                                                       \
-    _Static_assert(types_eq(_da, _db), "not the same type");                              \
-    (typeof(_a))__builtin_memcpy((void *)_a, (void *)_b, MIN$(sizeof(*_b), sizeof(*_a))); \
+    _Static_assert(types_eq(_da, typeof(_b)), "not the same type");                       \
+    (typeof(_a))__builtin_memcpy((void *)_a, (void *)&_b, MIN$(sizeof(_b), sizeof(*_a))); \
   })
   #define mset(mem, v) ({                                                                         \
     var_ _m = &mem;                                                                               \

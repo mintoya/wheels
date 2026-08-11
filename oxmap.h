@@ -2,8 +2,6 @@
   #define MY_OXMAP_H
   #include "allocator.h"
   #include "assertMessage.h"
-  #include "fptr.h"
-  #include "macros.h"
   #include "mytypes.h"
   #include "sList.h"
 

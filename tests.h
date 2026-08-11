@@ -73,7 +73,7 @@ __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...);
 typedef struct test_result {
   char *check;
   size_t result;
-  bool profile;
+  char profile;
 } test_result;
   #define test_fn(name)                            \
     [[maybe_unused]] static inline void ID_CONCAT( \
@@ -89,7 +89,7 @@ typedef struct test_result {
 typedef struct test_result {
   char *check;
   size_t result;
-  bool profile;
+  char profile;
 } test_result;
   #include "allocator.h"
   #include "macros.h"
@@ -122,16 +122,6 @@ struct testNode {
       n->next = &thisNode;                  \
     }                                       \
     void name(test_result *_result, allocfn allocator)
-/*
-test_fn(always_pass) {
-  var_ memory = &aCreate(allocator, int, 5);
-  aFree(allocator, memory, sizeof(*memory));
-}
-test_fn(always_fail) { test_assert(false); }
-test_fn(always_leak) {
-  aCreate(allocator, int);
-}
-*/
 
   #include "stdio.h"
   #define test_RESET "\x1b[0m"
@@ -160,11 +150,6 @@ __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...) {
   return res;
 }
   #include "allocators/debugallocator.h"
-test_fn(always_leak) {
-  acreate(allocator, int[2]);
-  adestroy(allocator, aresize(allocator, acreate(allocator, int[2]), int[5]));
-  aresize(allocator, acreate(allocator, int[2]), int[5]);
-}
 int main(void) {
   usize count = 0;
   usize pass = 0;

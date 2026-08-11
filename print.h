@@ -31,16 +31,8 @@ void fileprint(
 }
   #endif
 
-void vsn_print(const c8 *_, void *lptr, usize length, bool __) {
-  ((usize *)lptr)[0] += length;
-}
-void sn_print(const c8 *c, void *cptr, usize length, bool _) {
-  slice(c8) *loc = (typeof(loc))cptr;
-  assertMessage(loc && loc->ptr);
-  if (length)
-    memcpy(loc->ptr + loc->len, c, length);
-  loc->len += length;
-}
+void vsn_print(const c8 *_, void *lptr, usize length, bool __);
+void sn_print(const c8 *c, void *cptr, usize length, bool _);
 
   #define mapconfig printermap, fptr, printerFunction, (fptr_hash(k)), (fptr_cmp(a, b))
   #include "incmap.h"
@@ -232,6 +224,17 @@ static inline void post_init_print_debug(void) {
     (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
   #undef MY_PRINTER_C
   #define MY_PRINTER_C (2)
+
+void vsn_print(const c8 *_, void *lptr, usize length, bool __) {
+  ((usize *)lptr)[0] += length;
+}
+void sn_print(const c8 *c, void *cptr, usize length, bool _) {
+  slice(c8) *loc = (typeof(loc))cptr;
+  assertMessage(loc && loc->ptr);
+  if (length)
+    memcpy(loc->ptr + loc->len, c, length);
+  loc->len += length;
+}
   #include "print/int_printers.h"
   #include "print/str_printers.h"
 

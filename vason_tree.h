@@ -1,6 +1,5 @@
 #if !defined(VASON_BUILDER_H)
   #define VASON_BUILDER_H
-  #include "fptr.h"
   #include "macros.h"
   #include "mylist.h"
   #include "mytypes.h"

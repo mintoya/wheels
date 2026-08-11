@@ -1,6 +1,7 @@
 #if !defined MY_DEBUG_ALLOCATOR_H
   #define MY_DEBUG_ALLOCATOR_H
   #include "../allocator.h"
+  #include "../assertMessage.h"
   #include "../macros.h"
   #include "../print/print_pre.h"
   #include "cballocator.h"
@@ -58,7 +59,7 @@ typedef struct debugallocattorIterator_state {
   usize idx;
   const allocfn _self;
 } debugallocattorIterator_state;
-const debugallocattorIterator_state debugallocator_iterator_init(allocfn allocator);
+debugallocattorIterator_state debugallocator_iterator_init(allocfn allocator);
 typedef struct {
   void *ptr;
   struct tracedata trace;
@@ -212,7 +213,7 @@ int debugAllocator_clear(allocfn afn) {
   dbgallocator_map_clear(_self->map);
   return leaks;
 }
-const debugallocattorIterator_state debugallocator_iterator_init(allocfn allocator) {
+debugallocattorIterator_state debugallocator_iterator_init(allocfn allocator) {
   let cba = (callbackallocatorbuffer *)allocator;
   let _self = (debugAllocator_state *)(cba->udata);
   let it = dbgallocator_map_iter_init(_self->map);
@@ -222,8 +223,8 @@ debugAllocator_iter_item debugallocator_iterator_cast(const debugallocattorItera
   let cba = (callbackallocatorbuffer *)s->_self;
   let _self = (debugAllocator_state *)(cba->udata);
   let state = (dbgallocator_map_iter_state){
-      .current = s->idx,
       .map = _self->map,
+      .current = s->idx,
   };
   let it = dbgallocator_map_iter_cast(&state);
   return (debugAllocator_iter_item){.ptr = it.key, .trace = *it.val};
@@ -232,8 +233,8 @@ void debugallocator_iterator_increase(debugallocattorIterator_state *s) {
   let cba = (callbackallocatorbuffer *)s->_self;
   let _self = (debugAllocator_state *)(cba->udata);
   let state = (dbgallocator_map_iter_state){
-      .current = s->idx,
       .map = _self->map,
+      .current = s->idx,
   };
   dbgallocator_map_iter_increase(&state);
   s->idx = state.current;
@@ -242,8 +243,8 @@ bool debugallocator_iterator_valid(const debugallocattorIterator_state *s) {
   let cba = (callbackallocatorbuffer *)s->_self;
   let _self = (debugAllocator_state *)(cba->udata);
   let state = (dbgallocator_map_iter_state){
-      .current = s->idx,
       .map = _self->map,
+      .current = s->idx,
   };
   return dbgallocator_map_iter_valid(&state);
 }
