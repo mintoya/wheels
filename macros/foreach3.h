@@ -9,8 +9,12 @@
 //  produce a variable for the user
 //
 // args of the foreach macro are determined based on init
-
 //{range(start ,end)
+
+#define REM_PAREN(...) __VA_ARGS__
+#define VA_SWITCH_SEL(a, ...) REM_PAREN a
+#define VA_SWITCH(first, ...) VA_SWITCH_SEL(__VA_OPT__((__VA_ARGS__), )(first))
+
 #define FOREACH_range_init(start, end, ...) (       \
     struct {                                        \
       typeof(start + 0) _initial;                   \

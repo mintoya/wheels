@@ -2,7 +2,6 @@
 #if !defined MY_PRINTER_H
   #define MY_PRINTER_H (1)
   #include "allocator.h"
-  #include "allocators/debugallocator.h"
   #include "assertMessage.h"
   #include "macros.h"
   #include "sList.h"
@@ -64,7 +63,7 @@ __attribute__((constructor(201))) static void printerInit() {
   PrinterSingleton_init();
 }
   #endif
-__attribute__((destructor(201))) static void printerDeInit() { PrinterSingleton_deInit(); }
+// __attribute__((destructor(201))) static void printerDeInit() { PrinterSingleton_deInit(); }
 
 typePrinter("ptr", void *) {
   uintptr_t v = (uintptr_t)in;
@@ -206,17 +205,17 @@ typePrinter("slice", struct slice_any_t) { // second least safe printer
 
 volatile static thread_local bool print_f_shouldFlush = 1;
 
-static inline void post_init_print_debug(void) {
-  print("==============================\n"
-        "printer debug\n"
-        "==============================\n");
-  println("list of printer type names: ");
-  for (usize i = 0; i < (1 << PrinterSingleton.data->capbit); i++)
-    if (printermap_isHXOCCUPIED(PrinterSingleton.data->flags[i]))
-      println("{slice(c8)}", PrinterSingleton.data->keys[i]);
-  println("capacity : {}", 1 << PrinterSingleton.data->capbit);
-  println("allocation : {dbga-stats}", debugAllocator_stats(PrinterSingleton.data->allocator));
-}
+// static inline void post_init_print_debug(void) {
+//   print("==============================\n"
+//         "printer debug\n"
+//         "==============================\n");
+//   println("list of printer type names: ");
+//   for (usize i = 0; i < (1 << PrinterSingleton.data->capbit); i++)
+//     if (printermap_isHXOCCUPIED(PrinterSingleton.data->flags[i]))
+//       println("{slice(c8)}", PrinterSingleton.data->keys[i]);
+//   println("capacity : {}", 1 << PrinterSingleton.data->capbit);
+//   println("allocation : {dbga-stats}", debugAllocator_stats(PrinterSingleton.data->allocator));
+// }
 
 #endif // MY_PRINTER_H
 
@@ -239,8 +238,8 @@ void sn_print(const c8 *c, void *cptr, usize length, bool _) {
   #include "print/str_printers.h"
 
 PrinterSingleton_t PrinterSingleton = {};
-void PrinterSingleton_init() { printermap_newm(debugAllocator(.allocator = stdAlloc), 3, PrinterSingleton.data); }
-void PrinterSingleton_deInit() { debugAllocatorDeInit(PrinterSingleton.data[0].allocator); }
+void PrinterSingleton_init() { printermap_newm(stdAlloc, 3, PrinterSingleton.data); }
+void PrinterSingleton_deInit() { printermap_freem(*PrinterSingleton.data); }
 void PrinterSingleton_append(fptr name, printerFunction function) {
   printermap_set(PrinterSingleton.data, name, function);
 }
