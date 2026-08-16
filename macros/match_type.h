@@ -4,6 +4,12 @@
       type: value,                    \
       default: (type){}               \
   )
+#define urcast(type, value)              \
+  _Generic(                              \
+      value,                             \
+      type: value,                       \
+      default: (unreachable(), (type){}) \
+  )
 
 #define match_type_default 1
 

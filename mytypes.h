@@ -140,8 +140,11 @@ struct nullable_t {
   #endif
   #define nullable_null(type) ((nullable(type)){.isnull = true})
   #define nullable_real(type, value) ((nullable(type)){.isnull = false, .data = (value)})
-  #define slice_stat(s) \
-    {sizeof(s) / sizeof((s)[0]), (typeof(s[0]) *)(s)}
+  #define slice_stat(T, s)    \
+    ({                        \
+      let _v = &s;            \
+      (T){countof(*_v), *_v}; \
+    })
   #define slice_vla(s) (VLAP(s.ptr, s.len))
   #define nullslice(T) ((slice(T)){})
 

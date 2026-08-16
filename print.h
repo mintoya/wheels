@@ -197,10 +197,12 @@ typePrinter("slice", struct slice_any_t) { // second least safe printer
     PUTS(" must have defined size");
   }
 
+  PUTS("[");
   foreach (let i, span((u8 *)in.ptr, in.len * fn.size, fn.size)) {
     if (i != in.ptr) PUTS(",");
     fn.function((fptr){fn.size, (u8 *)i}, printerfunction_context_pop(_ctx));
   }
+  PUTS("]");
 }
 
 volatile static thread_local bool print_f_shouldFlush = 1;

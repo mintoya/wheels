@@ -261,7 +261,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define P$_FOLD(state, arg, ...)                                        \
     ({                                                                    \
-      var_ _state = (state);                                              \
+      let _state = (state);                                              \
       ({                                                                  \
         var_ $ = _state;                                                  \
         var_ _res = arg;                                                  \

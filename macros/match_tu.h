@@ -189,4 +189,7 @@
   if (tu_is(type, (value)))                                                            \
     for (struct {type tv;bool keep; } tu_check_ = {(value).type, 1}; tu_check_.keep; tu_check_.keep = 0) \
       for (variable = tu_check_.tv; tu_check_.keep; tu_check_.keep = 0)
-#define iflet_tu if_tu_is
+#define iflet_tu(variable, type, value)                                                \
+  if (tu_is(type, (value)))                                                            \
+    for (struct {type tv;bool keep; } tu_check_ = {(value).type, 1}; tu_check_.keep; tu_check_.keep = 0) \
+      for (variable = tu_check_.tv; tu_check_.keep; tu_check_.keep = 0)
