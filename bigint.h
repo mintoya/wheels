@@ -68,20 +68,23 @@ NAMESPACE_STRUCT(
     BInt_advanced,
     (add_ip, &bigint_add_ip),
     (sub_ip, &bigint_sub_ip),
+    (mul_single, &bigint_mul_single),
 );
 NAMESPACE_STRUCT(
     BInt,
     (advanced, BInt_advanced),
+    (from, BInt_from),
     (cmp, &bigint_cmp),
+    (sh, &bigint_shrl),
     (add, &bigint_add),
     (sub, &bigint_sub),
     (mul, &bigint_mul),
     (div, &bigint_div),
     (trim, &bigint_trim),
     (expand, &bigint_expand),
-    (from, BInt_from),
     (negate, &bigint_negate),
     (negetive, &bigint_negetive),
+    (copy, &bigint_copy),
 );
 
 typePrinter(bigint) {
