@@ -38,6 +38,23 @@
       )                        \
   )
 
+#define switch_exp_default 1
+#define switch_exp_item(res, number_expr)                                                       \
+  REMOVE_PARENS(IF_IS1(                                                                         \
+      ID_CONCAT(switch_exp_, TUPLE_EXPAND_FIRST(number_expr)),                                  \
+      (default : { res = TUPLE_EXPAND_REST(number_expr); } break;),                             \
+      (case TUPLE_EXPAND_FIRST(number_expr) : { res = TUPLE_EXPAND_REST(number_expr); } break;) \
+  ))
+
+#define switch_exp(num, first, ...) ({                        \
+  let _swresult = (typeof(TUPLE_EXPAND_REST(first))){};       \
+  switch (num) {                                              \
+    switch_exp_item(_swresult, first)                         \
+        APPLY_N_WITH(switch_exp_item, _swresult, __VA_ARGS__) \
+  }                                                           \
+  _swresult;                                                  \
+})
+
 #define EMPTY()
 #define DEFER(id) id EMPTY()
 
