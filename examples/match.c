@@ -39,4 +39,9 @@ int main(void) {
       (iu64, u, return u),
       (ii64, u, return u),
   );
+  switch_exp(
+      f.tag,
+      (iu32_enum, 1),
+      (ii32_enum, 1),
+  );
 }

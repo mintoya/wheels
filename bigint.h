@@ -57,6 +57,11 @@ struct bigint_div_t {
 bigint_unit bigint_estimate_q(bigint rem, bigint b);
 struct bigint_div_t bigint_div(allocfn allocator, bigint a1, bigint b1);
 
+bigint bigint_bitshift_u(allocfn allocator, bigint a, bigint_unit b, bool left);
+bigint bigint_bitshift(allocfn allocator, bigint a, bigint b);
+bigint bigint_bor(allocfn allocator, bigint a, bigint b);
+bigint bigint_band(allocfn allocator, bigint a, bigint b);
+
 NAMESPACE_STRUCT(
     BInt_from,
     (cstr, &bigint_cs),
@@ -65,15 +70,24 @@ NAMESPACE_STRUCT(
     (bits, &bigint_fromBits),
 );
 NAMESPACE_STRUCT(
+    BInt_bit,
+    (shiftu, &bigint_bitshift_u),
+    (shift, &bigint_bitshift),
+    (bor, &bigint_bor),
+    (band, &bigint_band),
+);
+NAMESPACE_STRUCT(
     BInt_advanced,
     (add_ip, &bigint_add_ip),
     (sub_ip, &bigint_sub_ip),
+    (negate_ip, &bigint_negate_ip),
     (mul_single, &bigint_mul_single),
 );
 NAMESPACE_STRUCT(
     BInt,
     (advanced, BInt_advanced),
     (from, BInt_from),
+    (bit, BInt_bit),
     (cmp, &bigint_cmp),
     (sh, &bigint_shrl),
     (add, &bigint_add),
@@ -676,4 +690,72 @@ bigint bigint_fromBits(allocfn alloc, void *ptr, const usize bitcount, bool sigm
   if (!sigmask) msList_push(alloc, res, {});
   return res;
 }
+
+bigint bigint_bitshift_u(allocfn allocator, bigint a, bigint_unit b, bool left) {
+  const usize unit_bits = sizeof(bigint_unit) * 8;
+  const usize major = b / unit_bits;
+  const usize minor = b % unit_bits;
+
+  let res = msList_init(allocator, bigint_unit, msList_len(a) + 1);
+  msList_pushArr(allocator, res, *msList_vla(a));
+
+  bigint_unit sign = bigint_negetive(res) ? (bigint_unit)-1 : 0;
+
+  if (left) {
+    // reserve a unit up front so bits shifted out of the current top unit
+    // have somewhere to land instead of being lost.
+    msList_push(allocator, res, sign);
+
+    if (minor) {
+      bigint_unit carry = 0;
+      foreach (usize i, range(0, msList_len(res))) {
+        bigint_unit cur = res[i];
+        res[i] = (bigint_unit)(cur << minor) | carry;
+        carry = (bigint_unit)(cur >> (unit_bits - minor));
+      }
+    }
+
+    bigint_shrl(allocator, &res, (isize)major);
+  } else {
+    if (minor) {
+      // process from the most significant unit down so each unit can pull
+      // in the low `minor` bits of the unit above it before it's modified.
+      bigint_unit carry = (bigint_unit)(sign << (unit_bits - minor));
+      for (isize i = (isize)msList_len(res) - 1; i >= 0; i--) {
+        bigint_unit cur = res[i];
+        bigint_unit next_carry = (bigint_unit)(cur << (unit_bits - minor));
+        res[i] = (bigint_unit)(cur >> minor) | carry;
+        carry = next_carry;
+      }
+    }
+
+    bigint_shrl(allocator, &res, -(isize)major);
+  }
+
+  bigint_trim(&res);
+  return res;
+}
+
+bigint bigint_bitshift(allocfn allocator, bigint a, bigint b) {
+  bigint_trim(&b);
+  assertMessage(bigint_digits(b) <= 1, "shift amount too large");
+  return bigint_bitshift_u(allocator, a, bigint_get(b, 0), !bigint_negetive(b));
+}
+bigint bigint_bor(allocfn allocator, bigint a, bigint b) {
+  let len = MAX$(bigint_digits(a), bigint_digits(b)) + 1;
+  let res = msList_init(allocator, bigint_unit, len);
+  foreach (usize i, range(0, len))
+    msList_push(allocator, res, bigint_get(a, i) | bigint_get(b, i));
+  bigint_trim(&res);
+  return res;
+}
+bigint bigint_band(allocfn allocator, bigint a, bigint b) {
+  let len = MAX$(bigint_digits(a), bigint_digits(b)) + 1;
+  let res = msList_init(allocator, bigint_unit, len);
+  foreach (usize i, range(0, len))
+    msList_push(allocator, res, bigint_get(a, i) & bigint_get(b, i));
+  bigint_trim(&res);
+  return res;
+}
+
 #endif
