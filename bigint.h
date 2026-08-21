@@ -270,6 +270,28 @@ test_fn(bigint_comparison) {
   defer { msList_deInit(allocator, c_negated); };
   test_assert(!BInt.cmp(a, c_negated));
 }
+test_fn(bigint_positive_shift) {
+  let a = BInt.from.cstr(allocator, 10, "10 000 000 000");
+  defer { msList_deInit(allocator, a); };
+  let b = BInt.from.cstr(allocator, 10, "10");
+  defer { msList_deInit(allocator, b); };
+  let c = BInt.bit.shift(allocator, a, b);
+  defer { msList_deInit(allocator, c); };
+  let c_str = snprint(allocator, "{bigint}{c8}", c, (c8)0);
+  defer { slice_free(allocator, c_str); };
+  test_streq(c_str.ptr, "10240000000000");
+}
+test_fn(bigint_negetive_shift) {
+  let a = BInt.from.cstr(allocator, 10, "10 000 000 000");
+  defer { msList_deInit(allocator, a); };
+  let b = BInt.from.cstr(allocator, 10, "-10");
+  defer { msList_deInit(allocator, b); };
+  let c = BInt.bit.shift(allocator, a, b);
+  defer { msList_deInit(allocator, c); };
+  let c_str = snprint(allocator, "{bigint}{c8}", c, (c8)0);
+  defer { slice_free(allocator, c_str); };
+  test_streq(c_str.ptr, "9765625");
+}
 #endif
 
 #if (defined MY_BIGINT_C && MY_BIGINT_C == 1) || \
@@ -702,8 +724,6 @@ bigint bigint_bitshift_u(allocfn allocator, bigint a, bigint_unit b, bool left) 
   bigint_unit sign = bigint_negetive(res) ? (bigint_unit)-1 : 0;
 
   if (left) {
-    // reserve a unit up front so bits shifted out of the current top unit
-    // have somewhere to land instead of being lost.
     msList_push(allocator, res, sign);
 
     if (minor) {
@@ -718,8 +738,6 @@ bigint bigint_bitshift_u(allocfn allocator, bigint a, bigint_unit b, bool left) 
     bigint_shrl(allocator, &res, (isize)major);
   } else {
     if (minor) {
-      // process from the most significant unit down so each unit can pull
-      // in the low `minor` bits of the unit above it before it's modified.
       bigint_unit carry = (bigint_unit)(sign << (unit_bits - minor));
       for (isize i = (isize)msList_len(res) - 1; i >= 0; i--) {
         bigint_unit cur = res[i];
@@ -728,7 +746,6 @@ bigint bigint_bitshift_u(allocfn allocator, bigint a, bigint_unit b, bool left) 
         carry = next_carry;
       }
     }
-
     bigint_shrl(allocator, &res, -(isize)major);
   }
 
@@ -739,7 +756,8 @@ bigint bigint_bitshift_u(allocfn allocator, bigint a, bigint_unit b, bool left) 
 bigint bigint_bitshift(allocfn allocator, bigint a, bigint b) {
   bigint_trim(&b);
   assertMessage(bigint_digits(b) <= 1, "shift amount too large");
-  return bigint_bitshift_u(allocator, a, bigint_get(b, 0), !bigint_negetive(b));
+  let n = bigint_negetive(b) ? -bigint_get(b, 0) : bigint_get(b, 0);
+  return bigint_bitshift_u(allocator, a, n, !bigint_negetive(b));
 }
 bigint bigint_bor(allocfn allocator, bigint a, bigint b) {
   let len = MAX$(bigint_digits(a), bigint_digits(b)) + 1;
