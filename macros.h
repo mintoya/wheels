@@ -340,11 +340,12 @@ _Static_assert(isArray((int[]){}), "array is array");
     __builtin_memcmp(_a, _b, MIN$(sizeof(*_b), sizeof(*_a))); \
   })
   #define mcpy(a, b) ({                                                                   \
-    let _a = &a;                                                                          \
-    let _b = b;                                                                           \
-    typedef typeof(({ *_a; })) _da;                                                       \
-    _Static_assert(types_eq(_da, typeof(_b)), "not the same type");                       \
-    (typeof(_a))__builtin_memcpy((void *)_a, (void *)&_b, MIN$(sizeof(_b), sizeof(*_a))); \
+    let _a = &(a);                                                                          \
+    let _b = &(b);                                                                          \
+    typedef typeof(*_a) _da;                                                                \
+    typedef typeof(*_b) _db;                                                                \
+    _Static_assert(__builtin_types_compatible_p(_da, _db), "not the same type");            \
+    (typeof(_a))__builtin_memcpy((void *)_a, (void *)_b, MIN$(sizeof(*_b), sizeof(*_a))); \
   })
   #define mset(mem, v) ({                                                                         \
     var_ _m = &mem;                                                                               \
