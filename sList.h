@@ -258,11 +258,11 @@ struct msList_stackBuffer_t {
       sList_remove(msList_header(s), sizeof(*s), idx); \
     } while (0)
   #define msList_push(allocator, s, ...)                                                                          \
-    do {                                                                                                          \
+    ({                                                                                                            \
       if_unlikely (msList_len(s) == msList_cap(s))                                                                \
         s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), SLIST_GROW_EQ(msList_len(s)))->buf; \
       (s)[msList_len(s)++] = ((typeof(*s))__VA_ARGS__);                                                           \
-    } while (0)
+    })
 
   #define msList_insArr(allocator, s, place, vla)                     \
     do {                                                              \
