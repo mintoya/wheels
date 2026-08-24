@@ -18,3 +18,4 @@ wheels.pdb
 /cpthreads
 /includeAll.o
 /__pycache__
+/.github/workflows
