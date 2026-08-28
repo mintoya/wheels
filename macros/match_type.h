@@ -55,6 +55,19 @@
   _swresult;                                                  \
 })
 
+#define switch_tuple_item(number_expr)                                                    \
+  REMOVE_PARENS(IF_IS1(                                                                   \
+      ID_CONCAT(switch_exp_, TUPLE_EXPAND_FIRST(number_expr)),                            \
+      (default : { TUPLE_EXPAND_REST(number_expr); } break;),                             \
+      (case TUPLE_EXPAND_FIRST(number_expr) : { TUPLE_EXPAND_REST(number_expr); } break;) \
+  ))
+
+#define switch_tuple(num, ...) ({           \
+  switch (num) {                            \
+    APPLY_N(switch_tuple_item, __VA_ARGS__) \
+  }                                         \
+})
+
 #define EMPTY()
 #define DEFER(id) id EMPTY()
 
