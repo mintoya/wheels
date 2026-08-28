@@ -86,6 +86,7 @@ void vsn_print(const c8 *, void *, usize, bool);
 void sn_print(const c8 *, void *, usize, bool);
 
   #define GETTYPEPRINTERFN(T) ID_CONCAT(_, ID_CONCAT(T, _printer))
+  #define TYPEPRINTERDCL(T) void GETTYPEPRINTERFN(T)(fptr, printerfunction_context)
 
   #define PUTS(characters) _ctx.put(characters, _ctx.arb, countof(characters) - 1, 0)
   #define PUTC(character) _ctx.put(REF(character), _ctx.arb, 1, 0)
@@ -199,7 +200,7 @@ static slice(c8) vsn_print_fn(allocfn allocator, char *fmt, struct print_arg *ar
     );                                               \
   })
   #define print_wfO(printerfn, arb, fmt, ...)          \
-    do {                                               \
+    ({                                                 \
       print_f(                                         \
           printerfn,                                   \
           arb,                                         \
@@ -209,7 +210,7 @@ static slice(c8) vsn_print_fn(allocfn allocator, char *fmt, struct print_arg *ar
                   __VA_OPT__(, )((struct print_arg){}) \
           }                                            \
       );                                               \
-    } while (0)
+    })
   #define tuprint_item(datatuple, printtuple)                       \
     GETTYPEPRINTERFN(TUPLE_EXPAND_FIRST(printtuple))(               \
         TUPLE_EXPAND_FIRST(datatuple),                              \
@@ -303,7 +304,7 @@ static slice(c8) vsn_print_fn(allocfn allocator, char *fmt, struct print_arg *ar
       ((struct print_arg){                                                       \
           .ref = ((fptr){sizeof(a), (u8 *)REF(typeof(a), a)}),                   \
           .name = _Generic(                                                      \
-              &(typeof_unqual(a)){0},                                        \
+              &(typeof_unqual(a)){0},                                            \
               MAKE_PRINT_ARG_TYPE(fptr),                                         \
               MAKE_PRINT_ARG_TYPE(isize),                                        \
               MAKE_PRINT_ARG_TYPE(usize),                                        \
