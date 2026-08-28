@@ -86,7 +86,7 @@ void vsn_print(const c8 *, void *, usize, bool);
 void sn_print(const c8 *, void *, usize, bool);
 
   #define GETTYPEPRINTERFN(T) ID_CONCAT(_, ID_CONCAT(T, _printer))
-  #define TYPEPRINTERDCL(T) void GETTYPEPRINTERFN(T)(fptr, printerfunction_context)
+  #define TYPEPRINTERDCL(T) static void GETTYPEPRINTERFN(T)(fptr, printerfunction_context)
 
   #define PUTS(characters) _ctx.put(characters, _ctx.arb, countof(characters) - 1, 0)
   #define PUTC(character) _ctx.put(REF(character), _ctx.arb, 1, 0)
