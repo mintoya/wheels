@@ -296,6 +296,12 @@ struct msList_stackBuffer_t {
     msList_pushArr(allocator, res, (*msList_vla(list))); \
     res;                                                 \
   })
+  #define msList_initArr(allocator, arr) ({         \
+    let _l = msList_init(allocator, arrstype(arr)); \
+    msList_pushArr(allocator, _l, arr);             \
+    _l;                                             \
+  })
+
   #define msList_len(s) (msList_header(s)->length)
   #define msList_cap(s) (msList_header(s)->capacity)
   #define msList_pop(s) ((s)[--msList_header(s)->length])

@@ -222,6 +222,11 @@ void List_remove(List *l, List_index_t i, size_t width);
     } while (0)
   #define mList_pushArr(list, vla) \
     mList_insArr(list, mList_len(list), vla)
+  #define mList_initArr(allocator, arr) ({         \
+    let _l = mList_init(allocator, arrstype(arr)); \
+    mList_pushArr(_l, arr);                        \
+    _l;                                            \
+  })
   #define mList_pad(list, ammount) \
     mList_insArr(list, mList_len(list), *VLAP((mList_iType(list) *)nullptr, ammount))
   #define mList_clear(list)            \
