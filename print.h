@@ -1,4 +1,3 @@
-#include "mytypes.h"
 #if !defined MY_PRINTER_H
   #define MY_PRINTER_H (1)
   #include "allocator.h"
@@ -67,7 +66,7 @@ __attribute__((constructor(201))) static void printerInit() {
 
 typePrinter("ptr", void *) {
   uintptr_t v = (uintptr_t)in;
-  if (!v) return PUTS("(nil)");
+  if (!v) PUTS("(nil)"), ({ return; });
   PUTS("0x");
 
   int shift = (sizeof(uintptr_t) * 8) - 4;

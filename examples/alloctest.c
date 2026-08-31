@@ -8,7 +8,6 @@ int main(void) {
   var_ local =
       debugAllocator(
               .allocator = stdAlloc,
-              .log = stdout,
       );
   defer {
     // invoke custom printer for allocator stats

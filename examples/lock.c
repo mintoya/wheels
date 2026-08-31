@@ -11,7 +11,7 @@ deffunction(inner_task, ((int, id)), int) {
   thrd_sleep(&(struct timespec){1}, NULL);
   return id * 10;
 }
-deffunction(outer_task, ((AllocatorV, alloc), (tpool_single_t, pool), (int, id)), int) {
+deffunction(outer_task, ((allocfn, alloc), (tpool_single_t, pool), (int, id)), int) {
   println(
       "outer task thread : {}\n"
       "[Worker] Outer task {} started.",
@@ -19,11 +19,11 @@ deffunction(outer_task, ((AllocatorV, alloc), (tpool_single_t, pool), (int, id))
       id
   );
 
-  var_ inner_f = poolfunction_call(pool, inner_task, (id));
+  let inner_f = poolfunction_call(pool, inner_task, (id));
 
   println("[Worker] Outer task {} is now awaiting its inner task...", id);
 
-  var_ res = poolfunction_await(pool, inner_f);
+  let res = poolfunction_await(pool, inner_f);
 
   println("[Worker] Outer task {} completed with result: {}", id, res);
   return res;
@@ -33,27 +33,27 @@ deffunction(outer_task, ((AllocatorV, alloc), (tpool_single_t, pool), (int, id))
 
 int main(void) {
   println("main thread : {}", thrd_current());
-  var_ allocator = debugAllocator(.allocator = stdAlloc, .log = stdout);
+  let allocator = debugAllocator(.allocator = stdAlloc);
   defer { debugAllocatorDeInit(allocator); };
 
-  var_ pool = tpool_init(allocator);
+  let pool = tpool_init(allocator);
   tpool_addWorkers(pool, 2);
   defer { tpool_deInit(pool); };
 
-  var_ futures = msList_init(allocator, typeof(poolfunction_call(pool, outer_task, (allocator, pool, 0))));
+  let futures = msList_init(allocator, typeof(poolfunction_call(pool, outer_task, (allocator, pool, 0))));
   defer { msList_deInit(allocator, futures); };
 
-  foreach (var_ i, range(0, 6)) {
-    var_ v = poolfunction_call_type(pool, outer_task, typeof(*futures), (allocator, pool, i));
+  foreach (let i, range(0, 6)) {
+    let v = poolfunction_call_type(pool, outer_task, typeof(*futures), (allocator, pool, i));
     msList_push(allocator, futures, v);
   }
 
   println("[Main] Awaiting all outer tasks to finish...");
-  var_ total = 0;
-  foreach (var_ f, vla(*msList_vla(futures))) {
+  let total = 0;
+  foreach (let f, vla(*msList_vla(futures))) {
     total += poolfunction_await(pool, f);
   }
-  println("[Main] SUCCESS! All tasks finished. Total: {}", total);
+  println("[Main]  tasks finished. Total: {}", total);
   return 0;
 }
 #include "../wheels.h"

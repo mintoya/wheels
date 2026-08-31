@@ -102,7 +102,7 @@ static inline sList_header *sList_insertFromArr(
     l = sList_realloc(allocator, l, width, need);
 
   if (inlist) {
-    source = (u8 *)source - obuf + l->buf;
+    source = l->buf + (ptrdiff_t)(((u8 *)source) - ((u8 *)obuf));
     memcpy(l->buf + (l->capacity - length) * width, source, length * width);
     source = l->buf + (l->capacity - length) * width;
   }

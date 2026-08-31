@@ -5,9 +5,8 @@
 #include "../print.h"
 
 int main(void) {
-  AllocatorV debug = debugAllocator(
+  let debug = debugAllocator(
           .allocator = stdAlloc,
-          .log = stdout
   );
 
   defer { debugAllocatorDeInit(debug); };

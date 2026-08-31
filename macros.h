@@ -82,7 +82,9 @@ To bit_cast_func(const From &src) noexcept {
 
   #define CONCATS(...) MACRO_EXPANDi(CONCATS1(__VA_ARGS__))
 
-  #if __has_include(<stddefer.h>) && !defined __cplusplus
+  #if defined defer
+  // do nothing
+  #elif __has_include(<stddefer.h>) && !defined __cplusplus
     #include <stddefer.h>
   #elif defined(__cplusplus)
     #pragma GCC warning "using cpp closure defer"
@@ -206,7 +208,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define EQUAL_ALL_HELPER(a) a &&
   #define EQUAL_ALL(expr, ...) (APPLY_N((expr) == EQUAL_ALL_HELPER, __VA_ARGS__) 1)
   #define ASSERT_EXPR(cond, ...) \
-    ((void)((int)sizeof(char[1 - 2 * !(cond)])))
+    typedef char CONCATS(_assert_, __COUNTER__, _, __LINE__)[1 - 2 * !(cond)]
   #define STR_H(...) #__VA_ARGS__
 
   #define VA_SWITCH_SEL(a, ...) REM_PAREN a
@@ -259,19 +261,20 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define P$_FOLD_INDIRECT() P$_FOLD
   #define P$_EAT(...)
 
-  #define P$_FOLD(state, arg, ...)                                        \
-    ({                                                                    \
-      let _state = (state);                                              \
-      ({                                                                  \
-        var_ $ = _state;                                                  \
-        var_ _res = arg;                                                  \
-        __VA_OPT__(P$_DEFER(P$_FOLD_INDIRECT)()(_res, __VA_ARGS__)P$_EAT) \
-        (_res);                                                           \
-      });                                                                 \
+  #define P$_FOLD(state, arg, ...)                                                \
+    ({                                                                            \
+      let _state = (state);                                                       \
+      ({                                                                          \
+        var_ $ = _state;                                                          \
+        var_ _res = arg;                                                          \
+        __VA_OPT__(P$_FOLD_INDIRECT PARENTHESIS_HELPER(_res, __VA_ARGS__) P$_EAT) \
+        (_res);                                                                   \
+      });                                                                         \
     })
 
   #define P$_ONE(in, ...) MACRO_EXPAND(P$_FOLD(in, __VA_ARGS__))
   #define P$(in, ...) P$_ONE(in __VA_OPT__(, __VA_ARGS__), $)
+
 
   #define MAX$_HELP(b)           \
     ({                           \
@@ -316,7 +319,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define arrstype(arr) typeof((*(typeof(arr) *)nullptr)[0])
 
   #define IS_CTARRAY(x) \
-    (!types_eq(typeof(x), typeof(1 ? *(ptrof(typeof(x)))0 : (x))))
+    (!types_eq(typeof(x), typeof(1 ? *(ptrof(typeof((x))))0 : (x))))
   #if defined __cplusplus
     #define IS_CTARRAY(x) \
       (!types_eq(typeof(x), std::decay_t<typeof(x)>))
@@ -340,11 +343,11 @@ _Static_assert(isArray((int[]){}), "array is array");
     __builtin_memcmp(_a, _b, MIN$(sizeof(*_b), sizeof(*_a))); \
   })
   #define mcpy(a, b) ({                                                                   \
-    let _a = &(a);                                                                          \
-    let _b = &(b);                                                                          \
-    typedef typeof(*_a) _da;                                                                \
-    typedef typeof(*_b) _db;                                                                \
-    _Static_assert(__builtin_types_compatible_p(_da, _db), "not the same type");            \
+    let _a = &(a);                                                                        \
+    let _b = &(b);                                                                        \
+    typedef typeof(*_a) _da;                                                              \
+    typedef typeof(*_b) _db;                                                              \
+    _Static_assert(__builtin_types_compatible_p(_da, _db), "not the same type");          \
     (typeof(_a))__builtin_memcpy((void *)_a, (void *)_b, MIN$(sizeof(*_b), sizeof(*_a))); \
   })
   #define mset(mem, v) ({                                                                         \

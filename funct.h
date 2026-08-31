@@ -256,19 +256,18 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
     type _r = {future};                                                                     \
     _r;                                                                                     \
   })
-  #define poolfunction_await(pool, futuree) ({                                        \
-    var_ _future = futuree;                                                           \
-    defer { aFree(tpool_allocator(pool), _future.future, sizeof(*_future.future)); }; \
-    defer {                                                                           \
-      aFree(                                                                          \
-          tpool_allocator(pool),                                                      \
-          _future.future->task.task.arg,                                              \
-          sizeof(_future.argsType[0])                                                 \
-      );                                                                              \
-    };                                                                                \
-    _tpool_wait_loop(pool, _future.future->task.done);                                \
-    var_ _r = (typeof(_future.argsType[0]) *)_future.future->task.task.arg;           \
-    _r->result;                                                                       \
+  #define poolfunction_await(pool, futuree) ({                              \
+    var_ _future = futuree;                                                 \
+    defer { adestroy(tpool_allocator(pool), _future.future); };             \
+    defer {                                                                 \
+      adestroy(                                                             \
+          tpool_allocator(pool),                                            \
+          ((typeof(_future.argsType[0]) *)(&_future.future->task.task.arg)) \
+      );                                                                    \
+    };                                                                      \
+    _tpool_wait_loop(pool, _future.future->task.done);                      \
+    var_ _r = (typeof(_future.argsType[0]) *)_future.future->task.task.arg; \
+    _r->result;                                                             \
   })
 
   #include "allocators/tsaAllocator.h"

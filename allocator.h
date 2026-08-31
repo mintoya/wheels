@@ -18,8 +18,15 @@ typedef const struct allocfns {
   ) fn;
 } *allocfn;
 
-[[gnu::const]] static inline uptr lineup(uptr u, usize a) { return (((u + (a - 1)) / a) * a); }
-[[gnu::const]] static inline uptr alloc_align(uptr u) { return lineup(u, alignof(myAlign)); }
+  #if defined __STDC_VERSION__ && __STDC_VERSION__ >= 202400L
+    #define gnu_const__ [[gnu::const]]
+  #else
+    #define gnu_const__
+  #endif
+
+gnu_const__ static inline uptr lineup(uptr u, usize a) { return (((u + (a - 1)) / a) * a); }
+gnu_const__ static inline uptr alloc_align(uptr u) { return lineup(u, alignof(myAlign)); }
+
   #define vcallargs(it, ...) (it __VA_OPT__(, ) __VA_ARGS__)
   #define vcall(it, name, args) (it->name vcallargs(it, REM_PAREN args))
 
