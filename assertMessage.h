@@ -8,7 +8,7 @@
 
   #define TODO(str, ...) \
     ({ assertMessage(false, "todo : " #str); \
-    _Pragma("GCC warning \" todo in program  \"")__VA_OPT__(( __VA_ARGS__ ){}) })
+    _Pragma("GCC warning \" todo in program  \"")__VA_OPT__(( __VA_ARGS__ ){};) })
 
   #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m" // ]
   #define ASSERTMESSAGE_PRINTRESET "\x1b[0m"         // ]
