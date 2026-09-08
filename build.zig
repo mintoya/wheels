@@ -2,12 +2,8 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
     _ = std.process.run(b.allocator, b.graph.io, .{
-        .argv = &.{
-            "git",
-            "clone",
-            "https://github.com/jtsiomb/c11threads",
-        },
-    }) catch null;
+        .argv = &.{ "git", "clone", "https://github.com/jtsiomb/c11threads" },
+    }) catch @panic("couldnt clone needed dependency");
     const target = b.standardTargetOptions(.{});
 
     const exe = b.addExecutable(.{
@@ -29,12 +25,12 @@ pub fn build(b: *std.Build) void {
         "which file to run",
     ) orelse "tests.h";
 
-    const compileflags =  &.{
-            "-std=c2y",
-            "-fdefer-ts",
-            "-fno-sanitize=vla-bound",
-            "-fsanitize=alignment",
-            "-finstrument-functions" ,
+    const compileflags = &.{
+        "-std=c2y",
+        "-fdefer-ts",
+        "-fno-sanitize=vla-bound",
+        "-fsanitize=alignment",
+        "-finstrument-functions",
     };
 
     exe.root_module.addCSourceFile(.{
@@ -58,7 +54,6 @@ pub fn build(b: *std.Build) void {
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
-
 
     const run_step = b.step("run", "Run the application");
     run_step.dependOn(&run_cmd.step);

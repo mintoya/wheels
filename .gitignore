@@ -18,3 +18,5 @@ wheels.pdb
 /cpthreads
 /includeAll.o
 /__pycache__
+/deps
+/nob.exe
