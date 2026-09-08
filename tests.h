@@ -227,11 +227,12 @@ int main(int nargs, char **args) {
     subprocess_destroy(&sub);
 
     printf(
-        "[%s] %s\n",
+        "[%s] %s\t%i\n",
         status
             ? test_RED "FAIL" test_RESET
             : test_GREEN "PASS" test_RESET,
-        testList->testname
+        testList->testname,
+        status
     );
     pass += !status;
     testList = testList->next;
