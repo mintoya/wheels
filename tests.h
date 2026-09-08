@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...);
 

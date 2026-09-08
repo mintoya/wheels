@@ -313,7 +313,7 @@ void print_f_helper(struct print_arg p, fptr typeName, printerfunction_context _
         PUTC((c8)i[0]);
     PUTS(") __");
     USETYPEPRINTER(pEsc, ((pEsc){.reset = true}));
-  } else if (p.ref.len != ~(usize)0 && fn.size != p.ref.len) {
+  } else if (fn.size != ~(usize)0 && fn.size != p.ref.len) {
     USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = true}));
     PUTS("__ PRINTER TRIED TO READ ");
     USETYPEPRINTER(usize, fn.size);

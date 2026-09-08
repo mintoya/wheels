@@ -231,7 +231,7 @@ struct slice_array {
       MACRO_EXPAND(SLICE_CUT_HELPER(slice, 0, __VA_ARGS__ __VA_OPT__(, )(slice).len)) \
     }
 
-  #define slice_last(slice) ({var_ _slice = slice; _slice.ptr[_slice.len -1 ]; })
+  #define slice_last(slice) (*({var_ _slice = slice; &_slice.ptr[_slice.len -1 ]; }))
   #define slice_first(slice) ({var_ _slice = slice; _slice.ptr[0]; })
 
   #define sentList_t(type) typeof(/*sentinel termintated list*/ type *)

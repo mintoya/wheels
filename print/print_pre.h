@@ -295,7 +295,7 @@ static slice(c8) vsn_print_fn(allocfn allocator, char *fmt, struct print_arg *ar
       #define MAKE_PRINTINTS_SIZE
     #endif
     #if __SIZEOF_DOUBLE__ != __SIZEOF_LONG_DOUBLE__
-      #define MAKE_PRINTS_D MAKE_PRINT_ARG_TYPE(double), MAKE_PRINT_ARG_TYPE(long double),
+      #define MAKE_PRINTS_D MAKE_PRINT_ARG_TYPE(double), MAKE_PRINT_ARG_TYPE(ldouble),
     #else
       #define MAKE_PRINTS_D MAKE_PRINT_ARG_TYPE(ldouble),
     #endif
