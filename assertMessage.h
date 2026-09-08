@@ -67,16 +67,16 @@ void __attribute__((noreturn)) _assertMessageFail(
     const char *fmt,
     ...
 ) {
-  fprintf(stdout, ASSERTMESSAGE_PRINTRED "\nmessage:\n");
+  fprintf(stderr, ASSERTMESSAGE_PRINTRED "\nmessage:\n");
   char buf[1024];
   va_list args;
   va_start(args, fmt);
   int len = vsnprintf(buf, sizeof(buf), fmt, args);
   va_end(args);
-  if (len) fwrite(buf, (unsigned)len < sizeof(buf) ? (unsigned)len : sizeof(buf) - 1, sizeof(char), stdout);
+  if (len) fwrite(buf, (unsigned)len < sizeof(buf) ? (unsigned)len : sizeof(buf) - 1, sizeof(char), stderr);
 
   len = snprintf(buf, sizeof(buf), ASSERTMESSAGE_PRINTORANGE "\nassert:\t%s\nin fn :\t%s\nfile  :\t%s\nline  :\t%u\n\nfailed\n" ASSERTMESSAGE_PRINTRESET, expr_str, func, file, line);
-  if (len) fwrite(buf, (unsigned)len < sizeof(buf) ? (unsigned)len : sizeof(buf) - 1, sizeof(char), stdout);
+  if (len) fwrite(buf, (unsigned)len < sizeof(buf) ? (unsigned)len : sizeof(buf) - 1, sizeof(char), stderr);
   fflush(stderr);
   let trace = getTrace(stdAlloc);
   for (int i = 0; i < trace.len; i++)
