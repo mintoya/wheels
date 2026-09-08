@@ -76,6 +76,15 @@ NAMESPACE_STRUCT(
     (valid, &debugallocator_iterator_valid),
 );
 
+#endif // MY_DEBUG_ALLOCATOR_H
+#if (defined MY_DEBUG_ALLOCATOR_C && MY_DEBUG_ALLOCATOR_C == 1) || \
+    defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
+  #undef MY_DEBUG_ALLOCATOR_C
+  #define MY_DEBUG_ALLOCATOR_C (2)
+
+  #define mapconfig dbgallocator_map, void *, struct tracedata, ((iptr)k), ((iptr)a - (iptr)b)
+  #include "../incmap.h"
+
   #include "../tests.h"
 test_fn(debugallocator_test) {
   let alloc = debugAllocator(.allocator = allocator);
@@ -91,16 +100,6 @@ test_fn(debugallocator_test) {
   test_assert(statsa.total_calls < statsb.total_calls);
   test_inteq(debugAllocatorDeInit(alloc), 3);
 }
-
-#endif // MY_DEBUG_ALLOCATOR_H
-#if (defined MY_DEBUG_ALLOCATOR_C && MY_DEBUG_ALLOCATOR_C == 1) || \
-    defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0
-  #undef MY_DEBUG_ALLOCATOR_C
-  #define MY_DEBUG_ALLOCATOR_C (2)
-
-  #define mapconfig dbgallocator_map, void *, struct tracedata, ((iptr)k), ((iptr)a - (iptr)b)
-  #include "../incmap.h"
-
 typedef struct {
   struct debugStats stats;
   fnptrof((void *, usize, usize, void *, const char *, uint), void) onalloc;

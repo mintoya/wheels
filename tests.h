@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #if defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0
   #define MY_TEST_FRAMEWORK_C (1)
 #endif
@@ -128,11 +129,6 @@ struct testNode {
   #define test_RESET "\x1b[0m"
   #define test_RED "\x1b[31m"
   #define test_GREEN "\x1b[32m"
-// #include "allocators/debugallocator.h"
-// #include "print.h"
-// void onalloc(allocationType *t) {
-//   printf("\t%p %zu -> %p %zu : %zu %s\n", t->iptr, t->insize, t->optr, t->outsize, t->trace.ln, t->trace.fn);
-// }
 
 __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...) {
   let l = (va_list){};
@@ -151,66 +147,121 @@ __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...) {
   return res;
 }
   #include "allocators/debugallocator.h"
-int main(void) {
+test_result runtest(typeof(testList) test) {
+  allocfn testAlloc = debugAllocator(.allocator = stdAlloc);
+  defer { debugAllocatorDeInit(testAlloc); };
+
+  var_ result = (test_result){};
+  test->fn(&result, testAlloc);
+  let leaked = 0;
+  if (result.profile) {
+    let stats = debugAllocator_stats(testAlloc);
+    printf("{" test_RED "prof" test_RESET "}");
+    _dbga_stats_printer(
+        (fptr){sizeof(stats), (u8 *)&stats},
+        (printerfunction_context){fileprint, stdout, {}, stdAlloc}
+    );
+    fileprint("\n", stdout, 1, 1);
+  }
+  foreach (let location, vtable(debugallocator_iterator, testAlloc)) {
+    leaked++;
+    printf(
+        "\t(" test_RED "leak" test_RESET ") %zu bytes\n"
+        "\t\tfile:%s\n"
+        "\t\tline:%zu\n",
+        location.trace.size,
+        location.trace.fn,
+        location.trace.ln
+    );
+  }
+  if (result.result) printf(
+      "\n"
+      "\tline\t:%zu\n"
+      "\tfile\t:%s\n"
+      "\tcond\t:(%s)\n",
+      result.result - 1,
+      test->filename,
+      result.check
+  );
+  fflush(stdout);
+  result.result += !!leaked;
+  return result;
+}
+test_result runtest_named(const char *test) {
+  let curr = testList;
+  while (curr && strcmp(curr->testname, test))
+    curr = curr->next;
+  assertMessage(curr);
+  return runtest(curr);
+}
+  #define TESTS_SUBPROCESSES (1)
+  #if (defined(TESTS_SUBPROCESSES) && (TESTS_SUBPROCESSES == 1))
+    #include "deps/subprocess.h/subprocess.h"
+  #endif
+int main(int nargs, char **args) {
+  if (nargs == 2)
+    return (runtest_named(args[1]).result);
   usize count = 0;
   usize pass = 0;
 
+  #if (defined(TESTS_SUBPROCESSES) && (TESTS_SUBPROCESSES == 1))
   while (testList) {
-    allocfn testAlloc = debugAllocator(
-            .allocator = stdAlloc,
-  #if defined(LOG_ALLOCATIONS)
-            .on_call = onalloc
-  #endif
-    );
     count++;
-    var_ result = (test_result){};
-    testList->fn(&result, testAlloc);
-    let leaked = 0;
-    defer { debugAllocatorDeInit(testAlloc); };
-    if (result.profile) {
-      let stats = debugAllocator_stats(testAlloc);
-      printf("{" test_RED "prof" test_RESET "}");
-      _dbga_stats_printer(
-          (fptr){sizeof(stats), (u8 *)&stats},
-          (printerfunction_context){fileprint, stdout, {}, stdAlloc}
-      );
-      fileprint("\n", stdout, 1, 1);
-    }
-    foreach (let location, vtable(debugallocator_iterator, testAlloc)) {
-      leaked++;
-      printf(
-          "\t(" test_RED "leak" test_RESET ") %zu bytes\n"
-          "\t\tfile:%s\n"
-          "\t\tline:%zu\n",
-          location.trace.size,
-          location.trace.fn,
-          location.trace.ln
-      );
-    }
+    int status = 0;
+    struct subprocess_s sub;
+    subprocess_create((const char *const[]){args[0], testList->testname, nullptr}, 0, &sub);
+    subprocess_join(&sub, &status);
+
+    typeof(char[1024]) buf = {};
+    int count = 0;
+
+    while ((count = subprocess_read_stdout(&sub, buf, sizeof(buf))))
+      fwrite(buf, sizeof(buf[0]), count, stdout);
+    while ((count = subprocess_read_stderr(&sub, buf, sizeof(buf))))
+      fwrite(buf, sizeof(buf[0]), count, stderr);
+
+    fflush(stdout);
+    fflush(stderr);
+
+    subprocess_destroy(&sub);
+
     printf(
-        "[%s%s] %s",
-        result.result
+        "[%s] %s\n",
+        status
             ? test_RED "FAIL" test_RESET
             : test_GREEN "PASS" test_RESET,
-        leaked ? test_RED ",LEAK" test_RESET : "",
         testList->testname
     );
-    if (result.result) printf(
-        "\n"
-        "\tline\t:%zu\n"
-        "\tfile\t:%s\n"
-        "\tcond\t:(%s)\n",
-        result.result - 1,
-        testList->filename,
-        result.check
-    );
-    else printf("\n");
-    fflush(stdout);
-    pass += !(result.result) && !leaked;
+    pass += !status;
     testList = testList->next;
   }
+  #else
+  while (testList) {
+    count++;
+    int status = runtest(testList).result;
+    printf(
+        "[%s] %s\n",
+        status
+            ? test_RED "FAIL" test_RESET
+            : test_GREEN "PASS" test_RESET,
+        testList->testname
+    );
+    pass += !status;
+    testList = testList->next;
+  }
+  #endif
   printf("%zu tests out of %zu passed", pass, count);
+  return 0;
 }
+// test_fn(crasher) {
+//   assertMessage(false);
+// }
+// test_fn(failer) {
+//   test_assert(false);
+// }
+// test_fn(leaker) {
+//   avalue(allocator, 0);
+// }
   #if !defined __cplusplus && __STDC_VERSION__ >= 202400L
     #include "funct.h" // excluded from  include all for of c23
   #endif

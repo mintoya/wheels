@@ -26,6 +26,10 @@ allocfn cba_init(allocfn fn, itypeof(struct cballocator, cba) cba, itypeof(struc
 void cba_deinit(allocfn fn);
 allocfn cba_backing(allocfn fn);
 
+#endif
+#if (defined CBA_ALLOCATOR_C && CBA_ALLOCATOR_C == 1) || (defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0)
+  #undef CBA_ALLOCATOR_C
+  #define CBA_ALLOCATOR_C (2)
   #include "../tests.h"
 [[maybe_unused]] static void _test_cba_fn(const callbackallocatorhandle *h) {
   struct {
@@ -53,11 +57,6 @@ test_fn(cba_test_fn) {
   test_inteq(p.calls, 3);
   test_inteq(p.total, 0);
 }
-
-#endif
-#if (defined CBA_ALLOCATOR_C && CBA_ALLOCATOR_C == 1) || (defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0)
-  #undef CBA_ALLOCATOR_C
-  #define CBA_ALLOCATOR_C (2)
 void *_cba_alloc(allocfn slf, void *op, usize in, usize out, const char *f, uint l) {
   let selff = (struct cballocator *)slf;
   const struct cbhandle here[1] = {{selff, op, in, out, f, l}};
