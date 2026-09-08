@@ -12,29 +12,29 @@
 
 __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...);
 
-#define test_assert(...)            \
-  do {                              \
-    if (!(__VA_ARGS__)) {           \
-      *_result =                    \
-          (test_result){            \
-              (char *)#__VA_ARGS__, \
-              __LINE__ + 1          \
-          };                        \
-      return;                       \
-    }                               \
+#define test_assert(...)                          \
+  do {                                            \
+    if (!(__VA_ARGS__)) {                         \
+      *_result =                                  \
+          (test_result){                          \
+              aprint("%s", (char *)#__VA_ARGS__), \
+              __LINE__ + 1                        \
+          };                                      \
+      return;                                     \
+    }                                             \
   } while (0)
 
-#define test_inteq(a, b)                \
-  do {                                  \
-    ptrdiff_t _a = a;                   \
-    ptrdiff_t _b = b;                   \
-    if (_a != _b) {                     \
-      *_result = (test_result){         \
-          aprint("%td != %td", _a, _b), \
-          __LINE__ + 1                  \
-      };                                \
-      return;                           \
-    }                                   \
+#define test_inteq(a, b)                  \
+  do {                                    \
+    signed long long _a = a;              \
+    signed long long _b = b;              \
+    if (_a != _b) {                       \
+      *_result = (test_result){           \
+          aprint("%lld != %lld", _a, _b), \
+          __LINE__ + 1                    \
+      };                                  \
+      return;                             \
+    }                                     \
   } while (0)
 
 #define test_streq(a, b)              \
@@ -183,6 +183,7 @@ test_result runtest(typeof(testList) test) {
       test->filename,
       result.check
   );
+  if (result.check) free(result.check);
   fflush(stdout);
   result.result += !!leaked;
   return result;
@@ -194,7 +195,7 @@ test_result runtest_named(const char *test) {
   assertMessage(curr);
   return runtest(curr);
 }
-  #define TESTS_SUBPROCESSES (1)
+  // #define TESTS_SUBPROCESSES (1)
   #if (defined(TESTS_SUBPROCESSES) && (TESTS_SUBPROCESSES == 1))
     #include "deps/subprocess.h/subprocess.h"
   #endif
@@ -253,15 +254,6 @@ int main(int nargs, char **args) {
   printf("%zu tests out of %zu passed", pass, count);
   return 0;
 }
-// test_fn(crasher) {
-//   assertMessage(false);
-// }
-// test_fn(failer) {
-//   test_assert(false);
-// }
-// test_fn(leaker) {
-//   avalue(allocator, 0);
-// }
   #if !defined __cplusplus && __STDC_VERSION__ >= 202400L
     #include "funct.h" // excluded from  include all for of c23
   #endif
