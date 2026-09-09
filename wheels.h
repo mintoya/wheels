@@ -19,7 +19,8 @@ headers = [
   ("MY_SEGMENTTLIST" , "sglist.h",True),
   ("MY_LIST" , "mylist.h",True),
   ("MY_TRACE" , "trace.h",True),
-  ("ASSERTMESSAGE" , "assertMessage.h",True),
+  ("ASSERTMESSAGE", "assertMessage.h",True),
+  ("MY_ERRORS", "errable.h",True),
 ]
 
 for prefix, header, all_flag in headers:
@@ -113,6 +114,12 @@ for prefix, header, all_flag in headers:
   #define MY_TRACE_C (1)
   #include "trace.h"
   _Static_assert(MY_TRACE_C == 2 , "header should define itself as  included");
+#endif
+#if ((defined MY_ERRORS_H) || (defined(WHEELS_INCLUDE_ALL)))\
+ && !defined MY_ERRORS_C
+  #define MY_ERRORS_C (1)
+  #include "errable.h"
+  _Static_assert(MY_ERRORS_C == 2 , "header should define itself as  included");
 #endif
 #if ((defined ASSERTMESSAGE_H) || (defined(WHEELS_INCLUDE_ALL)))\
  && !defined ASSERTMESSAGE_C

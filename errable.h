@@ -1,44 +1,160 @@
-#include "limits.h"
-#include "wheels/mytypes.h"
-#include <stdio.h>
-#include <stdlib.h>
-#define err(T)               \
-  struct err_##T {           \
-    const char *const ecode; \
-    T result;                \
-  }
-#define err_return(T, v) return ((err(T)){nullptr, v})
-#define err_throw(T, msg) return ((err(T)){              \
-    "[ERROR] " msg "from \n\t" STRFRY(__LINE__) __FILE__ \
-})
-#define err_panic(v) ({      \
-  let _v = v;                \
-  if_unlikely (_v.ecode) {   \
-    fputs(_v.ecode, stderr); \
-    exit(1);                 \
-  };                         \
-  _v.result;                 \
-})
-// if(err!=nil)
-#define err_inn(T, t) ({       \
-  let _x = t;                  \
-  if (_x.ecode)                \
-    return (err(T)){_x.ecode}; \
-  _x.result;                   \
-})
+#if !defined(MY_ERRORS_H)
+  #define MY_ERRORS_H (1)
+  #include "assertMessage.h"
+  #include "macros.h"
+  #include "mytypes.h"
+  #include <stdio.h>
 
-err(int) countup(int i) {
-  if (i != INT_MAX)
-    err_return(int, i + 1);
-  err_throw(int, "integer overflow");
+typedef struct {
+  const char *err_code;
+  const char *file;
+  usize line;
+  const char *extra_info;
+} err_t;
+
+  // #define ENABLE_err_IN_NORMAL_FUNCTION
+  #if defined(ENABLE_ERROR_IN_NORMAL_FUNCTION)
+static const void *err_VARIABLE_LOCAL_DECLARED_BY_MACRO__ = 0;
+  #endif
+
+typedef int errable_void;
+
+  #define errs(...) (err_t * err_VARIABLE_LOCAL_DECLARED_BY_MACRO__ __VA_OPT__(, ) __VA_ARGS__)
+
+  #define err_call_args(...) __VA_OPT__(, ) __VA_ARGS__
+
+  #define call_err(fn, args) ({                                                   \
+    err_t this_err_ = {};                                                         \
+    let this_result_ = _Generic(                                                  \
+        (typeof(fn(&this_err_ err_call_args(REM_PAREN args))) *)0,                \
+        void *: (fn(&this_err_ err_call_args(REM_PAREN args)), (errable_void){}), \
+        default: fn(&this_err_ err_call_args(REM_PAREN args))                     \
+    );                                                                            \
+    (struct {typeof(this_result_)result ; err_t err; }){                                                                 \
+        this_result_,                                                             \
+        this_err_,                                                                \
+    };                                                                            \
+  })
+
+__attribute__((noreturn)) static inline void err_panic(err_t e) {
+  fprintf(stderr, "err\t:%s\n", e.err_code);
+  fprintf(stderr, "\tfile\t:%s\n", e.file);
+  fprintf(stderr, "\tline\t:%zu\n", e.line);
+  if (e.extra_info) fprintf(stderr, "\tdata\t:%s\n", e.extra_info);
+  assertMessage(false);
 }
-void countupall(void) {
-  int i = INT_MAX - 2;
-  while (1)
-    i = err_panic(countup(i));
+
+static inline void err_mask(err_t *out, err_t e) {
+  if (out) return (void)(*out = e);
+  else return err_panic(e);
 }
-err(nothing_t) countupallfailable(void) {
-  int i = INT_MAX - 2;
-  while (1)
-    i = err_inn(nothing_t, countup(i));
+
+  #define pass_err(fullcode)                                                            \
+    ({                                                                                  \
+      _Generic(                                                                         \
+          err_VARIABLE_LOCAL_DECLARED_BY_MACRO__,                                       \
+          err_t *: err_mask((err_t *)err_VARIABLE_LOCAL_DECLARED_BY_MACRO__, fullcode), \
+          default: err_panic(fullcode)                                                  \
+      );                                                                                \
+      _Pragma("GCC diagnostic push");                                                   \
+      _Pragma("GCC diagnostic ignored \"-Wreturn-type\"");                              \
+      return;                                                                           \
+      _Pragma("GCC diagnostic pop");                                                    \
+    })
+
+  #define return_err(code) ({ \
+    pass_err(                 \
+        ((err_t){             \
+            .err_code = code, \
+            .file = __FILE__, \
+            .line = __LINE__, \
+        })                    \
+    );                        \
+  })
+
+  #define try_err(fn, args, ...) ({     \
+    let _try_val = call_err(fn, args);  \
+    if_unlikely (_try_val.err.err_code) \
+      pass_err(_try_val.err);           \
+    _try_val.result;                    \
+  })
+
+  #define catch_err_dcl(name) let name = e_.err;
+
+  #define catch_err(errn, ...)        \
+    ({                                \
+      let e_ = errn;                  \
+      if_unlikely (e_.err.err_code) { \
+        catch_err_dcl __VA_ARGS__     \
+      }                               \
+      e_.result;                      \
+    })
+
+  #define catch_errcall(name, args, ...) catch_err(call_err(name, args), __VA_ARGS__)
+  #include "tests.h"
+int test_divide errs(int a, int b) {
+  if (b == 0) return_err("DIV_BY_ZERO");
+  return a / b;
 }
+
+int test_bubble errs(int a, int b) {
+  int res = try_err(test_divide, (a, b), 0);
+  return res * 2;
+}
+
+void test_void_err errs(int a) {
+  if (a < 0) return_err("NEGATIVE_VOID");
+}
+
+test_fn(errable_success) {
+  bool caught = false;
+  int res = catch_errcall(test_divide, (10, 2), (e) { caught = true; });
+  test_assert(!caught);
+  test_assert(res == 5);
+}
+
+test_fn(errable_catch_error) {
+  bool caught = false;
+  catch_errcall(test_divide, (10, 0), (e) {
+    test_assert(!strcmp(e.err_code, "DIV_BY_ZERO"));
+    test_assert(e.line > 0);
+    test_assert(e.file != NULL);
+    caught = true; });
+  test_assert(caught);
+}
+
+test_fn(errable_try_bubble) {
+  bool caught = false;
+  int res = catch_errcall(test_bubble, (10, 0), (e) {
+    test_assert(!strcmp(e.err_code, "DIV_BY_ZERO"));
+    caught = true; });
+  test_assert(caught);
+  int res_success = catch_errcall(test_bubble, (10, 2), (e) { err_panic(e); });
+  test_assert(res_success == 10);
+}
+
+test_fn(errable_call_err_raw) {
+  var_ success_res = call_err(test_divide, (10, 2));
+  test_assert(!success_res.err.err_code);
+  test_assert(success_res.result == 5);
+
+  var_ fail_res = call_err(test_divide, (10, 0));
+  test_assert(fail_res.err.err_code);
+  test_assert(!strcmp(fail_res.err.err_code, "DIV_BY_ZERO"));
+}
+
+test_fn(errable_void_return) {
+  bool caught = false;
+  catch_errcall(test_void_err, (-1), (e) {
+    test_assert(!strcmp(e.err_code, "NEGATIVE_VOID"));
+    caught = true; });
+  test_assert(caught);
+
+  bool success_caught = false;
+  catch_errcall(test_void_err, (1), (e) { success_caught = true; });
+  test_assert(!success_caught);
+}
+#endif
+#if defined MY_ERRORS_C && MY_ERRORS_C == 1
+  #define MY_ERRORS_C (2)
+#endif
