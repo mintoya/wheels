@@ -84,18 +84,25 @@ static inline void err_mask(err_t *out, err_t e) {
     _try_val.result;                    \
   })
 
-  #define catch_err_dcl(name) let name = e_.err;
+  #define catch_err_bind(err_name, res_name) \
+    let err_name = e_.err;                   \
+    let res_name = e_.result;
 
-  #define catch_err(errn, ...)        \
-    ({                                \
-      let e_ = errn;                  \
-      if_unlikely (e_.err.err_code) { \
-        catch_err_dcl __VA_ARGS__     \
-      }                               \
-      e_.result;                      \
+  #define catch_err(errn, bind_tuple, block) \
+    ({                                       \
+      let e_ = (errn);                       \
+      typeof(e_.result) _catch_res;          \
+      if_unlikely (e_.err.err_code) {        \
+        catch_err_bind bind_tuple            \
+            _catch_res = block;              \
+      } else {                               \
+        _catch_res = e_.result;              \
+      }                                      \
+      _catch_res;                            \
     })
 
-  #define catch_errcall(name, args, ...) catch_err(call_err(name, args), __VA_ARGS__)
+  #define catch_errcall(call_tuple, bind_tuple, block) \
+    catch_err(call_err call_tuple, bind_tuple, block)
 
 // tests
   #include "tests.h"
@@ -115,28 +122,34 @@ static inline void test_void_err errs(int a) {
 
 test_fn(errable_success) {
   bool caught = false;
-  int res = catch_errcall(test_divide, (10, 2), (e) { caught = true; });
+  int res = catch_errcall((test_divide, (10, 2)), (e, _), (caught = true, 0));
   test_assert(!caught);
   test_assert(res == 5);
 }
 
 test_fn(errable_catch_error) {
   bool caught = false;
-  catch_errcall(test_divide, (10, 0), (e) {
-    test_assert(!strcmp(e.err_code, "DIV_BY_ZERO"));
-    test_assert(e.line > 0);
-    test_assert(e.file != NULL);
-    caught = true; });
+  catch_errcall(
+      (test_divide, (10, 0)), (e, _), ({
+        test_assert(!strcmp(e.err_code, "DIV_BY_ZERO"));
+        test_assert(e.line > 0);
+        test_assert(e.file != NULL);
+        caught = true;
+      })
+  );
   test_assert(caught);
 }
 
 test_fn(errable_try_bubble) {
   bool caught = false;
-  int res = catch_errcall(test_bubble, (10, 0), (e) {
-    test_assert(!strcmp(e.err_code, "DIV_BY_ZERO"));
-    caught = true; });
+  int res = catch_errcall(
+      (test_bubble, (10, 0)), (e, _), ({
+        test_assert(!strcmp(e.err_code, "DIV_BY_ZERO"));
+        caught = true;
+      })
+  );
   test_assert(caught);
-  int res_success = catch_errcall(test_bubble, (10, 2), (e) { err_panic(e); });
+  int res_success = catch_errcall((test_bubble, (10, 2)), (e, _), (err_panic(e), 0));
   test_assert(res_success == 10);
 }
 
@@ -152,14 +165,17 @@ test_fn(errable_call_err_raw) {
 
 test_fn(errable_void_return) {
   bool caught = false;
-  catch_errcall(test_void_err, (-1), (e) { //
-    test_assert(!strcmp(e.err_code, "NEGATIVE_VOID"));
-    caught = true;
-  });
+  catch_errcall(
+      (test_void_err, (-1)), (e, _), ({
+        test_assert(!strcmp(e.err_code, "NEGATIVE_VOID"));
+        caught = true;
+        _;
+      })
+  );
   test_assert(caught);
 
   bool success_caught = false;
-  catch_errcall(test_void_err, (1), (e) { success_caught = true; });
+  catch_errcall((test_void_err, (1)), (e, _),success_caught = true);
   test_assert(!success_caught);
 }
 #endif
