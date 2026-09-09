@@ -12,7 +12,7 @@ typedef struct {
   const char *extra_info;
 } err_t;
 
-  // #define ENABLE_err_IN_NORMAL_FUNCTION
+  // #define ENABLE_ERROR_IN_NORMAL_FUNCTION
   #if defined(ENABLE_ERROR_IN_NORMAL_FUNCTION)
 static const void *err_VARIABLE_LOCAL_DECLARED_BY_MACRO__ = 0;
   #endif
@@ -49,7 +49,7 @@ static inline void err_mask(err_t *out, err_t e) {
   else return err_panic(e);
 }
 
-  #define pass_err(fullcode)                                                            \
+  #define pass_err(fullcode, ...)                                                       \
     ({                                                                                  \
       _Generic(                                                                         \
           err_VARIABLE_LOCAL_DECLARED_BY_MACRO__,                                       \
@@ -59,24 +59,28 @@ static inline void err_mask(err_t *out, err_t e) {
       _Pragma("GCC diagnostic push");                                                   \
       _Pragma("GCC diagnostic ignored \"-Wreturn-type\"");                              \
       _Pragma("GCC diagnostic ignored \"-Wreturn-mismatch\"");                          \
-      return;                                                                           \
+      return __VA_ARGS__;                                                               \
       _Pragma("GCC diagnostic pop");                                                    \
     })
 
-  #define return_err(code) ({ \
-    pass_err(                 \
-        ((err_t){             \
-            .err_code = code, \
-            .file = __FILE__, \
-            .line = __LINE__, \
-        })                    \
-    );                        \
+  #define return_err(code, ...) ({ \
+    pass_err(                      \
+        ((err_t){                  \
+            .err_code = code,      \
+            .file = __FILE__,      \
+            .line = __LINE__,      \
+        }) __VA_OPT__(, )          \
+            __VA_ARGS__            \
+    );                             \
   })
 
   #define try_err(fn, args, ...) ({     \
     let _try_val = call_err(fn, args);  \
     if_unlikely (_try_val.err.err_code) \
-      pass_err(_try_val.err);           \
+      pass_err(                         \
+          _try_val.err __VA_OPT__(, )   \
+              __VA_ARGS__               \
+      );                                \
     _try_val.result;                    \
   })
 
@@ -92,18 +96,20 @@ static inline void err_mask(err_t *out, err_t e) {
     })
 
   #define catch_errcall(name, args, ...) catch_err(call_err(name, args), __VA_ARGS__)
+
+// tests
   #include "tests.h"
-int test_divide errs(int a, int b) {
+static inline int test_divide errs(int a, int b) {
   if (b == 0) return_err("DIV_BY_ZERO");
   return a / b;
 }
 
-int test_bubble errs(int a, int b) {
+static inline int test_bubble errs(int a, int b) {
   int res = try_err(test_divide, (a, b), 0);
   return res * 2;
 }
 
-void test_void_err errs(int a) {
+static inline void test_void_err errs(int a) {
   if (a < 0) return_err("NEGATIVE_VOID");
 }
 
@@ -146,9 +152,10 @@ test_fn(errable_call_err_raw) {
 
 test_fn(errable_void_return) {
   bool caught = false;
-  catch_errcall(test_void_err, (-1), (e) {
+  catch_errcall(test_void_err, (-1), (e) { //
     test_assert(!strcmp(e.err_code, "NEGATIVE_VOID"));
-    caught = true; });
+    caught = true;
+  });
   test_assert(caught);
 
   bool success_caught = false;

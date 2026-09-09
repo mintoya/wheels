@@ -394,11 +394,10 @@ void print_f(
   allocfn allocator;
   // { allocator state
   bool owns = false;
-  static _Atomic(bool) b = true; // true = available, false = in-use
-  let static bigbuf = (fbafb_buffer(myAlign[100])){};
+  static _Atomic(bool) b = true;                      // true = available, false = in-use
+  let static bigbuf = (fbafb_buffer(myAlign[100])){}; // growable but starts on stack
   let smallbuf = (fbafb_buffer(myAlign[2])){};
 
-  // atomic_exchange reads the old value and writes false in one indivisible step
   if (atomic_exchange(&b, false)) {
     owns = true;
     allocator = fbafb_initBuffer(
@@ -416,7 +415,7 @@ void print_f(
     );
   }
   defer {
-    if (owns) atomic_store(&b, true); // release back to true
+    if (owns) atomic_store(&b, true);
     fbafb_deinit(allocator);
   };
   // }

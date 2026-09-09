@@ -195,7 +195,7 @@ test_result runtest_named(const char *test) {
   assertMessage(curr);
   return runtest(curr);
 }
-  // #define TESTS_SUBPROCESSES (1)
+  // #define TESTS_SUBPROCESSES (1) // run all tests in their own subprocess
   #if (defined(TESTS_SUBPROCESSES) && (TESTS_SUBPROCESSES == 1))
     #include "deps/subprocess.h/subprocess.h"
   #endif
