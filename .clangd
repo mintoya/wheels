@@ -1,0 +1,21 @@
+CompileFlags:
+  Compiler: clang
+
+---
+If:
+  PathMatch: .*\.(c|h)$
+CompileFlags:
+  Add:
+  - -x
+  - c
+  - -std=gnu23
+  - -fdefer-ts
+---
+If:
+  PathMatch: .*\.(cpp|hpp)$
+CompileFlags:
+  Add:
+  - -x
+  - c++
+  - -std=c++26
+

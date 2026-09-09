@@ -23,7 +23,8 @@ typedef struct sList_header {
 } sList_header;
 
 static inline sList_header *sList_new(allocfn allocator, usize initLen, usize width) {
-  assertMessage(initLen && width);
+  initLen = initLen ?: 1;
+  assertMessage(width);
   let res = acreate_extra(allocator, sList_header, +initLen * width);
   *res = (typeof(*res)){.length = 0, .isStack = 0, .capacity = initLen};
   return res;
