@@ -58,6 +58,7 @@ static inline void err_mask(err_t *out, err_t e) {
       );                                                                                \
       _Pragma("GCC diagnostic push");                                                   \
       _Pragma("GCC diagnostic ignored \"-Wreturn-type\"");                              \
+      _Pragma("GCC diagnostic ignored \"-Wreturn-mismatch\"");                          \
       return;                                                                           \
       _Pragma("GCC diagnostic pop");                                                    \
     })
