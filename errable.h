@@ -73,6 +73,17 @@ static inline void err_mask(err_t *out, err_t e) {
             __VA_ARGS__            \
     );                             \
   })
+  #define return_err_extras(code, extra_infos, ...) ({ \
+    pass_err(                                          \
+        ((err_t){                                      \
+            .err_code = code,                          \
+            .file = __FILE__,                          \
+            .line = __LINE__,                          \
+            .extra_info = extra_infos,                 \
+        }) __VA_OPT__(, )                              \
+            __VA_ARGS__                                \
+    );                                                 \
+  })
 
   #define try_err(fn, args, ...) ({     \
     let _try_val = call_err(fn, args);  \
@@ -175,7 +186,7 @@ test_fn(errable_void_return) {
   test_assert(caught);
 
   bool success_caught = false;
-  catch_errcall((test_void_err, (1)), (e, _),success_caught = true);
+  catch_errcall((test_void_err, (1)), (e, _), success_caught = true);
   test_assert(!success_caught);
 }
 #endif
