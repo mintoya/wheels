@@ -5,11 +5,17 @@
   #include "mytypes.h"
   #include <stdio.h>
 
+// optional renderer for the error payload. when set, handlers call it with the
+// userdata the raising site attached instead of treating extra_info as a string.
+typedef void (*err_print_fn)(void *userdata);
+
 typedef struct {
   const char *err_code;
   const char *file;
   usize line;
   const char *extra_info;
+  err_print_fn render; // optional; if set, render via this + userdata
+  void *userdata;      // passed to render
 } err_t;
 
   // #define ENABLE_ERROR_IN_NORMAL_FUNCTION
@@ -40,7 +46,8 @@ __attribute__((noreturn)) static inline void err_panic(err_t e) {
   fprintf(stderr, "err\t:%s\n", e.err_code);
   fprintf(stderr, "\tfile\t:%s\n", e.file);
   fprintf(stderr, "\tline\t:%zu\n", e.line);
-  if (e.extra_info) fprintf(stderr, "\tdata\t:%s\n", e.extra_info);
+  if (e.render) e.render(e.userdata);
+  else if (e.extra_info) fprintf(stderr, "\tdata\t:%s\n", e.extra_info);
   assertMessage(false);
 }
 
@@ -83,6 +90,21 @@ static inline void err_mask(err_t *out, err_t e) {
         }) __VA_OPT__(, )                              \
             __VA_ARGS__                                \
     );                                                 \
+  })
+  // like return_err_extras, but the payload is rendered on demand: the raising
+  // site attaches a print callback + userdata, and the handler decides what to
+  // do with it (err_panic calls print(stderr, userdata) when set).
+  #define return_err_print(code, render_fn, udata, ...) ({ \
+    pass_err(                                              \
+        ((err_t){                                          \
+            .err_code = code,                              \
+            .file = __FILE__,                              \
+            .line = __LINE__,                              \
+            .render = render_fn,                           \
+            .userdata = udata,                             \
+        }) __VA_OPT__(, )                                  \
+            __VA_ARGS__                                    \
+    );                                                     \
   })
 
   #define try_err(fn, args, ...) ({     \
