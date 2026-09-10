@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdint.h>
 #if !defined(MY_ERRORS_H)
   #define MY_ERRORS_H (1)
   #include "assertMessage.h"
@@ -37,10 +38,23 @@ typedef int errable_void;
         ),                                                         \
         default: fn(&this_err_ err_call_args(REM_PAREN args))      \
     );                                                             \
-    (struct {                                                      \
-      typeof(this_result_) result;                                 \
+    union {                                                        \
+      struct {                                                     \
+        uintptr_t has_error;                                       \
+        typeof(this_result_) result;                               \
+      };                                                           \
       err_t err;                                                   \
-    }){this_result_, this_err_};                                   \
+    } this_result_u_ = {};                                         \
+    if (this_err_.err_code)                                        \
+      this_result_u_ = (typeof(this_result_u_)){                   \
+          .err = this_err_                                         \
+      };                                                           \
+    else                                                           \
+      this_result_u_ = (typeof(this_result_u_)){                   \
+          .has_error = 0,                                          \
+          .result = this_result_,                                  \
+      };                                                           \
+    this_result_u_;                                                \
   })
 
 __attribute__((noreturn)) static inline void err_panic(err_t e) {
