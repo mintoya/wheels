@@ -1,3 +1,4 @@
+#include <assert.h>
 #if !defined(MY_ERRORS_H)
   #define MY_ERRORS_H (1)
   #include "assertMessage.h"
@@ -5,17 +6,14 @@
   #include "mytypes.h"
   #include <stdio.h>
 
-// optional renderer for the error payload. when set, handlers call it with the
-// userdata the raising site attached instead of treating extra_info as a string.
-typedef void (*err_print_fn)(void *userdata);
+typedef void (*err_print_fn)(void *) __attribute__((noreturn));
 
 typedef struct {
   const char *err_code;
   const char *file;
   usize line;
-  const char *extra_info;
-  err_print_fn render; // optional; if set, render via this + userdata
-  void *userdata;      // passed to render
+  err_print_fn fn; // optional; if set call userdata usingthis
+  void *fnd;       // passed to render
 } err_t;
 
   // #define ENABLE_ERROR_IN_NORMAL_FUNCTION
@@ -29,25 +27,27 @@ typedef int errable_void;
 
   #define err_call_args(...) __VA_OPT__(, ) __VA_ARGS__
 
-  #define call_err(fn, args) ({                                                   \
-    err_t this_err_ = {};                                                         \
-    let this_result_ = _Generic(                                                  \
-        (typeof(fn(&this_err_ err_call_args(REM_PAREN args))) *)0,                \
-        void *: (fn(&this_err_ err_call_args(REM_PAREN args)), (errable_void){}), \
-        default: fn(&this_err_ err_call_args(REM_PAREN args))                     \
-    );                                                                            \
-    (struct {typeof(this_result_)result ; err_t err; }){                                                                 \
-        this_result_,                                                             \
-        this_err_,                                                                \
-    };                                                                            \
+  #define call_err(fn, args) ({                                    \
+    err_t this_err_ = {};                                          \
+    let this_result_ = _Generic(                                   \
+        (typeof(fn(&this_err_ err_call_args(REM_PAREN args))) *)0, \
+        void *: (                                                  \
+            fn(&this_err_ err_call_args(REM_PAREN args)),          \
+            (errable_void)0                                        \
+        ),                                                         \
+        default: fn(&this_err_ err_call_args(REM_PAREN args))      \
+    );                                                             \
+    (struct {                                                      \
+      typeof(this_result_) result;                                 \
+      err_t err;                                                   \
+    }){this_result_, this_err_};                                   \
   })
 
 __attribute__((noreturn)) static inline void err_panic(err_t e) {
   fprintf(stderr, "err\t:%s\n", e.err_code);
   fprintf(stderr, "\tfile\t:%s\n", e.file);
   fprintf(stderr, "\tline\t:%zu\n", e.line);
-  if (e.render) e.render(e.userdata);
-  else if (e.extra_info) fprintf(stderr, "\tdata\t:%s\n", e.extra_info);
+  if (e.fn) e.fn(e.fnd);
   assertMessage(false);
 }
 
@@ -70,51 +70,37 @@ static inline void err_mask(err_t *out, err_t e) {
       _Pragma("GCC diagnostic pop");                                                    \
     })
 
-  #define return_err(code, ...) ({ \
-    pass_err(                      \
-        ((err_t){                  \
-            .err_code = code,      \
-            .file = __FILE__,      \
-            .line = __LINE__,      \
-        }) __VA_OPT__(, )          \
-            __VA_ARGS__            \
-    );                             \
+  #define return_err(code, ...) ({              \
+    static_assert(code, "code must be truthy"); \
+    pass_err(                                   \
+        ((err_t){                               \
+            .err_code /**/ = code,              \
+            .file /*    */ = __FILE__,          \
+            .line /*    */ = __LINE__,          \
+        }) __VA_OPT__(, ) __VA_ARGS__           \
+    );                                          \
   })
-  #define return_err_extras(code, extra_infos, ...) ({ \
-    pass_err(                                          \
-        ((err_t){                                      \
-            .err_code = code,                          \
-            .file = __FILE__,                          \
-            .line = __LINE__,                          \
-            .extra_info = extra_infos,                 \
-        }) __VA_OPT__(, )                              \
-            __VA_ARGS__                                \
-    );                                                 \
-  })
-  // like return_err_extras, but the payload is rendered on demand: the raising
-  // site attaches a print callback + userdata, and the handler decides what to
-  // do with it (err_panic calls print(stderr, userdata) when set).
-  #define return_err_print(code, render_fn, udata, ...) ({ \
-    pass_err(                                              \
-        ((err_t){                                          \
-            .err_code = code,                              \
-            .file = __FILE__,                              \
-            .line = __LINE__,                              \
-            .render = render_fn,                           \
-            .userdata = udata,                             \
-        }) __VA_OPT__(, )                                  \
-            __VA_ARGS__                                    \
-    );                                                     \
+  #define return_err_extras(code, handler, data, ...) ({ \
+    static_assert(code, "code must be truthy");          \
+    pass_err(                                            \
+        ((err_t){                                        \
+            .err_code /**/ = code,                       \
+            .file /*    */ = __FILE__,                   \
+            .line /*    */ = __LINE__,                   \
+            .fn /*      */ = (handler),                  \
+            .fnd /*     */ = (data),                     \
+        }) __VA_OPT__(, ) __VA_ARGS__                    \
+    );                                                   \
   })
 
-  #define try_err(fn, args, ...) ({     \
-    let _try_val = call_err(fn, args);  \
-    if_unlikely (_try_val.err.err_code) \
-      pass_err(                         \
-          _try_val.err __VA_OPT__(, )   \
-              __VA_ARGS__               \
-      );                                \
-    _try_val.result;                    \
+  #define try_err(fn, args, ...) ({      \
+    let _try_val = call_err(fn, args);   \
+    if_unlikely (_try_val.err.err_code)  \
+      pass_err(                          \
+          _try_val.err                   \
+              __VA_OPT__(, ) __VA_ARGS__ \
+      );                                 \
+    _try_val.result;                     \
   })
 
   #define catch_err_bind(err_name, res_name) \
@@ -164,7 +150,7 @@ test_fn(errable_catch_error) {
   bool caught = false;
   catch_errcall(
       (test_divide, (10, 0)), (e, _), ({
-        test_assert(!strcmp(e.err_code, "DIV_BY_ZERO"));
+        test_assert(streq(e.err_code, "DIV_BY_ZERO"));
         test_assert(e.line > 0);
         test_assert(e.file != NULL);
         caught = true;
@@ -177,7 +163,7 @@ test_fn(errable_try_bubble) {
   bool caught = false;
   int res = catch_errcall(
       (test_bubble, (10, 0)), (e, _), ({
-        test_assert(!strcmp(e.err_code, "DIV_BY_ZERO"));
+        test_assert(streq(e.err_code, "DIV_BY_ZERO"));
         caught = true;
       })
   );
@@ -193,14 +179,14 @@ test_fn(errable_call_err_raw) {
 
   var_ fail_res = call_err(test_divide, (10, 0));
   test_assert(fail_res.err.err_code);
-  test_assert(!strcmp(fail_res.err.err_code, "DIV_BY_ZERO"));
+  test_assert(streq(fail_res.err.err_code, "DIV_BY_ZERO"));
 }
 
 test_fn(errable_void_return) {
   bool caught = false;
   catch_errcall(
       (test_void_err, (-1)), (e, _), ({
-        test_assert(!strcmp(e.err_code, "NEGATIVE_VOID"));
+        test_assert(streq(e.err_code, "NEGATIVE_VOID"));
         caught = true;
         _;
       })
@@ -213,5 +199,6 @@ test_fn(errable_void_return) {
 }
 #endif
 #if defined MY_ERRORS_C && MY_ERRORS_C == 1
+  #undef MY_ERRORS_C
   #define MY_ERRORS_C (2)
 #endif
