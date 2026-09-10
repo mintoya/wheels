@@ -4,6 +4,7 @@
   #include <assert.h>
   #include <stdalign.h>
   #include <stdbool.h>
+  #include <string.h>
   #if defined(__cplusplus)
     #include <cstddef>
   #else
@@ -75,6 +76,8 @@ typedef ptrdiff_t ssize_t;
 typedef ssize_t isize;
 typedef uintptr_t uptr;
 typedef ptrdiff_t iptr;
+
+  #define streq(a, b) (!strcmp(a, b))
 
 static_assert(sizeof(isize) == sizeof(usize), "isize must be same size as usize");
 static_assert(~(isize)0 < (isize)0, "isize must be signed 2's complement'");
