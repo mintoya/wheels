@@ -40,14 +40,14 @@
 int build_wheels(const char *cfile, int nargs, char **args) {
   if (!mkdir_if_not_exists("build")) return false;
 
-  Cmd cmd = {};
-#if defined(_WIN32)
-  cmd_append(&cmd, CC, COMMON_CFLAGS, "-rdynamic", "-o", "build/wheels" EXTENSION, "-xc", cfile, "c11threads/c11threads_win32.c", "-ldbghelp");
-#else
-  cmd_append(&cmd, CC, COMMON_CFLAGS, "-rdynamic", "-o", "build/wheels" EXTENSION, "-xc", cfile);
-#endif
-
-  if (!cmd_run_sync(cmd)) return false;
+  // clang-format off
+  if (!cmd_run_sync(cmd_imm(
+    CC, COMMON_CFLAGS, 
+    "-rdynamic", 
+    "-o", "build/wheels" EXTENSION, 
+    "-xc", cfile
+  ))) return false;
+  // clang-format on
 
   Cmd runcmd = {};
   cmd_append(&runcmd, "./build/wheels" EXTENSION);

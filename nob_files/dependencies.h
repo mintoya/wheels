@@ -41,16 +41,15 @@ int main(int argc, char **argv) {
   if (
       clone("https://github.com/tsoding/nob.h deps/nob.h") ||
       clone("https://github.com/sheredom/subprocess.h deps/subprocess.h") ||
-      clone("https://github.com/jtsiomb/c11threads")
+      clone("https://github.com/jtsiomb/c11threads deps/c11threads")
   ) {
     puts("Failed to clone dependencies.\n");
     return 1;
   }
 
-  if (rename("nob" EXTENSION, "nob.old" EXTENSION)) {
+  remove("nob" EXTENSION ".old");
+  if (rename("nob" EXTENSION, "nob" EXTENSION ".old"))
     puts("Failed to rename self\n");
-    return 1;
-  }
   if (system(strcats_space(((char[1024]){}), CC, "-o", "nob" EXTENSION, "nob.c"))) {
     puts("Failed to recompile self\n");
     return 1;
