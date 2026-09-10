@@ -34,7 +34,7 @@ char *strcats_space(char *c, ...) {
 }
 #define strcats_space(cp, ...) strcats_space(cp __VA_OPT__(, __VA_ARGS__, (char *)0))
 int clone(char *url) {
-  return system(strcats((char[1024]){}, "git clone ", url));
+  return system(strcats((char[256]){}, "git clone ", url));
 }
 int main(int argc, char **argv) {
   puts("Missing dependencies. Cloning...\n");
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
   remove("nob" EXTENSION ".old");
   if (rename("nob" EXTENSION, "nob" EXTENSION ".old"))
     puts("Failed to rename self\n");
-  if (system(strcats_space(((char[1024]){}), CC, "-o", "nob" EXTENSION, "nob.c"))) {
+  if (system(strcats_space(((char[256]){}), CC, "-o", "nob" EXTENSION, "nob.c"))) {
     puts("Failed to recompile self\n");
     return 1;
   }
