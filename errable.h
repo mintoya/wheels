@@ -117,17 +117,16 @@ static inline void err_mask(err_t *out, err_t e) {
     _try_val.result;                     \
   })
 
-  #define catch_err_bind(err_name, res_name) \
-    let err_name = e_.err;                   \
-    let res_name = e_.result;
+  #define catch_err_bind(err_name) \
+    let err_name = e_.err
 
   #define catch_err(errn, bind_tuple, block) \
     ({                                       \
       let e_ = (errn);                       \
       typeof(e_.result) _catch_res;          \
       if_unlikely (e_.err.err_code) {        \
-        catch_err_bind bind_tuple            \
-            _catch_res = block;              \
+        catch_err_bind(bind_tuple);          \
+        _catch_res = block;                  \
       } else {                               \
         _catch_res = e_.result;              \
       }                                      \
@@ -155,7 +154,7 @@ static inline void test_void_err errs(int a) {
 
 test_fn(errable_success) {
   bool caught = false;
-  int res = catch_errcall((test_divide, (10, 2)), (e, _), (caught = true, 0));
+  int res = catch_errcall((test_divide, (10, 2)), (e), (caught = true, 0));
   test_assert(!caught);
   test_assert(res == 5);
 }
@@ -163,7 +162,7 @@ test_fn(errable_success) {
 test_fn(errable_catch_error) {
   bool caught = false;
   catch_errcall(
-      (test_divide, (10, 0)), (e, _), ({
+      (test_divide, (10, 0)), (e), ({
         test_assert(streq(e.err_code, "DIV_BY_ZERO"));
         test_assert(e.line > 0);
         test_assert(e.file != NULL);
@@ -176,13 +175,13 @@ test_fn(errable_catch_error) {
 test_fn(errable_try_bubble) {
   bool caught = false;
   int res = catch_errcall(
-      (test_bubble, (10, 0)), (e, _), ({
+      (test_bubble, (10, 0)), (e), ({
         test_assert(streq(e.err_code, "DIV_BY_ZERO"));
         caught = true;
       })
   );
   test_assert(caught);
-  int res_success = catch_errcall((test_bubble, (10, 2)), (e, _), (err_panic(e), 0));
+  int res_success = catch_errcall((test_bubble, (10, 2)), (e), (err_panic(e), 0));
   test_assert(res_success == 10);
 }
 
@@ -199,16 +198,15 @@ test_fn(errable_call_err_raw) {
 test_fn(errable_void_return) {
   bool caught = false;
   catch_errcall(
-      (test_void_err, (-1)), (e, _), ({
+      (test_void_err, (-1)), (e), ({
         test_assert(streq(e.err_code, "NEGATIVE_VOID"));
         caught = true;
-        _;
       })
   );
   test_assert(caught);
 
   bool success_caught = false;
-  catch_errcall((test_void_err, (1)), (e, _), success_caught = true);
+  catch_errcall((test_void_err, (1)), (e), success_caught = true);
   test_assert(!success_caught);
 }
 #endif
