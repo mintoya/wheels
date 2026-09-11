@@ -84,18 +84,18 @@ static inline void err_mask(err_t *out, err_t e) {
       _Pragma("GCC diagnostic pop");                                                    \
     })
 
-  #define return_err(code, ...) ({              \
-    static_assert(code, "code must be truthy"); \
-    pass_err(                                   \
-        ((err_t){                               \
-            .err_code /**/ = code,              \
-            .file /*    */ = __FILE__,          \
-            .line /*    */ = __LINE__,          \
-        }) __VA_OPT__(, ) __VA_ARGS__           \
-    );                                          \
+  #define return_err(code, ...) ({                \
+    static_assert(!!code, "code must be truthy"); \
+    pass_err(                                     \
+        ((err_t){                                 \
+            .err_code /**/ = code,                \
+            .file /*    */ = __FILE__,            \
+            .line /*    */ = __LINE__,            \
+        }) __VA_OPT__(, ) __VA_ARGS__             \
+    );                                            \
   })
   #define return_err_extras(code, handler, data, ...) ({ \
-    static_assert(code, "code must be truthy");          \
+    static_assert(!!code, "code must be truthy");        \
     pass_err(                                            \
         ((err_t){                                        \
             .err_code /**/ = code,                       \
