@@ -49,9 +49,16 @@ char *__base_address =
 //
 //
 thread_local typeof(traceData) traceData = {stdAlloc};
-[[gnu::destructor(500)]]
-void rtrace() { sglist_deinit(traceData); }
 thread_local bool trace_dotrace = true;
+
+[[gnu::no_instrument_function]]
+void rtrace() {
+  trace_dotrace = false;
+  sglist_deinit(traceData);
+}
+
+[[gnu::constructor, gnu::no_instrument_function]]
+void init_rtrace() { atexit(rtrace); }
   #include "assertMessage.h"
 [[gnu::no_instrument_function]]
 void __cyg_profile_func_enter(void *this_fn, void *call_site) {

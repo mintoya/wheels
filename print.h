@@ -20,11 +20,14 @@ void fileprint(
   let static l = (msList(c8)) nullptr;
   l = l ?: msList_initBuffer(buf);
 
+  if (!length) return;
   FILE *file = (FILE *)fileHandle;
-  if (flush || msList_len(l) + length >= msList_cap(l)) {
-    fwrite(l, sizeof(*l), msList_len(l), file);
+  FILE *const out = file && flush ? file : nullptr;
+  if (!out) return;
+  if (msList_len(l) + length >= msList_cap(l)) {
+    fwrite(l, sizeof(*l), msList_len(l), out);
     msList_clear(l);
-    fwrite(c, sizeof(*c), length, file);
+    fwrite(c, sizeof(*c), length, out);
   } else msList_pushArr(nullptr, l, *VLAP(c, length));
 }
   #endif
@@ -62,7 +65,7 @@ __attribute__((constructor(201))) static void printerInit() {
   PrinterSingleton_init();
 }
   #endif
-// __attribute__((destructor(201))) static void printerDeInit() { PrinterSingleton_deInit(); }
+__attribute__((destructor(201))) static void printerDeInit() { PrinterSingleton_deInit(); }
 
 typePrinter("ptr", void *) {
   uintptr_t v = (uintptr_t)in;
