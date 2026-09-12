@@ -62,7 +62,7 @@ __attribute__((noreturn)) static inline void err_panic(err_t e) {
   fprintf(stderr, "err\t:%s\n", e.err_code);
   fprintf(stderr, "\tfile\t:%s\n", e.file);
   fprintf(stderr, "\tline\t:%zu\n", e.line);
-  fprintf(stderr, "\tfunction\t:%s\n", e.function);
+  fprintf(stderr, "\tfunc\t:%s\n", e.function);
   if (e.fn) e.fn(e.fnd);
   assertMessage(false);
 }

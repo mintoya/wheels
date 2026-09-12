@@ -19,7 +19,7 @@ __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...);
           (test_result){                          \
               aprint("%s", (char *)#__VA_ARGS__), \
               __LINE__ + 1                        \
-          };                                      \
+      };                                          \
       return;                                     \
     }                                             \
   } while (0)
@@ -39,8 +39,8 @@ __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...);
 
 #define test_streq(a, b)              \
   do {                                \
-    char *_a = a;                     \
-    char *_b = b;                     \
+    const char *const _a = a;         \
+    const char *const _b = b;         \
     if (strcmp(_a, _b)) {             \
       *_result = (test_result){       \
           aprint("%s != %s", _a, _b), \
@@ -113,7 +113,7 @@ struct testNode {
               .filename = (char *)__FILE__, \
               .testname = (char *)#name,    \
               .fn = name,                   \
-          };                                \
+      };                                    \
       if (!testList) {                      \
         testList = &thisNode;               \
         return;                             \
