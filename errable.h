@@ -12,6 +12,7 @@ typedef void (*err_print_fn)(void *) __attribute__((noreturn));
 typedef struct {
   const char *err_code;
   const char *file;
+  const char *function;
   usize line;
   err_print_fn fn; // optional; if set call userdata usingthis
   void *fnd;       // passed to render
@@ -61,6 +62,7 @@ __attribute__((noreturn)) static inline void err_panic(err_t e) {
   fprintf(stderr, "err\t:%s\n", e.err_code);
   fprintf(stderr, "\tfile\t:%s\n", e.file);
   fprintf(stderr, "\tline\t:%zu\n", e.line);
+  fprintf(stderr, "\tfunction\t:%s\n", e.function);
   if (e.fn) e.fn(e.fnd);
   assertMessage(false);
 }
@@ -77,11 +79,11 @@ static inline void err_mask(err_t *out, err_t e) {
           err_t *: err_mask((err_t *)err_VARIABLE_LOCAL_DECLARED_BY_MACRO__, fullcode), \
           default: err_panic(fullcode)                                                  \
       );                                                                                \
-      _Pragma("GCC diagnostic push");                                                   \
-      _Pragma("GCC diagnostic ignored \"-Wreturn-type\"");                              \
-      _Pragma("GCC diagnostic ignored \"-Wreturn-mismatch\"");                          \
+      /*_Pragma("GCC diagnostic push");*/                                               \
+      /*_Pragma("GCC diagnostic ignored \"-Wreturn-type\"");*/                          \
+      /*_Pragma("GCC diagnostic ignored \"-Wreturn-mismatch\"");*/                      \
       return __VA_ARGS__;                                                               \
-      _Pragma("GCC diagnostic pop");                                                    \
+      /*_Pragma("GCC diagnostic pop");*/                                                \
     })
 
   #define return_err(code, ...) ({                \
@@ -91,6 +93,7 @@ static inline void err_mask(err_t *out, err_t e) {
             .err_code /**/ = code,                \
             .file /*    */ = __FILE__,            \
             .line /*    */ = __LINE__,            \
+            .function /**/ = __FUNCTION__,        \
         }) __VA_OPT__(, ) __VA_ARGS__             \
     );                                            \
   })
@@ -139,7 +142,7 @@ static inline void err_mask(err_t *out, err_t e) {
 // tests
   #include "tests.h"
 static inline int test_divide errs(int a, int b) {
-  if (b == 0) return_err("DIV_BY_ZERO");
+  if (b == 0) return_err("DIV_BY_ZERO", 0);
   return a / b;
 }
 

@@ -16,19 +16,8 @@ void fileprint(
     usize length,
     bool flush
 ) {
-  let static buf = msList_stackBuffer(c8[1 << 9]);
-  let static l = (msList(c8)) nullptr;
-  l = l ?: msList_initBuffer(buf);
-
-  if (!length) return;
-  FILE *file = (FILE *)fileHandle;
-  FILE *const out = file && flush ? file : nullptr;
-  if (!out) return;
-  if (msList_len(l) + length >= msList_cap(l)) {
-    fwrite(l, sizeof(*l), msList_len(l), out);
-    msList_clear(l);
-    fwrite(c, sizeof(*c), length, out);
-  } else msList_pushArr(nullptr, l, *VLAP(c, length));
+  fwrite(c, sizeof(*c), length, (FILE *)fileHandle);
+  if (flush) fflush((FILE *)fileHandle);
 }
   #endif
 
