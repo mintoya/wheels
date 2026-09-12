@@ -52,20 +52,7 @@ fptr printer_arg_until(char delim, fptr string);
 fptr printer_arg_after(char delim, fptr slice);
 fptr printer_arg_trim(fptr in);
 
-  #ifdef _WIN32
-    #include <windows.h>
-__attribute__((constructor(201))) static void printerInit() {
-  setlocale(LC_ALL, ".UTF-8");
-  SetConsoleOutputCP(CP_UTF8);
-  PrinterSingleton_init();
-}
-  #else
-__attribute__((constructor(201))) static void printerInit() {
-  setlocale(LC_ALL, "");
-  PrinterSingleton_init();
-}
-  #endif
-__attribute__((destructor(201))) static void printerDeInit() { PrinterSingleton_deInit(); }
+// __attribute__((destructor(201))) static void printerDeInit() { PrinterSingleton_deInit(); }
 
 typePrinter("ptr", void *) {
   uintptr_t v = (uintptr_t)in;
@@ -241,6 +228,21 @@ void sn_print(const c8 *c, void *cptr, usize length, bool _) {
   #include "print/int_printers.h"
   #include "print/str_printers.h"
 
+  #ifdef _WIN32
+    #include <windows.h>
+__attribute__((constructor(201))) static void printerInit() {
+  setlocale(LC_ALL, ".UTF-8");
+  SetConsoleOutputCP(CP_UTF8);
+  PrinterSingleton_init();
+  atexit(PrinterSingleton_deInit);
+}
+  #else
+__attribute__((constructor(201))) static void printerInit() {
+  setlocale(LC_ALL, "");
+  PrinterSingleton_init();
+  atexit(PrinterSingleton_deInit);
+}
+  #endif
 PrinterSingleton_t PrinterSingleton = {};
 void PrinterSingleton_init() { printermap_newm(stdAlloc, 3, PrinterSingleton.data); }
 void PrinterSingleton_deInit() { printermap_freem(*PrinterSingleton.data); }
