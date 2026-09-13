@@ -21,8 +21,8 @@ struct bigint_ckdt bigint_ckd_add_struct(bigint_unit a, bigint_unit b);
 bool bigint_negetive(bigint i);
 bigint_unit bigint_get(bigint b, usize idx);
 usize bigint_digits(bigint b);
-i8 bigint_cmp_sh(bigint a, bigint b, isize sha, isize shb);
-i8 bigint_cmp(bigint a, bigint b);
+cmpres bigint_cmp_sh(bigint a, bigint b, isize sha, isize shb);
+cmpres bigint_cmp(bigint a, bigint b);
 void bigint_trim(bigint *b);
 void bigint_expand(allocfn allocator, bigint *b, usize len);
 bigint bigint_copy(allocfn allocator, bigint b);
@@ -326,13 +326,13 @@ bigint_unit bigint_get(bigint b, usize idx) {
 usize bigint_digits(bigint b) {
   return b ? msList_len(b) : 0;
 }
-i8 bigint_cmp_sh(bigint a, bigint b, isize sha, isize shb) {
-  i8 neg_a = bigint_negetive(a);
+cmpres bigint_cmp_sh(bigint a, bigint b, isize sha, isize shb) {
+  bool neg_a = bigint_negetive(a);
 
   if (neg_a != bigint_negetive(b))
-    return neg_a ? -1 : 1;
+    return neg_a ? cmp_lt : cmp_gt;
 
-  i8 sc = neg_a ? -1 : 1;
+  cmpres sc = neg_a ? cmp_lt : cmp_gt;
 
   isize top = MAX$(
       bigint_digits(a) + sha,
@@ -346,12 +346,12 @@ i8 bigint_cmp_sh(bigint a, bigint b, isize sha, isize shb) {
     bigint_unit bu = bigint_get(b, i - shb);
 
     if (au != bu)
-      return (au > bu) ? sc : -sc;
+      return (au > bu) ? sc : (neg_a ? cmp_gt : cmp_lt);
   }
 
-  return 0;
+  return cmp_eq;
 }
-i8 bigint_cmp(bigint a, bigint b) {
+cmpres bigint_cmp(bigint a, bigint b) {
   return bigint_cmp_sh(a, b, 0, 0);
 }
 void bigint_trim(bigint *b) {

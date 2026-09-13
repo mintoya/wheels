@@ -8,7 +8,7 @@
 typedef struct oxmap {
   allocfn allocator;
   const u32 ksize, vsize;
-  const fnptrof((const void *, const void *), i8) cmp;
+  const fnptrof((const void *, const void *), cmpres) cmp;
   sList_header *keys;
   sList_header *vals;
 } oxmap;
@@ -133,11 +133,11 @@ void oxmap_freem(oxmap map);
         FOREACH_oxmap_valid,    \
         FOREACH_moxmap_cast)
 // }
-i8 test_icmp(const void *a, const void *b) {
+cmpres test_icmp(const void *a, const void *b) {
   let ai = *(int *)a;
   let bi = *(int *)b;
-  return ai > bi ? -1 : bi > ai ? 1
-                                : 0;
+  return ai > bi ? cmp_lt : bi > ai ? cmp_gt
+                                    : cmp_eq;
 }
 test_fn(oxmap_basic) {
   let map = oxmap_new(allocator, sizeof(int), sizeof(int), test_icmp);

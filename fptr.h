@@ -47,15 +47,13 @@ static inline usize sentList_length(void *items, usize unit) {
         );                                                      \
   })
 
-static inline int fptr_cmp(const fptr a, const fptr b) {
-  return a.len - b.len
-             ?: a.len
-                ? memcmp(a.ptr, b.ptr, a.len)
-                : 0;
+static inline cmpres fptr_cmp(const fptr a, const fptr b) {
+  if (a.len != b.len) return a.len < b.len ? cmp_lt : cmp_gt;
+  return a.len ? cmp_memcmp(a.ptr, b.ptr, a.len) : cmp_eq;
 }
   #if defined(__cplusplus)
 template <typename T, typename T2>
-static inline int fptr_cmp(const slice(T) a, const slice(T2) b) {
+static inline cmpres fptr_cmp(const slice(T) a, const slice(T2) b) {
   return fptr_cmp(toFptr(a), toFptr(b));
 }
   #endif

@@ -86,8 +86,8 @@ typedef struct mapname {
   MAP_V *__restrict vals;
 } mapname;
 
-static inline i8 MAP_FN(default_cmp)(MAP_K a, MAP_K b) {
-  return memcmp(&a, &b, sizeof(MAP_K));
+static inline cmpres MAP_FN(default_cmp)(MAP_K a, MAP_K b) {
+  return cmp_memcmp(&a, &b, sizeof(MAP_K));
 }
 
 static inline hxint MAP_FN(default_hash)(MAP_K a) {

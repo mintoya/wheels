@@ -37,8 +37,8 @@ struct OSearch_T OMap_search(OMap *map, fptr key) {
   usize b = 0;
   while (t > b) {
     usize m = (t + b) / 2;
-    int cmp = fptr_cmp(key, stringList_get(map->data, m * 2));
-    if (!cmp)
+    cmpres cmp = fptr_cmp(key, stringList_get(map->data, m * 2));
+    if (cmp == cmp_eq)
       return (struct OSearch_T){.found = true, .i = m * 2};
     else if (cmp > 0)
       b = m + 1;

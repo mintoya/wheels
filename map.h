@@ -35,7 +35,7 @@ mapv hmapi(
     usize ks,
     usize vs,
     fnptrof((const void *), u64) hash,
-    fnptrof((const void *, const void *), i8) cmp
+    fnptrof((const void *, const void *), cmpres) cmp
 ) {
   // clang-format off
   return aValue(
@@ -69,7 +69,7 @@ mapv odmapi(
     AllocatorV allocator,
     usize ks,
     usize vs,
-    fnptrof((const void *, const void *), i8) cmp
+    fnptrof((const void *, const void *), cmpres) cmp
 ) {
   // clang-format off
   return aValue(

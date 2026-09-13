@@ -11,7 +11,7 @@ typedef struct hxmap {
   usize count;
   int capbit;
   const fnptrof((const void *), u64) hfn;
-  const fnptrof((const void *, const void *), i8) cmp;
+  const fnptrof((const void *, const void *), cmpres) cmp;
   u64 *__restrict flags;
   u8 *__restrict keys;
   u8 *__restrict vals;
@@ -276,9 +276,9 @@ void hxmap_free(hxmap *map) {
   hxmap_freem(*map);
   adestroy(allocator, map);
 }
-static inline i8 hxmap_base_cmp(const hxmap *m, const void *a, const void *b) {
+static inline cmpres hxmap_base_cmp(const hxmap *m, const void *a, const void *b) {
   if (m->cmp) return m->cmp(a, b);
-  return memcmp(a, b, m->ksize);
+  return cmp_memcmp(a, b, m->ksize);
 }
 static inline hxint hxmap_base_hash(const hxmap *m, const void *a) {
   if (m->hfn) return m->hfn(a);

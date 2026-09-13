@@ -5,7 +5,7 @@
 #define ihash(k) ((k) * 31 ^ 0x1000)
 #define icmp(a, b) !(a == b)
 u64 hint(const void *i) { return ihash(*(int *)i); }
-i8 cint(const void *a, const void *b) { return icmp(*(int *)a, *(int *)b); }
+cmpres cint(const void *a, const void *b) { return cmp_from_int(icmp(*(int *)a, *(int *)b)); }
 
 void perfectset(usize count) {
   let map = acreate(

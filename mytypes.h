@@ -82,6 +82,19 @@ typedef ptrdiff_t iptr;
 static_assert(sizeof(isize) == sizeof(usize), "isize must be same size as usize");
 static_assert(~(isize)0 < (isize)0, "isize must be signed 2's complement'");
 
+// an ordered comparison result: exactly three valid values, i8 backed, so it fits
+// in any comparator slot without ever losing the sign
+typedef enum : i8 {
+  cmp_lt = -1,
+  cmp_eq = 0,
+  cmp_gt = 1,
+} cmpres;
+
+// int/raw memcmp results only promise a sign, never a magnitude, so the caller has
+// to fold them into cmpres before they are returned or compared
+static inline cmpres cmp_from_int(int c) { return c < 0 ? cmp_lt : c > 0 ? cmp_gt : cmp_eq; }
+static inline cmpres cmp_memcmp(const void *a, const void *b, usize n) { return cmp_from_int(memcmp(a, b, n)); }
+
   #if !defined(__cplusplus)
     #ifndef thread_local
       #define thread_local _Thread_local

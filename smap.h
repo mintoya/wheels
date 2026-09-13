@@ -79,14 +79,14 @@ test_fn(smap_test) {
 }
 
 u64 hashfptr(const void *a);
-i8 cmpfptr(const void *a, const void *b);
+cmpres cmpfptr(const void *a, const void *b);
 #endif
 #if defined SXMAP_C && SXMAP_C == (1) || \
     (defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0)
   #undef SXMAP_C
   #define SXMAP_C (2)
 u64 hashfptr(const void *a) { return fptr_hash(*(fptr *)a); }
-i8 cmpfptr(const void *a, const void *b) { return fptr_cmp(*(fptr *)a, *(fptr *)b); }
+cmpres cmpfptr(const void *a, const void *b) { return fptr_cmp(*(fptr *)a, *(fptr *)b); }
 sxmap *smap_new(allocfn allocator, u32 vsize, usize cap, usize arenaSize) {
   var_ res = acreate(allocator, sxmap);
   hxmap_newm(allocator, sizeof(fptr), vsize, cap, hashfptr, cmpfptr, res->hmap);
