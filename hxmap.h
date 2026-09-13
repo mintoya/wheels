@@ -5,13 +5,21 @@
   #include "macros.h"
   #include "mytypes.h"
 
+typedef struct {
+  fnptrof((void *, const void *, const void *), cmpres) fn;
+  void *arg;
+} hxmap_cmp;
+typedef struct {
+  fnptrof((void *, const void *), u64) fn;
+  void *arg;
+} hxmap_hsh;
 typedef struct hxmap {
   allocfn allocator;
   const u32 ksize, vsize;
   usize count;
   int capbit;
-  const fnptrof((const void *), u64) hfn;
-  const fnptrof((const void *, const void *), cmpres) cmp;
+  const hxmap_hsh hfn;
+  const hxmap_cmp cmp;
   u64 *__restrict flags;
   u8 *__restrict keys;
   u8 *__restrict vals;
@@ -71,7 +79,7 @@ void hxmap_clear(hxmap *map);
 
   #define mxmap(K, V) ptrof(fnptrof((hxmap *, ptrof(K)), V))
   #define mxmap_valType(map) typeof((*map)(((hxmap *)0), nullptr))
-  #define mxmap_defaults(...) VA_SWITCH_REMP((3, 0, 0)__VA_OPT__(, (__VA_ARGS__)))
+  #define mxmap_defaults(...) VA_SWITCH_REMP((3, ((hxmap_hsh){}), ((hxmap_cmp){}))__VA_OPT__(, (__VA_ARGS__)))
   #define mxmap_init(allocator, K, V, ...) (mxmap(K, V)) hxmap_new(allocator, sizeof(K), sizeof(V), mxmap_defaults(__VA_ARGS__))
   #define mxmap_set(map, key, val) ({                                  \
     let _k = key;                                                      \
@@ -277,11 +285,11 @@ void hxmap_free(hxmap *map) {
   adestroy(allocator, map);
 }
 static inline cmpres hxmap_base_cmp(const hxmap *m, const void *a, const void *b) {
-  if (m->cmp) return m->cmp(a, b);
+  if (m->cmp.fn) return m->cmp.fn(m->cmp.arg, a, b);
   return cmp_memcmp(a, b, m->ksize);
 }
 static inline hxint hxmap_base_hash(const hxmap *m, const void *a) {
-  if (m->hfn) return m->hfn(a);
+  if (m->hfn.fn) return m->hfn.fn(m->hfn.arg, a);
   u8(*bytes)[m->ksize] = (typeof(bytes))a;
   switch (sizeof(*bytes)) {
     case sizeof(u64): {

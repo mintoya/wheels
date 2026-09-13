@@ -5,10 +5,14 @@
   #include "mytypes.h"
   #include "sList.h"
 
+typedef struct {
+  fnptrof((void *, const void *, const void *), cmpres) fn;
+  void *b;
+} oxmap_cmp;
 typedef struct oxmap {
   allocfn allocator;
   const u32 ksize, vsize;
-  const fnptrof((const void *, const void *), cmpres) cmp;
+  const oxmap_cmp cmp;
   sList_header *keys;
   sList_header *vals;
 } oxmap;
@@ -133,14 +137,14 @@ void oxmap_freem(oxmap map);
         FOREACH_oxmap_valid,    \
         FOREACH_moxmap_cast)
 // }
-cmpres test_icmp(const void *a, const void *b) {
+cmpres test_icmp(void *, const void *a, const void *b) {
   let ai = *(int *)a;
   let bi = *(int *)b;
   return ai > bi ? cmp_lt : bi > ai ? cmp_gt
                                     : cmp_eq;
 }
 test_fn(oxmap_basic) {
-  let map = oxmap_new(allocator, sizeof(int), sizeof(int), test_icmp);
+  let map = oxmap_new(allocator, sizeof(int), sizeof(int), (oxmap_cmp){test_icmp});
   defer { oxmap_free(map); };
 
   foreach (let i, range(0, 100))
@@ -165,7 +169,7 @@ test_fn(oxmap_basic) {
     test_assert(i == 1);
 }
 test_fn(oxmap_basic_nosort) {
-  let map = oxmap_new(allocator, sizeof(int), sizeof(int), nullptr);
+  let map = oxmap_new(allocator, sizeof(int), sizeof(int), (oxmap_cmp){});
   defer { oxmap_free(map); };
 
   foreach (let i, range(0, 100))
@@ -190,7 +194,7 @@ test_fn(oxmap_basic_nosort) {
     test_assert(i == 1);
 }
 test_fn(oxmap_macros) {
-  let map = moxmap_init(allocator, int, int, test_icmp);
+  let map = moxmap_init(allocator, int, int, (oxmap_cmp){test_icmp});
   defer { moxmap_deinit(map); };
   foreach (let i, range(0, 100))
     moxmap_set(map, i, i * i);
@@ -252,7 +256,7 @@ void *oxmap_val_key(const oxmap *map, const void *val) {
 }
 void *oxmap_set(oxmap *map, const void *key, const void *val) {
   if (!key) return nullptr;
-  let pos = bbsearch(key, map->keys->buf, map->keys->length, map->ksize, map->cmp);
+  let pos = bbsearch(key, map->keys->buf, map->keys->length, map->ksize, map->cmp.fn, map->cmp.b);
   usize idx = ((u8 *)pos.p - map->keys->buf) / map->ksize;
 
   if (val) {
@@ -272,7 +276,7 @@ void *oxmap_set(oxmap *map, const void *key, const void *val) {
 }
 void *oxmap_get(const oxmap *map, const void *key) {
   if (!key) return nullptr;
-  let pos = bbsearch(key, map->keys->buf, map->keys->length, map->ksize, map->cmp);
+  let pos = bbsearch(key, map->keys->buf, map->keys->length, map->ksize, map->cmp.fn, map->cmp.b);
   if (pos.f) return oxmap_key_val(map, pos.p);
   return nullptr;
 }

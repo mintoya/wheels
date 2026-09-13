@@ -78,18 +78,18 @@ test_fn(smap_test) {
   }
 }
 
-u64 hashfptr(const void *a);
-cmpres cmpfptr(const void *a, const void *b);
+u64 hashfptr(void *, const void *a);
+cmpres cmpfptr(void *, const void *a, const void *b);
 #endif
 #if defined SXMAP_C && SXMAP_C == (1) || \
     (defined __INCLUDE_LEVEL__ && __INCLUDE_LEVEL__ == 0)
   #undef SXMAP_C
   #define SXMAP_C (2)
-u64 hashfptr(const void *a) { return fptr_hash(*(fptr *)a); }
-cmpres cmpfptr(const void *a, const void *b) { return fptr_cmp(*(fptr *)a, *(fptr *)b); }
+u64 hashfptr(void *, const void *a) { return fptr_hash(*(fptr *)a); }
+cmpres cmpfptr(void *, const void *a, const void *b) { return fptr_cmp(*(fptr *)a, *(fptr *)b); }
 sxmap *smap_new(allocfn allocator, u32 vsize, usize cap, usize arenaSize) {
   var_ res = acreate(allocator, sxmap);
-  hxmap_newm(allocator, sizeof(fptr), vsize, cap, hashfptr, cmpfptr, res->hmap);
+  hxmap_newm(allocator, sizeof(fptr), vsize, cap, (hxmap_hsh){hashfptr}, (hxmap_cmp){cmpfptr}, res->hmap);
   // oxmap_newm(allocator, sizeof(fptr), vsize, cmpfptr, res->omap);
   res->stringArena = arena_new_ext(allocator, arenaSize);
   return res;

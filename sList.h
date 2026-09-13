@@ -149,14 +149,15 @@ static struct bbs_result bbsearch(
     const void *base0,
     usize nmemb,
     usize size,
-    fnptrof((const void *, const void *), cmpres) compar
+    fnptrof((void *, const void *, const void *), cmpres) compar,
+    void *ctx
 ) {
-  typedef typeof(bbsearch(nullptr, nullptr, 0, 0, nullptr)) r_t;
+  typedef typeof(bbsearch(nullptr, nullptr, 0, 0, nullptr, nullptr)) r_t;
   const char *base = (const char *)base0;
 
   for (usize lim = nmemb; lim; lim /= 2) {
     var_ p = base + (lim >> 1) * size;
-    cmpres cmp = compar ? compar(key, p) : cmp_memcmp(key, p, size);
+    cmpres cmp = compar ? compar(ctx, key, p) : cmp_memcmp(key, p, size);
     if (cmp == cmp_eq)
       return (r_t){(void *)p, 1, ((u8 *)p - (u8 *)base0) / size};
     if (cmp == cmp_gt) {
