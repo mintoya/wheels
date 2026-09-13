@@ -183,8 +183,6 @@ typePrinter("slice", struct slice_any_t) { // second least safe printer
   PUTS("]");
 }
 
-volatile static thread_local bool print_f_shouldFlush = 1;
-
 // static inline void post_init_print_debug(void) {
 //   print("==============================\n"
 //         "printer debug\n"
@@ -449,9 +447,7 @@ void print_f(
       put(fmt + i, arb, 1, 0);
     }
   }
-  put("\0", arb, 1, 0);
-  if (print_f_shouldFlush)
-    put(0, arb, 0, 1);
+  put("\0", arb, 1, 1);
 }
   #undef MY_PRINTER_C
   #define MY_PRINTER_C (2)

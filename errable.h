@@ -7,7 +7,7 @@
   #include "mytypes.h"
   #include <stdio.h>
 
-typedef void (*err_print_fn)(void *) __attribute__((noreturn));
+typedef char *(*err_print_fn)(void *);
 
 typedef struct {
   const char *err_code;
@@ -59,11 +59,15 @@ typedef int errable_void;
   })
 
 __attribute__((noreturn)) static inline void err_panic(err_t e) {
+  fflush(stdout);
+  fflush(stderr);
   fprintf(stderr, "err\t:%s\n", e.err_code);
   fprintf(stderr, "\tfile\t:%s\n", e.file);
   fprintf(stderr, "\tline\t:%zu\n", e.line);
   fprintf(stderr, "\tfunc\t:%s\n", e.function);
-  if (e.fn) e.fn(e.fnd);
+  if (e.fn) fputs(e.fn(e.fnd), stderr);
+  fputs("\n", stderr);
+  fflush(stderr);
   assertMessage(false);
 }
 
@@ -86,19 +90,17 @@ static inline void err_mask(err_t *out, err_t e) {
       /*_Pragma("GCC diagnostic pop");*/                                                \
     })
 
-  #define return_err(code, ...) ({                \
-    static_assert(!!code, "code must be truthy"); \
-    pass_err(                                     \
-        ((err_t){                                 \
-            .err_code /**/ = code,                \
-            .file /*    */ = __FILE__,            \
-            .line /*    */ = __LINE__,            \
-            .function /**/ = __FUNCTION__,        \
-        }) __VA_OPT__(, ) __VA_ARGS__             \
-    );                                            \
+  #define return_err(code, ...) ({         \
+    pass_err(                              \
+        ((err_t){                          \
+            .err_code /**/ = code,         \
+            .file /*    */ = __FILE__,     \
+            .line /*    */ = __LINE__,     \
+            .function /**/ = __FUNCTION__, \
+        }) __VA_OPT__(, ) __VA_ARGS__      \
+    );                                     \
   })
   #define return_err_extras(code, handler, data, ...) ({ \
-    static_assert(!!code, "code must be truthy");        \
     pass_err(                                            \
         ((err_t){                                        \
             .err_code /**/ = code,                       \

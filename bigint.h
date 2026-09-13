@@ -26,6 +26,7 @@ cmpres bigint_cmp(bigint a, bigint b);
 void bigint_trim(bigint *b);
 void bigint_expand(allocfn allocator, bigint *b, usize len);
 bigint bigint_copy(allocfn allocator, bigint b);
+void bigint_copyInto(allocfn allocator, bigint a, bigint b);
 
 void bigint_negate_ip(allocfn allocator, bigint *i);
 
@@ -91,6 +92,7 @@ NAMESPACE_STRUCT(
     (cmp, &bigint_cmp),
     (sh, &bigint_shrl),
     (add, &bigint_add),
+    (set, &bigint_copyInto),
     (sub, &bigint_sub),
     (mul, &bigint_mul),
     (div, &bigint_div),
@@ -774,6 +776,10 @@ bigint bigint_band(allocfn allocator, bigint a, bigint b) {
     msList_push(allocator, res, bigint_get(a, i) & bigint_get(b, i));
   bigint_trim(&res);
   return res;
+}
+void bigint_copyInto(allocfn allocator, bigint a, bigint b) {
+  msList_len(a) = 0;
+  msList_pushArr(allocator, a, (*msList_vla(b)));
 }
 
 #endif

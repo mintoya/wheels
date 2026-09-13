@@ -48,7 +48,7 @@ void oxmap_freem(oxmap map);
   #define moxmap(K, V) ptrof(fnptrof((oxmap *, K *), V))
   #define moxmap_vt(map) typeof((*map)((oxmap *)0, nullptr))
   #define moxmap_tox(map) ((void)sizeof(typeof((*map)((oxmap *)0, nullptr))), (oxmap *)map)
-  #define moxmap_init(allocator, K, V, ...) (moxmap(K, V)) oxmap_new(allocator, sizeof(K), sizeof(V), VA_SWITCH(nullptr, __VA_ARGS__))
+  #define moxmap_init(allocator, K, V, ...) (moxmap(K, V)) oxmap_new(allocator, sizeof(K), sizeof(V), VA_SWITCH(((oxmap_cmp){}), __VA_ARGS__))
   #define moxmap_deinit(map) oxmap_free(moxmap_tox(map))
   #define moxmap_set(map, key, val) ((moxmap_vt(map) *)({ \
     let _k = key;                                         \
