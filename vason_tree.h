@@ -297,6 +297,9 @@ vason_node vason_node_deepCopy(allocfn allocator, vason_node n) {
   vason_node res;
   res.tag = n.tag;
   switch (n.tag) {
+    case vason_INVALID:
+    case vason_UNPARSED:
+      assertMessage(false);
     case vason_TABLE: {
       res.table = msList_init(allocator, typeof(*n.table), msList_len(n.table));
       foreach (var_ item, vla(*msList_vla(n.table)))
