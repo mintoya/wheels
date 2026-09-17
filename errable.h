@@ -168,7 +168,7 @@ test_fn(errable_catch_error) {
   bool caught = false;
   catch_errcall(
       (test_divide, (10, 0)), (e), ({
-        test_assert(streq(e.err_code, "DIV_BY_ZERO"));
+        test_streq(e.err_code, "DIV_BY_ZERO");
         test_assert(e.line > 0);
         test_assert(e.file != NULL);
         caught = true;
@@ -181,7 +181,7 @@ test_fn(errable_try_bubble) {
   bool caught = false;
   int res = catch_errcall(
       (test_bubble, (10, 0)), (e), ({
-        test_assert(streq(e.err_code, "DIV_BY_ZERO"));
+        test_streq(e.err_code, "DIV_BY_ZERO");
         caught = true;
       })
   );
@@ -197,14 +197,14 @@ test_fn(errable_call_err_raw) {
 
   var_ fail_res = call_err(test_divide, (10, 0));
   test_assert(fail_res.err.err_code);
-  test_assert(streq(fail_res.err.err_code, "DIV_BY_ZERO"));
+  test_streq(fail_res.err.err_code, "DIV_BY_ZERO");
 }
 
 test_fn(errable_void_return) {
   bool caught = false;
   catch_errcall(
       (test_void_err, (-1)), (e), ({
-        test_assert(streq(e.err_code, "NEGATIVE_VOID"));
+        test_streq(e.err_code, "NEGATIVE_VOID");
         caught = true;
       })
   );
