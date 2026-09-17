@@ -1,5 +1,16 @@
 Some wheels im reinventing
 -
+to build and run tests
+```sh
+cc nob.c -o nob 
+./nob
+```
+or
+```sh
+zig build run
+```
+
+
 # types.h
 - a bunch of zig style typedefs , things like u8,f64
 - slice and nullable macros for even more zig style types
@@ -94,14 +105,14 @@ Some wheels im reinventing
     #include "print.h"
     #include "wheels.h"
     // print, println, print_wf, and println_wf macros
-    // print_wf takes an outputFunction
-    typedef void (*outputFunction)(char *, unsigned int length, char flush);
+    // print_wf takes an outputFunction and the ctx 
+    typedef void (*outputFunction)(char *,void*, unsigned int length, bool flush);
 
     typedef struct {
       int x;
       int y;
     } point;
-    REGISTER_PRINTER(point, {
+    typePrinter(point, {
       PUTS("{x:");
       USETYPEPRINTER(usize, in.x); // use already registered printer
       PUTS(",y:");
@@ -109,7 +120,7 @@ Some wheels im reinventing
       PUTS("}");
     });
     // now you can call this with
-    print("${point}",((point){0,0}));
+    print("{point}",((point){0,0}));
  ```
 # wheels.h
  this library was supposed to contain single header libraries, however,
