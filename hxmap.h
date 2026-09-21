@@ -17,28 +17,40 @@ typedef struct hxmap {
   allocfn allocator;
   const u32 ksize, vsize;
   usize count;
-  int capbit;
+  usize cap;
   const hxmap_hsh hfn;
   const hxmap_cmp cmp;
-  u64 *__restrict flags;
+  u8 *__restrict ctrl;
   u8 *__restrict keys;
   u8 *__restrict vals;
 } hxmap;
-typedef ptrstype(itypeof(hxmap, flags)) hxint;
-typedef enum : hxint {
-  HXEMPTY = 0,
-  HXOCC = 1,
-} mxflag;
-CONST_EXPR int flagshift = sizeof(hxint) * 8 - 1;
-[[gnu::pure]] static inline bool isHXOCCUPIED(hxint x) {
-  CONST_EXPR hxint ebits = (hxint)1 << flagshift;
-  return x & ebits;
+typedef u64 hxint;
+
+  #define HXCTRL_OCC (0x80)
+  #define HXCTRL_BITS (0x7f)
+
+[[gnu::pure]] static inline bool hxmap_occupied(const hxmap *map, usize i) {
+  return (map->ctrl[i] & HXCTRL_OCC) != 0;
 }
-[[gnu::pure]] static inline bool isHXEMPTY(hxint x) { return !isHXOCCUPIED(x); }
-[[gnu::pure]] static inline hxint HXHASHBITS(hxint x) {
-  CONST_EXPR hxint ebits = ((hxint)1 << flagshift) - 1;
-  return x & ebits;
+[[gnu::pure]] static inline u8 hxmap_tag(u64 h) { return (u8)(HXCTRL_OCC | (h & HXCTRL_BITS)); }
+[[gnu::pure]] static inline usize hxmap_next(const hxmap *map, usize i) {
+  return i + 1 == map->cap ? 0 : i + 1;
 }
+// maps a 64 bit hash onto [0, cap) for any cap, using the high bits
+[[gnu::pure]] static inline usize hxmap_slot(const hxmap *map, u64 h) {
+  #if defined __SIZEOF_INT128__
+  return (usize)(((__uint128_t)h * (__uint128_t)map->cap) >> 64);
+  #else
+  return (usize)((((h >> 32) * (u64)map->cap)) >> 32);
+  #endif
+}
+[[gnu::pure]] static inline void *hxmap_key_at(const hxmap *map, usize i) {
+  return map->keys + (i * map->ksize);
+}
+[[gnu::pure]] static inline void *hxmap_val_at(const hxmap *map, usize i) {
+  return map->vals + (i * map->vsize);
+}
+
 void hxmap_newm(
     allocfn allocator,
     usize ksize,
@@ -119,16 +131,16 @@ void hxmap_clear(hxmap *map);
       })                                \
   )
   #define FOREACH_hxmap_increase(is) (is._idx++)
-  #define FOREACH_hxmap_valid(is)                                                                                 \
-    ({                                                                                                            \
-      while (is._idx < ((usize)1 << ((hxmap *)is._m)->capbit) && !isHXOCCUPIED(((hxmap *)is._m)->flags[is._idx])) \
-        is._idx++;                                                                                                \
-      is._idx < ((usize)1 << ((hxmap *)is._m)->capbit);                                                           \
+  #define FOREACH_hxmap_valid(is)                                                \
+    ({                                                                           \
+      while (is._idx < ((hxmap *)is._m)->cap && !hxmap_occupied((hxmap *)is._m, is._idx)) \
+        is._idx++;                                                               \
+      is._idx < ((hxmap *)is._m)->cap;                                           \
     })
-  #define FOREACH_hxmap_cast(is)                                                       \
-    ((typeof(is._val[0])){                                                             \
-        .key = (void *)(((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize)), \
-        .val = (void *)(((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize)), \
+  #define FOREACH_hxmap_cast(is)                                                     \
+    ((typeof(is._val[0])){                                                           \
+        .key = hxmap_key_at((hxmap *)is._m, is._idx),                                \
+        .val = hxmap_val_at((hxmap *)is._m, is._idx),                                \
     })
 
   #define FOREACH_hxmap_iter    \
@@ -162,10 +174,10 @@ void hxmap_clear(hxmap *map);
         };                                                \
       })                                                  \
   )
-  #define FOREACH_mxmap_cast(is)                                                                        \
-    ((typeof(is._val[0])){                                                                              \
-        .key = *(typeof(is._val->key) *)(((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize)), \
-        .val = (typeof(is._val->val))(((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize)),    \
+  #define FOREACH_mxmap_cast(is)                                                                       \
+    ((typeof(is._val[0])){                                                                             \
+        .key = *(typeof(is._val->key) *)hxmap_key_at((hxmap *)is._m, is._idx),                         \
+        .val = (typeof(is._val->val))hxmap_val_at((hxmap *)is._m, is._idx),                            \
     })
   #define FOREACH_mxmap_iter    \
     (                           \
@@ -226,6 +238,32 @@ test_fn(hxmap_tests) {
 
   mxmap_deinit(map);
 }
+// every key inserted then removed must leave a table that still finds the rest,
+// with the table shrinking back down instead of holding the high water mark
+test_fn(hxmap_shrink_tests) {
+  let map = mxmap_init(allocator, u64, u64);
+  foreach (u64 i, range(0, 20000))
+    mxmap_set(map, i, i + 1);
+  let grown = ((hxmap *)map)->cap;
+  test_assert(((hxmap *)map)->count == 20000);
+  foreach (u64 i, range(0, 20000))
+    mxmap_rem(map, i);
+  test_assert(((hxmap *)map)->count == 0);
+  test_assert(((hxmap *)map)->cap < grown);
+
+  // still usable, and nothing survives a reshuffle that should not
+  foreach (u64 i, range(0, 2000))
+    mxmap_set(map, i, i + 7);
+  foreach (u64 i, range(0, 2000))
+    if (i % 2) mxmap_rem(map, i);
+  foreach (u64 i, range(0, 2000)) {
+    let r = mxmap_get(map, i);
+    if (i % 2) test_assert(!r);
+    else test_assert(r && *r == i + 7);
+  }
+  test_assert(((hxmap *)map)->count == 1000);
+  mxmap_deinit(map);
+}
 #endif
 
 #if (defined MY_HXMAP_C && MY_HXMAP_C == 1) || \
@@ -236,13 +274,12 @@ void hxmap_newm(
     allocfn allocator,
     usize ksize,
     usize vsize,
-    int capbit,
+    int power,
     itypeof(hxmap, hfn) hashfn,
     itypeof(hxmap, cmp) cmpfn,
     hxmap map[1]
 ) {
-  capbit = capbit ?: 3;
-  usize cap = (usize)1 << capbit;
+  usize cap = (usize)1 << (power > 0 ? (usize)power : 3);
   assertMessage(allocator);
   assertMessage(ksize);
   assertMessage(vsize);
@@ -251,12 +288,12 @@ void hxmap_newm(
       .ksize = (u32)ksize,
       .vsize = (u32)vsize,
       .count = 0,
-      .capbit = capbit,
+      .cap = cap,
       .hfn = hashfn,
       .cmp = cmpfn,
-      .flags = *acreate(allocator, ptrstype(itypeof(hxmap, flags))[cap]),
-      .keys = **acreate(allocator, u8[ksize][cap]),
-      .vals = **acreate(allocator, u8[vsize][cap]),
+      .ctrl = *acreate(allocator, u8[cap]),
+      .keys = *acreate(allocator, u8[ksize * cap]),
+      .vals = *acreate(allocator, u8[vsize * cap]),
   });
   mcpy(*map, rs);
 }
@@ -264,20 +301,20 @@ hxmap *hxmap_new(
     allocfn allocator,
     usize ksize,
     usize vsize,
-    int capbit,
+    int power,
     itypeof(hxmap, hfn) hashfn,
     itypeof(hxmap, cmp) cmpfn
 ) {
   let map = (hxmap){};
-  hxmap_newm(allocator, ksize, vsize, capbit, hashfn, cmpfn, &map);
+  hxmap_newm(allocator, ksize, vsize, power, hashfn, cmpfn, &map);
   return avalue(allocator, map);
 }
 void hxmap_freem(hxmap map) {
   let allocator = map.allocator;
-  usize cap = (usize)1 << map.capbit;
-  adestroy(allocator, (ptrstype(map.flags)(*)[cap])map.flags);
-  adestroy(allocator, (u8(*)[map.ksize][cap])map.keys);
-  adestroy(allocator, (u8(*)[map.vsize][cap])map.vals);
+  usize cap = map.cap;
+  adestroy(allocator, (u8(*)[cap])map.ctrl);
+  adestroy(allocator, (u8(*)[map.ksize * cap])map.keys);
+  adestroy(allocator, (u8(*)[map.vsize * cap])map.vals);
 }
 void hxmap_free(hxmap *map) {
   let allocator = map->allocator;
@@ -288,105 +325,96 @@ static inline cmpres hxmap_base_cmp(const hxmap *m, const void *a, const void *b
   if (m->cmp.fn) return m->cmp.fn(m->cmp.arg, a, b);
   return cmp_memcmp(a, b, m->ksize);
 }
+// the finalizer, so that every hash - custom ones included - spreads over the
+// full 64 bits (hxmap_slot reads the high bits)
+[[gnu::pure]] static inline u64 hxmap_mix(u64 x) {
+  x ^= x >> 30;
+  x *= 0xbf58476d1ce4e5b9ULL;
+  x ^= x >> 27;
+  x *= 0x94d049bb133111ebULL;
+  x ^= x >> 31;
+  return x;
+}
 static inline hxint hxmap_base_hash(const hxmap *m, const void *a) {
-  if (m->hfn.fn) return m->hfn.fn(m->hfn.arg, a);
+  if (m->hfn.fn) return hxmap_mix(m->hfn.fn(m->hfn.arg, a));
   u8(*bytes)[m->ksize] = (typeof(bytes))a;
   switch (sizeof(*bytes)) {
     case sizeof(u64): {
-      let x = *(hxint *)bytes;
-      x ^= x >> 30;
-      x *= 0xbf58476d1ce4e5b9ULL;
-      x ^= x >> 27;
-      x *= 0x94d049bb133111ebULL;
-      x ^= x >> 31;
-      return x;
+      return hxmap_mix(*(u64 *)bytes);
     }
     case sizeof(u32): {
-      u32 x = *(u32 *)bytes;
-      x ^= x >> 16;
-      x *= 0x85ebca6b;
-      x ^= x >> 13;
-      x *= 0xc2b2ae35;
-      x ^= x >> 16;
-      return x;
+      return hxmap_mix(*(u32 *)bytes);
     }
     case sizeof(u16):
-      return *(u16 *)bytes * 0x85ebca6b;
+      return hxmap_mix(*(u16 *)bytes);
     case sizeof(u8):
-      return *(u8 *)bytes * 0x85ebca6b;
+      return hxmap_mix(*(u8 *)bytes);
     default: {
       hxint hash = 0xcbf29ce484222325ULL;
       foreach (let b, vla(*bytes)) {
         hash ^= b;
         hash *= 0x100000001b3ULL;
       }
-      return hash;
+      return hxmap_mix(hash);
     }
   }
 }
-void hxmap_manage(
-    hxmap *map,
-    i8 scale
-) {
-
-  assert(scale > 0);
-  let ocb = map->capbit;
-  let ncb = map->capbit + scale;
-  let oc = (usize)1 << ocb;
-  let nc = (usize)1 << ncb;
-
-  usize newcount = 0;
-  // let nc = scale < 0 ? map->cap / (-scale) : map->cap * scale;
-  let nv = acreate(map->allocator, u8[map->vsize * nc]);
-  let nk = acreate(map->allocator, u8[map->ksize * nc]);
-  let nf = acreate(map->allocator, ptrstype(itypeof(hxmap, flags))[nc]);
-
-  let ov = map->vals;
-  let ok = map->keys;
-  let of = map->flags;
-  defer {
-    adestroy(map->allocator, (u8(*)[map->vsize][oc])ov);
-    adestroy(map->allocator, (u8(*)[map->ksize][oc])ok);
-    adestroy(map->allocator, (u8(*)[sizeof(*of)][oc])of);
-  };
-
-  map->capbit = ncb;
-  map->vals = *nv;
-  map->keys = *nk;
-  map->flags = *nf;
-
-  let ks = map->ksize;
-  let vs = map->vsize;
-
-  foreach (usize i, range(0, oc))
-    if (isHXOCCUPIED(of[i])) {
-      newcount++;
-      hxint hx = HXHASHBITS(of[i]);
-      let idx = hx & (nc - 1);
-
-      while (isHXOCCUPIED((*nf)[idx])) {
-        idx++;
-        if (idx >= nc) idx = 0;
-      }
-
-      (*nf)[idx] = ((hxint)HXOCC << flagshift) | hx;
-      memcpy(map->keys + (ks * idx), ok + (ks * i), ks);
-      memcpy(map->vals + (vs * idx), ov + (vs * i), vs);
-    }
-  map->count = newcount;
+void hxmap_resize(hxmap *map, usize newcap);
+[[gnu::pure]] static inline usize hxmap_nextcap(const hxmap *map) {
+  return map->cap < 512 ? map->cap * 2 : map->cap + (map->cap / 2) + 1;
 }
+static inline void hxmap_place(hxmap *map, const void *key, const void *val) {
+  let h = hxmap_base_hash(map, key);
+  usize idx = hxmap_slot(map, h);
+  usize n = map->cap;
+  while (n && map->ctrl[idx]) {
+    idx = hxmap_next(map, idx);
+    n--;
+  }
+  if_unlikely (!n) return hxmap_resize(map, hxmap_nextcap(map)), hxmap_place(map, key, val);
+  map->ctrl[idx] = hxmap_tag(h);
+  memcpy(map->keys + (idx * map->ksize), key, map->ksize);
+  memcpy(map->vals + (idx * map->vsize), val, map->vsize);
+  map->count++;
+}
+void hxmap_resize(hxmap *map, usize newcap) {
+  if (newcap < 8) newcap = 8;
+  // never resize into a table that cannot hold what is already there
+  usize least = map->count + (map->count / 2) + 8;
+  if (newcap < least) newcap = least;
+  if (newcap == map->cap) return;
+  let allocator = map->allocator;
+  usize ocap = map->cap;
+  u8 *oc = map->ctrl, *ok = map->keys, *ov = map->vals;
 
+  map->cap = newcap;
+  map->count = 0;
+  map->ctrl = *acreate(allocator, u8[newcap]);
+  map->keys = *acreate(allocator, u8[map->ksize * newcap]);
+  map->vals = *acreate(allocator, u8[map->vsize * newcap]);
+
+  foreach (usize i, range(0, ocap))
+    if (oc[i] & HXCTRL_OCC) hxmap_place(map, ok + (i * map->ksize), ov + (i * map->vsize));
+
+  adestroy(allocator, (u8(*)[ocap])oc);
+  adestroy(allocator, (u8(*)[map->ksize * ocap])ok);
+  adestroy(allocator, (u8(*)[map->vsize * ocap])ov);
+}
+void hxmap_manage(hxmap *map, i8 scale) {
+  if (!scale) return;
+  hxmap_resize(map, scale > 0 ? (map->cap << scale) : (map->cap >> -scale));
+}
 void *hxmap_get(const hxmap *m, void *key) {
   assertMessage(key);
-  let hx = HXHASHBITS(hxmap_base_hash(m, key));
-  let mask = ((usize)1 << m->capbit) - 1;
-
-  for (let idx = hx & mask; !isHXEMPTY(m->flags[idx]); idx = (idx + 1) & mask) {
-    if (
-        isHXOCCUPIED(m->flags[idx]) &&
-        HXHASHBITS(m->flags[idx]) == hx &&
-        !hxmap_base_cmp(m, m->keys + (m->ksize * idx), key)
-    ) return m->vals + (m->vsize * idx);
+  if_unlikely (!m->cap) return nullptr;
+  let h = hxmap_base_hash(m, key);
+  let tag = hxmap_tag(h);
+  usize n = m->cap;
+  for (usize idx = hxmap_slot(m, h); n; idx = hxmap_next(m, idx), n--) {
+    let c = m->ctrl[idx];
+    if (!c) return nullptr;
+    if (c == tag && !hxmap_base_cmp(m, m->keys + (idx * m->ksize), key))
+      return m->vals + (idx * m->vsize);
   }
   return nullptr;
 }
@@ -396,52 +424,54 @@ void *hxmap_set(
     void *val
 ) {
   if (!key) return nullptr;
-  usize cap = (usize)1 << (m->capbit);
-  if_unlikely ((m->count + 1) * 4 >= cap * 3) hxmap_manage(m, 1);
-  cap = (usize)1 << (m->capbit);
+  if_unlikely (!m->cap) hxmap_resize(m, 8);
+  if_unlikely ((m->count + 1) * 4 >= m->cap * 3) hxmap_resize(m, hxmap_nextcap(m));
 
-  let hx = HXHASHBITS(hxmap_base_hash(m, key));
-  let mask = cap - 1;
-  let idx = hx & mask;
+  let h = hxmap_base_hash(m, key);
+  let tag = hxmap_tag(h);
+  usize n = m->cap, idx = hxmap_slot(m, h);
 
-  for (; !isHXEMPTY(m->flags[idx]); idx = (idx + 1) & mask) {
-    if (
-        HXHASHBITS(m->flags[idx]) == hx &&
-        !hxmap_base_cmp(m, m->keys + (m->ksize * idx), key)
-    ) break;
+  for (; n; idx = hxmap_next(m, idx), n--) {
+    if (!m->ctrl[idx]) break;
+    if (m->ctrl[idx] == tag && !hxmap_base_cmp(m, m->keys + (idx * m->ksize), key)) break;
+  }
+  if_unlikely (n == 0) {  // no empty slot: grow and retry
+    hxmap_resize(m, hxmap_nextcap(m));
+    return hxmap_set(m, key, val);
   }
 
-  const let flag = m->flags[idx];
   if (!val) {
-    if (isHXOCCUPIED(flag)) {
+    if (m->ctrl[idx] & HXCTRL_OCC) {
       m->count--;
-      m->flags[idx] = HXEMPTY;
+      m->ctrl[idx] = 0;
 
-      let i = idx;
-      let j = (i + 1) & mask;
-
-      for (; !isHXEMPTY(m->flags[j]); j = (j + 1) & mask) {
-        let k = HXHASHBITS(m->flags[j]) & mask;
-
-        let dist_i = (i - k) & mask;
-        let dist_j = (j - k) & mask;
-
+      usize i = idx;
+      usize j = hxmap_next(m, i);
+      while (m->ctrl[j]) {
+        // the tables no longer store the full hash, so the home slot of the
+        // occupant has to be recomputed to know if it can move back
+        usize home = hxmap_slot(m, hxmap_base_hash(m, m->keys + (j * m->ksize)));
+        usize dist_i = i >= home ? i - home : i + m->cap - home;
+        usize dist_j = j >= home ? j - home : j + m->cap - home;
         if (dist_i < dist_j) {
-          m->flags[i] = m->flags[j];
-          memcpy(m->keys + (m->ksize * i), m->keys + (m->ksize * j), m->ksize);
-          memcpy(m->vals + (m->vsize * i), m->vals + (m->vsize * j), m->vsize);
-          m->flags[j] = HXEMPTY;
+          m->ctrl[i] = m->ctrl[j];
+          memcpy(m->keys + (i * m->ksize), m->keys + (j * m->ksize), m->ksize);
+          memcpy(m->vals + (i * m->vsize), m->vals + (j * m->vsize), m->vsize);
+          m->ctrl[j] = 0;
           i = j;
         }
+        j = hxmap_next(m, j);
       }
+      // give the memory back once the table is mostly empty
+      if_unlikely (m->cap > 64 && m->count * 8 < m->cap) hxmap_resize(m, m->cap / 2);
     }
     return nullptr;
   }
 
-  m->count += isHXEMPTY(flag);
-  m->flags[idx] = hx | (HXOCC << flagshift);
-  memcpy(m->keys + (m->ksize * idx), key, m->ksize);
-  return memcpy(m->vals + (m->vsize * idx), val, m->vsize);
+  m->count += !(m->ctrl[idx] & HXCTRL_OCC);
+  m->ctrl[idx] = tag;
+  memcpy(m->keys + (idx * m->ksize), key, m->ksize);
+  return memcpy(m->vals + (idx * m->vsize), val, m->vsize);
 }
 
 void *hxmap_val_key(
@@ -452,6 +482,7 @@ void *hxmap_val_key(
   return map->keys + (idx * map->ksize);
 }
 void hxmap_clear(hxmap *map) {
-  memset(map->flags, 0, sizeof(ptrstype(map->flags)[1 << map->capbit]));
+  memset(map->ctrl, 0, map->cap);
+  map->count = 0;
 }
 #endif

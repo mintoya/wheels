@@ -15,7 +15,7 @@ typedef struct {
   const char *function;
   usize line;
   err_print_fn fn; // optional; if set call userdata usingthis
-  void *fnd;       // passed to render
+  void *fnd;       // passed to fn
 } err_t;
 
   // #define ENABLE_ERROR_IN_NORMAL_FUNCTION

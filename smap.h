@@ -30,9 +30,9 @@ void *smap_get(sxmap *map, fptr k);
 msxmap(int) j;
   // {sxmap(map)
   #define FOREACH_sxmap_cast(is)                                                        \
-    ((struct {fptr key;void *val; }){                                                                      \
-        .key = *(fptr *)(((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize)), \
-        .val = ((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize),            \
+    ((struct {fptr key;void *val; }){                                                   \
+        .key = *(fptr *)hxmap_key_at((hxmap *)is._m, is._idx),                           \
+        .val = hxmap_val_at((hxmap *)is._m, is._idx),                                    \
     })
 
   #define FOREACH_sxmap_iter    \
@@ -43,10 +43,10 @@ msxmap(int) j;
         FOREACH_sxmap_cast)
   //}
   // {msxmap(map)
-  #define FOREACH_msxmap_cast(is)                                                                          \
-    ((struct {fptr key; ptrof(msxmap_iType(is._m)) val; }){                                                                                         \
-        .key = *(fptr *)(((hxmap *)is._m)->keys + (is._idx * ((hxmap *)is._m)->ksize)),                    \
-        .val = (ptrof(msxmap_iType(is._m)))(((hxmap *)is._m)->vals + (is._idx * ((hxmap *)is._m)->vsize)), \
+  #define FOREACH_msxmap_cast(is)                                                  \
+    ((struct {fptr key; ptrof(msxmap_iType(is._m)) val; }){                        \
+        .key = *(fptr *)hxmap_key_at((hxmap *)is._m, is._idx),                     \
+        .val = (ptrof(msxmap_iType(is._m))) hxmap_val_at((hxmap *)is._m, is._idx), \
     })
 
   #define FOREACH_msxmap_iter   \
