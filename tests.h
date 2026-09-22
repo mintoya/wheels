@@ -19,7 +19,7 @@ __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...);
           (test_result){                          \
               aprint("%s", (char *)#__VA_ARGS__), \
               __LINE__ + 1                        \
-      };                                          \
+          };                                      \
       return;                                     \
     }                                             \
   } while (0)
@@ -113,7 +113,7 @@ struct testNode {
               .filename = (char *)__FILE__, \
               .testname = (char *)#name,    \
               .fn = name,                   \
-      };                                    \
+          };                                \
       if (!testList) {                      \
         testList = &thisNode;               \
         return;                             \
@@ -200,31 +200,37 @@ test_result runtest_named(const char *test) {
     #include "deps/subprocess.h/subprocess.h"
   #endif
 int main(int nargs, char **args) {
-  if (nargs == 2)
-    return (runtest_named(args[1]).result);
+  if (nargs == 2) {
+    for (let test = testList; test; test = test->next)
+      if (!strcmp(test->testname, args[1])) return !!runtest(test).result;
+    fprintf(stderr, "Unknown test: %s\n", args[1]);
+    return 1;
+  }
   usize count = 0;
   usize pass = 0;
 
   #if (defined(TESTS_SUBPROCESSES) && (TESTS_SUBPROCESSES == 1))
   while (testList) {
     count++;
-    int status = 0;
-    struct subprocess_s sub;
-    subprocess_create((const char *const[]){args[0], testList->testname, nullptr}, 0, &sub);
-    subprocess_join(&sub, &status);
-
-    typeof(char[1024]) buf = {};
-    int count = 0;
-
-    while ((count = subprocess_read_stdout(&sub, buf, sizeof(buf))))
-      fwrite(buf, sizeof(buf[0]), count, stdout);
-    while ((count = subprocess_read_stderr(&sub, buf, sizeof(buf))))
-      fwrite(buf, sizeof(buf[0]), count, stderr);
-
+    int status = 1;
+    struct subprocess_s sub = {};
+    int error = subprocess_create(
+        (const char *const[]){args[0], testList->testname, nullptr},
+        subprocess_option_combined_stdout_stderr | subprocess_option_inherit_environment,
+        &sub
+    );
+    if (error) {
+      fprintf(stderr, "Could not start %s: subprocess error %d\n", testList->testname, error);
+    } else {
+      char buf[4096];
+      unsigned length;
+      while ((length = subprocess_read_stdout(&sub, buf, sizeof(buf))))
+        fwrite(buf, 1, length, stdout);
+      if (subprocess_join(&sub, &status)) status = 1;
+      if (subprocess_destroy(&sub)) status = 1;
+    }
     fflush(stdout);
     fflush(stderr);
-
-    subprocess_destroy(&sub);
 
     printf(
         "[%s] %s\t%i\n",
@@ -252,8 +258,8 @@ int main(int nargs, char **args) {
     testList = testList->next;
   }
   #endif
-  printf("%zu tests out of %zu passed", pass, count);
-  return 0;
+  printf("%zu tests out of %zu passed\n", pass, count);
+  return pass != count;
 }
   #if !defined __cplusplus && __STDC_VERSION__ >= 202400L
     #include "funct.h" // excluded from  include all for of c23
