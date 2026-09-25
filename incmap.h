@@ -1,3 +1,4 @@
+#include <cstring>
 #if __INCLUDE_LEVEL__ == 0
   #pragma GCC warning "using example mapconfig"
 // comparison ismeant to be ordered, but currently it does not sort the collisoins at all
@@ -142,7 +143,7 @@ static inline void MAP_FN(newm)(
       .keys = *acreate(allocator, MAP_K[cap]),
       .vals = *acreate(allocator, MAP_V[cap]),
   });
-  mcpy(*map, rs);
+  memcpy(map, &rs, sizeof(*map));
 }
 
 static inline mapname *MAP_FN(new)(

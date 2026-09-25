@@ -581,7 +581,11 @@ struct bigint_div_t bigint_div(allocfn allocator, bigint a1, bigint b1) {
   assertMessage(bigint_cmp(b1, NULL), "division by zero");
 
   let buff = (fbafb_buffer(bigint_unit[20])){};
-  let act = (struct {allocfn a ; usize s; }){allocator, ((a1 ? msList_len(a1) : 1) + (b1 ? msList_len(b1) : 1)) * sizeof(bigint_unit) * 16};
+  typedef struct {
+    allocfn a;
+    usize s;
+  } actt;
+  let act = (actt){allocator, ((a1 ? msList_len(a1) : 1) + (b1 ? msList_len(b1) : 1)) * sizeof(bigint_unit) * 16};
   let arena = fbafb_initBuffer(
       buff,
       &act,

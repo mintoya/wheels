@@ -249,7 +249,7 @@ printerFunction PrinterSingleton_get(fptr name) {
   lasttick = !lasttick;
 
   if_decl (var_ val, printermap_get(PrinterSingleton.data, name)) {
-    mcpy(lastprinters[lasttick], *val);
+    memcpy(&lastprinters[lasttick], val, sizeof(*val));
     lastnames[lasttick] = *printermap_val_key(PrinterSingleton.data, val);
     return *val;
   }

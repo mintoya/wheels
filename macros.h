@@ -334,29 +334,7 @@ _Static_assert(isArray((int[]){}), "array is array");
 
   #define asU8Vla(x) *VLAP((u8 *)&x, sizeof(x))
 
-  #define mcmp(a, b) ({                                       \
-    var_ _a = &a;                                             \
-    var_ _b = &b;                                             \
-    typedef typeof(({ *_a; })) _da;                           \
-    typedef typeof(({ *_b; })) _db;                           \
-    _Static_assert(types_eq(_da, _db), "not the same type");  \
-    __builtin_memcmp(_a, _b, MIN$(sizeof(*_b), sizeof(*_a))); \
-  })
-  #define mcpy(a, b) ({                                                                   \
-    let _a = &(a);                                                                        \
-    let _b = &(b);                                                                        \
-    typedef typeof(*_a) _da;                                                              \
-    typedef typeof(*_b) _db;                                                              \
-    _Static_assert(__builtin_types_compatible_p(_da, _db), "not the same type");          \
-    (typeof(_a))__builtin_memcpy((void *)_a, (void *)_b, MIN$(sizeof(*_b), sizeof(*_a))); \
-  })
-  #define mset(mem, v) ({                                                                         \
-    var_ _m = &mem;                                                                               \
-    var_ _v = v;                                                                                  \
-    _Static_assert(types_eq(typeof((*_m)[0]), typeof(_v)), #mem "[0] must be of typeof(" #v ")"); \
-    foreach (var_ i, span(*_m, countof(*_m)))                                                     \
-      *i = _v;                                                                                    \
-  })
+  
   #define struct_imm_type(x) typeof(TUPLE_EXPAND_REST(x)) TUPLE_EXPAND_FIRST(x);
   #define struct_imm_value(x) (TUPLE_EXPAND_REST(x)),
   #define struct_imm(...) \

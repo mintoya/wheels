@@ -315,7 +315,7 @@ test_fn(mlist_vla_cast) {
   mList_push(list, 9);
   let arr = acreate(allocator, int[3]);
   defer { adestroy(allocator, arr); };
-  mcpy(*arr, *mList_vla(list));
+  memcpy(arr, mList_vla(list), sizeof(*mList_vla(list)));
   mList_pushArr(list, *arr);
   test_assert(mList_len(list) == 6);
 
