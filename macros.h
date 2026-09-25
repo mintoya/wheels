@@ -275,7 +275,6 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #define P$_ONE(in, ...) MACRO_EXPAND(P$_FOLD(in, __VA_ARGS__))
   #define P$(in, ...) P$_ONE(in __VA_OPT__(, __VA_ARGS__), $)
 
-
   #define MAX$_HELP(b)           \
     ({                           \
       var_ b_eval = b;           \
@@ -296,7 +295,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 //
 
   #define fnptrof(in, out) typeof(typeof(out)(*) in)
-  #define arrof(T, ...) typeof(typeof(typeof((T){}))[__VA_ARGS__])
+  #define arrof(T, ...) typeof(T[__VA_ARGS__])
   #define ptrof(T) typeof((void)((typeof(void (*)(T)))0), (typeof(T) *)0)
 
 //
@@ -307,7 +306,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     #include <type_traits>
 
     #define typeof(...) __typeof__(__VA_ARGS__)
-    #define typeof_unqual(...) __typeof_unqual__(__VA_ARGS__)
+    #define typeof_unqual(...) ::std::remove_cvref_t<decltype(__VA_ARGS__)>
 
   #else
   #endif
@@ -334,7 +333,6 @@ _Static_assert(isArray((int[]){}), "array is array");
 
   #define asU8Vla(x) *VLAP((u8 *)&x, sizeof(x))
 
-  
   #define struct_imm_type(x) typeof(TUPLE_EXPAND_REST(x)) TUPLE_EXPAND_FIRST(x);
   #define struct_imm_value(x) (TUPLE_EXPAND_REST(x)),
   #define struct_imm(...) \

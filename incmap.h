@@ -1,4 +1,3 @@
-#include <cstring>
 #if __INCLUDE_LEVEL__ == 0
   #pragma GCC warning "using example mapconfig"
 // comparison ismeant to be ordered, but currently it does not sort the collisoins at all
