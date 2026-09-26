@@ -124,6 +124,12 @@ constexpr fptr nullFptr = {0, nullptr};
                                        \
           ),                           \
       )
+    #define fptr_eq(a, b) ({                                                   \
+      (fptr_eq)(                                                               \
+          _Generic((typeof_unqual(a)){}, fptr: fptr_fptr, char *: fptr_CS)(a), \
+          _Generic((typeof_unqual(b)){}, fptr: fptr_fptr, char *: fptr_CS)(b)  \
+      );                                                                       \
+    })
   #else
     #include <cstring>
     #include <string>
@@ -169,10 +175,4 @@ inline fptr fp_from(const char (&s)[N]) {
   #endif
   #define fp fp_from
 
-  #define fptr_eq(a, b) ({                                                   \
-    (fptr_eq)(                                                               \
-        _Generic((typeof_unqual(a)){}, fptr: fptr_fptr, char *: fptr_CS)(a), \
-        _Generic((typeof_unqual(b)){}, fptr: fptr_fptr, char *: fptr_CS)(b)  \
-    );                                                                       \
-  })
 #endif // FPTR_H

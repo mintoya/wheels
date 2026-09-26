@@ -221,17 +221,16 @@ test_fn(oxmap_macros) {
   #define MY_OXMAP_C (2)
 void oxmap_newm(allocfn allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp) cmp, oxmap mem[1]) {
   assertMessage(ksize || vsize);
-  mcpy(
-      *mem,
-      ((oxmap){
-          .allocator = allocator,
-          .ksize = ksize,
-          .vsize = vsize,
-          .cmp = cmp,
-          .keys = sList_new(allocator, 2, ksize),
-          .vals = sList_new(allocator, 2, vsize),
-      })
-  );
+
+  let r = ((oxmap){
+      .allocator = allocator,
+      .ksize = ksize,
+      .vsize = vsize,
+      .cmp = cmp,
+      .keys = sList_new(allocator, 2, ksize),
+      .vals = sList_new(allocator, 2, vsize),
+  });
+  memcpy((void *)mem, &r, sizeof(r));
 }
 oxmap *oxmap_new(allocfn allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp) cmp) {
   let r = acreate(allocator, oxmap);

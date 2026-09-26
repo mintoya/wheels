@@ -131,16 +131,16 @@ void hxmap_clear(hxmap *map);
       })                                \
   )
   #define FOREACH_hxmap_increase(is) (is._idx++)
-  #define FOREACH_hxmap_valid(is)                                                \
-    ({                                                                           \
+  #define FOREACH_hxmap_valid(is)                                                         \
+    ({                                                                                    \
       while (is._idx < ((hxmap *)is._m)->cap && !hxmap_occupied((hxmap *)is._m, is._idx)) \
-        is._idx++;                                                               \
-      is._idx < ((hxmap *)is._m)->cap;                                           \
+        is._idx++;                                                                        \
+      is._idx < ((hxmap *)is._m)->cap;                                                    \
     })
-  #define FOREACH_hxmap_cast(is)                                                     \
-    ((typeof(is._val[0])){                                                           \
-        .key = hxmap_key_at((hxmap *)is._m, is._idx),                                \
-        .val = hxmap_val_at((hxmap *)is._m, is._idx),                                \
+  #define FOREACH_hxmap_cast(is)                      \
+    ((typeof(is._val[0])){                            \
+        .key = hxmap_key_at((hxmap *)is._m, is._idx), \
+        .val = hxmap_val_at((hxmap *)is._m, is._idx), \
     })
 
   #define FOREACH_hxmap_iter    \
@@ -174,10 +174,10 @@ void hxmap_clear(hxmap *map);
         };                                                \
       })                                                  \
   )
-  #define FOREACH_mxmap_cast(is)                                                                       \
-    ((typeof(is._val[0])){                                                                             \
-        .key = *(typeof(is._val->key) *)hxmap_key_at((hxmap *)is._m, is._idx),                         \
-        .val = (typeof(is._val->val))hxmap_val_at((hxmap *)is._m, is._idx),                            \
+  #define FOREACH_mxmap_cast(is)                                               \
+    ((typeof(is._val[0])){                                                     \
+        .key = *(typeof(is._val->key) *)hxmap_key_at((hxmap *)is._m, is._idx), \
+        .val = (typeof(is._val->val))hxmap_val_at((hxmap *)is._m, is._idx),    \
     })
   #define FOREACH_mxmap_iter    \
     (                           \
@@ -295,7 +295,7 @@ void hxmap_newm(
       .keys = *acreate(allocator, u8[ksize * cap]),
       .vals = *acreate(allocator, u8[vsize * cap]),
   });
-  mcpy(*map, rs);
+  memcpy((void *)map, &rs, sizeof(rs));
 }
 hxmap *hxmap_new(
     allocfn allocator,
@@ -313,8 +313,8 @@ void hxmap_freem(hxmap map) {
   let allocator = map.allocator;
   usize cap = map.cap;
   adestroy(allocator, (u8(*)[cap])map.ctrl);
-  adestroy(allocator, (u8(*)[map.ksize * cap])map.keys);
-  adestroy(allocator, (u8(*)[map.vsize * cap])map.vals);
+  adestroy(allocator, (u8(*)[map.ksize * cap]) map.keys);
+  adestroy(allocator, (u8(*)[map.vsize * cap]) map.vals);
 }
 void hxmap_free(hxmap *map) {
   let allocator = map->allocator;
@@ -397,8 +397,8 @@ void hxmap_resize(hxmap *map, usize newcap) {
     if (oc[i] & HXCTRL_OCC) hxmap_place(map, ok + (i * map->ksize), ov + (i * map->vsize));
 
   adestroy(allocator, (u8(*)[ocap])oc);
-  adestroy(allocator, (u8(*)[map->ksize * ocap])ok);
-  adestroy(allocator, (u8(*)[map->vsize * ocap])ov);
+  adestroy(allocator, (u8(*)[map->ksize * ocap]) ok);
+  adestroy(allocator, (u8(*)[map->vsize * ocap]) ov);
 }
 void hxmap_manage(hxmap *map, i8 scale) {
   if (!scale) return;
@@ -435,7 +435,7 @@ void *hxmap_set(
     if (!m->ctrl[idx]) break;
     if (m->ctrl[idx] == tag && !hxmap_base_cmp(m, m->keys + (idx * m->ksize), key)) break;
   }
-  if_unlikely (n == 0) {  // no empty slot: grow and retry
+  if_unlikely (n == 0) { // no empty slot: grow and retry
     hxmap_resize(m, hxmap_nextcap(m));
     return hxmap_set(m, key, val);
   }
