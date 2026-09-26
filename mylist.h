@@ -132,7 +132,7 @@ __attribute__((pure)) static inline List_index_t List_length(const List *l) { re
  * @param index :index to be removed
  * @param width :item width
  */
-void List_remove(List *l, List_index_t i, size_t width);
+void List_remove(List *l, List_index_t i, size_t width, List_index_t length);
 
   #define mList(T) ptrof(fnptrof((List *), T))
 
@@ -189,12 +189,16 @@ void List_remove(List *l, List_index_t i, size_t width);
       List_insert((List *)list, index, &value, sizeof(value)); \
     } while (0)
 
-  #define mList_rem(list, index)                                   \
-    ({                                                             \
-      mList_iType(list) x;                                         \
-      x = mList_len(list) > index ? mList_arr(list)[index] : x;    \
-      List_remove((List *)list, index, sizeof(mList_iType(list))); \
-      x;                                                           \
+  #define mList_rem(list, index)                                      \
+    ({                                                                \
+      mList_iType(list) x;                                            \
+      x = mList_len(list) > index ? mList_arr(list)[index] : x;       \
+      List_remove((List *)list, index, sizeof(mList_iType(list)), 1); \
+      x;                                                              \
+    })
+  #define mList_reml(list, index, length)                                  \
+    ({                                                                     \
+      List_remove((List *)list, index, sizeof(mList_iType(list)), length); \
     })
   #define mList_setCap(list, capacity) \
     do {                               \
@@ -328,10 +332,10 @@ test_fn(mlist_vla_cast) {
     (defined(__INCLUDE_LEVEL__) && __INCLUDE_LEVEL__ == 0)
   #undef MY_LIST_C
   #define MY_LIST_C (2)
-void List_remove(List *l, List_index_t i, size_t width) {
+void List_remove(List *l, List_index_t i, size_t width, List_index_t length) {
   if (i >= l->length) return;
-  memmove(l->head + i * width, l->head + (i + 1) * width, (l->length - i - 1) * width);
-  l->length--;
+  memmove(l->head + i * width * length, l->head + (i + length) * width, (l->length - i - length) * width);
+  l->length -= length;
 }
 void *List_insertFromArr(List *l, const void *source, List_index_t length, List_index_t location, size_t width) {
   if (location > l->length) return nullptr;

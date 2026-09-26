@@ -62,6 +62,7 @@ bigint bigint_bitshift_u(allocfn allocator, bigint a, bigint_unit b, bool left);
 bigint bigint_bitshift(allocfn allocator, bigint a, bigint b);
 bigint bigint_bor(allocfn allocator, bigint a, bigint b);
 bigint bigint_band(allocfn allocator, bigint a, bigint b);
+void bigint_free(allocfn allocator, bigint *b);
 
 NAMESPACE_STRUCT(
     BInt_from,
@@ -101,6 +102,7 @@ NAMESPACE_STRUCT(
     (negate, &bigint_negate),
     (negetive, &bigint_negetive),
     (copy, &bigint_copy),
+    (free, &bigint_free),
 );
 
 typePrinter(bigint) {
@@ -785,5 +787,6 @@ void bigint_copyInto(allocfn allocator, bigint a, bigint b) {
   msList_len(a) = 0;
   msList_pushArr(allocator, a, (*msList_vla(b)));
 }
+void bigint_free(allocfn allocator, bigint *b) { msList_deInit(allocator, *b); }
 
 #endif

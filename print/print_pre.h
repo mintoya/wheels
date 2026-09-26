@@ -23,10 +23,6 @@ typedef struct {
 } printerfunction_context;
 
 typedef struct {
-  // 1 : fat value pointer
-  // 2 : printing function
-  // 3 : printing function context
-  // 4 : args fat pointer
   fnptrof((fptr, const printerfunction_context), void) function;
   // size of what it prints, ignore if -1
   usize size;
@@ -277,7 +273,7 @@ static slice(c8) vsn_print_fn(allocfn allocator, char *fmt, struct print_arg *ar
   #define tuprint(...) tuprint_wfo(fileprint, stdout, __VA_ARGS__)
   #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
   #define print_(fmt, ...) print_wfO(fileprint, stdout, fmt, __VA_ARGS__)
-  #define println_(fmt, ...) print(fmt "\n", __VA_ARGS__)
+  #define println_(fmt, ...) print_(fmt "\n", __VA_ARGS__)
   #if !defined PRINT_NDEF
     // #define fprint(...) fprint_(__VA_ARGS__)
     // #define fprintln(...) fprintln_(__VA_ARGS__)
