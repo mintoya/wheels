@@ -197,7 +197,7 @@ test_result runtest_named(const char *test) {
 }
   // #define TESTS_SUBPROCESSES (1) // run all tests in their own subprocess
   #if (defined(TESTS_SUBPROCESSES) && (TESTS_SUBPROCESSES == 1))
-    #include "subprocess.h/subprocess.h"
+    #include "deps/subprocess.h/subprocess.h"
   #endif
 int main(int nargs, char **args) {
   if (nargs == 2) {
