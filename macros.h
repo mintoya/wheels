@@ -235,7 +235,7 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
   #if defined __cplusplus
     #define __auto_type auto
   #endif
-  #define let auto
+  #define let __auto_type
 
 //
 // expect
