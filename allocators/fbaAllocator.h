@@ -47,7 +47,7 @@ static inline allocfn fba_new(allocfn allocator, usize size) {
     FBA_State s[1];
     alignas(myAlign) u8 x[];
   } fbuffer;
-  var_ r = (fbuffer *)vcall(allocator, fn, (nullptr, 0, size + sizeof(fbuffer), __FILE__, __LINE__));
+  let r = (fbuffer *)vcall(allocator, fn, (nullptr, 0, size + sizeof(fbuffer), __FILE__, __LINE__));
   FBA_init(r->x, size, r->s);
   return (allocfn)r->s;
 }

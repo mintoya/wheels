@@ -19,7 +19,7 @@ __attribute__((format(printf, 1, 2))) char *aprint(const char *fmt, ...);
           (test_result){                          \
               aprint("%s", (char *)#__VA_ARGS__), \
               __LINE__ + 1                        \
-          };                                      \
+      };                                          \
       return;                                     \
     }                                             \
   } while (0)
@@ -113,12 +113,12 @@ struct testNode {
               .filename = (char *)__FILE__, \
               .testname = (char *)#name,    \
               .fn = name,                   \
-          };                                \
+      };                                    \
       if (!testList) {                      \
         testList = &thisNode;               \
         return;                             \
       }                                     \
-      var_ n = testList;                    \
+      let n = testList;                     \
       while (n->next)                       \
         n = n->next;                        \
       n->next = &thisNode;                  \
@@ -151,7 +151,7 @@ test_result runtest(typeof(testList) test) {
   allocfn testAlloc = debugAllocator(.allocator = stdAlloc);
   defer { debugAllocatorDeInit(testAlloc); };
 
-  var_ result = (test_result){};
+  let result = (test_result){};
   test->fn(&result, testAlloc);
   let leaked = 0;
   if (result.profile) {

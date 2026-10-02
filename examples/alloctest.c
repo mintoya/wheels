@@ -5,7 +5,7 @@
 #include "../print.h"
 
 int main(void) {
-  var_ local =
+  let local =
       debugAllocator(
               .allocator = stdAlloc,
       );
@@ -19,7 +19,7 @@ int main(void) {
       list,
       ((int[]){5, 8, 7, 9, 5, 8, 7, 9})
   );
-  foreach (var_ element, vlap(mList_vla(list)))
+  foreach (let element, vlap(mList_vla(list)))
     println("{}", (int)element);
   println("list footprint : {}", sizeof(*mList_vla(list)));
 

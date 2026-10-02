@@ -84,7 +84,7 @@
       size_t _current;                    \
     },                                    \
     ({                                    \
-      var_ _vla_eval = &(vla);            \
+      let _vla_eval = &(vla);            \
       (typeof(_foreach_._foreach_)){      \
           ._ptr = *_vla_eval,             \
           ._length = countof(*_vla_eval), \

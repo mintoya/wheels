@@ -29,7 +29,7 @@
       ({ tu_void_toi(TUPLE_EXPAND_REST(tuple)); }),                 \
       ({                                                            \
         tu_void_toi(                                                \
-            var_                                                    \
+            let                                                     \
                 TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
             = variable.TUPLE_EXPAND_FIRST(tuple);                   \
             TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)))           \
@@ -41,7 +41,7 @@
 #define STRFRY(x) STRFRYE(x)
 #define tu_ignore_assign(variable, value, type)      \
   do {                                               \
-    var_ _eval = value;                              \
+    let _eval = value;                               \
     _Static_assert(                                  \
         types_eq(                                    \
             typeof(_eval), typeof(variable)          \
@@ -70,7 +70,7 @@
         tu_ignore_assign(                                               \
             _result,                                                    \
             tu_void_toi(                                                \
-                var_                                                    \
+                let                                                     \
                     TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
                 = variable.TUPLE_EXPAND_FIRST(tuple);                   \
                 TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)))           \
@@ -81,7 +81,7 @@
   )
 #define tu_match(tunion, first, ...)                                    \
   ({                                                                    \
-    var_ _variable = tunion;                                            \
+    let _variable = tunion;                                             \
     tu_match_case_type(_variable, first) _result = (typeof(_result)){}; \
     switch (_variable.tag) {                                            \
       MACRO_EXPAND(tu_match_case(_variable, first))                     \
@@ -98,7 +98,7 @@
         TUPLE_EXPAND_REST(tuple);                               \
       } break;),                                                \
       (case (TU_TAG(TUPLE_EXPAND_FIRST(tuple))) : {             \
-        var_                                                    \
+        let                                                     \
             TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
             = variable.TUPLE_EXPAND_FIRST(tuple);               \
         TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)));          \
@@ -106,7 +106,7 @@
   )
 #define tu_match_void(tunion, ...)                             \
   do {                                                         \
-    var_ _variable = tunion;                                   \
+    let _variable = tunion;                                    \
     switch (_variable.tag) {                                   \
       APPLY_N_WITH(tu_match_case_void, _variable, __VA_ARGS__) \
     }                                                          \
@@ -114,15 +114,15 @@
 // }
 // {expr
 
-#define tu_match_case_type_exp(variable, tuple)                  \
-  typeof(IF_IS1(                                                 \
-      ID_CONCAT(tu_match_, TUPLE_EXPAND_FIRST(tuple)),           \
-      ({ TUPLE_EXPAND_REST(tuple); }),                           \
-      ({                                                         \
-        var_ TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
-            = variable.TUPLE_EXPAND_FIRST(tuple);                \
-        TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)));           \
-      })                                                         \
+#define tu_match_case_type_exp(variable, tuple)                 \
+  typeof(IF_IS1(                                                \
+      ID_CONCAT(tu_match_, TUPLE_EXPAND_FIRST(tuple)),          \
+      ({ TUPLE_EXPAND_REST(tuple); }),                          \
+      ({                                                        \
+        let TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
+            = variable.TUPLE_EXPAND_FIRST(tuple);               \
+        TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)));          \
+      })                                                        \
   ))
 
 #define tu_match_case_exp(variable, tuple)                            \
@@ -139,7 +139,7 @@
         tu_ignore_assign(                                             \
             _result,                                                  \
             ({                                                        \
-              var_                                                    \
+              let                                                     \
                   TUPLE_EXPAND_FIRST((TUPLE_EXPAND_REST(tuple))) /**/ \
                   = variable.TUPLE_EXPAND_FIRST(tuple);               \
               TUPLE_EXPAND_REST((TUPLE_EXPAND_REST(tuple)));          \
@@ -150,7 +150,7 @@
   )
 #define tu_match_exp(tunion, first, ...)                      \
   ({                                                          \
-    var_ _variable = tunion;                                  \
+    let _variable = tunion;                                   \
     tu_match_case_type_exp(_variable, first) _result;         \
     switch (_variable.tag) {                                  \
       MACRO_EXPAND(tu_match_case_exp(_variable, first))       \
@@ -164,13 +164,13 @@
 #define tu_is(type, item) ((item).tag == TU_TAG(type))
 #define tu_or(type, item, other, ...) \
   ({                                  \
-    var_ item_eval = item;            \
+    let item_eval = item;             \
     tu_is(type, item_eval)            \
         ? item_eval.type              \
         : (type)other __VA_ARGS__;    \
   })
 #define tu_catch(type, item, ...) (*({      \
-  var_ _tu_eval = &(item);                  \
+  let _tu_eval = &(item);                   \
   if_unlikely (!tu_is(type, (*_tu_eval))) { \
     __VA_ARGS__;                            \
     __builtin_trap();                       \

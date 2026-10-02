@@ -29,10 +29,10 @@ void *smap_get(sxmap *map, fptr k);
   #define msxmap_get(map, k) (ptrof(msxmap_iType(map))) smap_get((sxmap *)map, fp(k))
 msxmap(int) j;
   // {sxmap(map)
-  #define FOREACH_sxmap_cast(is)                                                        \
-    ((struct {fptr key;void *val; }){                                                   \
-        .key = *(fptr *)hxmap_key_at((hxmap *)is._m, is._idx),                           \
-        .val = hxmap_val_at((hxmap *)is._m, is._idx),                                    \
+  #define FOREACH_sxmap_cast(is)                               \
+    ((struct {fptr key;void *val; }){                                             \
+        .key = *(fptr *)hxmap_key_at((hxmap *)is._m, is._idx), \
+        .val = hxmap_val_at((hxmap *)is._m, is._idx),          \
     })
 
   #define FOREACH_sxmap_iter    \
@@ -43,10 +43,10 @@ msxmap(int) j;
         FOREACH_sxmap_cast)
   //}
   // {msxmap(map)
-  #define FOREACH_msxmap_cast(is)                                                  \
-    ((struct {fptr key; ptrof(msxmap_iType(is._m)) val; }){                        \
-        .key = *(fptr *)hxmap_key_at((hxmap *)is._m, is._idx),                     \
-        .val = (ptrof(msxmap_iType(is._m))) hxmap_val_at((hxmap *)is._m, is._idx), \
+  #define FOREACH_msxmap_cast(is)                                                 \
+    ((struct {fptr key; ptrof(msxmap_iType(is._m)) val; }){                                                                \
+        .key = *(fptr *)hxmap_key_at((hxmap *)is._m, is._idx),                    \
+        .val = (ptrof(msxmap_iType(is._m)))hxmap_val_at((hxmap *)is._m, is._idx), \
     })
 
   #define FOREACH_msxmap_iter   \
@@ -58,21 +58,21 @@ msxmap(int) j;
 //}
   #include "tests.h"
 test_fn(smap_test) {
-  var_ map = msxmap_init(allocator, int);
+  let map = msxmap_init(allocator, int);
   defer { msxmap_deinit(map); };
   char buffer[sizeof("integer ") + 10];
   foreach (int i, range(0, 50)) {
-    var_ str = ((fptr){(usize)snprintf(buffer, sizeof(buffer), "integer %i", i), (u8 *)buffer});
+    let str = ((fptr){(usize)snprintf(buffer, sizeof(buffer), "integer %i", i), (u8 *)buffer});
     msxmap_set(map, str, i);
   }
   foreach (int i, range(0, 50)) {
-    var_ str = ((fptr){(usize)snprintf(buffer, sizeof(buffer), "integer %i", i), (u8 *)buffer});
-    var_ m = msxmap_get(map, str);
+    let str = ((fptr){(usize)snprintf(buffer, sizeof(buffer), "integer %i", i), (u8 *)buffer});
+    let m = msxmap_get(map, str);
     test_assert(*m == i);
     if (i % 2) msxmap_rem(map, str);
   }
   foreach (int i, range(0, 50)) {
-    var_ str = ((fptr){(usize)snprintf(buffer, sizeof(buffer), "integer %i", i), (u8 *)buffer});
+    let str = ((fptr){(usize)snprintf(buffer, sizeof(buffer), "integer %i", i), (u8 *)buffer});
     if (!(i % 2)) test_assert(*msxmap_get(map, str) == i);
     else test_assert(!msxmap_get(map, str));
   }
@@ -88,14 +88,14 @@ cmpres cmpfptr(void *, const void *a, const void *b);
 u64 hashfptr(void *, const void *a) { return fptr_hash(*(fptr *)a); }
 cmpres cmpfptr(void *, const void *a, const void *b) { return fptr_cmp(*(fptr *)a, *(fptr *)b); }
 sxmap *smap_new(allocfn allocator, u32 vsize, usize cap, usize arenaSize) {
-  var_ res = acreate(allocator, sxmap);
+  let res = acreate(allocator, sxmap);
   hxmap_newm(allocator, sizeof(fptr), vsize, cap, (hxmap_hsh){hashfptr}, (hxmap_cmp){cmpfptr}, res->hmap);
   // oxmap_newm(allocator, sizeof(fptr), vsize, cmpfptr, res->omap);
   res->stringArena = arena_new_ext(allocator, arenaSize);
   return res;
 }
 void smap_free(sxmap *map) {
-  var_ allocator = map->hmap->allocator;
+  let allocator = map->hmap->allocator;
   arena_cleanup(map->stringArena);
   hxmap_freem(map->hmap[0]);
   adestroy(allocator, map);
@@ -103,7 +103,7 @@ void smap_free(sxmap *map) {
 void *smap_set(sxmap *map, fptr k, void *b) {
   if (!k.len) return nullptr;
   if (!b) return hxmap_set(map->hmap, &k, nullptr);
-  var_ copy = P$(
+  let copy = P$(
       hxmap_get(map->hmap, &k),
       ({
         $

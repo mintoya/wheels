@@ -20,7 +20,7 @@ static inline fptr fptr_CSP(const char *cstr) { return ((fptr){(usize)strlen((ch
 static inline fptr fptr_fromPL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
 static inline fptr fptr_PL(const void *cstr, usize len) { return (fptr){len, (u8 *)cstr}; }
 static inline bool fptr_isEmpty(fptr f) {
-  foreach (var_ i, span(f.ptr, f.len))
+  foreach (let i, span(f.ptr, f.len))
     if (i[0]) return false;
   return true;
 }
@@ -37,8 +37,8 @@ static inline usize sentList_length(void *items, usize unit) {
   #define sentList_len(l) sentList_length(l, sizeof(*l))
 
   #define sentlist_clone(allocator, sl) ({                      \
-    var_ _sl = sl;                                              \
-    var_ _slen = sentList_len(_sl);                             \
+    let _sl = sl;                                               \
+    let _slen = sentList_len(_sl);                              \
     (typeof(sl))                                                \
         memcpy(                                                 \
             acreate(allocator, arrof(ptrstype(sl), _slen + 1)), \

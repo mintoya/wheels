@@ -40,7 +40,7 @@ static inline sList_header *sList_realloc(allocfn allocator, sList_header *heade
     res->capacity = newsize;
     return res;
   } else {
-    var_ _new = sList_new(allocator, newsize, width);
+    let _new = sList_new(allocator, newsize, width);
     usize cl = (newsize < header->length ? newsize : header->length);
     memcpy(_new->buf, header->buf, width * cl);
     _new->length = cl;
@@ -156,7 +156,7 @@ static struct bbs_result bbsearch(
   const char *base = (const char *)base0;
 
   for (usize lim = nmemb; lim; lim /= 2) {
-    var_ p = base + (lim >> 1) * size;
+    let p = base + (lim >> 1) * size;
     cmpres cmp = compar ? compar(ctx, key, p) : cmp_memcmp(key, p, size);
     if (cmp == cmp_eq)
       return (r_t){(void *)p, 1, ((u8 *)p - (u8 *)base0) / size};
@@ -167,21 +167,21 @@ static struct bbs_result bbsearch(
   }
   return (r_t){(void *)base, 0, ((u8 *)base - (u8 *)base0) / size};
 }
-  #define bbs_vla(it, vla, ...) ({                                                                        \
-    var_ _evla = &vla;                                                                                    \
-    var_ _eit = it;                                                                                       \
-    _Static_assert(types_eq(typeof(_eit), typeof(**_evla)), "searching for wrong type in list");          \
-    var_ _rxbs = bbsearch(&_eit, *_evla, countof(*_evla), sizeof(_eit), VA_SWITCH(nullptr, __VA_ARGS__)); \
-    struct {                                                                                              \
-      typeof(_eit) *p;                                                                                    \
-      bool f;                                                                                             \
-      usize i;                                                                                            \
-    } _rxbst = {                                                                                          \
-        (typeof(_eit) *)_rxbs.p,                                                                          \
-        _rxbs.f,                                                                                          \
-        _rxbs.i,                                                                                          \
-    };                                                                                                    \
-    _rxbst;                                                                                               \
+  #define bbs_vla(it, vla, ...) ({                                                                       \
+    let _evla = &vla;                                                                                    \
+    let _eit = it;                                                                                       \
+    _Static_assert(types_eq(typeof(_eit), typeof(**_evla)), "searching for wrong type in list");         \
+    let _rxbs = bbsearch(&_eit, *_evla, countof(*_evla), sizeof(_eit), VA_SWITCH(nullptr, __VA_ARGS__)); \
+    struct {                                                                                             \
+      typeof(_eit) *p;                                                                                   \
+      bool f;                                                                                            \
+      usize i;                                                                                           \
+    } _rxbst = {                                                                                         \
+        (typeof(_eit) *)_rxbs.p,                                                                         \
+        _rxbs.f,                                                                                         \
+        _rxbs.i,                                                                                         \
+    };                                                                                                   \
+    _rxbst;                                                                                              \
   })
 static inline sList_header *sList_appendFromArr(allocfn allocator, sList_header *l, usize width, void *source, usize ammount) {
   return sList_insertFromArr(allocator, l, source, ammount, l->length, width);
@@ -294,7 +294,7 @@ struct msList_stackBuffer_t {
       s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), capacity)->buf; \
     } while (0)
   #define msList_clone(allocator, list) ({               \
-    var_ res = msList_init(allocator, typeof(*list));    \
+    let res = msList_init(allocator, typeof(*list));     \
     msList_pushArr(allocator, res, (*msList_vla(list))); \
     res;                                                 \
   })
@@ -331,22 +331,22 @@ struct msList_stackBuffer_t {
       if (msList_cap(s) < (new_cap))                                                         \
         s = (typeof(s))sList_realloc(allocator, msList_header(s), sizeof(*s), new_cap)->buf; \
     } while (0)
-  #define msList_toOwned(allocator, s)                                \
-    ({ /*TODO*/                                                       \
-       unreachable();                                                 \
-       usize c = msList_cap(s);                                       \
-       usize l = msList_len(s);                                       \
-       var_ _r = memcpy(msList_header(s), s, sizeof(*msList_vla(s))); \
-       s = nullptr;                                                   \
-       _r = aResize(allocator, _r, c * sizeof(*s), l * sizeof(*s));   \
-       _r;                                                            \
+  #define msList_toOwned(allocator, s)                               \
+    ({ /*TODO*/                                                      \
+       unreachable();                                                \
+       usize c = msList_cap(s);                                      \
+       usize l = msList_len(s);                                      \
+       let _r = memcpy(msList_header(s), s, sizeof(*msList_vla(s))); \
+       s = nullptr;                                                  \
+       _r = aResize(allocator, _r, c * sizeof(*s), l * sizeof(*s));  \
+       _r;                                                           \
     })
 
   #include "macros.h"
   #include "tests.h"
 
 test_fn(msList_push_pop) {
-  var_ lbuf = msList_stackBuffer(int[25]);
+  let lbuf = msList_stackBuffer(int[25]);
   msList(int) list = msList_initBuffer(lbuf);
   defer { msList_deInit(allocator, list); };
   foreach (usize i, range(0, 50))
@@ -355,7 +355,7 @@ test_fn(msList_push_pop) {
     test_assert(list[i] == i * i);
 }
 test_fn(msList_push_pop2) {
-  var_ lbuf = msList_stackBuffer(int[25]);
+  let lbuf = msList_stackBuffer(int[25]);
   msList(int) list = msList_initBuffer(lbuf);
   defer { msList_deInit(nullptr, list); };
   foreach (usize i, range(0, 22))

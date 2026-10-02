@@ -103,14 +103,14 @@ struct DeferHelper {
   #elif defined(__clang__)
     #pragma GCC warning "using clang block defer (captures only work on pointers)"
 static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
-    #define defer __attribute__((cleanup(_defer_cleanup_block))) void (^ID_CONCAT(_defer_var__, __COUNTER__))(void) = ^
+    #define defer __attribute__((cleanup(_defer_cleanup_block))) void (^ID_CONCAT(_defer_let_, __COUNTER__))(void) = ^
   #elif defined(__GNUC__)
     #pragma GCC warning "using gnu nested function defer"
-    #define _defer_helper(func_name, var__name)              \
-      auto inline void func_name(int *);                     \
-      int var__name __attribute__((cleanup(func_name))) = 0; \
+    #define _defer_helper(func_name, let_name)              \
+      auto inline void func_name(int *);                    \
+      int let_name __attribute__((cleanup(func_name))) = 0; \
       inline void func_name(int *_)
-    #define defer _defer_helper(ID_CONCAT(_defer_func_, __COUNTER__), ID_CONCAT(_defer_var__, __COUNTER__))
+    #define defer _defer_helper(ID_CONCAT(_defer_func_, __COUNTER__), ID_CONCAT(_defer_let_, __COUNTER__))
   #endif
 
   #define APPLY_N(macro, ...) \
@@ -232,12 +232,10 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 // var
 //
 
-  #define var_ __auto_type
   #if defined __cplusplus
     #define __auto_type auto
   #endif
-  #define Var var_
-  #define let var_
+  #define let auto
 
 //
 // expect
@@ -265,8 +263,8 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
     ({                                                                            \
       let _state = (state);                                                       \
       ({                                                                          \
-        var_ $ = _state;                                                          \
-        var_ _res = arg;                                                          \
+        let $ = _state;                                                           \
+        let _res = arg;                                                           \
         __VA_OPT__(P$_FOLD_INDIRECT PARENTHESIS_HELPER(_res, __VA_ARGS__) P$_EAT) \
         (_res);                                                                   \
       });                                                                         \
@@ -277,12 +275,12 @@ static void _defer_cleanup_block(void (^*block)(void)) { (*block)(); }
 
   #define MAX$_HELP(b)           \
     ({                           \
-      var_ b_eval = b;           \
+      let b_eval = b;            \
       (b_eval < $ ? $ : b_eval); \
     })
   #define MIN$_HELP(b)           \
     ({                           \
-      var_ b_eval = b;           \
+      let b_eval = b;            \
       (b_eval > $ ? $ : b_eval); \
     })
 

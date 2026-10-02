@@ -41,7 +41,7 @@ int main(void) {
     defer { msList_deInit(debug, a); };
     bigint b = BInt.from.i64(debug, 16);
     defer { msList_deInit(debug, b); };
-    var_ c = BInt.div(debug, a, b);
+    let c = BInt.div(debug, a, b);
     defer { msList_deInit(debug, c.div); };
     defer { msList_deInit(debug, c.mod); };
     println(

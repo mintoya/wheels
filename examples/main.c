@@ -10,7 +10,7 @@ int main(void) {
       (i32, i32),
       (u32, u32),
   );
-  var_ i = (integer)tu_of(i32, 1);
+  let i = (integer)tu_of(i32, 1);
 
   foreach (let i, range(0, 5)) {
   }

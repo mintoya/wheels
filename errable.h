@@ -191,11 +191,11 @@ test_fn(errable_try_bubble) {
 }
 
 test_fn(errable_call_err_raw) {
-  var_ success_res = call_err(test_divide, (10, 2));
+  let success_res = call_err(test_divide, (10, 2));
   test_assert(!success_res.err.err_code);
   test_assert(success_res.result == 5);
 
-  var_ fail_res = call_err(test_divide, (10, 0));
+  let fail_res = call_err(test_divide, (10, 0));
   test_assert(fail_res.err.err_code);
   test_streq(fail_res.err.err_code, "DIV_BY_ZERO");
 }

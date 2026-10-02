@@ -178,7 +178,7 @@ struct nullable_t {
   #define sliceCast(to_elem, from)                             \
     ({                                                         \
       ASSERT_EXPR(sizeof(to_elem) == sizeof(from.ptr[0]), );   \
-      var_ from_tmp = from;                                    \
+      let from_tmp = from;                                    \
       (slice(to_elem)){from_tmp.len, (to_elem *)from_tmp.ptr}; \
     })
 sliceDef(c8);
@@ -247,16 +247,16 @@ struct slice_array {
       MACRO_EXPAND(SLICE_CUT_HELPER(slice, 0, __VA_ARGS__ __VA_OPT__(, )(slice).len)) \
     }
 
-  #define slice_last(slice) (*({var_ _slice = slice; &_slice.ptr[_slice.len -1 ]; }))
-  #define slice_first(slice) ({var_ _slice = slice; _slice.ptr[0]; })
+  #define slice_last(slice) (*({let _slice = slice; &_slice.ptr[_slice.len -1 ]; }))
+  #define slice_first(slice) ({let _slice = slice; _slice.ptr[0]; })
 
   #define sentList_t(type) typeof(/*sentinel termintated list*/ type *)
   #define sentList(type, ...) \
     (type[]) { __VA_OPT__(__VA_ARGS__, )(type){0} }
-  #define sentList_vla(list) ({var_ _list = list; VLAP(_list, sentList_length(_list, sizeof(*_list))); })
+  #define sentList_vla(list) ({let _list = list; VLAP(_list, sentList_length(_list, sizeof(*_list))); })
 
   #define slice_clone(allocator, slice) ({                \
-    var_ _s = slice;                                      \
+    let _s = slice;                                      \
     (typeof(slice)){                                      \
         _s.len,                                           \
         memcpy(                                           \

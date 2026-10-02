@@ -22,7 +22,7 @@ static inline allocfn TSA_init(allocfn underlying) {
 static inline void TSA_deinit(allocfn allocator) {
   TSA_State *ts = (typeof(ts))allocator;
   mtx_destroy(ts->mutex);
-  var_ a = ts->underlying;
+  let a = ts->underlying;
   adestroy(a, ts);
 }
 

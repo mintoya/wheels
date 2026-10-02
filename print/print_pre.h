@@ -174,7 +174,7 @@ static slice(c8) vsn_print_fn(allocfn allocator, char *fmt, struct print_arg *ar
       fmt,
       args
   );
-  var_ sn_slice_result = slice_alloc(allocator, c8, sn_length_);
+  let sn_slice_result = slice_alloc(allocator, c8, sn_length_);
   sn_slice_result.len = 0;
   print_f(
       sn_print,

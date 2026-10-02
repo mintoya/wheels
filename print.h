@@ -67,7 +67,7 @@ typePrinter(f128) {
   usize digits = 0;
   let args = PRINTARGS();
   if (args.len)
-    for (var_ i = 0; i < args.len && (args.ptr[i] <= '9' && args.ptr[i] >= '0'); i++) {
+    for (let i = 0; i < args.len && (args.ptr[i] <= '9' && args.ptr[i] >= '0'); i++) {
       digits *= 10;
       digits += args.ptr[i] - '0';
     }
@@ -248,7 +248,7 @@ printerFunction PrinterSingleton_get(fptr name) {
 
   lasttick = !lasttick;
 
-  if_decl (var_ val, printermap_get(PrinterSingleton.data, name)) {
+  if_decl (let val, printermap_get(PrinterSingleton.data, name)) {
     memcpy(&lastprinters[lasttick], val, sizeof(*val));
     lastnames[lasttick] = *printermap_val_key(PrinterSingleton.data, val);
     return *val;
@@ -301,7 +301,7 @@ void print_f_helper(struct print_arg p, fptr typeName, printerfunction_context _
     USETYPEPRINTER(pEsc, ((pEsc){.fg = {255, 0, 0}, .fgset = true}));
     PUTS("__ NO_TYPE(");
     if (typeName.len)
-      foreach (var_ i, span(typeName.ptr, typeName.len))
+      foreach (let i, span(typeName.ptr, typeName.len))
         PUTC((c8)i[0]);
     PUTS(") __");
     USETYPEPRINTER(pEsc, ((pEsc){.reset = true}));
@@ -421,7 +421,7 @@ void print_f(
           .len = j - i - 1,
           .ptr = ((u8 *)fmt) + i + 1,
       };
-      var_ assumedName = *args++;
+      let assumedName = *args++;
 
       fptr tname = parg.until(':', typeName);
       let list = print_f_makeArgs(allocator, slice_split(typeName, (tname.len + 1, -1))[0]);

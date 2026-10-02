@@ -19,7 +19,7 @@ CONST_EXPR ts_int ts_int_day = ts_int_hour * 24;
 static inline ts_int timespec_int(timespec in) { return ((ts_int)in.tv_sec * ts_int_s) + in.tv_nsec; }
 static inline timespec int_timespec(ts_int in) { return (timespec){(itypeof(timespec, tv_sec))(in / ts_int_s), (itypeof(timespec, tv_nsec))(in % ts_int_s)}; }
 static inline ts_int now() {
-  var_ ts = (struct timespec){};
+  let ts = (struct timespec){};
   assertMessage(timespec_get(&ts, TIME_UTC) == TIME_UTC);
   return timespec_int(ts);
 }
@@ -32,7 +32,7 @@ typePrinter(ts_int) {
   PUTS("{");
   #pragma push_macro("PRINT_TIME_FMT")
   #define PRINT_TIME_FMT(name, var)    \
-    if_decl (var_ t, in / var) {       \
+    if_decl (let t, in / var) {        \
       PUTS(name ":");                  \
       USETYPEPRINTER(usize, (usize)t); \
       if (in %= var)                   \

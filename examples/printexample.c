@@ -19,7 +19,7 @@ int main() {
   mList_push(points, ((point){6, 1}));
   mList_push(points, ((point){0, 2}));
   mList_ins(points, 1, ((point){1, 0}));
-  foreach (var_ p, vla(*mList_vla(points)))
+  foreach (let p, vla(*mList_vla(points)))
     println("foreach : {point}", p);
   println("length  : {}\n"
           "capacity: {}",

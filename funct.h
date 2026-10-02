@@ -208,10 +208,10 @@ tpool_single_t tpool_init(allocfn alloc);
 void tpool_deInit(tpool_single_t pool);
 void tpool_addWorkers(tpool_single_t pool, usize count);
 
-  #define defunction_call(name, argss) ({           \
-    var_ _ins = defunction_argsStruct(name, argss); \
-    name##_wrapper(&_ins);                          \
-    _ins.result;                                    \
+  #define defunction_call(name, argss) ({          \
+    let _ins = defunction_argsStruct(name, argss); \
+    name##_wrapper(&_ins);                         \
+    _ins.result;                                   \
   })
   #define thrdfunction_call(alloc, name, argss) ({                   \
     name##_struct_t *_structdata = acreate(                          \
@@ -223,7 +223,7 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
         REM_PAREN argss,                                             \
     };                                                               \
     (void)sizeof(name(_structdata->args.threadid, REM_PAREN argss)); \
-    var_ k = name##_spawn(_structdata);                              \
+    let k = name##_spawn(_structdata);                               \
     _structdata;                                                     \
   })
   #define thrdfunction_await(alloc, future) ({                                  \
@@ -239,25 +239,25 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
     };                                                                          \
     _r;                                                                         \
   })
-  #define poolfunction_call(pool, func, argss) ({                                           \
-    var_ args = acreate(tpool_allocator(pool), typeof(defunction_argsStruct(func, argss))); \
-    *args = defunction_argsStruct(func, argss);                                             \
-    var_ future = _tpool_queup(pool, (basic_closure_t){args, func##_wrapper});              \
-    struct {                                                                                \
-      typeof(future) future;                                                                \
-      typeof(*args) argsType[0];                                                            \
-    } _r = {future};                                                                        \
-    _r;                                                                                     \
+  #define poolfunction_call(pool, func, argss) ({                                          \
+    let args = acreate(tpool_allocator(pool), typeof(defunction_argsStruct(func, argss))); \
+    *args = defunction_argsStruct(func, argss);                                            \
+    let future = _tpool_queup(pool, (basic_closure_t){args, func##_wrapper});              \
+    struct {                                                                               \
+      typeof(future) future;                                                               \
+      typeof(*args) argsType[0];                                                           \
+    } _r = {future};                                                                       \
+    _r;                                                                                    \
   })
-  #define poolfunction_call_type(pool, func, type, argss) ({                                \
-    var_ args = acreate(tpool_allocator(pool), typeof(defunction_argsStruct(func, argss))); \
-    *args = defunction_argsStruct(func, argss);                                             \
-    var_ future = _tpool_queup(pool, (basic_closure_t){args, func##_wrapper});              \
-    type _r = {future};                                                                     \
-    _r;                                                                                     \
+  #define poolfunction_call_type(pool, func, type, argss) ({                               \
+    let args = acreate(tpool_allocator(pool), typeof(defunction_argsStruct(func, argss))); \
+    *args = defunction_argsStruct(func, argss);                                            \
+    let future = _tpool_queup(pool, (basic_closure_t){args, func##_wrapper});              \
+    type _r = {future};                                                                    \
+    _r;                                                                                    \
   })
   #define poolfunction_await(pool, futuree) ({                              \
-    var_ _future = futuree;                                                 \
+    let _future = futuree;                                                  \
     defer { adestroy(tpool_allocator(pool), _future.future); };             \
     defer {                                                                 \
       adestroy(                                                             \
@@ -266,7 +266,7 @@ void tpool_addWorkers(tpool_single_t pool, usize count);
       );                                                                    \
     };                                                                      \
     _tpool_wait_loop(pool, _future.future->task.done);                      \
-    var_ _r = (typeof(_future.argsType[0]) *)_future.future->task.task.arg; \
+    let _r = (typeof(_future.argsType[0]) *)_future.future->task.task.arg;  \
     _r->result;                                                             \
   })
 
@@ -279,16 +279,16 @@ deffunction_thrd(inc_integer_test, ((mutex(int, mutex_plain) *, i)), void) {
   } else unreachable();
 }
 test_fn(thread_function) {
-  var_ tsa = TSA_init(allocator);
+  let tsa = TSA_init(allocator);
   defer { TSA_deinit(tsa); };
 
   mutex(int, mutex_plain) integer = mutex_initW(int, mutex_plain, 0);
 
   typedef typeof(thrdfunction_call(tsa, inc_integer_test, (&integer))) ifuture;
-  var_ list = mList_init(tsa, ifuture);
+  let list = mList_init(tsa, ifuture);
   defer { mList_deinit(list); };
 
-  foreach (var_ j, range(0, 5))
+  foreach (let j, range(0, 5))
     mList_push(list, thrdfunction_call(tsa, inc_integer_test, (&integer)));
 
   while (mList_len(list))
@@ -306,7 +306,7 @@ test_fn(thread_function) {
 
 static bool tpool_doSingle(tpool_single_t pool) {
   tpoolNode_t *task = NULL;
-  mutex_critical (var_ poolData, mutex_lock, (*pool)) {
+  mutex_critical (let poolData, mutex_lock, (*pool)) {
     if (poolData->tasks.first) {
       task = poolData->tasks.first;
       poolData->tasks.first = task->next;
@@ -317,7 +317,7 @@ static bool tpool_doSingle(tpool_single_t pool) {
   } else return false;
 
   if (task) {
-    var_ fn = task->task.task;
+    let fn = task->task.task;
     if (fn.fn) fn.fn(fn.arg);
     atomic_store(task->task.done, true);
     return true;
@@ -328,7 +328,7 @@ deffunction_thrd(tpool_worker, ((tpool_single_t, pool)), nothing_t) {
   while (1) {
     if (tpool_doSingle(pool)) continue;
     bool to_exit = false;
-    mutex_critical (var_ poolData, mutex_lock, (*pool)) {
+    mutex_critical (let poolData, mutex_lock, (*pool)) {
       while (!poolData->tasks.first && !poolData->shutdown)
         cnd_wait(&poolData->wake_cnd, pool->mtx);
       if (poolData->shutdown && !poolData->tasks.first)
@@ -341,7 +341,7 @@ tpoolNode_t *_tpool_queup(tpool_single_t pool, basic_closure_t fn) {
   tpoolNode_t *node = acreate(tpool_allocator(pool), tpoolNode_t);
   *node = (typeof(*node)){.task = {fn, {false}}, .next = NULL};
 
-  mutex_critical (var_ pooldata, mutex_lock, (*pool)) {
+  mutex_critical (let pooldata, mutex_lock, (*pool)) {
     if (pooldata->tasks.last)
       pooldata->tasks.last->next = node;
     else pooldata->tasks.first = node;
@@ -375,16 +375,16 @@ allocfn tpool_allocator(tpool_single_t pool) {
 void tpool_deInit(tpool_single_t pool) {
   typeof(((tpool *)NULL)->workers) workers = NULL;
   allocfn alloc = tpool_allocator(pool);
-  mutex_critical (var_ poolc, mutex_lock, (*pool)) {
+  mutex_critical (let poolc, mutex_lock, (*pool)) {
     workers = poolc->workers;
     poolc->shutdown = true;
     cnd_broadcast(&poolc->wake_cnd);
   } else unreachable();
 
-  foreach (var_ f, vla(*mList_vla(workers)))
+  foreach (let f, vla(*mList_vla(workers)))
     thrdfunction_await(alloc, f);
 
-  mutex_critical (var_ poolc, mutex_lock, (*pool)) {
+  mutex_critical (let poolc, mutex_lock, (*pool)) {
     cnd_destroy(&poolc->wake_cnd);
     mList_deinit(poolc->workers);
   } else unreachable();
@@ -393,11 +393,11 @@ void tpool_deInit(tpool_single_t pool) {
   adestroy(alloc, pool);
 }
 void tpool_addWorkers(tpool_single_t pool, usize count) {
-  mutex_critical (var_ poolc, mutex_lock, (*pool)) {
-    var_ list = poolc->workers;
-    var_ alloc = mList_allocator(list);
+  mutex_critical (let poolc, mutex_lock, (*pool)) {
+    let list = poolc->workers;
+    let alloc = mList_allocator(list);
 
-    foreach (var_ i, range(0, count))
+    foreach (let i, range(0, count))
       mList_push(list, thrdfunction_call(alloc, tpool_worker, (pool)));
   } else unreachable();
 }

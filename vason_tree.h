@@ -59,7 +59,7 @@ NAMESPACE_STRUCT(
 
 test_fn(vason_match) {
   vason_node root = vason_node_newTable(allocator);
-  var_ rp = &root;
+  let rp = &root;
   defer { vason_node_freeRecursive(allocator, *rp); };
 
   vason_node p_key = vason_node_str(allocator, "hello");
@@ -116,7 +116,7 @@ void vason_node_freeRecursive(allocfn allocator, vason_node n) {
       vason_node_freeRecursive(allocator, n.pair[1]);
     } break;
     case vason_TABLE: {
-      foreach (var_ item, vla(*msList_vla(n.table)))
+      foreach (let item, vla(*msList_vla(n.table)))
         vason_node_freeRecursive(allocator, item);
     } break;
     case vason_STRING:
@@ -181,7 +181,7 @@ void vason_node_intoContainer(vason_container *c, vason_node n, vason_index i) {
       };
       msList_pushArr(c->allocator, c->tables_strings, *VLAP((vason_span *)NULL, msList_len(n.table)));
       msList_pushArr(c->allocator, c->tags, *VLAP((vason_tag *)NULL, msList_len(n.table)));
-      foreach (var_ item, vla(*msList_vla(n.table)))
+      foreach (let item, vla(*msList_vla(n.table)))
         vason_node_intoContainer(c, item, tableStart++);
     } break;
     case vason_PAIR: {
@@ -251,7 +251,7 @@ vason_node vason_container_toNode(allocfn allocator, vason_container c) {
       vason_span vs = c.tables_strings[c.current];
       res = vason_node_newTable(allocator);
       msList_reserve(allocator, res.table, vs.end - vs.start);
-      for (var_ i = vs.start; i < vs.end; i++) {
+      for (let i = vs.start; i < vs.end; i++) {
         c.current = i;
         msList_push(allocator, res.table, vason_container_toNode(allocator, c));
       }
@@ -281,7 +281,7 @@ usize vason_node_footprint(vason_node n) {
     case vason_TABLE: {
       usize res = 0;
       res += sizeof(*msList_vla(n.table)) + sizeof(sList_header);
-      foreach (var_ item, vla(*msList_vla(n.table)))
+      foreach (let item, vla(*msList_vla(n.table)))
         res += vason_node_footprint(item);
       return res;
     } break;
@@ -302,7 +302,7 @@ vason_node vason_node_deepCopy(allocfn allocator, vason_node n) {
       assertMessage(false);
     case vason_TABLE: {
       res.table = msList_init(allocator, typeof(*n.table), msList_len(n.table));
-      foreach (var_ item, vla(*msList_vla(n.table)))
+      foreach (let item, vla(*msList_vla(n.table)))
         msList_push(allocator, res.table, vason_node_deepCopy(allocator, item));
     } break;
     case vason_PAIR: {
@@ -321,7 +321,7 @@ vason_node vason_node_deepCopy(allocfn allocator, vason_node n) {
 slice(c8) vason_node_toStr(allocfn allocator, vason_node n) {
   slice(c8) strp = {};
   vason_container c = vason_node_toContainer(allocator, n, &strp);
-  var_ v = vason_tostr(allocator, c);
+  let v = vason_tostr(allocator, c);
   vason_container_free(c);
   adestroy(allocator, (u8(*)[strp.len])strp.ptr);
   return v;

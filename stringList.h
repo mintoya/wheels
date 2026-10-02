@@ -242,8 +242,8 @@ fptr(stringList_push)(stringList *sl, fptr ptr) {
         fptr op = vlqbuf_toFptr((vlength *)sl->buff + offset);
         usize newlen =
             op.len - ptr.len - countof(u64_toVlen(0)._);
-        var_ b = u64_toVlen(newlen);
-        var_ bp = b._;
+        let b = u64_toVlen(newlen);
+        let bp = b._;
         usize bpl = countof(b._);
         while (bitcast(u8, *bp) == bitcast(u8, ((vlength){.hasNext = 1, .data = 0}))) {
           bp++;

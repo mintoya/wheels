@@ -142,7 +142,7 @@ typedef struct vason {
   bool simpleArray() {
     if (tag() != vason_TABLE)
       return false;
-    for (var_ i = origional->tables_strings[place].start;
+    for (let i = origional->tables_strings[place].start;
          i < origional->tables_strings[place].end;
          i++) {
       if (origional->tags[i] == vason_PAIR)
@@ -153,7 +153,7 @@ typedef struct vason {
   bool simpleMap() {
     if (tag() != vason_TABLE)
       return false;
-    for (var_ i = origional->tables_strings[place].start;
+    for (let i = origional->tables_strings[place].start;
          i < origional->tables_strings[place].end;
          i++) {
       if (origional->tags[i] != vason_PAIR)
@@ -414,7 +414,7 @@ vason_container vason_container_create(slice(c8) text, allocfn allocator) {
           .allocator /*      */ = allocator,
           .text /*           */ = text,
           .tokens /*         */ = NULL,
-      };
+  };
   return res;
 }
 void vason_container_free(vason_container container) {
@@ -833,7 +833,7 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
       bool escaped = false;
 
       vason_index count = 0;
-      for (var_ i = vs.start; i < vs.end; i++) {
+      for (let i = vs.start; i < vs.end; i++) {
         vason_token_t token = to_token(c.text.ptr[i]);
         if (escaped)
           escaped = false;
@@ -847,7 +847,7 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
       if (count >= 2)
         mList_push(res, '"');
 
-      for (var_ i = vs.start; i < vs.end; i++) {
+      for (let i = vs.start; i < vs.end; i++) {
         vason_token_t token = to_token(c.text.ptr[i]);
         if (escaped)
           escaped = false;
@@ -865,10 +865,10 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
     } break;
     case vason_PAIR: {
       vason_span vs = c.tables_strings[c.current];
-      for (var_ i = 0; i < 2; i++) {
+      for (let i = 0; i < 2; i++) {
         if (i)
           mList_push(res, ':');
-        var_ temp = (vason_container){
+        let temp = (vason_container){
             .current = (vason_index)(i + vs.start),
             .tags = c.tags,
             .tables_strings = c.tables_strings,
@@ -880,10 +880,10 @@ void vason_tostr_lesser(vason_container c, mList(c8) res) {
     case vason_TABLE: {
       vason_span vs = c.tables_strings[c.current];
       mList_push(res, '{');
-      for (var_ i = vs.start; i < vs.end; i++) {
+      for (let i = vs.start; i < vs.end; i++) {
         if (i - vs.start)
           mList_push(res, ',');
-        var_ temp = (vason_container){
+        let temp = (vason_container){
             .current = i,
             .tags = c.tags,
             .tables_strings = c.tables_strings,
@@ -905,7 +905,7 @@ slice(c8) vason_tostr(allocfn allocator, vason_container c) {
   vason_tostr_lesser(c, res);
 
   usize length = mList_len(res);
-  var_ s = mList_toOwned(allocator, res);
+  let s = mList_toOwned(allocator, res);
   slice(c8) result = (slice(c8)){length, s};
   return result;
 }
