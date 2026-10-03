@@ -272,7 +272,9 @@ static slice(c8) vsn_print_fn(allocfn allocator, char *fmt, struct print_arg *ar
 
   #define tuprint(...) tuprint_wfo(fileprint, stdout, __VA_ARGS__)
   #define print_wf(print, fmt, ...) print_wfO(print, NULL, fmt, __VA_ARGS__)
-  #define print_(fmt, ...) print_wfO(fileprint, stdout, fmt, __VA_ARGS__)
+  #if !defined print_
+    #define print_(fmt, ...) print_wfO(fileprint, stdout, fmt "", __VA_ARGS__)
+  #endif
   #define println_(fmt, ...) print_(fmt "\n", __VA_ARGS__)
   #if !defined PRINT_NDEF
     // #define fprint(...) fprint_(__VA_ARGS__)
