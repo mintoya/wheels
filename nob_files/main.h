@@ -26,7 +26,6 @@
 #define COMMON_CFLAGS            \
   INPUT_FLAGS,                   \
       "-std=c2y",                \
-      "-fdefer-ts",              \
       "-fno-sanitize=vla-bound", \
       "-fsanitize=alignment",    \
       "-finstrument-functions",  \

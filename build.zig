@@ -7,6 +7,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
 
     const exe = b.addExecutable(.{
+
         .name = "wheels",
         .root_module = b.createModule(.{
             .target = target,
