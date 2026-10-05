@@ -26,22 +26,7 @@ void *oxmap_val_key(const oxmap *map, const void *val);
 void *oxmap_set(oxmap *map, const void *key, const void *val);
 void *oxmap_get(const oxmap *map, const void *key);
 void oxmap_clear(oxmap *map);
-oxmap *oxmap_copy(allocfn allocator, oxmap *map) {
-  let res = avalue(
-      allocator,
-      ((oxmap){
-          .allocator = allocator,
-          .ksize = map->ksize,
-          .vsize = map->vsize,
-          .cmp = map->cmp,
-      })
-  );
-  res->keys = sList_new(allocator, map->keys->length, map->ksize);
-  res->vals = sList_new(allocator, map->vals->length, map->vsize);
-  sList_appendFromArr(allocator, res->keys, map->ksize, map->keys->buf, map->keys->length);
-  sList_appendFromArr(allocator, res->vals, map->vsize, map->vals->buf, map->vals->length);
-  return res;
-}
+oxmap *oxmap_copy(allocfn allocator, oxmap *map) ;
 
 void oxmap_newm(allocfn allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp) cmp, oxmap mem[1]);
 void oxmap_freem(oxmap map);
@@ -137,7 +122,7 @@ void oxmap_freem(oxmap map);
         FOREACH_oxmap_valid,    \
         FOREACH_moxmap_cast)
 // }
-cmpres test_icmp(void *, const void *a, const void *b) {
+static inline cmpres test_icmp(void *, const void *a, const void *b) {
   let ai = *(int *)a;
   let bi = *(int *)b;
   return ai > bi ? cmp_lt : bi > ai ? cmp_gt
@@ -231,6 +216,22 @@ void oxmap_newm(allocfn allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp) cmp
       .vals = sList_new(allocator, 2, vsize),
   });
   memcpy((void *)mem, &r, sizeof(r));
+}
+oxmap *oxmap_copy(allocfn allocator, oxmap *map) {
+  let res = avalue(
+      allocator,
+      ((oxmap){
+          .allocator = allocator,
+          .ksize = map->ksize,
+          .vsize = map->vsize,
+          .cmp = map->cmp,
+      })
+  );
+  res->keys = sList_new(allocator, map->keys->length, map->ksize);
+  res->vals = sList_new(allocator, map->vals->length, map->vsize);
+  sList_appendFromArr(allocator, res->keys, map->ksize, map->keys->buf, map->keys->length);
+  sList_appendFromArr(allocator, res->vals, map->vsize, map->vals->buf, map->vals->length);
+  return res;
 }
 oxmap *oxmap_new(allocfn allocator, u32 ksize, u32 vsize, itypeof(oxmap, cmp) cmp) {
   let r = acreate(allocator, oxmap);
