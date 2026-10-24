@@ -10,18 +10,20 @@ int add1 errs(int i, int j) {
   defer { println("bye"); };
   int res = 0;
   if (ckd_add(&res, i, j))
-    return_err("INTEGER_FLOW");
+    return_err("INTEGER_FLOW", 0);
   return res;
 }
 void adds errs() {
   let i = try_err(add1, (INT_MIN, -1));
 }
 int main(void) {
-  catch_errcall(add1, (INT_MAX, 1), (e) { //
-    if (!strcmp(e.err_code, "INTEGER_FLOW"))
-      println("cought integer overflow");
-    else err_panic(e);
-  });
+  catch_errcall((add1, (INT_MAX, 1)), e, //
+                ({                       //
+                  if (!strcmp(e.err_code, "INTEGER_FLOW"))
+                    println("cought integer overflow");
+                  else err_panic(e);
+                  0;
+                }));
   try_err(adds, (), 1);
   return 0;
 }

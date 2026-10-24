@@ -59,7 +59,7 @@ int main(void) {
   while (1) {
     bigint c = bigint_add(debug, a, b);
     i++;
-    println("{bigint} {},{}", c, i, msList_len(c));
+    println("{bigint} {},{}", c, i, sizeof(*msList_vla(c)));
     msList_deInit(debug, a);
     a = b;
     b = c;
