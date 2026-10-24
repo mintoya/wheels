@@ -1,18 +1,10 @@
 #if !defined ASSERTMESSAGE_H
   #define ASSERTMESSAGE_H (1)
   #include "macros.h"
-  #include "mytypes.h"
-  #include "trace.h"
-  #include <stdarg.h>
-  #include <stdio.h>
 
   #define TODO(str, ...) \
     ({ assertMessage(false, "todo : " #str); \
     _Pragma("GCC warning \" todo in program  \"")__VA_OPT__(( __VA_ARGS__ ){};) })
-
-  #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m" // ]
-  #define ASSERTMESSAGE_PRINTRESET "\x1b[0m"         // ]
-  #define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"      // ]
 
   #if __has_builtin(__builtin_trap)
     #define assertMessage_fail_ins() __builtin_trap()
@@ -20,6 +12,14 @@
     #define assertMessage_fail_ins() abort()
   #endif
 
+  #if !defined NOASSERTMESSAGE
+    #include "mytypes.h"
+    #include "trace.h"
+    #include <stdarg.h>
+    #include <stdio.h>
+    #define ASSERTMESSAGE_PRINTORANGE "\x1b[38;5;208m" // ]
+    #define ASSERTMESSAGE_PRINTRESET "\x1b[0m"         // ]
+    #define ASSERTMESSAGE_PRINTRED "\x1b[31m\n\n"      // ]
 void __attribute__((noreturn)) _assertMessageFail(
     const char *expr_str,
     const char *func,
@@ -28,6 +28,9 @@ void __attribute__((noreturn)) _assertMessageFail(
     const char *message,
     ...
 );
+  #else
+    #define _assertMessageFail(expr, ...) assert(false && #expr #__VA_ARGS__)
+  #endif
 
   #define assertMessage(expr, ...)            \
     ({                                        \
@@ -59,6 +62,8 @@ void __attribute__((noreturn)) _assertMessageFail(
 
   #undef ASSERTMESSAGE_C
   #define ASSERTMESSAGE_C (2)
+
+  #if !defined NOASSERTMESSAGE
 void __attribute__((noreturn)) _assertMessageFail(
     const char *expr_str,
     const char *func,
@@ -83,4 +88,5 @@ void __attribute__((noreturn)) _assertMessageFail(
     printf("\t%p\n", (char *)((char *)trace.ptr[i].fn - (char *)__base_address));
   assertMessage_fail_ins();
 }
+  #endif
 #endif
