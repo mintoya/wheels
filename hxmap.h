@@ -111,81 +111,57 @@ void hxmap_clear(hxmap *map);
   })
   #define mxmap_deinit(map) hxmap_free(((void)(sizeof(typeof(mxmap_valType(map)))), (hxmap *)map))
 
-//{hxmap(map)
+  #define hxmap_iter(map_ptr)                                                                        \
+    ((struct {                                                                                       \
+       typeof(map_ptr) _m;                                                                           \
+       size_t _idx;                                                                                  \
+       struct {                                                                                      \
+         void *key;                                                                                  \
+         void *val;                                                                                  \
+       } _val[0];                                                                                    \
+     }),                                                                                             \
+     ({._m = (map_ptr), ._idx = 0}),                                                                 \
+     (({                                                                                             \
+       iter_next_t(typeof($iter._val[0])) $result = {0};                                             \
+       while ($iter._idx < ((hxmap *)$iter._m)->cap &&                                               \
+              !hxmap_occupied((hxmap *)$iter._m, $iter._idx))                                        \
+         ++$iter._idx;                                                                               \
+       $result.hasvalue = $iter._idx < ((hxmap *)$iter._m)->cap;                                     \
+       if ($result.hasvalue) {                                                                       \
+         $result.value.key = (void *)hxmap_key_at((hxmap *)$iter._m, $iter._idx);                    \
+         $result.value.val = (typeof($result.value.val))hxmap_val_at((hxmap *)$iter._m, $iter._idx); \
+         ++$iter._idx;                                                                               \
+       }                                                                                             \
+       $result;                                                                                      \
+     })))
 
-  #define FOREACH_hxmap_init(map_ptr) ( \
-      struct {                          \
-        typeof(map_ptr) _m;             \
-        size_t _idx;                    \
-        struct {                        \
-          void *key;                    \
-          void *val;                    \
-        } _val[0];                      \
-      },                                \
-      ({                                \
-        let _map_eval = map_ptr;        \
-        (typeof(_foreach_._foreach_)){  \
-            ._m = _map_eval,            \
-            ._idx = 0,                  \
-        };                              \
-      })                                \
-  )
-  #define FOREACH_hxmap_increase(is) (is._idx++)
-  #define FOREACH_hxmap_valid(is)                                                         \
-    ({                                                                                    \
-      while (is._idx < ((hxmap *)is._m)->cap && !hxmap_occupied((hxmap *)is._m, is._idx)) \
-        is._idx++;                                                                        \
-      is._idx < ((hxmap *)is._m)->cap;                                                    \
-    })
-  #define FOREACH_hxmap_cast(is)                      \
-    ((typeof(is._val[0])){                            \
-        .key = hxmap_key_at((hxmap *)is._m, is._idx), \
-        .val = hxmap_val_at((hxmap *)is._m, is._idx), \
-    })
-
-  #define FOREACH_hxmap_iter    \
-    (                           \
-        FOREACH_hxmap_init,     \
-        FOREACH_hxmap_increase, \
-        FOREACH_hxmap_valid,    \
-        FOREACH_hxmap_cast)
-
-  #define FOREACH_mxmap_init(map_ptr, keytype, valtype) ( \
-      struct {                                            \
-        typeof(map_ptr) _m;                               \
-        size_t _idx;                                      \
-        struct {                                          \
-          keytype key;                                    \
-          valtype *val;                                   \
-        } _val[0];                                        \
-      },                                                  \
-      ({                                                  \
-        let _map_eval = map_ptr;                          \
-        _Static_assert(                                   \
-            types_eq(                                     \
-                typeof(_map_eval),                        \
-                typeof(mxmap(keytype, valtype))           \
-            ),                                            \
-            "wrong types passed to iterator"              \
-        );                                                \
-        (typeof(_foreach_._foreach_)){                    \
-            ._m = _map_eval,                              \
-            ._idx = 0,                                    \
-        };                                                \
-      })                                                  \
-  )
-  #define FOREACH_mxmap_cast(is)                                               \
-    ((typeof(is._val[0])){                                                     \
-        .key = *(typeof(is._val->key) *)hxmap_key_at((hxmap *)is._m, is._idx), \
-        .val = (typeof(is._val->val))hxmap_val_at((hxmap *)is._m, is._idx),    \
-    })
-  #define FOREACH_mxmap_iter    \
-    (                           \
-        FOREACH_mxmap_init,     \
-        FOREACH_hxmap_increase, \
-        FOREACH_hxmap_valid,    \
-        FOREACH_mxmap_cast)
-  //}
+  #define mxmap_iter(map_ptr, keytype, valtype)                                                         \
+    ((struct {                                                                                          \
+       typeof(map_ptr) _m;                                                                              \
+       size_t _idx;                                                                                     \
+       struct {                                                                                         \
+         keytype key;                                                                                   \
+         valtype *val;                                                                                  \
+       } _val[0];                                                                                       \
+     }),                                                                                                \
+     (({                                                                                                \
+       let $map = (map_ptr);                                                                            \
+       _Static_assert(types_eq(typeof($map), mxmap(keytype, valtype)), "wrong map iterator type");      \
+       (typeof($foreach.iter)){._m = $map, ._idx = 0};                                                  \
+     })),                                                                                               \
+     (({                                                                                                \
+       iter_next_t(typeof($iter._val[0])) $result = {0};                                                \
+       while ($iter._idx < ((hxmap *)$iter._m)->cap &&                                                  \
+              !hxmap_occupied((hxmap *)$iter._m, $iter._idx))                                           \
+         ++$iter._idx;                                                                                  \
+       $result.hasvalue = $iter._idx < ((hxmap *)$iter._m)->cap;                                        \
+       if ($result.hasvalue) {                                                                          \
+         $result.value.key = *(typeof($result.value.key) *)hxmap_key_at((hxmap *)$iter._m, $iter._idx); \
+         $result.value.val = (typeof($result.value.val))hxmap_val_at((hxmap *)$iter._m, $iter._idx);    \
+         ++$iter._idx;                                                                                  \
+       }                                                                                                \
+       $result;                                                                                         \
+     })))
   #include "tests.h"
 test_fn(hxmap_tests) {
   let map = mxmap_init(allocator, u32, hxint);
@@ -227,7 +203,7 @@ test_fn(hxmap_tests) {
 
   foreach (let item, mxmap_iter(map, u32, hxint))
     ps[0][item.key] = 1;
-  foreach (let x, vlap(ps))
+  foreach (let x, vlap_iter(ps))
     test_assert(x);
 
   foreach (u32 i, range(0, 1000)) {
@@ -351,7 +327,7 @@ static inline hxint hxmap_base_hash(const hxmap *m, const void *a) {
       return hxmap_mix(*(u8 *)bytes);
     default: {
       hxint hash = 0xcbf29ce484222325ULL;
-      foreach (let b, vla(*bytes)) {
+      foreach (let b, vla_iter(*bytes)) {
         hash ^= b;
         hash *= 0x100000001b3ULL;
       }

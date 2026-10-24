@@ -51,7 +51,7 @@ cmd_main(
   defer { vason_container_free(*f); };
   vason_index current = parsed.current;
   if (nargs)
-    foreach (char *cptr, vla(*VLAP(args, nargs))) {
+    foreach (char *cptr, vla_iter(*VLAP(args, nargs))) {
       current =
           isDigit(cptr[0])
               ? vason_get_idx(&parsed, current, atoi(cptr))

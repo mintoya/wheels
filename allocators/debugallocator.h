@@ -57,23 +57,20 @@ int debugAllocator_clear(allocfn allocator);
 int debugAllocatorDeInit(allocfn);
 typedef struct debugallocattorIterator_state {
   usize idx;
-  const allocfn _self;
+  allocfn _self;
 } debugallocattorIterator_state;
 debugallocattorIterator_state debugallocator_iterator_init(allocfn allocator);
 typedef struct {
   void *ptr;
   struct tracedata trace;
 } debugAllocator_iter_item;
-debugAllocator_iter_item debugallocator_iterator_cast(const debugallocattorIterator_state *);
-void debugallocator_iterator_increase(debugallocattorIterator_state *);
-bool debugallocator_iterator_valid(const debugallocattorIterator_state *);
+typedef iter_next_t(debugAllocator_iter_item) debugAllocator_iter_result;
+debugAllocator_iter_result debugallocator_iterator_next(debugallocattorIterator_state *);
 
 NAMESPACE_STRUCT(
     debugallocator_iterator,
     (init, &debugallocator_iterator_init),
-    (cast, &debugallocator_iterator_cast),
-    (increase, &debugallocator_iterator_increase),
-    (valid, &debugallocator_iterator_valid),
+    (next, &debugallocator_iterator_next),
 );
 
 #endif // MY_DEBUG_ALLOCATOR_H
@@ -218,33 +215,17 @@ debugallocattorIterator_state debugallocator_iterator_init(allocfn allocator) {
   let it = dbgallocator_map_iter_init(_self->map);
   return (debugallocattorIterator_state){it.current, allocator};
 }
-debugAllocator_iter_item debugallocator_iterator_cast(const debugallocattorIterator_state *s) {
+debugAllocator_iter_result debugallocator_iterator_next(debugallocattorIterator_state *s) {
   let cba = (callbackallocatorbuffer *)s->_self;
-  let _self = (debugAllocator_state *)(cba->udata);
-  let state = (dbgallocator_map_iter_state){
-      .map = _self->map,
-      .current = s->idx,
-  };
-  let it = dbgallocator_map_iter_cast(&state);
-  return (debugAllocator_iter_item){.ptr = it.key, .trace = *it.val};
-}
-void debugallocator_iterator_increase(debugallocattorIterator_state *s) {
-  let cba = (callbackallocatorbuffer *)s->_self;
-  let _self = (debugAllocator_state *)(cba->udata);
-  let state = (dbgallocator_map_iter_state){
-      .map = _self->map,
-      .current = s->idx,
-  };
-  dbgallocator_map_iter_increase(&state);
+  let self = (debugAllocator_state *)(cba->udata);
+  let state = (dbgallocator_map_iter_state){.map = self->map, .current = s->idx};
+  let next = dbgallocator_map_iter_next(&state);
   s->idx = state.current;
-}
-bool debugallocator_iterator_valid(const debugallocattorIterator_state *s) {
-  let cba = (callbackallocatorbuffer *)s->_self;
-  let _self = (debugAllocator_state *)(cba->udata);
-  let state = (dbgallocator_map_iter_state){
-      .map = _self->map,
-      .current = s->idx,
+  if (!next.hasvalue)
+    return (debugAllocator_iter_result){0};
+  return (debugAllocator_iter_result){
+      .hasvalue = 1,
+      .value = {.ptr = next.value.key, .trace = *next.value.val},
   };
-  return dbgallocator_map_iter_valid(&state);
 }
 #endif // MY_DEBUG_ALLOCATOR_C

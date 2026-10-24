@@ -381,7 +381,7 @@ void tpool_deInit(tpool_single_t pool) {
     cnd_broadcast(&poolc->wake_cnd);
   } else unreachable();
 
-  foreach (let f, vla(*mList_vla(workers)))
+  foreach (let f, vla_iter(*mList_vla(workers)))
     thrdfunction_await(alloc, f);
 
   mutex_critical (let poolc, mutex_lock, (*pool)) {

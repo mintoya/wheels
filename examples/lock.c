@@ -50,7 +50,7 @@ int main(void) {
 
   println("[Main] Awaiting all outer tasks to finish...");
   let total = 0;
-  foreach (let f, vla(*msList_vla(futures))) {
+  foreach (let f, vla_iter(*msList_vla(futures))) {
     total += poolfunction_await(pool, f);
   }
   println("[Main]  tasks finished. Total: {}", total);

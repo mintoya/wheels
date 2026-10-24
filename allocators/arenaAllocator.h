@@ -19,9 +19,9 @@ test_fn(arena_test) {
   let i32s = acreate(arena, int[100]);
   u8s = aresize(arena, u8s, u8[200]);
   i32s = aresize(arena, i32s, int[100]);
-  foreach (let i32, vla(*u8s))
+  foreach (let i32, vla_iter(*u8s))
     i32 *= i32;
-  foreach (let i32, vla(*i32s))
+  foreach (let i32, vla_iter(*i32s))
     i32 *= i32;
   test_assert(!((uptr)u8s % alignof(myAlign)));
   test_assert(!((uptr)i32s % alignof(myAlign)));

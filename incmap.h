@@ -117,7 +117,7 @@ static inline hxint MAP_FN(default_hash)(MAP_K a) {
       return *(u8 *)bytes * 0x85ebca6b;
     default: {
       hxint hash = 0xcbf29ce484222325ULL;
-      foreach (let b, vla(*bytes)) {
+      foreach (let b, vla_iter(*bytes)) {
         hash ^= b;
         hash *= 0x100000001b3ULL;
       }
@@ -318,48 +318,35 @@ typedef struct MAP_FN(iter_state) {
 } MAP_FN(iter_state);
 
 static inline MAP_FN(iter_state) MAP_FN(iter_init)(const mapname *map) {
-  MAP_FN(iter_state)
-  it = {.map = map, .current = 0};
-  let cap = (usize)1 << it.map->capbit;
-  while (it.current < cap && isHXEMPTY(it.map->flags[it.current]))
-    it.current++;
-  return it;
-}
-
-static inline int MAP_FN(iter_valid)(const MAP_FN(iter_state) * it) {
-  let cap = (usize)1 << it->map->capbit;
-  return it->current < cap;
-}
-
-static inline void MAP_FN(iter_increase)(MAP_FN(iter_state) * it) {
-  let cap = (usize)1 << it->map->capbit;
-  it->current++;
-  while (it->current < cap && isHXEMPTY(it->map->flags[it->current]))
-    it->current++;
+  return (MAP_FN(iter_state)){.map = map, .current = 0};
 }
 
 typedef struct MAP_FN(k_v) {
   MAP_K key;
   MAP_V *val;
 } MAP_FN(k_v);
-static inline MAP_FN(k_v) MAP_FN(iter_cast)(const MAP_FN(iter_state) * it) {
-  return (MAP_FN(k_v)){
-      .key = it->map->keys[it->current],
-      .val = it->map->vals + it->current
+typedef iter_next_t(MAP_FN(k_v)) MAP_FN(iter_result);
+
+static inline MAP_FN(iter_result) MAP_FN(iter_next)(MAP_FN(iter_state) * it) {
+  let cap = (usize)1 << it->map->capbit;
+  while (it->current < cap && isHXEMPTY(it->map->flags[it->current]))
+    ++it->current;
+  if (it->current == cap)
+    return (MAP_FN(iter_result)){0};
+  let idx = it->current++;
+  return (MAP_FN(iter_result)){
+      .hasvalue = 1,
+      .value = {.key = it->map->keys[idx], .val = it->map->vals + idx},
   };
 }
 
 typedef struct MAP_FN(iterator_t) {
-  const typeof(&MAP_FN(iter_init)) init;
-  const typeof(&MAP_FN(iter_valid)) valid;
-  const typeof(&MAP_FN(iter_increase)) increase;
-  const typeof(&MAP_FN(iter_cast)) cast;
+  typeof(&MAP_FN(iter_init)) init;
+  typeof(&MAP_FN(iter_next)) next;
 } MAP_FN(iterator_t);
 static const MAP_FN(iterator_t) MAP_FN(iterator) = {
-    &MAP_FN(iter_init),
-    &MAP_FN(iter_valid),
-    &MAP_FN(iter_increase),
-    &MAP_FN(iter_cast),
+    .init = &MAP_FN(iter_init),
+    .next = &MAP_FN(iter_next),
 };
 
 #undef mapconfig

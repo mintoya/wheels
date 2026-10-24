@@ -252,23 +252,16 @@ void List_remove(List *l, List_index_t i, size_t width, List_index_t length);
     _res;                                                                                                            \
   })
 
-  #define FOREACH_mList_init(list) ( \
-      struct {                       \
-        typeof(list) _list;          \
-        size_t _current;             \
-      },                             \
-      {list, 0}                      \
-  )
-  #define FOREACH_mList_increase(is) (is._current++)
-  #define FOREACH_mList_valid(is) (is._current < mList_len(is._list))
-  #define FOREACH_mList_cast(is) (*(is._current + mList_arr(is._list)))
-
-  #define FOREACH_mList_iter    \
-    (                           \
-        FOREACH_mList_init,     \
-        FOREACH_mList_increase, \
-        FOREACH_mList_valid,    \
-        FOREACH_mList_cast)
+  #define mList_iter(list)                                         \
+    ((struct { typeof(list) _list; size_t _current; }),                                                 \
+     ({._list = (list), ._current = 0}),                           \
+     (({                                                           \
+       iter_next_t(mList_iType($iter._list)) $result = {0};        \
+       $result.hasvalue = $iter._current < mList_len($iter._list); \
+       if ($result.hasvalue)                                       \
+         $result.value = mList_arr($iter._list)[$iter._current++]; \
+       $result;                                                    \
+     })))
   #define mList_map(allocator, list, ...) ({ \
     typedef typeof(({                        \
       mList_iType(list) $;                   \

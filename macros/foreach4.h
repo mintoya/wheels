@@ -31,7 +31,7 @@
   ((struct {                                                          \
      typeof((start) + 0) _initial;                                    \
      typeof((end) + 0) _final;                                        \
-     typeof((start) + (end) - (start)) _current;                      \
+     typeof((start) + 0) _current;                                    \
      typeof(VA_SWITCH(1, __VA_ARGS__)) _increment;                    \
      char _started;                                                   \
    }),                                                                \
@@ -113,18 +113,18 @@
 
 // table.init(args...) returns state; table.next(&state) returns
 // a result with hasvalue and value fields. The table is evaluated once.
-#define vtable(table, ...)                                    \
-  ((struct {                                                  \
-     typeof((table).init(__VA_ARGS__)) _state;                \
-     typeof(table) _table;                                    \
-   }),                                                        \
-   (({                                                        \
-     let $table = (table);                                    \
-     (typeof($foreach.iter)){                                 \
-         ._state = $table.init(__VA_ARGS__), ._table = $table \
-     };                                                       \
-   })),                                                       \
-   (($iter._table.next(&$iter._state))))
+#define vtable(table, ...)                                        \
+  ((struct {                                                      \
+     typeof((table).init(__VA_ARGS__)) _state;                    \
+     typeof(({ (table).next; })) _next;                           \
+   }),                                                            \
+   (({                                                            \
+     let $table = (table);                                        \
+     (typeof($foreach.iter)){                                     \
+         ._state = $table.init(__VA_ARGS__), ._next = $table.next \
+     };                                                           \
+   })),                                                           \
+   (($iter._next(&$iter._state))))
 
 #define ITER_POP_H(a, ...) (__VA_ARGS__)
 #define ITER_POP(tuple) ITER_POP_H tuple

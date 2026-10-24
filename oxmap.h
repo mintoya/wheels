@@ -52,76 +52,51 @@ void oxmap_freem(oxmap map);
       (void)sizeof((typeof((*map)((oxmap *)0, &_k)) *)0); \
       oxmap_set(moxmap_tox(map), &_k, nullptr);           \
     })
-// {iter
-  #define FOREACH_oxmap_init(map_ptr) ( \
-      struct {                          \
-        typeof(map_ptr) _m;             \
-        size_t _idx;                    \
-        struct {                        \
-          void *key;                    \
-          void *val;                    \
-        } _val[0];                      \
-      },                                \
-      ({                                \
-        let _map_eval = map_ptr;        \
-        (typeof(_foreach_._foreach_)){  \
-            ._m = _map_eval,            \
-            ._idx = 0,                  \
-        };                              \
-      })                                \
-  )
-  #define FOREACH_oxmap_increase(is) (is._idx++)
-  #define FOREACH_oxmap_valid(is) \
-    (is._idx < ((oxmap *)is._m)->keys->length)
-  #define FOREACH_oxmap_cast(is)                                                            \
-    ((typeof(is._val[0])){                                                                  \
-        .key = (void *)(((oxmap *)is._m)->keys->buf + (is._idx * ((oxmap *)is._m)->ksize)), \
-        .val = (void *)(((oxmap *)is._m)->vals->buf + (is._idx * ((oxmap *)is._m)->vsize)), \
-    })
+  #define oxmap_iter(map_ptr)                                                                                                       \
+    ((struct {                                                                                                                      \
+       typeof(map_ptr) _m;                                                                                                          \
+       size_t _idx;                                                                                                                 \
+       struct {                                                                                                                     \
+         void *key;                                                                                                                 \
+         void *val;                                                                                                                 \
+       } _val[0];                                                                                                                   \
+     }),                                                                                                                            \
+     ({._m = (map_ptr), ._idx = 0}),                                                                                                \
+     (({                                                                                                                            \
+       iter_next_t(typeof($iter._val[0])) $result = {0};                                                                            \
+       $result.hasvalue = $iter._idx < ((oxmap *)$iter._m)->keys->length;                                                           \
+       if ($result.hasvalue) {                                                                                                      \
+         $result.value.key = (void *)(((oxmap *)$iter._m)->keys->buf + $iter._idx * ((oxmap *)$iter._m)->ksize);                    \
+         $result.value.val = (typeof($result.value.val))(((oxmap *)$iter._m)->vals->buf + $iter._idx * ((oxmap *)$iter._m)->vsize); \
+         ++$iter._idx;                                                                                                              \
+       }                                                                                                                            \
+       $result;                                                                                                                     \
+     })))
 
-  #define FOREACH_oxmap_iter    \
-    (                           \
-        FOREACH_oxmap_init,     \
-        FOREACH_oxmap_increase, \
-        FOREACH_oxmap_valid,    \
-        FOREACH_oxmap_cast)
-
-  #define FOREACH_moxmap_init(map_ptr, K, V) ( \
-      struct {                                 \
-        typeof(map_ptr) _m;                    \
-        size_t _idx;                           \
-        struct {                               \
-          K key;                               \
-          V *val;                              \
-        } _val[0];                             \
-      },                                       \
-      ({                                       \
-        let _map_eval = map_ptr;               \
-        _Static_assert(                        \
-            types_eq(                          \
-                typeof(_map_eval),             \
-                moxmap(K, V)                   \
-            ),                                 \
-            "wrong map iterator type"          \
-        );                                     \
-        (typeof(_foreach_._foreach_)){         \
-            ._m = _map_eval,                   \
-            ._idx = 0,                         \
-        };                                     \
-      })                                       \
-  )
-  #define FOREACH_moxmap_cast(is)                                                                            \
-    ((typeof(is._val[0])){                                                                                   \
-        .key = *(typeof(is._val->key) *)(((oxmap *)is._m)->keys->buf + (is._idx * ((oxmap *)is._m)->ksize)), \
-        .val = (typeof(is._val->val))(((oxmap *)is._m)->vals->buf + (is._idx * ((oxmap *)is._m)->vsize)),    \
-    })
-  #define FOREACH_moxmap_iter   \
-    (                           \
-        FOREACH_moxmap_init,    \
-        FOREACH_oxmap_increase, \
-        FOREACH_oxmap_valid,    \
-        FOREACH_moxmap_cast)
-// }
+  #define moxmap_iter(map_ptr, K, V)                                                                                                   \
+    ((struct {                                                                                                                         \
+       typeof(map_ptr) _m;                                                                                                             \
+       size_t _idx;                                                                                                                    \
+       struct {                                                                                                                        \
+         K key;                                                                                                                        \
+         V *val;                                                                                                                       \
+       } _val[0];                                                                                                                      \
+     }),                                                                                                                               \
+     (({                                                                                                                               \
+       let $map = (map_ptr);                                                                                                           \
+       _Static_assert(types_eq(typeof($map), moxmap(K, V)), "wrong map iterator type");                                                \
+       (typeof($foreach.iter)){._m = $map, ._idx = 0};                                                                                 \
+     })),                                                                                                                              \
+     (({                                                                                                                               \
+       iter_next_t(typeof($iter._val[0])) $result = {0};                                                                               \
+       $result.hasvalue = $iter._idx < ((oxmap *)$iter._m)->keys->length;                                                              \
+       if ($result.hasvalue) {                                                                                                         \
+         $result.value.key = *(typeof($result.value.key) *)(((oxmap *)$iter._m)->keys->buf + $iter._idx * ((oxmap *)$iter._m)->ksize); \
+         $result.value.val = (typeof($result.value.val))(((oxmap *)$iter._m)->vals->buf + $iter._idx * ((oxmap *)$iter._m)->vsize);    \
+         ++$iter._idx;                                                                                                                 \
+       }                                                                                                                               \
+       $result;                                                                                                                        \
+     })))
 static inline cmpres test_icmp(void *, const void *a, const void *b) {
   let ai = *(int *)a;
   let bi = *(int *)b;
@@ -150,7 +125,7 @@ test_fn(oxmap_basic) {
     (*ints)[k] = 1;
   }
 
-  foreach (let i, vlap(ints))
+  foreach (let i, vlap_iter(ints))
     test_assert(i == 1);
 }
 test_fn(oxmap_basic_nosort) {
@@ -175,7 +150,7 @@ test_fn(oxmap_basic_nosort) {
     (*ints)[k] = 1;
   }
 
-  foreach (let i, vlap(ints))
+  foreach (let i, vlap_iter(ints))
     test_assert(i == 1);
 }
 test_fn(oxmap_macros) {
@@ -197,7 +172,7 @@ test_fn(oxmap_macros) {
     (*ints)[it.key] = 1;
   }
 
-  foreach (let i, vlap(ints))
+  foreach (let i, vlap_iter(ints))
     test_assert(i == 1);
 }
 #endif

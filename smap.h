@@ -27,34 +27,53 @@ void *smap_get(sxmap *map, fptr k);
   #define msxmap_set(map, k, v) (ptrof(msxmap_iType(map)))(smap_set((sxmap *)map, fp(k), (void *)REF(msxmap_iType(map), v)))
   #define msxmap_rem(map, k) ((void)smap_set((sxmap *)map, fp(k), nullptr))
   #define msxmap_get(map, k) (ptrof(msxmap_iType(map))) smap_get((sxmap *)map, fp(k))
-  // {sxmap(map)
-  #define FOREACH_sxmap_cast(is)                               \
-    ((struct {fptr key;void *val; }){                                             \
-        .key = *(fptr *)hxmap_key_at((hxmap *)is._m, is._idx), \
-        .val = hxmap_val_at((hxmap *)is._m, is._idx),          \
-    })
+  #define sxmap_iter(map_ptr)                                                                           \
+    ((struct {                                                                                          \
+       typeof(map_ptr) _m;                                                                              \
+       size_t _idx;                                                                                     \
+       struct {                                                                                         \
+         fptr key;                                                                                      \
+         void *val;                                                                                     \
+       } _val[0];                                                                                       \
+     }),                                                                                                \
+     ({._m = (map_ptr), ._idx = 0}),                                                                    \
+     (({                                                                                                \
+       iter_next_t(typeof($iter._val[0])) $result = {0};                                                \
+       while ($iter._idx < ((hxmap *)$iter._m)->cap &&                                                  \
+              !hxmap_occupied((hxmap *)$iter._m, $iter._idx))                                           \
+         ++$iter._idx;                                                                                  \
+       $result.hasvalue = $iter._idx < ((hxmap *)$iter._m)->cap;                                        \
+       if ($result.hasvalue) {                                                                          \
+         $result.value.key = *(typeof($result.value.key) *)hxmap_key_at((hxmap *)$iter._m, $iter._idx); \
+         $result.value.val = (typeof($result.value.val))hxmap_val_at((hxmap *)$iter._m, $iter._idx);    \
+         ++$iter._idx;                                                                                  \
+       }                                                                                                \
+       $result;                                                                                         \
+     })))
 
-  #define FOREACH_sxmap_iter    \
-    (                           \
-        FOREACH_hxmap_init,     \
-        FOREACH_hxmap_increase, \
-        FOREACH_hxmap_valid,    \
-        FOREACH_sxmap_cast)
-  //}
-  // {msxmap(map)
-  #define FOREACH_msxmap_cast(is)                                                 \
-    ((struct {fptr key; ptrof(msxmap_iType(is._m)) val; }){                                                                \
-        .key = *(fptr *)hxmap_key_at((hxmap *)is._m, is._idx),                    \
-        .val = (ptrof(msxmap_iType(is._m)))hxmap_val_at((hxmap *)is._m, is._idx), \
-    })
-
-  #define FOREACH_msxmap_iter   \
-    (                           \
-        FOREACH_hxmap_init,     \
-        FOREACH_hxmap_increase, \
-        FOREACH_hxmap_valid,    \
-        FOREACH_msxmap_cast)
-//}
+  #define msxmap_iter(map_ptr)                                                                          \
+    ((struct {                                                                                          \
+       typeof(map_ptr) _m;                                                                              \
+       size_t _idx;                                                                                     \
+       struct {                                                                                         \
+         fptr key;                                                                                      \
+         ptrof(msxmap_iType(map_ptr)) val;                                                              \
+       } _val[0];                                                                                       \
+     }),                                                                                                \
+     ({._m = (map_ptr), ._idx = 0}),                                                                    \
+     (({                                                                                                \
+       iter_next_t(typeof($iter._val[0])) $result = {0};                                                \
+       while ($iter._idx < ((hxmap *)$iter._m)->cap &&                                                  \
+              !hxmap_occupied((hxmap *)$iter._m, $iter._idx))                                           \
+         ++$iter._idx;                                                                                  \
+       $result.hasvalue = $iter._idx < ((hxmap *)$iter._m)->cap;                                        \
+       if ($result.hasvalue) {                                                                          \
+         $result.value.key = *(typeof($result.value.key) *)hxmap_key_at((hxmap *)$iter._m, $iter._idx); \
+         $result.value.val = (typeof($result.value.val))hxmap_val_at((hxmap *)$iter._m, $iter._idx);    \
+         ++$iter._idx;                                                                                  \
+       }                                                                                                \
+       $result;                                                                                         \
+     })))
   #include "tests.h"
 test_fn(smap_test) {
   let map = msxmap_init(allocator, int);
