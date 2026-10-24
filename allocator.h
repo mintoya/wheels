@@ -10,6 +10,7 @@ void *realloc(void *, size_t);
 void free(void *);
 
 typedef const struct allocfns *allocfn;
+typedef const struct allocfns allocfns;
 typedef const struct allocfns {
   const fnptrof(
       (allocfn, void *, usize, usize, const char *, const uint),

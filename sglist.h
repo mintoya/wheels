@@ -34,7 +34,7 @@
 
   #define sglist_deinit(list) ({                                             \
     let _p = &(list);                                                        \
-    for (usize _i = 0; _i < 30; _i++) {                                      \
+    foreach (let _i, range(0, countof(_p->arrays))) {                        \
       if (!_p->arrays[_i]) break;                                            \
       adestroy(                                                              \
           _p->allocator,                                                     \

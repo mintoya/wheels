@@ -5,21 +5,18 @@ pub fn build(b: *std.Build) void {
         .argv = &.{ "git", "clone", "https://github.com/jtsiomb/c11threads" },
     }) catch @panic("couldnt clone needed dependency");
     const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
-
         .name = "wheels",
         .root_module = b.createModule(.{
             .target = target,
             .link_libc = true,
-            .optimize = b.standardOptimizeOption(.{
-                .preferred_optimize_mode = .Debug,
-            }),
+            .optimize = optimize,
             .strip = false,
         }),
         // .use_llvm = false,
     });
-
     const cfile = b.option(
         []const u8,
         "file",
@@ -33,6 +30,25 @@ pub fn build(b: *std.Build) void {
         "-fsanitize=alignment",
         "-finstrument-functions",
     };
+    const calloc = b.addTranslateC(.{
+        .root_source_file = b.path("allocator.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const bridge_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("bridge.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    bridge_tests.root_module.addImport("calloc", calloc.createModule());
+
+    const run_bridge_tests = b.addRunArtifact(bridge_tests);
+    const test_step = b.step("test", "Run the Zig tests");
+    test_step.dependOn(&run_bridge_tests.step);
 
     exe.root_module.addCSourceFile(.{
         .file = b.path(cfile),
