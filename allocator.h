@@ -1,4 +1,3 @@
-#include <stdio.h>
 #if !defined SINGLE_ALLOCATOR_H
   #define SINGLE_ALLOCATOR_H (1)
   #include "macros.h"
@@ -112,7 +111,7 @@ void *stdAllocatorFunction(
     case RESIZE:;
       return (assert(op && "allocator does not return null"), pptr(P$(realloc(op, to), (assert($ && "realloc null"), $))));
     default:
-      assert(printf("invalid call from %s line %u: (%p , %zu , %zu)", fname, ln, op, from, to) && false);
+      __builtin_trap();
   }
   __builtin_trap();
 }
