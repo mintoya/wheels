@@ -3,7 +3,6 @@
   #include "../allocator.h"
   #include "../fptr.h"
   #include "../mytypes.h"
-  #include <string.h>
 
 // 1 : string
 // 2 : context

@@ -40,7 +40,8 @@ vason_container vason_container_create(slice(c8) text, allocfn allocator);
 void vason_container_free(vason_container container);
 usize vason_container_footprint(vason_container c);
 // {printer
-  #include "print.h"
+  #if defined(MY_PRINTER_H)
+    #include "print.h"
 typePrinter(vason_container) {
   if (in.current >= msList_len(in.tags) || in.tags[in.current] & vason_INVALID) {
     PUTS("(!)");
@@ -94,6 +95,7 @@ typePrinter(vason_container) {
     } break;
   }
 }
+  #endif
 // }
 
 // referance requred since lazy containers modify tehmselves

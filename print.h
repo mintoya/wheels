@@ -1,15 +1,13 @@
 #if !defined MY_PRINTER_H
   #define MY_PRINTER_H (1)
-  #include "allocator.h"
-  #include "assertMessage.h"
-  #include "macros.h"
+  #include "print/print_pre.h"
   #include "sList.h"
   #include <locale.h>
-  #include <stdatomic.h>
-  #include <stdio.h>
+  #include <stdatomic.h> // TODO :allocator context is overcomplicated
   #include <string.h>
 
   #if !defined(NOFILEPRINTER)
+    #include <stdio.h>
 void fileprint(
     const c8 *c,
     void *fileHandle,
