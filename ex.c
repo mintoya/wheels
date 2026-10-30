@@ -1,3 +1,4 @@
+#include "fptr.h"
 #include "macros.h"
 #include "mytypes.h"
 // #include "wheels/macros/foreach4.h"
@@ -14,21 +15,26 @@ typedef struct {
       .name = ITER_FIRST(ITER_POP(item)),                  \
       .description = ITER_FIRST(ITER_POP(ITER_POP(item))), \
       .present = false,                                    \
+      .value = nullptr,                                    \
   }
-#define defargs(items, short)                                      \
-  ((struct {                                                       \
-    struct {                                                       \
-      APPLY_N(defarg_struct_item, REM_PAREN items)                 \
-    } options;                                                     \
-    unsigned int shortcount;                                       \
-    struct {                                                       \
-      char *shortname, *name;                                      \
-    } *shorts;                                                     \
-  }){                                                              \
-      .options = {                                                 \
-          APPLY_N_C(defarg_options_init, REM_PAREN items)          \
-      },                                                           \
-      .shortcount = countof((struct {char * a ; char* b; }[]){REMOVE_PARENS(short)}), \
+#define defarg_countargs(x) +1
+typedef struct {
+  char *shortname, *longname;
+} defarg_short;
+#define defargs(items, short)                                  \
+  ((struct {                                                   \
+    union {                                                    \
+      struct {                                                 \
+        APPLY_N(defarg_struct_item, REM_PAREN items)           \
+      } options;                                               \
+      defarg_struct_item_t array[COUNT_ARGS(REM_PAREN items)]; \
+    };                                                         \
+    defarg_short *shorts;                                      \
+  }){                                                          \
+      .array = {                                               \
+          APPLY_N_C(defarg_options_init, REM_PAREN items)      \
+      },                                                       \
+      .shorts = (defarg_short[]){REMOVE_PARENS(short), {0}}    \
   })
 
 let static const Options = defargs(
@@ -38,14 +44,13 @@ let static const Options = defargs(
     ),
     // short
     ({"-h", "--help"},
-     {"-o", "--out"},
-     {"bs", "bs"})
+     {"-o", "--out"})
 );
 #include "stdio.h"
 int main(void) {
-  printf("%i\n", Options.shortcount);
   int count = sizeof(Options.options) / sizeof(defarg_struct_item_t);
-  defarg_struct_item_t(*items)[count] = (typeof(items))(&Options.options);
-  foreach (let item, vla_iter(*items))
+  foreach (let item, vla_iter(Options.array))
     printf("name : %s,description : %s\n", item.name, item.description);
+  foreach (let item, vla_iter(*sentList_vla(Options.shorts)))
+    printf("long : %s,  short: %s\n", item.longname, item.shortname);
 }
