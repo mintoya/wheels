@@ -141,4 +141,24 @@ int main(void) {
   }
   assert(!iter_test_map_iter_next(&state).hasvalue);
   iter_test_map_free(generated);
+  void map_test(void);
+  map_test();
 }
+static const char *start_marker = "";
+void map_test(void) {
+  foreach (
+      let i,
+      iter_transform(
+          ($ * 5),
+          iter_filter(
+              ($ % 2 == 1),
+              iter_until(
+                  ($ >= 20),
+                  range(0, 30)
+              )
+          )
+      )
+  )
+    println("iteration   {}", i);
+}
+static const char *end_marker = "";

@@ -125,14 +125,62 @@
      };                                                           \
    })),                                                           \
    (($iter._next(&$iter._state))))
+// combinators
+#define iter_until(condition, iterator) (    \
+    (ITER_GET_TYPE(iterator)),               \
+    (ITER_GET_VAL(iterator)),                \
+    (({                                      \
+      let $result = ITER_GET_NEXT(iterator); \
+      if ($result.hasvalue) {                \
+        let $ = $result.value;               \
+        $result.hasvalue = !(condition);     \
+      }                                      \
+      $result;                               \
+    })),                                     \
+)
+#define iter_transform(transformation, iterator) ( \
+    (ITER_GET_TYPE(iterator)),                     \
+    (ITER_GET_VAL(iterator)),                      \
+    (({                                            \
+      let $old = ITER_GET_NEXT(iterator);          \
+      struct {                                     \
+        char hasvalue;                             \
+        typeof(({                                  \
+          let $ = $old.value;                      \
+          (transformation);                        \
+        })) value;                                 \
+      } $result = {0};                             \
+      if ($old.hasvalue) {                         \
+        let $ = $old.value;                        \
+        $result.hasvalue = 1;                      \
+        $result.value = (transformation);          \
+      }                                            \
+      $result;                                     \
+    })),                                           \
+)
+#define iter_filter(condition, iterator) (   \
+    (ITER_GET_TYPE(iterator)),               \
+    (ITER_GET_VAL(iterator)),                \
+    (({                                      \
+      /*__label__ $again;*/                  \
+      {                                      \
+      $again:;                               \
+      }                                      \
+      let $result = ITER_GET_NEXT(iterator); \
+      if ($result.hasvalue &&                \
+          !({ let $ = $result.value; (condition); }))                            \
+        goto $again;                         \
+      $result;                               \
+    })),                                     \
+)
 
 #define ITER_POP_H(a, ...) (__VA_ARGS__)
 #define ITER_POP(tuple) ITER_POP_H tuple
 #define ITER_FIRST_H(a, ...) a
 #define ITER_FIRST(tuple) ITER_FIRST_H tuple
-#define ITER_GET_TYPE(tuple) REMOVE_PARENS(ITER_FIRST(tuple))
-#define ITER_GET_VAL(tuple) REMOVE_PARENS(ITER_FIRST(ITER_POP(tuple)))
-#define ITER_GET_NEXT(tuple) REMOVE_PARENS(ITER_FIRST(ITER_POP(ITER_POP(tuple))))
+#define ITER_GET_TYPE(tuple) /**/ REMOVE_PARENS(ITER_FIRST /*                  */ (tuple))
+#define ITER_GET_VAL(tuple) /* */ REMOVE_PARENS(ITER_FIRST(ITER_POP /*         */ (tuple)))
+#define ITER_GET_NEXT(tuple) /**/ REMOVE_PARENS(ITER_FIRST(ITER_POP(ITER_POP /**/ (tuple))))
 
 #define foreach(decl, iterator)                     \
   for (struct {                                     \
