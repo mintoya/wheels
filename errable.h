@@ -1,10 +1,10 @@
-#include <assert.h>
-#include <stdint.h>
 #if !defined(MY_ERRORS_H)
   #define MY_ERRORS_H (1)
   #include "assertMessage.h"
   #include "macros.h"
   #include "mytypes.h"
+  #include <assert.h>
+  #include <stdint.h>
   #include <stdio.h>
 
 typedef char *(*err_print_fn)(void *);
